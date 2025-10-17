@@ -1,0 +1,38 @@
+# Dépendances
+node_modules/
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Fichiers d'environnement
+.env
+.env.local
+.env.*.local
+
+# Fichiers de build
+dist/
+build/
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Uploads (temporaires)
+backend/uploads/*
+!backend/uploads/.gitkeep
+temp/
+
+# Base de données locale
+*.db
+*.sqlite

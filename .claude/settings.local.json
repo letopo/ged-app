@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(psql:*)",
+      "Bash(node -e:*)",
+      "Bash(npm install)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File ./create-backend-files.ps1)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"c:\\Users\\AFY\\Documents\\HSJM\\Documents\\APPS\\ged-app\\backend\\create-backend-files.ps1\")",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
