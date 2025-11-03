@@ -1,208 +1,181 @@
-﻿// backend/src/controllers/documentController.js - VERSION CORRIGÉE
+﻿// backend/src/controllers/documentController.js - VERSION FINALE COMPLÈTE ET CORRIGÉE
 
 import { Op } from 'sequelize';
-import Document from '../models/Document.js';
-import User from '../models/User.js';
+import { Document, User, Workflow } from '../models/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 
 export const uploadDocument = async (req, res) => {
   try {
-    // 1. Vérifier que le fichier a bien été uploadé
     if (!req.file) {
-      return res.status(400).json({ success: false, error: 'Aucun fichier uploadé' });
+      return res.status(400).json({ success: false, message: 'Aucun fichier fourni.' });
     }
+    
+    // Extrait les données du corps de la requête et du fichier uploadé
+    const { title, category, dateDebut, dateFin, nomsDemandeur, metadata } = req.body;
+    const { filename, originalname, size, mimetype } = req.file;
 
-    // 2. Extraire les informations du corps de la requête
-    const { title, category, tags, metadata } = req.body;
+    const relativeFilePath = `uploads/${filename}`;
 
-    // 3. Extraire les informations du fichier (via multer) et de l'utilisateur (via l'auth)
-    const { path: filePath, size, mimetype, filename, originalname } = req.file;
-    const userId = req.user.id;
+    // Parse le metadata, en s'assurant qu'il y a un objet par défaut
+    let parsedMetadata = {};
+    if (metadata) {
+      try {
+        parsedMetadata = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+      } catch (err) {
+        console.warn('Metadata invalide, ignoré:', err.message);
+        parsedMetadata = {};
+      }
+    }
+    
+    // Log pour le débogage
+    console.log('📦 Metadata reçu et parsé:', parsedMetadata);
 
-    // 4. CORRECTION: Transformer la chaîne de tags en un tableau JSON valide
-    const tagsArray = tags ? tags.split(',').map(tag => tag.trim()) : [];
+    const documentData = {
+      title: title || `Demande de travaux - ${parsedMetadata.service || 'Inconnu'}`,
+      fileName: filename, // Nom du fichier sur le serveur (avec timestamp)
+      originalName: originalname, // Nom original du fichier de l'utilisateur
+      filePath: relativeFilePath,
+      fileSize: size,
+      fileType: mimetype,
+      userId: req.user.id,
+      category: category || parsedMetadata.type || null, // Prend la catégorie ou le type du metadata
+      metadata: parsedMetadata,
+      status: 'draft',
+      dateDebut: dateDebut ? new Date(dateDebut) : null,
+      dateFin: dateFin ? new Date(dateFin) : null,
+    };
 
-    // 5. Créer le document avec TOUTES les informations requises
-    const newDocument = await Document.create({
-      title: title || originalname,
-      filename: filename,
-      originalName: originalname,
-      path: filePath,
-      size: size,
-      type: mimetype,
-      userId: userId, // On fournit l'ID de l'utilisateur
-      category: category,
-      tags: tagsArray, // On utilise le tableau transformé
-      metadata: metadata,
+    const newDocument = await Document.create(documentData);
+    
+    // Récupère le document créé avec les informations de l'utilisateur pour le renvoyer au frontend
+    const resultWithUser = await Document.findByPk(newDocument.id, {
+        include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }]
     });
+    
+    res.status(201).json({ success: true, data: resultWithUser, message: 'Document uploadé avec succès.' });
 
-    res.status(201).json({ success: true, data: newDocument });
   } catch (error) {
-    console.error('Erreur upload:', error);
-    if (error.name === 'SequelizeValidationError') {
-      return res.status(400).json({ success: false, error: error.message, details: error.errors });
+    console.error('❌ Erreur lors de l\'upload du document:', error);
+    // En cas d'erreur, on supprime le fichier qui a été uploadé pour ne pas polluer le disque
+    if (req.file) {
+      try { 
+        await fs.unlink(req.file.path); 
+      } catch (err) { 
+        console.error("Échec de la suppression du fichier après erreur:", err); 
+      }
     }
-    res.status(500).json({ success: false, error: 'Erreur serveur' });
+    res.status(500).json({ success: false, message: 'Erreur serveur lors de l\'upload.' });
   }
 };
 
 export const getDocuments = async (req, res) => {
-  const { page = 1, limit = 20, category, status } = req.query;
-
   try {
-    const where = {};
-    if (category) where.category = category;
-    if (status) where.status = status;
-    // CORRECTION: Utiliser userId pour le filtrage
-    if (req.user.role !== 'admin') where.userId = req.user.id;
-
-    const { count, rows } = await Document.findAndCountAll({
-      where,
-      limit: parseInt(limit),
-      offset: (parseInt(page) - 1) * parseInt(limit),
-      order: [['createdAt', 'DESC']],
-      // CORRECTION: Utiliser l'alias 'user' défini dans le modèle
-      include: [{ model: User, as: 'user', attributes: ['id', 'firstName', 'lastName'] }],
-      attributes: { exclude: ['extractedText'] }
+    const whereClause = {};
+    const userRole = req.user.role;
+    const userId = req.user.id;
+    if (userRole !== 'admin' && userRole !== 'director') {
+      whereClause.userId = userId;
+    }
+    const documents = await Document.findAll({ 
+        where: whereClause, 
+        include: [
+            { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
+            { 
+              model: Workflow, 
+              as: 'workflows', 
+              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }] 
+            }
+        ], 
+        order: [['createdAt', 'DESC']], 
     });
-
-    res.json({
-      success: true,
-      data: rows,
-      pagination: {
-        total: count,
-        page: parseInt(page),
-        pages: Math.ceil(count / parseInt(limit))
-      }
-    });
+    res.json({ success: true, data: documents });
   } catch (error) {
-    console.error('Erreur récupération:', error);
-    res.status(500).json({ success: false, error: 'Erreur récupération' });
+    console.error('❌ Erreur récupération documents:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
 
 export const getDocument = async (req, res) => {
   try {
-    const document = await Document.findByPk(req.params.id, {
-      include: [
-        // CORRECTION: Utiliser l'alias 'user'
-        { model: User, as: 'user', attributes: ['id', 'firstName', 'lastName'] },
-        // NOTE: Si vous voulez aussi le validateur, l'alias doit correspondre à celui défini.
-        // Je le commente pour l'instant car il n'est pas dans votre index.js sur Document.
-        // { model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }
-      ]
+    const document = await Document.findByPk(req.params.id, { 
+        include: [
+            { model: User, as: 'uploadedBy' },
+            {
+              model: Workflow,
+              as: 'workflows',
+              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }]
+            }
+        ] 
     });
-
-    if (!document) {
-      return res.status(404).json({ success: false, error: 'Document non trouvé' });
+    if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
+    if (req.user.role !== 'admin' && req.user.role !== 'director' && document.userId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
-
-    // CORRECTION: Utiliser userId pour la vérification des droits
-    if (req.user.role !== 'admin' && document.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Accès refusé' });
-    }
-
     res.json({ success: true, data: document });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Erreur récupération' });
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
 
 export const updateDocument = async (req, res) => {
-  const { title, description, category, tags, status } = req.body;
-
   try {
     const document = await Document.findByPk(req.params.id);
-
-    if (!document) {
-      return res.status(404).json({ success: false, error: 'Document non trouvé' });
-    }
-
-    // CORRECTION: Utiliser userId pour la vérification des droits
+    if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
     if (req.user.role !== 'admin' && document.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Accès refusé' });
+      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
-
-    if (title) document.title = title;
-    if (description) document.description = description;
-    if (category) document.category = category;
-    if (tags) document.tags = tags.split(',').map(t => t.trim());
-
-    if (status && ['admin', 'manager'].includes(req.user.role)) {
-      document.status = status;
-      // Note: les champs validatedBy et validatedAt n'existent pas dans votre modèle Document.js
-      // if (status === 'approved' || status === 'rejected') {
-      //   document.validatedBy = req.user.id;
-      //   document.validatedAt = new Date();
-      // }
-    }
-
-    await document.save();
-
-    res.json({ success: true, data: document, message: 'Document mis à jour' });
+    await document.update(req.body);
+    const updatedDocument = await Document.findByPk(req.params.id, { include: [{ model: User, as: 'uploadedBy' }] });
+    res.json({ success: true, data: updatedDocument, message: 'Document mis à jour.' });
   } catch (error) {
-    console.error('Erreur mise à jour:', error);
-    res.status(500).json({ success: false, error: 'Erreur mise à jour' });
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
 
-export const deleteDocument = async (req, res) => {
+export const deleteDocument = async (req, res, next) => {
   try {
-    const document = await Document.findByPk(req.params.id);
-
-    if (!document) {
-      return res.status(404).json({ success: false, error: 'Document non trouvé' });
-    }
-
-    // CORRECTION: Utiliser userId pour la vérification des droits
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ success: false, message: "ID du document manquant." });
+    const document = await Document.findByPk(id);
+    if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
     if (req.user.role !== 'admin' && document.userId !== req.user.id) {
-      return res.status(403).json({ success: false, error: 'Accès refusé' });
+      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
-
-    // CORRECTION BONUS: Utiliser document.path pour le chemin du fichier
-    await fs.unlink(document.path).catch(console.error);
+    const fullPath = path.resolve(process.cwd(), document.filePath);
+    try { await fs.unlink(fullPath); } catch(err) { console.warn("Fichier physique déjà supprimé ou introuvable:", err.message); }
+    await Workflow.destroy({ where: { documentId: id } });
     await document.destroy();
-
-    res.json({ success: true, message: 'Document supprimé' });
+    res.json({ success: true, message: 'Document supprimé.' });
   } catch (error) {
-    console.error('Erreur suppression:', error);
-    res.status(500).json({ success: false, error: 'Erreur suppression' });
+    next(error);
   }
 };
 
 export const searchDocuments = async (req, res) => {
-  const { q } = req.query;
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ success: false, error: 'Terme de recherche requis' });
+    try {
+        const where = { [Op.or]: [ { title: { [Op.iLike]: `%${q}%` } }, { originalName: { [Op.iLike]: `%${q}%` } } ] };
+        if (req.user.role !== 'admin') where.userId = req.user.id;
+        const documents = await Document.findAll({ where, limit: 50, include: [{ model: User, as: 'uploadedBy' }], });
+        res.json({ success: true, data: documents });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Erreur recherche' });
+    }
+};
 
-  if (!q) {
-    return res.status(400).json({ success: false, error: 'Terme de recherche requis' });
-  }
-
-  try {
-    const where = {
-      [Op.or]: [
-        { title: { [Op.iLike]: `%${q}%` } },
-        { description: { [Op.iLike]: `%${q}%` } },
-        // Note: fileName n'existe pas dans le modèle, c'est 'filename' ou 'originalName'
-        { filename: { [Op.iLike]: `%${q}%` } },
-        { originalName: { [Op.iLike]: `%${q}%` } }
-      ]
-    };
-
-    // CORRECTION: Utiliser userId pour le filtrage
-    if (req.user.role !== 'admin') where.userId = req.user.id;
-
-    const documents = await Document.findAll({
-      where,
-      limit: 50,
-      // CORRECTION: Utiliser l'alias 'user'
-      include: [{ model: User, as: 'user', attributes: ['id', 'firstName', 'lastName'] }],
-      attributes: { exclude: ['extractedText'] }
-    });
-
-    res.json({ success: true, data: documents, count: documents.length });
-  } catch (error) {
-    console.error('Erreur recherche:', error);
-    res.status(500).json({ success: false, error: 'Erreur recherche' });
-  }
+export const downloadDocument = async (req, res) => {
+    try {
+        const document = await Document.findByPk(req.params.id);
+        if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
+        if (req.user.role !== 'admin' && req.user.role !== 'director' && document.userId !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
+        }
+        const filePath = path.resolve(process.cwd(), document.filePath);
+        try { await fs.access(filePath); res.download(filePath, document.originalName); }
+        catch { res.status(404).send('Fichier introuvable sur le serveur.'); }
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
 };

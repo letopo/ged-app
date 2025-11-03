@@ -1,46 +1,48 @@
-﻿import express from 'express';
-import multer from 'multer';
-import path from 'path';
+﻿// backend/src/routes/documents.js - VERSION 100% COMPLÈTE ET NETTOYÉE
+import express from 'express';
+import { protect } from '../middleware/auth.js';
+import upload from '../middleware/upload.js'; // <- ON IMPORTE LE MIDDLEWARE CENTRALISÉ
 import {
   uploadDocument,
   getDocuments,
   getDocument,
   updateDocument,
   deleteDocument,
+  downloadDocument,
   searchDocuments
 } from '../controllers/documentController.js';
-import { authenticateToken } from '../middleware/auth.js';
-import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Appliquer la protection par token JWT à toutes les routes de ce fichier
+router.use(protect);
 
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = /pdf|doc|docx|jpg|jpeg|png|xlsx|xls|txt/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  if (extname) cb(null, true);
-  else cb(new Error('Type de fichier non autorisé'));
-};
+// @route   POST /api/documents/upload
+// @desc    Upload un nouveau document
+// @access  Private
+// On utilise le middleware 'upload'. '.single('file')' doit correspondre au nom du champ dans le FormData du frontend.
+router.post('/upload', upload.single('file'), uploadDocument);
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
-  fileFilter
-});
+// @route   GET /api/documents
+// @desc    Récupérer tous les documents
+// @access  Private
+router.get('/', getDocuments);
 
-router.use(authenticateToken);
-router.post('/', upload.single('file'), asyncHandler(uploadDocument));
-router.get('/', asyncHandler(getDocuments));
-router.get('/search', asyncHandler(searchDocuments));
-router.get('/:id', asyncHandler(getDocument));
-router.put('/:id', asyncHandler(updateDocument));
-router.delete('/:id', asyncHandler(deleteDocument));
+// @route   GET /api/documents/search
+// @desc    Rechercher des documents
+// @access  Private
+// Note: la route est plus standard sans '/query'
+router.get('/search', searchDocuments);
+
+// Routes pour un document spécifique par son ID
+router.route('/:id')
+  .get(getDocument)
+  .put(updateDocument)
+  .delete(deleteDocument);
+
+// @route   GET /api/documents/:id/download
+// @desc    Télécharger un document
+// @access  Private
+router.get('/:id/download', downloadDocument);
 
 export default router;

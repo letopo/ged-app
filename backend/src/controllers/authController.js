@@ -1,149 +1,122 @@
-﻿import jwt from 'jsonwebtoken';
-import { validationResult } from 'express-validator';
+﻿// backend/src/controllers/authController.js
+import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
 import User from '../models/User.js';
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
-  });
+const generateToken = (user) => {
+  return jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRE || '7d' }
+  );
 };
 
-export const register = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
-  }
-
-  const { email, password, firstName, lastName, username } = req.body; // ← AJOUTÉ username
-
+export const register = async (req, res, next) => {
   try {
-    // Vérifier email
-    const existingUser = await User.findOne({ where: { email } });
+    const { email, password, firstName, lastName, username, role } = req.body;
+
+    if (!email || !password || !username) {
+      return res.status(400).json({ success: false, error: 'Email, mot de passe et nom d\'utilisateur sont requis' });
+    }
+
+    const existingUser = await User.findOne({ where: { [Op.or]: [{ email }, { username }] } });
     if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        error: 'Cet email est déjà utilisé'
-      });
+      return res.status(409).json({ success: false, error: 'Email ou nom d\'utilisateur déjà utilisé.' });
     }
 
-    // Vérifier username
-    const existingUsername = await User.findOne({ where: { username } });
-    if (existingUsername) {
-      return res.status(409).json({
-        success: false,
-        error: 'Ce nom d\'utilisateur est déjà utilisé'
-      });
-    }
-
-    // Créer l'utilisateur AVEC username
-    const user = await User.create({ 
-      email, 
-      password, 
-      firstName, 
-      lastName,
-      username  // ← AJOUTÉ username
+    // Le hachage est maintenant géré par le hook du modèle User.js.
+    // Il suffit de passer le mot de passe en clair.
+    const user = await User.create({
+      email, password, firstName, lastName, username, role: role || 'user'
     });
     
-    const token = generateToken(user.id);
+    const token = generateToken(user);
+    const userResult = user.toJSON();
+    delete userResult.password;
 
-    res.status(201).json({
-      success: true,
-      token,  // ← Structure corrigée
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role
-      },
-      message: 'Inscription réussie'
-    });
+    res.status(201).json({ success: true, message: 'Compte créé avec succès', token, user: userResult });
   } catch (error) {
-    console.error('Erreur inscription:', error);
-    res.status(500).json({ success: false, error: 'Erreur inscription' });
+    next(error);
   }
 };
 
-export const login = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
-  }
-
-  const { username, password } = req.body;
-
+export const login = async (req, res, next) => {
   try {
-    // Accepter username OU email
-    const user = await User.findOne({ 
-      where: { 
-        [Op.or]: [
-          { username },
-          { email: username }  // Si username contient @, chercher par email aussi
-        ]
-      } 
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: 'Identifiant et mot de passe requis' });
+    }
+
+    const user = await User.scope('withPassword').findOne({ 
+      where: { [Op.or]: [{ email: username }, { username: username }] }
     });
 
+    // Utilisation de la méthode comparePassword() du modèle
     if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({
-        success: false,
-        error: 'Identifiants invalides'
-      });
+      return res.status(401).json({ success: false, error: 'Identifiants invalides' });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        error: 'Compte désactivé'
-      });
+      return res.status(403).json({ success: false, error: 'Ce compte a été désactivé' });
     }
 
-    user.lastLogin = new Date();
-    await user.save();
+    await user.update({ lastLogin: new Date() });
+    const token = generateToken(user);
+    const userResult = user.toJSON();
+    delete userResult.password;
 
-    const token = generateToken(user.id);
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role
-      },
-      message: 'Connexion réussie'
-    });
+    res.json({ success: true, message: 'Connexion réussie', token, user: userResult });
   } catch (error) {
-    console.error('Erreur connexion:', error);
-    res.status(500).json({ success: false, error: 'Erreur connexion' });
+    next(error);
   }
 };
 
-export const getProfile = async (req, res) => {
-  try {
-    const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password'] }
-    });
-    res.json({ success: true, data: user });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Erreur profil' });
-  }
-};
+// ... gardez les autres fonctions (getProfile, updateProfile) telles quelles.
+// Le reste du fichier est correct.
 
-export const updateProfile = async (req, res) => {
-  const { firstName, lastName, email } = req.body;
-  try {
-    const user = await User.findByPk(req.user.id);
-    if (firstName) user.firstName = firstName;
-    if (lastName) user.lastName = lastName;
-    if (email) user.email = email;
-    await user.save();
-    res.json({ success: true, data: user.toJSON(), message: 'Profil mis à jour' });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Erreur mise à jour' });
-  }
+export const getProfile = async (req, res, next) => {
+    try {
+      res.json({ success: true, user: req.user });
+    } catch (error) {
+      next(error);
+    }
+};
+  
+export const updateProfile = async (req, res, next) => {
+    try {
+        const { firstName, lastName, username, currentPassword, newPassword } = req.body;
+    
+        // On doit récupérer l'utilisateur avec son mot de passe pour la comparaison
+        const user = await User.scope('withPassword').findByPk(req.user.id);
+    
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
+        }
+    
+        if (firstName !== undefined) user.firstName = firstName;
+        if (lastName !== undefined) user.lastName = lastName;
+        if (username !== undefined) user.username = username;
+    
+        // Changement de mot de passe
+        if (newPassword) {
+            if (!currentPassword) {
+                return res.status(400).json({ success: false, error: 'Le mot de passe actuel est requis' });
+            }
+            if (!(await user.comparePassword(currentPassword))) {
+                return res.status(401).json({ success: false, error: 'Mot de passe actuel incorrect' });
+            }
+            // Le hook `beforeSave` s'occupera de hacher le nouveau mot de passe
+            user.password = newPassword;
+        }
+    
+        await user.save();
+    
+        const updatedUser = user.toJSON();
+        delete updatedUser.password;
+    
+        res.json({ success: true, message: 'Profil mis à jour', user: updatedUser });
+    } catch (error) {
+        next(error);
+    }
 };

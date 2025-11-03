@@ -1,4 +1,5 @@
-﻿// backend/src/models/Document.js - MISE À JOUR
+﻿// backend/src/models/Document.js - VERSION FINALE COMPLÈTE ET CORRIGÉE
+
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
@@ -6,76 +7,84 @@ const Document = sequelize.define('Document', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+    primaryKey: true,
   },
   title: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
   },
-  filename: {
+  fileName: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    field: 'file_name',
   },
   originalName: {
     type: DataTypes.STRING,
+    allowNull: true, // Peut être null si on ne le sauvegarde pas
+    field: 'original_name',
+  },
+  filePath: {
+    type: DataTypes.STRING,
     allowNull: false,
-    field: 'original_name'
+    field: 'file_path',
   },
-  path: {
+  fileSize: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'file_size',
+  },
+  fileType: {
     type: DataTypes.STRING,
-    allowNull: false
-  },
-  size: {
-    type: DataTypes.BIGINT,
-    allowNull: false
-  },
-  type: {
-    type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    field: 'file_type',
   },
   userId: {
     type: DataTypes.UUID,
     allowNull: false,
     field: 'user_id',
-    references: {
-      model: 'users',
-      key: 'id'
-    }
-  },
-  status: {
-    type: DataTypes.ENUM('draft', 'pending_validation', 'validated', 'rejected', 'archived'),
-    defaultValue: 'draft'
   },
   category: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: true,
   },
-  tags: {
-    type: DataTypes.JSON,
-    defaultValue: []
+  linkedDocumentId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'linked_document_id',
+  },
+  dateDebut: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'date_debut',
+  },
+  dateFin: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'date_fin',
+  },
+  status: {
+    type: DataTypes.STRING,
+    defaultValue: 'draft',
   },
   metadata: {
-    type: DataTypes.JSON,
-    defaultValue: {},
-    comment: 'Métadonnées supplémentaires (OCR, workflow, etc.)'
+    type: DataTypes.JSONB,
   },
   extractedText: {
     type: DataTypes.TEXT,
     allowNull: true,
     field: 'extracted_text',
-    comment: 'Texte extrait par OCR'
   }
 }, {
   tableName: 'documents',
   timestamps: true,
   underscored: true,
-  indexes: [
-    { fields: ['user_id'] },
-    { fields: ['type'] },
-    { fields: ['status'] },
-    { fields: ['category'] },
-    { fields: ['created_at'] }
-  ]
 });
+
+Document.associate = function(models) {
+  this.belongsTo(models.User, { foreignKey: 'userId', as: 'uploadedBy' });
+  this.hasMany(models.Workflow, { foreignKey: 'documentId', as: 'workflows' });
+  this.belongsTo(models.Document, { foreignKey: 'linkedDocumentId', as: 'linkedDocument' });
+  this.hasMany(models.Document, { foreignKey: 'linkedDocumentId', as: 'dependentDocuments' });
+};
 
 export default Document;

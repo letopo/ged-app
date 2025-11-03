@@ -1,139 +1,61 @@
-﻿// frontend/src/App.jsx - VERSION FINALE CORRECTE
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+﻿// frontend/src/App.jsx - VERSION MISE À JOUR
 
-// Composants d'authentification
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import useNotifications from './hooks/useNotifications';
+
+import Navbar from './components/Navbar';
 import Login from './components/Login';
 import Register from './components/Register';
-
-// Composants principaux
 import Dashboard from './components/Dashboard';
+import DocumentList from './pages/DocumentList';
 import Upload from './components/Upload';
 import MyTasks from './components/MyTasks';
-import Navbar from './components/Navbar';
+import WorkflowDashboard from './pages/WorkflowDashboard';
+import UserManagement from './pages/UserManagement';
+import CreateFromTemplate from './pages/CreateFromTemplate';
+import CreateWorkRequest from './pages/CreateWorkRequest'; // 👈 1. IMPORTER
+import ServicesManagement from './pages/ServicesManagement';
 
-// Pages avec visualisation (dans pages/)
-import DocumentList from './pages/DocumentList';           // ← ICI : pages/ pas components/
-import WorkflowDashboard from './pages/WorkflowDashboard'; // ← ICI : pages/ pas components/
+
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <div>Chargement...</div>;
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
+
+const AdminRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <div>Chargement...</div>;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return user?.role === 'admin' ? children : <Navigate to="/dashboard" replace />;
+};
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (token && storedUser) {
-      setIsAuthenticated(true);
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  const handleLogin = (token, userData) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setIsAuthenticated(true);
-    setUser(userData);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setIsAuthenticated(false);
-    setUser(null);
-  };
-
-  // Route protégée
-  const ProtectedRoute = ({ children }) => {
-    return isAuthenticated ? children : <Navigate to="/login" />;
-  };
+  const { user, login, logout, isAuthenticated } = useAuth();
+  useNotifications();
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        {isAuthenticated && <Navbar user={user} onLogout={handleLogout} />}
+      {isAuthenticated && <Navbar user={user} onLogout={logout} />}
+      <Routes>
+        <Route path="/login" element={<Login onLogin={login} />} />
+        <Route path="/register" element={<Register />} />
         
-        <Routes>
-          {/* Routes publiques */}
-          <Route 
-            path="/login" 
-            element={
-              isAuthenticated ? 
-                <Navigate to="/dashboard" /> : 
-                <Login onLogin={handleLogin} />
-            } 
-          />
-          
-          <Route 
-            path="/register" 
-            element={
-              isAuthenticated ? 
-                <Navigate to="/dashboard" /> : 
-                <Register />
-            } 
-          />
-
-          {/* Routes protégées */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/documents" 
-            element={
-              <ProtectedRoute>
-                <DocumentList />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/upload" 
-            element={
-              <ProtectedRoute>
-                <Upload />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Routes Workflow */}
-          <Route 
-            path="/my-tasks" 
-            element={
-              <ProtectedRoute>
-                <MyTasks />
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/workflow-dashboard" 
-            element={
-              <ProtectedRoute>
-                <WorkflowDashboard />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Redirection par défaut */}
-          <Route 
-            path="/" 
-            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} 
-          />
-          
-          {/* 404 */}
-          <Route 
-            path="*" 
-            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} 
-          />
-        </Routes>
-      </div>
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/documents" element={<ProtectedRoute><DocumentList /></ProtectedRoute>} />
+        <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
+        <Route path="/my-tasks" element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
+        <Route path="/workflow-dashboard" element={<ProtectedRoute><WorkflowDashboard /></ProtectedRoute>} />
+        <Route path="/user-management" element={<AdminRoute><UserManagement /></AdminRoute>} />
+        
+        {/* Routes pour la création de documents */}
+        <Route path="/create-from-template" element={<ProtectedRoute><CreateFromTemplate /></ProtectedRoute>} />
+        <Route path="/create-work-request" element={<ProtectedRoute><CreateWorkRequest /></ProtectedRoute>} /> {/* 👈 2. AJOUTER LA NOUVELLE ROUTE */}
+        
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
+        <Route path="/services" element={<ServicesManagement />} />
+      </Routes>
     </Router>
   );
 }

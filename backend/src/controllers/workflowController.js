@@ -1,94 +1,69 @@
-// backend/src/controllers/workflowController.js
-import { Workflow, Document, User } from '../models/index.js';
-import { Op } from 'sequelize';
+// backend/src/controllers/workflowController.js - VERSION FINALE COMPLÈTE
 
-// 📋 Créer un workflow de validation pour un document
+import { Workflow, Document, User } from '../models/index.js';
+import { sendNotificationEmail } from '../utils/mailer.js';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+import fs from 'fs/promises';
+import path from 'path';
+import { Op } from 'sequelize';
+import { sequelize } from '../models/index.js';
+
+// Créer un workflow
 export const createWorkflow = async (req, res) => {
   try {
     const { documentId, validatorIds } = req.body;
-    const userId = req.user.id;
-
-    console.log('📋 Création workflow pour document:', documentId);
-
-    // Vérifier que le document existe et appartient à l'utilisateur
-    const document = await Document.findOne({
-      where: { id: documentId, userId }
-    });
-
+    if (!documentId || !validatorIds || !Array.isArray(validatorIds) || validatorIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'documentId et validatorIds (array) sont requis.' });
+    }
+    const document = await Document.findByPk(documentId);
     if (!document) {
-      return res.status(404).json({ 
-        error: 'Document non trouvé ou non autorisé' 
-      });
+      return res.status(404).json({ success: false, message: 'Document introuvable.' });
     }
-
-    // Vérifier que les validateurs existent
-    if (!validatorIds || !Array.isArray(validatorIds) || validatorIds.length === 0) {
-      return res.status(400).json({ 
-        error: 'Au moins un validateur est requis' 
-      });
-    }
-
-    const validators = await User.findAll({
-      where: { id: { [Op.in]: validatorIds } }
-    });
-
-    if (validators.length !== validatorIds.length) {
-      return res.status(400).json({ 
-        error: 'Un ou plusieurs validateurs n\'existent pas' 
-      });
-    }
-
-    // Créer les tâches de workflow (une par validateur)
     const workflows = await Promise.all(
-      validatorIds.map((validatorId, index) => 
+      validatorIds.map((validatorId, index) =>
         Workflow.create({
           documentId,
           validatorId,
           step: index + 1,
-          status: 'pending'
+          status: index === 0 ? 'pending' : 'queued',
         })
       )
     );
-
-    // Mettre à jour le statut du document
-    await document.update({ 
-      status: 'pending_validation',
-      metadata: {
-        ...document.metadata,
-        workflowStartedAt: new Date(),
-        totalValidators: validatorIds.length
+    await document.update({ status: 'pending_validation' });
+    const firstValidator = await User.findByPk(validatorIds[0]);
+    if (firstValidator?.email) {
+      try {
+        await sendNotificationEmail(
+          firstValidator.email,
+          'Nouvelle tâche de validation',
+          `Vous avez une nouvelle tâche de validation pour le document "${document.title}".`
+        );
+      } catch (emailError) {
+        console.warn('⚠️ Erreur envoi email:', emailError.message);
       }
+    }
+    const workflowsWithValidators = await Workflow.findAll({
+      where: { documentId },
+      include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }],
+      order: [['step', 'ASC']],
     });
-
-    console.log('✅ Workflow créé avec succès:', workflows.length, 'tâches');
-
-    res.status(201).json({ 
-      message: 'Workflow créé avec succès',
-      workflows: workflows.map(w => ({
-        id: w.id,
-        validatorId: w.validatorId,
-        step: w.step,
-        status: w.status
-      }))
-    });
-
+    res.status(201).json({ success: true, data: workflowsWithValidators, message: 'Workflow créé avec succès.' });
   } catch (error) {
     console.error('❌ Erreur création workflow:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du workflow' });
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
 
-// 📥 Récupérer les tâches de validation de l'utilisateur connecté
+// Récupérer les tâches d'un utilisateur
 export const getMyTasks = async (req, res) => {
   try {
-    const userId = req.user.id;
     const { status } = req.query;
-
+    const userId = req.user.id;
     const whereClause = { validatorId: userId };
-    if (status) {
+    if (status && status !== 'all') {
       whereClause.status = status;
     }
-
     const tasks = await Workflow.findAll({
       where: whereClause,
       include: [
@@ -96,265 +71,254 @@ export const getMyTasks = async (req, res) => {
           model: Document,
           as: 'document',
           include: [
+            { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
             {
-              model: User,
-              as: 'user',
-              attributes: ['id', 'username', 'email', 'firstName', 'lastName']
-            }
-          ]
+              model: Workflow,
+              as: 'workflows',
+              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }],
+            },
+          ],
         },
-        {
-          model: User,
-          as: 'validator',
-          attributes: ['id', 'username', 'email', 'firstName', 'lastName']
-        }
       ],
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
     });
-
-    console.log('📥 Tâches récupérées:', tasks.length);
-
-    res.json({ 
-      tasks: tasks.map(task => ({
-        id: task.id,
-        status: task.status,
-        step: task.step,
-        comment: task.comment,
-        validatedAt: task.validatedAt,
-        createdAt: task.createdAt,
-        document: {
-          id: task.document.id,
-          title: task.document.title,
-          filename: task.document.filename,
-          type: task.document.type,
-          status: task.document.status,
-          uploadedBy: task.document.user
-        }
-      }))
-    });
-
+    res.json({ success: true, tasks });
   } catch (error) {
     console.error('❌ Erreur récupération tâches:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des tâches' });
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
 
-// 📄 Récupérer le workflow d'un document spécifique
+// Fonction helper pour réactiver une demande de travaux
+async function reactivateLinkedWorkRequest(originDocument, transaction) {
+  try {
+    const linkedWorkRequestId = originDocument.metadata?.linkedWorkRequestId;
+    if (!linkedWorkRequestId) {
+        console.log(`⚠️ Pas de DT liée trouvée pour le document ${originDocument.id}`);
+        return;
+    }
+
+    const workRequest = await Document.findByPk(linkedWorkRequestId, { transaction });
+    if (!workRequest) {
+        console.log(`⚠️ DT liée introuvable (ID: ${linkedWorkRequestId})`);
+        return;
+    }
+
+    const pausedWorkflow = await Workflow.findOne({ where: { documentId: workRequest.id, status: 'en_pause' }, transaction });
+    if (pausedWorkflow) {
+      const reason = originDocument.category === 'Demande de besoin' ? 'Demande de Besoin validée' : 'Fiche de Suivi validée';
+      
+      await pausedWorkflow.update({ status: 'pending', comment: `${reason}. Reprise du processus.` }, { transaction });
+      await workRequest.update({ status: 'in_progress' }, { transaction });
+      
+      const nextValidator = await User.findByPk(pausedWorkflow.validatorId, { transaction });
+      if (nextValidator?.email) {
+        try {
+          await sendNotificationEmail(
+            nextValidator.email,
+            'Demande de Travaux à reprendre',
+            `La ${reason} a été validée. Vous pouvez maintenant continuer la validation de "${workRequest.title}".`
+          );
+        } catch (emailError) {
+          console.warn('⚠️ Erreur envoi email:', emailError.message);
+        }
+      }
+      console.log(`✅ DT ${workRequest.id} réactivée suite à la validation de ${originDocument.category} ${originDocument.id}`);
+    }
+  } catch (error) {
+    console.error('❌ Erreur réactivation DT:', error);
+  }
+}
+
+// Valider une tâche (VERSION CORRIGÉE GÉRANT LA RÉACTIVATION VIA FS)
+export const validateTask = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { taskId } = req.params;
+    const { status, comment, validationType } = req.body;
+    const userId = req.user.id;
+
+    const task = await Workflow.findByPk(taskId, { include: [{ model: Document, as: 'document' }], transaction: t });
+    if (!task) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: 'Tâche introuvable.' });
+    }
+    if (task.validatorId !== userId) {
+      await t.rollback();
+      return res.status(403).json({ success: false, message: 'Non autorisé.' });
+    }
+
+    const document = task.document;
+    const validator = await User.findByPk(userId, { transaction: t });
+
+    if (validationType === 'pause') {
+        await task.update({ status: 'en_pause', comment, validatedAt: new Date() }, { transaction: t });
+        await document.update({ status: 'en_attente_dependance' }, { transaction: t });
+        await t.commit();
+        const updatedTask = await Workflow.findByPk(taskId, { include: [{ model: Document, as: 'document' }] });
+        return res.json({ success: true, data: updatedTask, message: 'Tâche mise en pause.' });
+    }
+
+    if (['signature', 'stamp', 'dater'].includes(validationType) && document.fileType === 'application/pdf') {
+        console.log(`📝 Application de ${validationType} sur le PDF...`);
+        const pdfPath = path.resolve(process.cwd(), document.filePath);
+        const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
+        pdfDoc.registerFontkit(fontkit);
+        const pages = pdfDoc.getPages();
+        const lastPage = pages[pages.length - 1];
+        const { width, height } = lastPage.getSize();
+        const totalSteps = await Workflow.count({ where: { documentId: document.id }, transaction: t });
+        const isLastStep = task.step === totalSteps;
+
+        if (validationType === 'dater' && validator.email === 'hsjm.rh@gmail.com') {
+            const specialEliteFontPath = path.resolve(process.cwd(), 'fonts/SpecialElite-Regular.ttf');
+            try {
+                const specialEliteFontBytes = await fs.readFile(specialEliteFontPath);
+                const customFont = await pdfDoc.embedFont(specialEliteFontBytes);
+                const dateText = `Reçu le : ${new Date().toLocaleDateString('fr-FR')}`;
+                lastPage.drawText(dateText, { x: 420, y: height - 100, size: 13, font: customFont, color: rgb(0.8, 0, 0) });
+            } catch (fontError) {
+                const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+                const dateText = `Reçu le : ${new Date().toLocaleDateString('fr-FR')}`;
+                lastPage.drawText(dateText, { x: 420, y: height - 100, size: 13, font, color: rgb(0.8, 0, 0) });
+            }
+        }
+
+        if (validationType === 'signature' && validator.signaturePath) {
+            const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
+            const signatureImageBytes = await fs.readFile(signatureImagePath);
+            const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+            const signatureBlockWidth = 170;
+            const margin = 50;
+            let x;
+            if (totalSteps >= 3) {
+                if (task.step === 1) x = 50;
+                else if (task.step === 2) x = (width / 2) - (signatureBlockWidth / 2);
+                else x = width - signatureBlockWidth - margin;
+            } else if (totalSteps === 2) {
+                x = (task.step === 1) ? 50 : width - signatureBlockWidth - margin;
+            } else {
+                x = width - signatureBlockWidth - margin;
+            }
+            const signatureDims = signatureImage.scaleToFit(140, 70);
+            const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
+            const signatureY = 88;
+            lastPage.drawImage(signatureImage, { x: signatureX, y: signatureY, width: signatureDims.width, height: signatureDims.height });
+        }
+
+        if (validationType === 'stamp' && isLastStep && validator.stampPath) {
+            const stampImagePath = path.resolve(process.cwd(), validator.stampPath);
+            const stampImageBytes = await fs.readFile(stampImagePath);
+            const stampImage = await pdfDoc.embedPng(stampImageBytes);
+            const stampDims = stampImage.scaleToFit(90, 90);
+            const signatureBlockWidth = 170;
+            const margin = 50;
+            let lastSignatureX;
+            if (totalSteps === 1) lastSignatureX = width - signatureBlockWidth - margin;
+            else if (totalSteps === 2) lastSignatureX = width - signatureBlockWidth - margin;
+            else lastSignatureX = width - signatureBlockWidth - margin;
+            const stampX = lastSignatureX + (signatureBlockWidth / 2) - (stampDims.width / 2);
+            const stampY = 120;
+            lastPage.drawImage(stampImage, { x: stampX, y: stampY, width: stampDims.width, height: stampDims.height });
+        }
+
+        const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
+        const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
+        await fs.writeFile(newFilePath, await pdfDoc.save());
+        await document.update({
+            filePath: `uploads/${newFileName}`,
+            fileName: newFileName,
+            metadata: { ...document.metadata, [`has_${validationType}`]: true },
+        }, { transaction: t });
+    }
+
+    if (status) {
+      await task.update({ status, comment, validatedAt: new Date() }, { transaction: t });
+      if (status === 'approved') {
+        const nextTask = await Workflow.findOne({
+          where: { documentId: document.id, status: 'queued' },
+          order: [['step', 'ASC']],
+          transaction: t
+        });
+        if (nextTask) {
+          await nextTask.update({ status: 'pending' }, { transaction: t });
+          await document.update({ status: 'in_progress' }, { transaction: t });
+          const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
+          if (nextValidator?.email) {
+            try {
+              await sendNotificationEmail(nextValidator.email, 'Nouvelle tâche de validation', `Le document "${document.title}" nécessite votre validation.`);
+            } catch(e){ console.warn("Email error:", e.message) }
+          }
+        } else {
+          await document.update({ status: 'approved' }, { transaction: t });
+          if (document.category === 'Demande de besoin' || document.category === "Fiche de suivi d'équipements") {
+            await reactivateLinkedWorkRequest(document, t);
+          }
+        }
+      } else if (status === 'rejected') {
+        await document.update({ status: 'rejected' }, { transaction: t });
+        await Workflow.update({ status: 'cancelled' }, { where: { documentId: document.id, status: 'queued' }, transaction: t });
+      }
+    }
+
+    await t.commit();
+
+    const updatedTask = await Workflow.findByPk(taskId, {
+      include: [
+        {
+          model: Document,
+          as: 'document',
+          include: [
+            { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
+            { 
+              model: Workflow, 
+              as: 'workflows', 
+              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }] 
+            }
+          ]
+        }
+      ]
+    });
+
+    res.json({ success: true, data: updatedTask, message: `Action '${validationType || status}' effectuée.` });
+
+  } catch (error) {
+    if (t && !t.finished) await t.rollback();
+    console.error('❌ Erreur validation tâche:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// Récupérer le workflow d'un document
 export const getDocumentWorkflow = async (req, res) => {
   try {
     const { documentId } = req.params;
-    const userId = req.user.id;
-
-    // Vérifier que le document existe
-    const document = await Document.findByPk(documentId);
-    if (!document) {
-      return res.status(404).json({ error: 'Document non trouvé' });
-    }
-
-    // Vérifier que l'utilisateur a accès (propriétaire ou validateur)
-    const isOwner = document.userId === userId;
-    const isValidator = await Workflow.findOne({
-      where: { documentId, validatorId: userId }
-    });
-
-    if (!isOwner && !isValidator) {
-      return res.status(403).json({ 
-        error: 'Accès non autorisé à ce workflow' 
-      });
-    }
-
     const workflows = await Workflow.findAll({
       where: { documentId },
-      include: [
-        {
-          model: User,
-          as: 'validator',
-          attributes: ['id', 'username', 'email', 'firstName', 'lastName']
-        }
-      ],
-      order: [['step', 'ASC']]
+      include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }],
+      order: [['step', 'ASC']],
     });
-
-    console.log('📄 Workflow du document récupéré:', workflows.length, 'étapes');
-
-    res.json({ 
-      workflows: workflows.map(w => ({
-        id: w.id,
-        step: w.step,
-        status: w.status,
-        comment: w.comment,
-        validatedAt: w.validatedAt,
-        createdAt: w.createdAt,
-        validator: w.validator
-      }))
-    });
-
+    if (workflows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Aucun workflow trouvé pour ce document.' });
+    }
+    res.json({ success: true, data: workflows });
   } catch (error) {
     console.error('❌ Erreur récupération workflow:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du workflow' });
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
 
-// ✅ Approuver une tâche de validation
-export const approveTask = async (req, res) => {
+// Récupérer tous les validateurs disponibles
+export const getValidators = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { comment } = req.body;
-    const userId = req.user.id;
-
-    console.log('✅ Approbation tâche:', id);
-
-    // Trouver la tâche
-    const workflow = await Workflow.findOne({
-      where: { id, validatorId: userId },
-      include: [{ model: Document, as: 'document' }]
+    const validators = await User.findAll({
+      where: { role: ['validator', 'admin', 'director'] },
+      attributes: ['id', 'firstName', 'lastName', 'email', 'position'],
+      order: [['firstName', 'ASC']],
     });
-
-    if (!workflow) {
-      return res.status(404).json({ 
-        error: 'Tâche non trouvée ou non autorisée' 
-      });
-    }
-
-    if (workflow.status !== 'pending') {
-      return res.status(400).json({ 
-        error: 'Cette tâche a déjà été traitée' 
-      });
-    }
-
-    // Mettre à jour la tâche
-    await workflow.update({
-      status: 'approved',
-      comment: comment || null,
-      validatedAt: new Date()
-    });
-
-    // Vérifier si toutes les tâches sont approuvées
-    const allWorkflows = await Workflow.findAll({
-      where: { documentId: workflow.documentId }
-    });
-
-    const allApproved = allWorkflows.every(w => w.status === 'approved');
-
-    // Mettre à jour le document
-    if (allApproved) {
-      await workflow.document.update({ 
-        status: 'validated',
-        metadata: {
-          ...workflow.document.metadata,
-          workflowCompletedAt: new Date()
-        }
-      });
-      console.log('🎉 Document complètement validé !');
-    }
-
-    res.json({ 
-      message: 'Tâche approuvée avec succès',
-      workflow: {
-        id: workflow.id,
-        status: workflow.status,
-        validatedAt: workflow.validatedAt
-      },
-      documentStatus: allApproved ? 'validated' : 'pending_validation'
-    });
-
+    res.json({ success: true, data: validators });
   } catch (error) {
-    console.error('❌ Erreur approbation:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'approbation' });
-  }
-};
-
-// ❌ Rejeter une tâche de validation
-export const rejectTask = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { comment } = req.body;
-    const userId = req.user.id;
-
-    console.log('❌ Rejet tâche:', id);
-
-    if (!comment || comment.trim() === '') {
-      return res.status(400).json({ 
-        error: 'Un commentaire est requis pour le rejet' 
-      });
-    }
-
-    // Trouver la tâche
-    const workflow = await Workflow.findOne({
-      where: { id, validatorId: userId },
-      include: [{ model: Document, as: 'document' }]
-    });
-
-    if (!workflow) {
-      return res.status(404).json({ 
-        error: 'Tâche non trouvée ou non autorisée' 
-      });
-    }
-
-    if (workflow.status !== 'pending') {
-      return res.status(400).json({ 
-        error: 'Cette tâche a déjà été traitée' 
-      });
-    }
-
-    // Mettre à jour la tâche
-    await workflow.update({
-      status: 'rejected',
-      comment,
-      validatedAt: new Date()
-    });
-
-    // Mettre à jour le document (un seul rejet suffit)
-    await workflow.document.update({ 
-      status: 'rejected',
-      metadata: {
-        ...workflow.document.metadata,
-        rejectedAt: new Date(),
-        rejectedBy: userId,
-        rejectionReason: comment
-      }
-    });
-
-    console.log('❌ Document rejeté');
-
-    res.json({ 
-      message: 'Tâche rejetée',
-      workflow: {
-        id: workflow.id,
-        status: workflow.status,
-        comment: workflow.comment,
-        validatedAt: workflow.validatedAt
-      },
-      documentStatus: 'rejected'
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur rejet:', error);
-    res.status(500).json({ error: 'Erreur lors du rejet' });
-  }
-};
-
-// 📊 Statistiques des workflows
-export const getStats = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    const [pending, approved, rejected, total] = await Promise.all([
-      Workflow.count({ where: { validatorId: userId, status: 'pending' } }),
-      Workflow.count({ where: { validatorId: userId, status: 'approved' } }),
-      Workflow.count({ where: { validatorId: userId, status: 'rejected' } }),
-      Workflow.count({ where: { validatorId: userId } })
-    ]);
-
-    res.json({
-      pending,
-      approved,
-      rejected,
-      total
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur statistiques:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' });
+    console.error('❌ Erreur récupération validateurs:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };

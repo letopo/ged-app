@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17.5-alpine
+    container_name: ged-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ged_db}
+      POSTGRES_USER: ${DB_USER:-ged_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-D@minguez123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - ged-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ged_user} -d ${DB_NAME:-ged_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: ged-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-ged_db}
+      DB_USER: ${DB_USER:-ged_user}
+      DB_PASSWORD: ${DB_PASSWORD:-D@minguez123}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRE: ${JWT_EXPIRE:-7d}
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-52428800}
+      TESSERACT_PATH: /usr/bin/tesseract
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+      WORKFLOW_ENABLE_NOTIFICATIONS: ${WORKFLOW_ENABLE_NOTIFICATIONS:-false}
+      WORKFLOW_DEFAULT_TIMEOUT_DAYS: ${WORKFLOW_DEFAULT_TIMEOUT_DAYS:-7}
+    volumes:
+      - uploads_data:/app/uploads
+      - signatures_data:/app/signatures
+      - ./backend/fonts:/app/fonts  # ✅ AJOUTÉ : Pour les polices (dateur)
+      - ./backend/database:/app/database  # ✅ AJOUTÉ : Pour les migrations
+    ports:
+      - "3000:3000"
+    networks:
+      - ged-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # ✅ AJOUTÉ : Migration automatique au démarrage
+    # command: >
+    #  sh -c "
+    #    echo '⏳ Attente de la base de données...' &&
+    #    sleep 5 &&
+    #    echo '📊 Exécution des migrations...' &&
+    #    npx sequelize-cli db:migrate &&
+    #    echo '✅ Migrations terminées' &&
+    #    echo '🚀 Démarrage du serveur...' &&
+    #    npm start
+    #  "
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend (Nginx + React build)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    container_name: ged-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - ged-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+  signatures_data:
+    driver: local
+
+networks:
+  ged-network:
+    driver: bridge

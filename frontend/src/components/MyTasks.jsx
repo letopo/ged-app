@@ -1,318 +1,528 @@
-// frontend/src/components/MyTasks.jsx
-import { useState, useEffect } from 'react';
-import { workflowAPI } from '../services/api';
+// frontend/src/components/MyTasks.jsx - VERSION FINALE COMPLÈTE
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { workflowAPI, listsAPI, documentsAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import DocumentViewer from './DocumentViewer';
+import WorkflowProgress from './WorkflowProgress';
+import DemandeBesoin from '../pages/templates/DemandeBesoin';
+import FicheSuiviEquipements from '../pages/templates/FicheSuiviEquipements';
 import { 
-  Clock, CheckCircle, XCircle, FileText, User, 
-  Calendar, Loader, Filter 
+  Clock, CheckCircle, XCircle, User, Calendar, Loader, Eye, Edit, 
+  ShieldCheck, Filter, ThumbsUp, CalendarPlus, FileText, Send, AlertCircle 
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
-export default function MyTasks() {
+const MyTasks = () => {
+  const { user } = useAuth();
+  const dbPdfRef = useRef(null);
+  const fsPdfRef = useRef(null);
+  
   const [tasks, setTasks] = useState([]);
-  const [filteredTasks, setFilteredTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('pending'); // pending, approved, rejected, all
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [comment, setComment] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [filter, setFilter] = useState('pending');
+  const [serviceFilter, setServiceFilter] = useState('all');
+  const [taskToProcess, setTaskToProcess] = useState(null);
+  const [comment, setComment] = useState('');
+  const [actionLoading, setActionLoading] = useState(null);
+  const [viewingDocument, setViewingDocument] = useState(null);
+  
+  const [showDemandeBesoins, setShowDemandeBesoins] = useState(false);
+  const [demandeBesoinsData, setDemandeBesoinsData] = useState({
+    date_demande: new Date().toLocaleDateString('fr-FR'),
+    service: '',
+    reference: '',
+    justification: '',
+    lines: [{ designation: '', quantite: '', prixUnitaire: '', montantTotal: '' }]
+  });
+  const [submittingDB, setSubmittingDB] = useState(false);
+  
+  const [showFicheSuivi, setShowFicheSuivi] = useState(false);
+  const [ficheSuiviData, setFicheSuiviData] = useState({
+    date: new Date().toLocaleDateString('fr-FR'),
+    service: '',
+    equipement: '',
+    marque: '',
+    ns: '',
+    heureDebut: '',
+    heureFin: '',
+    motifs: [],
+    situations: [],
+    probleme: '',
+    panne: '',
+    travail: '',
+    pieces: [{ designation: '', reference: '', quantite: '' }],
+    conclusion: ''
+  });
+  const [submittingFS, setSubmittingFS] = useState(false);
+  
+  const [showDBFromFS, setShowDBFromFS] = useState(false);
+  const [showValidatorsSelection, setShowValidatorsSelection] = useState(false);
+  const [dbValidators, setDbValidators] = useState([]);
+  const [selectedDbValidators, setSelectedDbValidators] = useState([]);
+  const [createdDBDocumentId, setCreatedDBDocumentId] = useState(null);
+  
+  const [services, setServices] = useState([]);
 
-  useEffect(() => {
-    loadTasks();
+  useEffect(() => { 
+    loadTasks(); 
+    loadServices();
   }, []);
-
-  useEffect(() => {
-    filterTasks();
-  }, [filter, tasks]);
 
   const loadTasks = async () => {
     try {
       setLoading(true);
-      const response = await workflowAPI.getMyTasks();
+      setError('');
+      const response = await workflowAPI.getMyTasks('all');
       setTasks(response.data.tasks || []);
     } catch (err) {
-      setError('Erreur lors du chargement des tâches');
+      setError('Erreur lors du chargement des tâches.');
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const filterTasks = () => {
-    if (filter === 'all') {
-      setFilteredTasks(tasks);
-    } else {
-      setFilteredTasks(tasks.filter(task => task.status === filter));
+  const loadServices = async () => {
+    try {
+      const response = await listsAPI.getServices();
+      setServices(response.data.data || []);
+    } catch (err) {
+      console.error('Erreur chargement services:', err);
     }
   };
 
-  const handleApprove = async (taskId) => {
-    if (!comment.trim()) {
-      setError('Veuillez ajouter un commentaire');
+  const filteredTasks = useMemo(() => {
+    let filtered = tasks;
+    if (filter !== 'all') {
+      filtered = filtered.filter(task => task.status === filter);
+    }
+    if (serviceFilter !== 'all') {
+      filtered = filtered.filter(task => {
+        const metadata = task.document?.metadata;
+        return metadata?.service === serviceFilter;
+      });
+    }
+    return filtered;
+  }, [filter, serviceFilter, tasks]);
+
+  const isWorkRequest = (task) => task.document?.category === 'Demande de travaux';
+  const isMG = () => user?.email === 'hsjm.moyengeneraux@gmail.com';
+  const isBiomedical = () => user?.email === 'hsjm.cellulebiomedicale@gmail.com';
+
+  const openProcessingModal = (task) => {
+    setTaskToProcess(task);
+    setComment(task.comment || '');
+    const metadata = task.document?.metadata || {};
+    if (isWorkRequest(task) && isMG()) {
+      setDemandeBesoinsData(prev => ({ ...prev, service: metadata.service || '', reference: `DT-${task.document.id.slice(0, 8)}`, justification: `Suite à la demande de travaux concernant: ${metadata.motif || ''}` }));
+    }
+    if (isWorkRequest(task) && isBiomedical()) {
+      setFicheSuiviData(prev => ({ ...prev, service: metadata.service || '', equipement: metadata.motif || '' }));
+    }
+  };
+
+  const closeProcessingModal = () => {
+    setTaskToProcess(null);
+    setComment('');
+    setShowDemandeBesoins(false);
+    setShowFicheSuivi(false);
+    setShowDBFromFS(false);
+    setShowValidatorsSelection(false);
+    setSelectedDbValidators([]);
+    setCreatedDBDocumentId(null);
+    loadTasks();
+  };
+
+  const handleAction = async (action) => {
+    if (!taskToProcess) return;
+    if (action === 'reject' && !comment.trim()) {
+      alert('Un commentaire est requis pour rejeter.');
       return;
     }
-
-    try {
-      setActionLoading(true);
-      setError('');
-      await workflowAPI.approve(taskId, comment);
-      setSuccess('Tâche approuvée avec succès !');
-      setSelectedTask(null);
-      setComment('');
-      loadTasks();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Erreur lors de l\'approbation');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleReject = async (taskId) => {
-    if (!comment.trim()) {
-      setError('Un commentaire est requis pour rejeter');
-      return;
-    }
-
-    try {
-      setActionLoading(true);
-      setError('');
-      await workflowAPI.reject(taskId, comment);
-      setSuccess('Tâche rejetée');
-      setSelectedTask(null);
-      setComment('');
-      loadTasks();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Erreur lors du rejet');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    const styles = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800'
-    };
-
-    const icons = {
-      pending: Clock,
-      approved: CheckCircle,
-      rejected: XCircle
-    };
-
-    const Icon = icons[status];
     
+    setActionLoading(action);
+    setError('');
+
+    try {
+      let payload = { comment };
+      
+      if (action === 'approve') {
+        payload.status = 'approved';
+        payload.validationType = 'signature';
+      } else if (action === 'reject') {
+        payload.status = 'rejected';
+      } else if (action === 'stamp') {
+        payload.validationType = 'stamp';
+      } else if (action === 'dater') {
+        payload.validationType = 'dater';
+      } else if (action === 'simple_approve') {
+        payload.status = 'approved';
+      }
+      
+      const response = await workflowAPI.validateTask(taskToProcess.id, payload);
+
+      setTasks(currentTasks => 
+        currentTasks.map(t => 
+          t.id === taskToProcess.id ? response.data.data : t
+        )
+      );
+      
+      setTaskToProcess(response.data.data);
+
+      const updatedTask = response.data.data;
+      const isLastStep = updatedTask.step === updatedTask.document.workflows.length;
+      
+      if (action === 'approve' && isLastStep && user?.stampPath) {
+        alert('Document signé. Vous pouvez maintenant apposer le cachet.');
+      } else if (['stamp', 'reject', 'simple_approve'].includes(action) || (action === 'approve' && (!isLastStep || !user?.stampPath))) {
+        alert('Tâche traitée avec succès !');
+        closeProcessingModal();
+      } else if (action === 'dater') {
+        alert('Dateur apposé !');
+      }
+
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || `Erreur lors de l'action '${action}'.`;
+      setError(errorMessage);
+      alert(errorMessage);
+      console.error(`Erreur lors de l'action '${action}':`, err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleInitiateDB = () => setShowDemandeBesoins(true);
+  const handleInitiateFicheSuivi = () => setShowFicheSuivi(true);
+  
+  const handleSubmitDemandeBesoins = async () => {
+    setSubmittingDB(true);
+    setError('');
+    try {
+      if (!dbPdfRef.current) throw new Error('Référence PDF introuvable');
+      const nonPrintableElements = dbPdfRef.current.querySelectorAll('.not-printable');
+      nonPrintableElements?.forEach(el => el.style.display = 'none');
+      const canvas = await html2canvas(dbPdfRef.current, { scale: 2, logging: false, useCORS: true });
+      nonPrintableElements?.forEach(el => el.style.display = 'block');
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+      const pdfBlob = pdf.output('blob');
+      const uploadData = new FormData();
+      const fileName = `Demande_Besoin_${demandeBesoinsData.service.replace(/\s/g, '_')}_${Date.now()}.pdf`;
+      uploadData.append('file', pdfBlob, fileName);
+      uploadData.append('title', `Demande de besoin - ${demandeBesoinsData.service}`);
+      uploadData.append('category', 'Demande de besoin');
+      uploadData.append('metadata', JSON.stringify({
+        service: demandeBesoinsData.service,
+        reference: demandeBesoinsData.reference,
+        linkedWorkRequestId: taskToProcess.document.id
+      }));
+      const uploadResponse = await documentsAPI.upload(uploadData);
+      const dbDocumentId = uploadResponse.data.data.id;
+      setCreatedDBDocumentId(dbDocumentId);
+      await workflowAPI.validateTask(taskToProcess.id, {
+        status: 'en_pause',
+        comment: `En attente de la validation de la Demande de Besoin (${demandeBesoinsData.reference})`,
+        validationType: 'pause'
+      });
+      const validatorsResponse = await workflowAPI.getValidators();
+      const allValidators = validatorsResponse.data.data || [];
+      const dbValidatorsList = allValidators.filter(v => 
+        v.email === 'hsjm.econome@gmail.com' || v.email === 'hsjm.achat@gmail.com' || v.email === 'hsjm.pharma@gmail.com'
+      );
+      if (dbValidatorsList.length === 0) throw new Error('Aucun validateur trouvé. Assurez-vous que les comptes Econome, Achat et Pharmacie existent.');
+      setDbValidators(dbValidatorsList);
+      setShowDemandeBesoins(false);
+      setShowDBFromFS(false);
+      setShowValidatorsSelection(true);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la création de la Demande de Besoin.');
+      console.error('Erreur DB:', err);
+    } finally {
+      setSubmittingDB(false);
+    }
+  };
+
+  const handleSubmitDBWorkflow = async () => {
+    if (selectedDbValidators.length === 0) {
+      setError('Veuillez sélectionner au moins un validateur.');
+      return;
+    }
+    setSubmittingDB(true);
+    setError('');
+    try {
+      await workflowAPI.submitWorkflow({
+        documentId: createdDBDocumentId,
+        validatorIds: selectedDbValidators
+      });
+      alert('✅ Demande de Besoin créée et soumise avec succès !');
+      closeProcessingModal();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la soumission de la Demande de Besoin.');
+      console.error('Erreur soumission DB:', err);
+    } finally {
+      setSubmittingDB(false);
+    }
+  };
+
+  const toggleDbValidator = (validatorId) => {
+    setSelectedDbValidators(prev => prev.includes(validatorId) ? prev.filter(id => id !== validatorId) : [...prev, validatorId]);
+  };
+
+  const handleSubmitFicheSuivi = async () => {
+    setSubmittingFS(true);
+    setError('');
+    try {
+      if (!fsPdfRef.current) throw new Error('Référence PDF introuvable');
+      const nonPrintableElements = fsPdfRef.current.querySelectorAll('.not-printable');
+      nonPrintableElements?.forEach(el => el.style.display = 'none');
+      const canvas = await html2canvas(fsPdfRef.current, { scale: 2, logging: false, useCORS: true });
+      nonPrintableElements?.forEach(el => el.style.display = 'block');
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+      const pdfBlob = pdf.output('blob');
+      const uploadData = new FormData();
+      const fileName = `Fiche_Suivi_${ficheSuiviData.service.replace(/\s/g, '_')}_${Date.now()}.pdf`;
+      uploadData.append('file', pdfBlob, fileName);
+      uploadData.append('title', `Fiche de suivi - ${ficheSuiviData.equipement}`);
+      uploadData.append('category', 'Fiche de suivi d\'équipements');
+      uploadData.append('metadata', JSON.stringify({
+        service: ficheSuiviData.service,
+        equipement: ficheSuiviData.equipement,
+        linkedWorkRequestId: taskToProcess.document.id
+      }));
+      await documentsAPI.upload(uploadData);
+      await workflowAPI.validateTask(taskToProcess.id, {
+        status: 'en_pause',
+        comment: `Fiche de suivi créée. En attente de résolution de la panne.`,
+        validationType: 'pause'
+      });
+      alert('✅ Fiche de Suivi créée ! La Demande de Travaux est mise en pause.');
+      if (ficheSuiviData.pieces.some(p => p.designation)) {
+        if (window.confirm('Des pièces sont nécessaires. Voulez-vous créer une Demande de Besoin ?')) {
+          setShowDBFromFS(true);
+          setDemandeBesoinsData({
+            date_demande: new Date().toLocaleDateString('fr-FR'),
+            service: ficheSuiviData.service,
+            reference: `FS-${taskToProcess.document.id.slice(0, 8)}`,
+            justification: `Pièces nécessaires suite à la fiche de suivi pour: ${ficheSuiviData.equipement}`,
+            lines: ficheSuiviData.pieces.map(p => ({
+              designation: p.designation,
+              quantite: p.quantite,
+              prixUnitaire: '',
+              montantTotal: ''
+            }))
+          });
+        } else {
+          closeProcessingModal();
+        }
+      } else {
+        closeProcessingModal();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la création de la Fiche de Suivi.');
+      console.error('Erreur FS:', err);
+    } finally {
+      setSubmittingFS(false);
+    }
+  };
+  
+  const formatDate = (date) => new Date(date).toLocaleString('fr-FR');
+  
+  const getStatusBadge = (status) => {
+    const styles = { pending: 'bg-yellow-100 text-yellow-800', approved: 'bg-green-100 text-green-800', rejected: 'bg-red-100 text-red-800', en_pause: 'bg-purple-100 text-purple-800' };
+    const icons = { pending: Clock, approved: CheckCircle, rejected: XCircle, en_pause: AlertCircle };
+    const Icon = icons[status] || Clock;
+    const labels = { pending: 'En attente', approved: 'Approuvé', rejected: 'Rejeté', en_pause: 'En pause' };
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status]}`}>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
         <Icon className="w-3 h-3 mr-1" />
-        {status === 'pending' ? 'En attente' : status === 'approved' ? 'Approuvé' : 'Rejeté'}
+        {labels[status] || status}
       </span>
     );
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader className="w-8 h-8 animate-spin text-blue-600" />
+      <div className="flex justify-center items-center p-8">
+        <Loader className="w-12 h-12 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes tâches de validation</h1>
-        <p className="text-gray-600">Gérez les documents qui attendent votre validation</p>
-      </div>
-
-      {/* Messages */}
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Mes tâches de validation</h1>
+      
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start">
-          <XCircle className="w-5 h-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" />
-          <span className="text-red-700">{error}</span>
+        <div className="bg-red-100 border border-red-300 text-red-700 p-4 rounded-lg mb-4">
+          {error}
         </div>
       )}
-
-      {success && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start">
-          <CheckCircle className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
-          <span className="text-green-700">{success}</span>
+      
+      <div className="mb-6 space-y-4">
+        <div className="flex items-center gap-2 p-2 bg-gray-100 rounded-lg flex-wrap">
+          {['pending', 'approved', 'rejected', 'all'].map(status => (
+            <button 
+              key={status} 
+              onClick={() => setFilter(status)} 
+              className={`px-4 py-2 text-sm font-medium rounded-md transition ${filter === status ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+            >
+              {status === 'pending' ? 'En attente' : status === 'approved' ? 'Approuvées' : status === 'rejected' ? 'Rejetées' : 'Toutes'} 
+              ({tasks.filter(t => status === 'all' || t.status === status).length})
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Filtres */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            filter === 'all'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Toutes ({tasks.length})
-        </button>
-        <button
-          onClick={() => setFilter('pending')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            filter === 'pending'
-              ? 'bg-yellow-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          En attente ({tasks.filter(t => t.status === 'pending').length})
-        </button>
-        <button
-          onClick={() => setFilter('approved')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            filter === 'approved'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Approuvées ({tasks.filter(t => t.status === 'approved').length})
-        </button>
-        <button
-          onClick={() => setFilter('rejected')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            filter === 'rejected'
-              ? 'bg-red-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Rejetées ({tasks.filter(t => t.status === 'rejected').length})
-        </button>
+        {tasks.some(t => isWorkRequest(t)) && (
+          <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 flex-wrap">
+            <Filter size={18} className="text-blue-600" />
+            <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="px-4 py-2 border rounded-md text-sm">
+              <option value="all">Tous les services</option>
+              {services.map(s => (<option key={s.id} value={s.name}>{s.name}</option>))}
+            </select>
+            <span className="text-sm text-blue-600">({filteredTasks.filter(t => isWorkRequest(t)).length} demandes de travaux)</span>
+          </div>
+        )}
       </div>
 
-      {/* Liste des tâches */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50 rounded-lg">
-            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Aucune tâche {filter !== 'all' ? `${filter === 'pending' ? 'en attente' : filter === 'approved' ? 'approuvée' : 'rejetée'}` : ''}</p>
+          <div className="text-center py-16 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">Aucune tâche dans cette catégorie.</p>
           </div>
         ) : (
           filteredTasks.map((task) => (
-            <div
-              key={task.id}
-              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-4">
+            <div key={task.id} className="bg-white p-6 rounded-lg shadow-md border hover:border-blue-500 transition-all">
+              <div className="flex flex-col md:flex-row items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      {task.document.title}
-                    </h3>
+                  <div className="flex items-center gap-4 mb-3 flex-wrap">
+                    <h3 className="text-xl font-semibold">{task.document.title}</h3>
                     {getStatusBadge(task.status)}
+                    {isWorkRequest(task) && (<span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"><FileText className="w-3 h-3 mr-1" /> Demande de Travaux</span>)}
                   </div>
-                  <p className="text-gray-600 text-sm">{task.document.filename}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600">
+                    <p className="flex items-center gap-2"><User size={14} /> Soumis par: <strong>{task.document.uploadedBy?.firstName || 'Inconnu'}</strong></p>
+                    <p className="flex items-center gap-2"><Calendar size={14} /> Le: <strong>{formatDate(task.createdAt)}</strong></p>
+                    {isWorkRequest(task) && task.document.metadata?.service && (<p className="flex items-center gap-2"><Filter size={14} /> Service: <strong>{task.document.metadata.service}</strong></p>)}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0 mt-4 md:mt-0">
+                  <button onClick={() => setViewingDocument(task.document)} className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 font-medium transition"><Eye size={16} /> Voir</button>
+                  {task.status === 'pending' && (<button onClick={() => openProcessingModal(task)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition shadow"><CheckCircle size={16} /> Traiter</button>)}
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                <div className="flex items-center text-gray-600">
-                  <User className="w-4 h-4 mr-2" />
-                  Soumis par: {task.document.uploadedBy.fullName || task.document.uploadedBy.username}
-                </div>
-                <div className="flex items-center text-gray-600">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {formatDate(task.createdAt)}
-                </div>
+              <div className="border-t mt-4 pt-4">
+                <WorkflowProgress workflows={task.document.workflows} documentStatus={task.document.status} />
               </div>
-
-              {task.comment && (
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-gray-700">
-                    <strong>Commentaire:</strong> {task.comment}
-                  </p>
-                </div>
-              )}
-
-              {task.status === 'pending' && (
-                <div className="mt-4">
-                  {selectedTask === task.id ? (
-                    <div className="space-y-3">
-                      <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Ajoutez un commentaire..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows="3"
-                      />
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => handleApprove(task.id)}
-                          disabled={actionLoading}
-                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center"
-                        >
-                          {actionLoading ? (
-                            <Loader className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Approuver
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleReject(task.id)}
-                          disabled={actionLoading}
-                          className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center"
-                        >
-                          {actionLoading ? (
-                            <Loader className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <XCircle className="w-4 h-4 mr-2" />
-                              Rejeter
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedTask(null);
-                            setComment('');
-                            setError('');
-                          }}
-                          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                        >
-                          Annuler
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setSelectedTask(task.id)}
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Traiter cette tâche
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {task.validatedAt && (
-                <div className="text-sm text-gray-500 mt-4">
-                  Traité le {formatDate(task.validatedAt)}
-                </div>
-              )}
             </div>
           ))
         )}
       </div>
+
+      {taskToProcess && !showDemandeBesoins && !showFicheSuivi && !showDBFromFS && !showValidatorsSelection && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex max-h-[90vh] overflow-hidden">
+            <div className="w-1/2 p-6 border-r flex flex-col overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4">Traiter le document</h2>
+              <p className="text-sm text-gray-600 mt-1 mb-4">Document: <strong>{taskToProcess.document.title}</strong></p>
+              <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Ajouter un commentaire (requis si rejet)..." className="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500" rows="3" />
+              <div className="space-y-3 flex-grow">
+                <h3 className="font-semibold text-gray-700">Actions disponibles :</h3>
+                <button onClick={() => handleAction('simple_approve')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border text-left transition">{actionLoading === 'simple_approve' ? <Loader className="animate-spin w-5 h-5"/> : <CheckCircle className="text-gray-600"/>} Validation simple (sans signature)</button>
+                {user?.signaturePath && (<button onClick={() => handleAction('approve')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border text-left transition">{actionLoading === 'approve' ? <Loader className="animate-spin w-5 h-5" /> : <Edit className="text-blue-600"/>} Approuver et Signer</button>)}
+                {user?.stampPath && (taskToProcess.step === taskToProcess.document.workflows.length) && (<button onClick={() => handleAction('stamp')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg border text-left transition">{actionLoading === 'stamp' ? <Loader className="animate-spin w-5 h-5" /> : <ShieldCheck className="text-indigo-600"/>} Apposer le cachet</button>)}
+                {user?.email === 'hsjm.rh@gmail.com' && (<button onClick={() => handleAction('dater')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition">{actionLoading === 'dater' ? <Loader className="animate-spin w-5 h-5" /> : <CalendarPlus className="text-teal-600"/>} Apposer le Dateur</button>)}
+                {isWorkRequest(taskToProcess) && isMG() && (<><div className="border-t my-3"></div><button onClick={handleInitiateDB} className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg border text-left transition"><FileText className="text-purple-600"/> Initier une Demande de Besoin</button><p className="text-xs text-gray-500 pl-3">La DT sera mise en pause en attendant la validation de la DB</p></>)}
+                {isWorkRequest(taskToProcess) && isBiomedical() && (<><div className="border-t my-3"></div><button onClick={handleInitiateFicheSuivi} className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"><FileText className="text-teal-600"/> Créer Fiche de Suivi d'Équipements</button><p className="text-xs text-gray-500 pl-3">La DT sera mise en pause. Vous pourrez ensuite initier une DB si nécessaire.</p></>)}
+              </div>
+              <div className="border-t my-5"></div>
+              <button onClick={() => handleAction('reject')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-red-50 hover:bg-red-100 rounded-lg border text-left transition">{actionLoading === 'reject' ? <Loader className="animate-spin w-5 h-5"/> : <XCircle className="text-red-600"/>} Rejeter le document</button>
+              <div className="mt-6 text-right"><button onClick={closeProcessingModal} className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 ml-auto transition"><ThumbsUp size={16} /> Terminer</button></div>
+            </div>
+            <div className="w-1/2 p-6 bg-gray-50 overflow-y-auto">
+              <h3 className="font-bold text-lg mb-4">Suivi de Validation</h3>
+              <WorkflowProgress workflows={taskToProcess.document.workflows} documentStatus={taskToProcess.document.status} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(showDemandeBesoins || showDBFromFS) && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl my-8">
+            <div className="p-6 border-b">
+              <h2 className="text-2xl font-bold">Créer une Demande de Besoin</h2>
+              <p className="text-sm text-gray-600 mt-2">{showDBFromFS ? 'Suite à la Fiche de Suivi d\'Équipements' : 'Cette demande sera liée à la Demande de Travaux en cours'}</p>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto"><DemandeBesoin formData={demandeBesoinsData} setFormData={setDemandeBesoinsData} pdfContainerRef={dbPdfRef}/></div>
+            {error && <p className="text-red-500 px-6 py-2">{error}</p>}
+            <div className="p-6 border-t flex justify-between">
+              <button onClick={() => { setShowDemandeBesoins(false); setShowDBFromFS(false); }} className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Annuler</button>
+              <button onClick={handleSubmitDemandeBesoins} disabled={submittingDB} className="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition">{submittingDB ? (<><Loader className="animate-spin w-5 h-5" /> Création...</>) : (<><Send size={18}/> Créer et Soumettre</>)}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFicheSuivi && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl my-8">
+            <div className="p-6 border-b"><h2 className="text-2xl font-bold">Créer une Fiche de Suivi d'Équipements</h2><p className="text-sm text-gray-600 mt-2">Documentation de l'intervention biomédicale</p></div>
+            <div className="p-6 max-h-[75vh] overflow-y-auto"><FicheSuiviEquipements formData={ficheSuiviData} setFormData={setFicheSuiviData} pdfContainerRef={fsPdfRef}/></div>
+            {error && <p className="text-red-500 px-6 py-2">{error}</p>}
+            <div className="p-6 border-t flex justify-between">
+              <button onClick={() => setShowFicheSuivi(false)} className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Annuler</button>
+              <button onClick={handleSubmitFicheSuivi} disabled={submittingFS} className="px-8 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition">{submittingFS ? (<><Loader className="animate-spin w-5 h-5" /> Création...</>) : (<><Send size={18}/> Créer la Fiche</>)}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showValidatorsSelection && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+            <div className="p-6 border-b"><h2 className="text-2xl font-bold">Sélectionner les validateurs</h2><p className="text-sm text-gray-600 mt-2">Choisissez les personnes qui doivent valider cette Demande de Besoin</p></div>
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {error && (<div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded-lg mb-4">{error}</div>)}
+              <div className="space-y-3">
+                {dbValidators.length === 0 ? (<p className="text-gray-500 text-center py-4">Aucun validateur disponible. Contactez l'administrateur.</p>) : (
+                  dbValidators.map(validator => (
+                    <label key={validator.id} className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${selectedDbValidators.includes(validator.id) ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
+                      <input type="checkbox" checked={selectedDbValidators.includes(validator.id)} onChange={() => toggleDbValidator(validator.id)} className="w-5 h-5"/>
+                      <div><p className="font-semibold">{validator.firstName} {validator.lastName}</p><p className="text-sm text-gray-600">{validator.position || validator.email}</p></div>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="p-6 border-t flex justify-between">
+              <button onClick={() => { setShowValidatorsSelection(false); setSelectedDbValidators([]); closeProcessingModal(); }} className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Annuler</button>
+              <button onClick={handleSubmitDBWorkflow} disabled={submittingDB || selectedDbValidators.length === 0} className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition">{submittingDB ? (<><Loader className="animate-spin w-5 h-5" /> Soumission...</>) : (<><Send size={18}/> Soumettre la Demande de Besoin</>)}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-6xl h-full flex gap-4">
+            <div className="flex-1 bg-gray-500 rounded-lg h-full overflow-hidden">
+              <DocumentViewer document={viewingDocument} onClose={() => setViewingDocument(null)} />
+            </div>
+            <div className="w-96 bg-white rounded-lg p-4 overflow-y-auto h-full">
+              <h3 className="font-bold text-lg mb-4">Suivi de Validation</h3>
+              <WorkflowProgress workflows={viewingDocument.workflows} documentStatus={viewingDocument.status} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default MyTasks;

@@ -1,35 +1,22 @@
+// backend/src/routes/workflow.js - VERSION COMPLÈTE
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
-import {
-  createWorkflow,
-  getMyTasks,
+import { 
+  createWorkflow, 
+  getMyTasks, 
+  validateTask, 
   getDocumentWorkflow,
-  approveTask,
-  rejectTask,
-  getStats
+  getValidators 
 } from '../controllers/workflowController.js';
+import authMiddlewareObject from '../middleware/auth.js';
 
 const router = express.Router();
+const { protect } = authMiddlewareObject;
 
-// Toutes les routes nécessitent une authentification
-router.use(authenticateToken);;
-
-// 📋 Créer un workflow de validation
-router.post('/', createWorkflow);
-
-// 📥 Récupérer mes tâches de validation
-router.get('/my-tasks', getMyTasks);
-
-// 📊 Statistiques des workflows
-router.get('/stats', getStats);
-
-// 📄 Récupérer le workflow d'un document
-router.get('/document/:documentId', getDocumentWorkflow);
-
-// ✅ Approuver une tâche
-router.put('/:id/approve', approveTask);
-
-// ❌ Rejeter une tâche
-router.put('/:id/reject', rejectTask);
+// Routes pour les workflows
+router.post('/', protect, createWorkflow);
+router.get('/my-tasks', protect, getMyTasks);
+router.put('/:taskId/validate', protect, validateTask);
+router.get('/document/:documentId', protect, getDocumentWorkflow);
+router.get('/validators', protect, getValidators);
 
 export default router;

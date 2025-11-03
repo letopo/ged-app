@@ -1,69 +1,57 @@
-// backend/src/routes/users.js
+// backend/src/routes/users.js - VERSION COMPLÃˆTE
 import express from 'express';
-import { authenticate } from '../middleware/auth.js';
-import { User } from '../models/index.js';
+import { protect, authorize } from '../middleware/auth.js';
+import uploadSignatureMiddleware from '../middleware/uploadSignature.js'; // NOUVEL IMPORT
+import {
+  getUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
+  resetUserPassword,
+  uploadSignature, // NOUVEL IMPORT
+  uploadStamp      // NOUVEL IMPORT
+} from '../controllers/userController.js';
 
 const router = express.Router();
 
-// Toutes les routes nécessitent une authentification
-router.use(authenticate);
+// Applique la protection par token JWT Ã  toutes les routes de ce fichier
+router.use(protect);
 
-// ?? Récupérer tous les utilisateurs (pour sélection des validateurs)
-router.get('/', async (req, res) => {
-  try {
-    const users = await User.findAll({
-      attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'role'],
-      order: [['username', 'ASC']]
-    });
+// Routes principales pour la gestion des utilisateurs (rÃ©servÃ©es aux admins)
+router.route('/')
+  .get(getUsers)
+  .post(authorize('admin'), createUser);
 
-    res.json({ 
-      users: users.map(user => ({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username
-      }))
-    });
+router.route('/:id')
+  .get(authorize('admin'), getUserById)
+  .put(authorize('admin'), updateUser)
+  .delete(authorize('admin'), deleteUser);
+  
+router.post('/:id/reset-password', authorize('admin'), resetUserPassword);
 
-  } catch (error) {
-    console.error('? Erreur récupération utilisateurs:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs' });
-  }
-});
 
-// ?? Récupérer un utilisateur spécifique
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+// ==============================================
+// === NOUVELLES ROUTES POUR UPLOAD D'IMAGES ===
+// ==============================================
 
-    const user = await User.findByPk(id, {
-      attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'role', 'createdAt']
-    });
+// Route pour uploader une signature.
+// 1. 'authorize' vÃ©rifie si l'utilisateur est admin.
+// 2. 'uploadSignatureMiddleware.single('signature')' intercepte le fichier nommÃ© 'signature' dans la requÃªte.
+// 3. 'uploadSignature' (du contrÃ´leur) gÃ¨re la logique aprÃ¨s l'upload.
+router.post(
+  '/:id/signature',
+  authorize('admin'),
+  uploadSignatureMiddleware.single('signature'),
+  uploadSignature
+);
 
-    if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
-    }
-
-    res.json({ 
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
-        createdAt: user.createdAt
-      }
-    });
-
-  } catch (error) {
-    console.error('? Erreur récupération utilisateur:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération de l\'utilisateur' });
-  }
-});
+// Route pour uploader un cachet.
+router.post(
+  '/:id/stamp',
+  authorize('admin'),
+  uploadSignatureMiddleware.single('stamp'),
+  uploadStamp
+);
 
 export default router;

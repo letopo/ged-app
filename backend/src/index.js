@@ -9,6 +9,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import documentRoutes from './routes/documents.js';
 import workflowRoutes from './routes/workflow.js';
+import Service from './Service.js';
+import Motif from './Motif.js';
 
 // Configuration ES Module
 const __filename = fileURLToPath(import.meta.url);
@@ -118,4 +120,5 @@ app.listen(PORT, () => {
   console.log('');
 });
 
+export { User, Document, Workflow, Service, Motif };
 export default app;

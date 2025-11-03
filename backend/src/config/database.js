@@ -10,7 +10,9 @@ const sequelize = new Sequelize({
   username: process.env.DB_USER || 'ged_user',
   password: process.env.DB_PASSWORD,
   dialect: 'postgres',
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  // On désactive le logging pour rendre la console plus lisible.
+  // Vous pourrez le réactiver si besoin pour déboguer une requête SQL.
+  logging: false,
   pool: {
     max: 5,
     min: 0,
@@ -23,15 +25,7 @@ const sequelize = new Sequelize({
   }
 });
 
-const testConnection = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('✅ Base de données connectée');
-  } catch (error) {
-    console.error(' Erreur de connexion:', error.message);
-  }
-};
-
-testConnection();
+// La fonction testConnection a été supprimée d'ici.
+// L'authentification est maintenant gérée uniquement dans server.js pour un démarrage propre.
 
 export default sequelize;

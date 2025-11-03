@@ -1,13 +1,12 @@
-﻿// frontend/src/services/api.js
+﻿// frontend/src/services/api.js - VERSION COMPLÈTE MISE À JOUR
+
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 });
 
 api.interceptors.request.use(
@@ -18,73 +17,120 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
-);
-
-api.interceptors.response.use(
-  (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
     return Promise.reject(error);
   }
 );
 
-// Auth
+// ============================================
+// API pour l'Authentification
+// ============================================
 export const authAPI = {
-  register: (data) => api.post('/auth/register', data),
-  login: (data) => api.post('/auth/login', data),
+  login: (credentials) => api.post('/auth/login', credentials),
+  register: (userData) => api.post('/auth/register', userData),
   getProfile: () => api.get('/auth/profile'),
   updateProfile: (data) => api.put('/auth/profile', data)
 };
 
-// Documents
+// ============================================
+// API pour les Documents
+// ============================================
 export const documentsAPI = {
-  getAll: (params) => api.get('/documents', { params }),
-  getOne: (id) => api.get(`/documents/${id}`),
-  upload: (formData, onProgress) => api.post('/documents', formData, {
+  getAll: () => api.get('/documents'),
+  upload: (formData, onUploadProgress) => api.post('/documents/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    onUploadProgress: onProgress
+    onUploadProgress,
   }),
-  update: (id, data) => api.put(`/documents/${id}`, data),
-  delete: (id) => api.delete(`/documents/${id}`),
-  search: (query) => api.get('/documents/search', { params: { q: query } })
+  delete: (documentId) => api.delete(`/documents/${documentId}`),
+  updateMetadata: (documentId, data) => api.patch(`/documents/${documentId}/metadata`, data),
 };
 
-// Workflows
-export const workflowAPI = {
-  // Créer un workflow (soumettre pour validation)
-  submitForValidation: (documentId, validatorIds) => 
-    api.post('/workflows', { documentId, validatorIds }),
+// ============================================
+// API pour les Listes (Services & Motifs)
+// ============================================
+export const listsAPI = {
+  // Services
+  getServices: () => api.get('/lists/services'),
+  getServicesWithMembers: () => api.get('/lists/services/with-members'),
+  createService: (data) => api.post('/lists/services', data),
+  updateService: (serviceId, data) => api.put(`/lists/services/${serviceId}`, data),
+  deleteService: (serviceId) => api.delete(`/lists/services/${serviceId}`),
   
-  // Récupérer mes tâches de validation
-  getMyTasks: (status = null) => 
-    api.get('/workflows/my-tasks', { params: status ? { status } : {} }),
-  
-  // Récupérer le workflow d'un document
-  getDocumentWorkflow: (documentId) => 
-    api.get(`/workflows/document/${documentId}`),
-  
-  // Approuver une tâche
-  approve: (id, comment) => 
-    api.put(`/workflows/${id}/approve`, { comment }),
-  
-  // Rejeter une tâche
-  reject: (id, comment) => 
-    api.put(`/workflows/${id}/reject`, { comment }),
-  
-  // Statistiques
-  getStats: () => 
-    api.get('/workflows/stats')
+  // Motifs
+  getMotifs: (type) => api.get(`/lists/motifs?type=${type}`), // type = 'MG' ou 'Biomedical'
+  createMotif: (data) => api.post('/lists/motifs', data),
+  updateMotif: (motifId, data) => api.put(`/lists/motifs/${motifId}`, data),
+  deleteMotif: (motifId) => api.delete(`/lists/motifs/${motifId}`),
 };
 
-// Users
+// ============================================
+// API pour les Services et Membres
+// ============================================
+export const servicesAPI = {
+  getAll: () => api.get('/lists/services'),
+  getServicesWithMembers: () => api.get('/lists/services/with-members'),
+  getById: (serviceId) => api.get(`/lists/services/${serviceId}`),
+  createService: (data) => api.post('/lists/services', data),
+  updateService: (serviceId, data) => api.put(`/lists/services/${serviceId}`, data),
+  deleteService: (serviceId) => api.delete(`/lists/services/${serviceId}`),
+  
+  // Membres du service
+  getServiceMembers: (serviceId) => api.get(`/lists/services/${serviceId}/members`),
+  addMember: (serviceId, data) => api.post(`/lists/services/${serviceId}/members`, data),
+  updateMember: (serviceId, memberId, data) => api.put(`/lists/services/${serviceId}/members/${memberId}`, data),
+  removeMember: (serviceId, memberId) => api.delete(`/lists/services/${serviceId}/members/${memberId}`),
+  
+  // Chef de Service
+  getChefDeService: (serviceId) => api.get(`/lists/services/${serviceId}/chef`),
+};
+
+// ============================================
+// API pour les Utilisateurs
+// ============================================
 export const usersAPI = {
   getAll: () => api.get('/users'),
-  getOne: (id) => api.get(`/users/${id}`)
+  getById: (userId) => api.get(`/users/${userId}`),
+  create: (userData) => api.post('/users', userData),
+  update: (userId, data) => api.put(`/users/${userId}`, data),
+  delete: (userId) => api.delete(`/users/${userId}`),
+  resetPassword: (userId) => api.post(`/users/${userId}/reset-password`),
+  uploadSignature: (userId, formData) => api.post(`/users/${userId}/signature`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadStamp: (userId, formData) => api.post(`/users/${userId}/stamp`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+};
+
+// ============================================
+// API pour le Workflow
+// ============================================
+export const workflowAPI = {
+  create: (workflowData) => api.post('/workflows', workflowData),
+  submitWorkflow: (workflowData) => api.post('/workflows', workflowData),
+  getMyTasks: (status = 'all') => api.get(`/workflows/my-tasks?status=${status}`),
+  validateTask: (taskId, data) => api.put(`/workflows/${taskId}/validate`, data),
+  getDocumentWorkflow: (documentId) => api.get(`/workflows/document/${documentId}`),
+  getValidators: () => api.get('/workflows/validators'),
+};
+
+// ============================================
+// API pour les Notifications
+// ============================================
+export const notificationsAPI = {
+  checkNewTasks: (timestamp) => api.get(`/notifications/new-tasks-check?since=${timestamp}`),
+};
+
+// ============================================
+// API pour le Calendrier
+// ============================================
+export const calendarAPI = {
+  getPermissions: (startDate, endDate) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return api.get(`/calendar/permissions?${params.toString()}`);
+  },
 };
 
 export default api;

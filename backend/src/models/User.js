@@ -1,4 +1,6 @@
-﻿import { DataTypes } from 'sequelize';
+﻿// src/models/User.js
+
+import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 import bcrypt from 'bcryptjs';
 
@@ -8,64 +10,65 @@ const User = sequelize.define('User', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
-  username: {  // ← AJOUTEZ CETTE SECTION COMPLÈTE
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-    validate: {
-      len: { args: [3, 50], msg: 'Username: 3-50 caractères' }
-    }
-  },
   email: {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
-    validate: {
-      isEmail: { msg: 'Email invalide' }
-    }
+    validate: { isEmail: true }
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      len: { args: [6, 100], msg: 'Mot de passe: 6+ caractères' }
-    }
+    allowNull: false
   },
   firstName: {
     type: DataTypes.STRING,
-    allowNull: false,
-    field: 'first_name'
+    allowNull: false
   },
   lastName: {
     type: DataTypes.STRING,
+    allowNull: false
+  },
+  username: {
+    type: DataTypes.STRING,
     allowNull: false,
-    field: 'last_name'
+    unique: true
   },
   role: {
-    type: DataTypes.ENUM('admin', 'manager', 'user'),
+    type: DataTypes.ENUM('user', 'validator', 'director', 'admin'),
     defaultValue: 'user'
+  },
+  signaturePath: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Chemin vers l\'image de la signature de l\'utilisateur'
+  },
+  stampPath: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Chemin vers l\'image du cachet de l\'utilisateur'
   },
   isActive: {
     type: DataTypes.BOOLEAN,
-    defaultValue: true,
-    field: 'is_active'
+    defaultValue: true
   },
   lastLogin: {
     type: DataTypes.DATE,
-    field: 'last_login'
+    allowNull: true
   }
 }, {
   tableName: 'users',
   timestamps: true,
-  underscored: true,  // ← Ajoutez cette ligne pour la cohérence
+  underscored: true,
+  defaultScope: {
+    attributes: { exclude: ['password'] }
+  },
+  scopes: {
+    withPassword: {
+      attributes: { include: ['password'] }
+    }
+  },
   hooks: {
-    beforeCreate: async (user) => {
-      if (user.password) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
-      }
-    },
-    beforeUpdate: async (user) => {
+    beforeSave: async (user) => {
       if (user.changed('password')) {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
@@ -74,14 +77,15 @@ const User = sequelize.define('User', {
   }
 });
 
-User.prototype.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+User.prototype.comparePassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
-User.prototype.toJSON = function() {
-  const values = { ...this.get() };
-  delete values.password;
-  return values;
+// AJOUT IMPORTANT : DÉFINITION DES ASSOCIATIONS
+User.associate = function(models) {
+  this.hasMany(models.Document, { foreignKey: 'userId', as: 'documents' });
+  this.hasMany(models.Workflow, { foreignKey: 'validatorId', as: 'tasks' });
+  this.hasMany(models.ServiceMember, { foreignKey: 'userId', as: 'serviceMemberships' });
 };
 
 export default User;

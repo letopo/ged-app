@@ -1,41 +1,35 @@
-// backend/src/models/index.js
+// src/models/index.js - VERSION FINALE ET ROBUSTE
+
+import sequelize from '../config/database.js';
+
+// 1. Importer tous les modèles
 import User from './User.js';
 import Document from './Document.js';
 import Workflow from './Workflow.js';
+import Service from './Service.js';
+import Motif from './Motif.js';
+import ServiceMember from './ServiceMember.js';
 
-// Relations User <-> Document
-Document.belongsTo(User, { 
-  foreignKey: 'user_id',
-  as: 'user' 
+const db = {
+  User,
+  Document,
+  Workflow,
+  Service,
+  Motif,
+  ServiceMember,
+};
+
+// 2. Parcourir tous les modèles et appeler leur méthode 'associate' si elle existe.
+//    Ceci garantit que les associations ne sont créées qu'après que TOUS les modèles
+//    ont été importés et sont disponibles dans l'objet 'db'.
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
 });
 
-User.hasMany(Document, { 
-  foreignKey: 'user_id',
-  as: 'documents' 
-});
+db.sequelize = sequelize;
 
-// Relations Workflow <-> Document
-Workflow.belongsTo(Document, { 
-  foreignKey: 'document_id', 
-  as: 'document' 
-});
-
-Document.hasMany(Workflow, { 
-  foreignKey: 'document_id',
-  as: 'workflows'
-});
-
-// Relations Workflow <-> User (validator)
-Workflow.belongsTo(User, { 
-  foreignKey: 'validator_id', 
-  as: 'validator' 
-});
-
-User.hasMany(Workflow, { 
-  foreignKey: 'validator_id',
-  as: 'validationTasks'
-});
-
-// Export tous les modèles
-export { User, Document, Workflow };
-export default { User, Document, Workflow };
+// 3. Exporter les modèles pour le reste de l'application
+export { User, Document, Workflow, Service, Motif, ServiceMember, sequelize };
+export default db;
