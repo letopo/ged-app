@@ -1,7 +1,7 @@
 // backend/src/routes/users.js - VERSION COMPLÈTE
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
-import uploadSignatureMiddleware from '../middleware/uploadSignature.js'; // NOUVEL IMPORT
+import uploadSignatureMiddleware from '../middleware/uploadSignature.js';
 import {
   getUsers,
   getUserById,
@@ -9,16 +9,21 @@ import {
   updateUser,
   deleteUser,
   resetUserPassword,
-  uploadSignature, // NOUVEL IMPORT
-  uploadStamp      // NOUVEL IMPORT
+  uploadSignature,
+  uploadStamp,
+  getMyService  // ← AJOUTER CETTE LIGNE
 } from '../controllers/userController.js';
 
 const router = express.Router();
 
-// Applique la protection par token JWT à toutes les routes de ce fichier
+// Applique la protection par token JWT à toutes les routes
 router.use(protect);
 
-// Routes principales pour la gestion des utilisateurs (réservées aux admins)
+// ⚠️ IMPORTANT : Cette route DOIT être AVANT router.route('/:id')
+// pour éviter que '/me/service' soit interprété comme '/:id'
+router.get('/me/service', getMyService);
+
+// Routes principales pour la gestion des utilisateurs
 router.route('/')
   .get(getUsers)
   .post(authorize('admin'), createUser);
@@ -30,15 +35,7 @@ router.route('/:id')
   
 router.post('/:id/reset-password', authorize('admin'), resetUserPassword);
 
-
-// ==============================================
-// === NOUVELLES ROUTES POUR UPLOAD D'IMAGES ===
-// ==============================================
-
-// Route pour uploader une signature.
-// 1. 'authorize' vérifie si l'utilisateur est admin.
-// 2. 'uploadSignatureMiddleware.single('signature')' intercepte le fichier nommé 'signature' dans la requête.
-// 3. 'uploadSignature' (du contrôleur) gère la logique après l'upload.
+// Routes pour upload d'images (signatures et cachets)
 router.post(
   '/:id/signature',
   authorize('admin'),
@@ -46,7 +43,6 @@ router.post(
   uploadSignature
 );
 
-// Route pour uploader un cachet.
 router.post(
   '/:id/stamp',
   authorize('admin'),

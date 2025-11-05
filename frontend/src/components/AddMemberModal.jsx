@@ -7,6 +7,7 @@ const AddMemberModal = ({ service, fonctions, onAdd, onClose }) => {
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedFonction, setSelectedFonction] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [fonctionSearch, setFonctionSearch] = useState(''); // ← NOUVEAU : recherche de fonction
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -15,20 +16,8 @@ const AddMemberModal = ({ service, fonctions, onAdd, onClose }) => {
       try {
         setLoading(true);
         const response = await usersAPI.getAll();
-
-        console.log("Réponse complète de l'API /api/users:", response.data);
-
-        // =======================================================
-        // ===            LA CORRECTION EST ICI                ===
-        // =======================================================
-        // Avant : setUsers(response.data.data || []);
-        // Après : Nous utilisons 'response.data.users' car c'est la structure probable.
         const usersData = response.data.users || response.data.data || [];
         setUsers(usersData);
-        // =======================================================
-        
-        console.log("Utilisateurs définis dans l'état:", usersData);
-
         setError('');
       } catch (err) {
         console.error('Erreur chargement utilisateurs:', err);
@@ -59,11 +48,16 @@ const AddMemberModal = ({ service, fonctions, onAdd, onClose }) => {
     return fullName.includes(query) || email.includes(query);
   });
 
+  // ✨ NOUVEAU : Filtrer les fonctions selon la recherche
+  const filteredFonctions = fonctions.filter((fonction) =>
+    fonction.toLowerCase().includes(fonctionSearch.toLowerCase())
+  );
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* En-tête */}
-        <div className="bg-blue-600 p-6 text-white flex items-center justify-between rounded-t-lg">
+        <div className="bg-blue-600 p-6 text-white flex items-center justify-between rounded-t-lg sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <UserPlus size={24} />
             <div>
@@ -125,24 +119,79 @@ const AddMemberModal = ({ service, fonctions, onAdd, onClose }) => {
             )}
           </div>
 
-          {/* Sélection fonction */}
+          {/* ✨ NOUVEAU : Sélection fonction avec RECHERCHE */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fonction *
+              Fonction * 
+              <span className="text-xs text-gray-500 font-normal ml-2">
+                ({fonctions.length} fonctions disponibles)
+              </span>
             </label>
-            <select
-              value={selectedFonction}
-              onChange={(e) => setSelectedFonction(e.target.value)}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">-- Sélectionnez une fonction --</option>
-              {fonctions.map((fonction) => (
-                <option key={fonction} value={fonction}>
-                  {fonction}
-                </option>
-              ))}
-            </select>
+            
+            {/* Champ de recherche pour filtrer les fonctions */}
+            <div className="relative mb-2">
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={18}
+              />
+              <input
+                type="text"
+                placeholder="🔍 Rechercher une fonction..."
+                value={fonctionSearch}
+                onChange={(e) => setFonctionSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            {/* Liste scrollable des fonctions filtrées */}
+            <div className="border rounded-lg max-h-60 overflow-y-auto bg-gray-50">
+              {filteredFonctions.length === 0 ? (
+                <div className="p-4 text-center text-gray-500 text-sm">
+                  Aucune fonction trouvée pour "{fonctionSearch}"
+                </div>
+              ) : (
+                filteredFonctions.map((fonction) => (
+                  <div
+                    key={fonction}
+                    onClick={() => {
+                      setSelectedFonction(fonction);
+                      setFonctionSearch(''); // Réinitialiser la recherche après sélection
+                    }}
+                    className={`p-3 cursor-pointer border-b last:border-b-0 transition ${
+                      selectedFonction === fonction
+                        ? 'bg-blue-100 text-blue-900 font-semibold'
+                        : 'hover:bg-blue-50 text-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{fonction}</span>
+                      {selectedFonction === fonction && (
+                        <span className="text-blue-600">✓</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            {/* Affichage de la sélection */}
+            {selectedFonction && (
+              <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span className="text-green-800">
+                    Sélectionné : <strong>{selectedFonction}</strong>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFonction('')}
+                  className="text-red-600 hover:text-red-800 text-xs font-medium"
+                >
+                  ✕ Annuler
+                </button>
+              </div>
+            )}
           </div>
 
           {error && (
@@ -162,7 +211,8 @@ const AddMemberModal = ({ service, fonctions, onAdd, onClose }) => {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+              disabled={!selectedUser || !selectedFonction}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Ajouter
             </button>

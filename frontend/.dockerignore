@@ -10,5 +10,6 @@ README.md
 .idea
 *.md
 dist
+*.log
 coverage
 .nyc_output

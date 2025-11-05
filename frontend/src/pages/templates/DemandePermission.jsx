@@ -1,9 +1,35 @@
-// frontend/src/pages/templates/DemandePermission.jsx
-import React, { useState } from 'react';
+// frontend/src/pages/templates/DemandePermission.jsx - VERSION OPTIMALE
+import React, { useState, useEffect } from 'react';
+import { usersAPI, servicesAPI } from '../../services/api';
 import logo from '../../assets/logo-ordre-malte.png';
 
 const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
-    const [isPdfMode, setIsPdfMode] = useState(false);
+    const [services, setServices] = useState([]);
+    const [loadingServices, setLoadingServices] = useState(true);
+    const [isGenerating, setIsGenerating] = useState(false);
+    
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const servicesResponse = await servicesAPI.getAll();
+                setServices(servicesResponse.data.data || []);
+                
+                const userServiceResponse = await usersAPI.getMyService();
+                if (userServiceResponse.data.success && userServiceResponse.data.service) {
+                    setFormData(prev => ({
+                        ...prev,
+                        service: userServiceResponse.data.service.name
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur chargement des données:', error);
+            } finally {
+                setLoadingServices(false);
+            }
+        };
+        
+        fetchData();
+    }, [setFormData]);
     
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -31,11 +57,21 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
         }
     }
 
-    // Formater les dates pour affichage
     const formatDate = (dateStr) => {
         if (!dateStr) return '____________________';
         const date = new Date(dateStr);
         return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    // Style pour les champs de texte statiques (pour PDF)
+    const staticFieldStyle = {
+        borderBottom: '2px dotted #9CA3AF',
+        padding: '8px 4px',
+        minHeight: '40px',
+        fontSize: '16px',
+        fontWeight: '600',
+        color: '#000000',
+        lineHeight: '1.5'
     };
 
     return (
@@ -45,65 +81,141 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
             style={{ 
                 width: '210mm', 
                 minHeight: '297mm', 
-                fontFamily: 'Arial, sans-serif' 
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '15px'
             }}
         >
-            
             <header className="flex items-center justify-between mb-12">
                 <img src={logo} alt="Logo" style={{ width: '80px' }} />
                 <h1 className="text-center">
-                    <span className="text-xl font-bold block">ORDRE DE MALTE</span>
-                    <span className="text-lg text-red-600">HÔPITAL SAINT JEAN DE MALTE</span>
+                    <span style={{ fontSize: '20px', fontWeight: 'bold', display: 'block' }}>
+                        ORDRE DE MALTE
+                    </span>
+                    <span style={{ fontSize: '18px', color: '#DC2626' }}>
+                        HÔPITAL SAINT JEAN DE MALTE
+                    </span>
                 </h1>
             </header>
 
-            <div className="flex justify-between mb-10 text-base">
-                <div className="w-1/2">
-                    <label className="font-semibold">NOMS et prénom(s)</label>
+            <div className="flex justify-between mb-10">
+                <div style={{ width: '50%' }}>
+                    <label className="font-semibold block mb-2" style={{ fontSize: '15px' }}>
+                        NOMS et prénom(s)
+                    </label>
+                    {/* Input pour édition */}
                     <input 
                         name="noms_prenoms" 
                         value={formData.noms_prenoms || ''} 
                         onChange={handleChange} 
-                        className="w-full mt-1 p-1 border-b-2 border-dotted border-gray-400" 
+                        className="not-printable w-full border-b-2 border-gray-400 bg-transparent focus:outline-none focus:border-blue-500"
+                        style={{
+                            borderStyle: 'dotted',
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            padding: '8px 4px',
+                            minHeight: '40px',
+                            lineHeight: '1.5'
+                        }}
                     />
-                    <label className="mt-4 block font-semibold">Service</label>
-                    <input 
-                        name="service" 
-                        value={formData.service || ''} 
-                        onChange={handleChange} 
-                        className="w-full mt-1 p-1 border-b-2 border-dotted border-gray-400" 
-                    />
+                    {/* Texte statique pour PDF */}
+                    <div className="print-only" style={{ ...staticFieldStyle, display: 'none' }}>
+                        {formData.noms_prenoms || '\u00A0'}
+                    </div>
+                    
+                    <label className="font-semibold block mb-2 mt-6" style={{ fontSize: '15px' }}>
+                        Service
+                    </label>
+                    {loadingServices ? (
+                        <div className="w-full p-2 text-gray-400 italic">Chargement...</div>
+                    ) : (
+                        <>
+                            {/* Select pour édition */}
+                            <select
+                                name="service"
+                                value={formData.service || ''}
+                                onChange={handleChange}
+                                className="not-printable w-full border-b-2 border-gray-400 bg-transparent focus:outline-none focus:border-blue-500"
+                                style={{
+                                    borderStyle: 'dotted',
+                                    fontSize: '16px',
+                                    fontWeight: '600',
+                                    padding: '8px 4px',
+                                    minHeight: '40px',
+                                    lineHeight: '1.5',
+                                    appearance: 'none'
+                                }}
+                            >
+                                <option value="">-- Sélectionner un service --</option>
+                                {services.map((service) => (
+                                    <option key={service.id} value={service.name}>
+                                        {service.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {/* Texte statique pour PDF */}
+                            <div className="print-only" style={{ ...staticFieldStyle, display: 'none' }}>
+                                {formData.service || '\u00A0'}
+                            </div>
+                        </>
+                    )}
                 </div>
-                <div className="w-1/3 text-right">
+                <div style={{ width: '35%', textAlign: 'right' }}>
+                    {/* Input pour édition */}
                     <input 
                         name="date_lieu" 
                         value={formData.date_lieu || ''} 
                         onChange={handleChange} 
                         placeholder="Njombé, le ..."
-                        className="w-full mt-1 p-1 border-b-2 border-dotted border-gray-400" 
+                        className="not-printable w-full border-b-2 border-gray-400 bg-transparent focus:outline-none focus:border-blue-500 text-right" 
+                        style={{
+                            borderStyle: 'dotted',
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            padding: '8px 4px',
+                            minHeight: '40px',
+                            lineHeight: '1.5'
+                        }}
                     />
+                    {/* Texte statique pour PDF */}
+                    <div className="print-only" style={{ ...staticFieldStyle, display: 'none', textAlign: 'right' }}>
+                        {formData.date_lieu || '\u00A0'}
+                    </div>
                 </div>
             </div>
 
-            <div className="text-right mb-8 text-base">
+            <div className="text-right mb-8" style={{ fontSize: '15px' }}>
                 <p className="font-semibold">A Monsieur le Directeur Général</p>
                 <p>De l'Hôpital Saint Jean de Malte de Njombé</p>
             </div>
 
             <div className="mb-6">
-                <label className="font-bold text-base">Objet :</label>
+                <label className="font-bold" style={{ fontSize: '15px' }}>Objet :</label>
+                {/* Input pour édition */}
                 <input 
                     name="objet" 
                     value={formData.objet || ''} 
                     onChange={handleChange} 
-                    className="w-full mt-1 p-1 border-b-2 border-dotted border-gray-400 text-base" 
+                    className="not-printable w-full border-b-2 border-gray-400 bg-transparent focus:outline-none focus:border-blue-500" 
+                    style={{
+                        borderStyle: 'dotted',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        padding: '8px 4px',
+                        minHeight: '40px',
+                        lineHeight: '1.5',
+                        marginTop: '8px'
+                    }}
                 />
+                {/* Texte statique pour PDF */}
+                <div className="print-only" style={{ ...staticFieldStyle, display: 'none', marginTop: '8px' }}>
+                    {formData.objet || '\u00A0'}
+                </div>
             </div>
             
             <div className="mb-8">
-                <p className="text-base mb-6">Monsieur,</p>
+                <p className="mb-6" style={{ fontSize: '15px' }}>Monsieur,</p>
                 
-                <div className="text-base leading-loose">
+                <div style={{ fontSize: '15px', lineHeight: '1.8' }}>
                     <p className="mb-4">
                         Je viens par cette demande solliciter une permission de <span className="font-bold">« {nombreDeJours} »</span> allant du <span className="font-bold underline">{formatDate(formData.date_debut)}</span> au <span className="font-bold underline">{formatDate(formData.date_fin)}</span>.
                     </p>
@@ -180,16 +292,16 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
                 </div>
             </div>
             
-            <p className="mt-12 text-base">
+            <p className="mt-12" style={{ fontSize: '15px', lineHeight: '1.6' }}>
                 Dans l'attente d'une suite favorable, veuillez agréer Monsieur l'expression de mon plus profond respect.
             </p>
             
-            <div className="absolute bottom-24 left-12 right-12 grid grid-cols-3 gap-8 text-center text-base">
+            <div className="absolute bottom-24 left-12 right-12 grid grid-cols-3 gap-8 text-center" style={{ fontSize: '15px' }}>
                 <div>
-                    <p className="font-semibold">Intéressé(e)</p>
+                    <p className="font-semibold">Chef de Pôle</p>
                 </div>
                 <div>
-                    <p className="font-semibold">Signatures des supérieurs</p>
+                    <p className="font-semibold">Signature du supérieur</p>
                 </div>
                 <div>
                     <p className="font-semibold">Le Directeur Général</p>

@@ -1,4 +1,4 @@
-// src/models/ServiceMember.js
+// backend/src/models/ServiceMember.js
 
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
@@ -37,12 +37,31 @@ const ServiceMember = sequelize.define('ServiceMember', {
         'Major',
         'Chef de Service',
         'Chef de Service Adjoint',
-        'DDS',
+        'Directrice Des Soins',
         'Médecin Chef',
         'Responsable SecuLog',
-        'DS',
-        'DGA',
-        'DG',
+        'Directeur du Soutien',
+        'Directeur Général Adjoint(e)',
+        'Directeur Général',
+        'Infirmier(e)',
+        'Sage-femme',
+        'Aide-soignant(e)',
+        'Technicien de laboratoire',
+        'Pharmacien(ne)',
+        'Radiologue',
+        'Anesthésiste',
+        'Chirurgien(ne)',
+        'Kinésithérapeute',
+        'Comptable',
+        'Responsable RH',
+        'Agent d\'entretien',
+        'Agent de sécurité',
+        'Chauffeur',
+        'Gestionnaire Logistic des Biens',
+        'Technicien biomédical(e)',
+        'Référent informaticien(e)',
+        'Informaticien(ne)',
+        'Responsable Achats'
       ]],
     },
   },
@@ -57,7 +76,7 @@ const ServiceMember = sequelize.define('ServiceMember', {
   underscored: true,
 });
 
-// AJOUT IMPORTANT : DÉFINITION DES ASSOCIATIONS
+// Associations
 ServiceMember.associate = function(models) {
   this.belongsTo(models.Service, { foreignKey: 'serviceId', as: 'service' });
   this.belongsTo(models.User, { foreignKey: 'userId', as: 'user' });

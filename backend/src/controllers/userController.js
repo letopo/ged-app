@@ -1,5 +1,7 @@
 // backend/src/controllers/userController.js - VERSION COMPLÈTE
 import User from '../models/User.js';
+import Service from '../models/Service.js';
+import ServiceMember from '../models/ServiceMember.js';
 import { Op } from 'sequelize';
 
 // @desc    Récupérer tous les utilisateurs
@@ -122,15 +124,9 @@ export const deleteUser = async (req, res, next) => {
   }
 };
 
-// ===============================================
-// === NOUVELLES FONCTIONS POUR LES SIGNATURES ===
-// ===============================================
-
-/**
- * @desc    Uploader ou mettre à jour une image de signature pour un utilisateur
- * @route   POST /api/users/:id/signature
- * @access  Private (Admin)
- */
+// @desc    Uploader ou mettre à jour une image de signature pour un utilisateur
+// @route   POST /api/users/:id/signature
+// @access  Private (Admin)
 export const uploadSignature = async (req, res, next) => {
     try {
       const user = await User.findByPk(req.params.id);
@@ -141,9 +137,6 @@ export const uploadSignature = async (req, res, next) => {
         return res.status(400).json({ success: false, message: 'Aucun fichier image n\'a été envoyé' });
       }
   
-      // Le middleware Multer a déjà sauvegardé le fichier.
-      // On met à jour le chemin dans la base de données.
-      // On normalise les slashes pour être compatible avec Windows et Linux.
       user.signaturePath = req.file.path.replace(/\\/g, "/");
       await user.save();
   
@@ -153,11 +146,9 @@ export const uploadSignature = async (req, res, next) => {
     }
 };
 
-/**
- * @desc    Uploader ou mettre à jour une image de cachet pour un utilisateur
- * @route   POST /api/users/:id/stamp
- * @access  Private (Admin)
- */
+// @desc    Uploader ou mettre à jour une image de cachet pour un utilisateur
+// @route   POST /api/users/:id/stamp
+// @access  Private (Admin)
 export const uploadStamp = async (req, res, next) => {
     try {
       const user = await User.findByPk(req.params.id);
@@ -175,4 +166,42 @@ export const uploadStamp = async (req, res, next) => {
     } catch (error) {
       next(error);
     }
+};
+
+// @desc    Récupérer le service de l'utilisateur connecté
+// @route   GET /api/users/me/service
+// @access  Private
+export const getMyService = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    
+    const serviceMember = await ServiceMember.findOne({
+      where: { 
+        userId: userId,
+        isActive: true 
+      },
+      include: [{
+        model: Service,
+        as: 'service',
+        attributes: ['id', 'name']
+      }]
+    });
+
+    if (!serviceMember) {
+      return res.json({ 
+        success: true, 
+        service: null,
+        message: 'Aucun service associé à cet utilisateur' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      service: serviceMember.service,
+      fonction: serviceMember.fonction
+    });
+  } catch (error) {
+    console.error('❌ Erreur récupération service utilisateur:', error);
+    next(error);
+  }
 };

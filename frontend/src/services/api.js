@@ -90,6 +90,7 @@ export const servicesAPI = {
 export const usersAPI = {
   getAll: () => api.get('/users'),
   getById: (userId) => api.get(`/users/${userId}`),
+  getMyService: () => api.get('/users/me/service'),
   create: (userData) => api.post('/users', userData),
   update: (userId, data) => api.put(`/users/${userId}`, data),
   delete: (userId) => api.delete(`/users/${userId}`),
