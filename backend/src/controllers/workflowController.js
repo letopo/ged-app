@@ -257,7 +257,7 @@ export const validateTask = async (req, res) => {
         }
       } else if (status === 'rejected') {
         await document.update({ status: 'rejected' }, { transaction: t });
-        await Workflow.update({ status: 'cancelled' }, { where: { documentId: document.id, status: 'queued' }, transaction: t });
+        await Workflow.update({ status: 'rejected' }, { where: { documentId: document.id, status: 'queued' }, transaction: t });
       }
     }
 

@@ -145,7 +145,9 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
                                 className="w-full px-3 py-2 border-2 border-blue-300 rounded focus:outline-none focus:border-blue-500 bg-white"
                             >
                                 <option value="Personnel">Personnel</option>
-                                <option value="Journée directeur">Journée directeur</option>
+                                <option value="Journée Directeur">Journée Directeur</option>
+                                <option value="Journée Major">Journée Major</option>
+                                <option value="Permission d'Urgence">Permission d'Urgence</option>
                                 <option value="Exceptionnel">Permission exceptionnel</option>
                             </select>
                         </div>
