@@ -1,0 +1,79 @@
+# Nom du workflow
+name: Build and Push Docker Images
+
+# Déclencheurs
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+# Définition des jobs
+jobs:
+  # PREMIER JOB : Pour le Backend
+  build_and_push_backend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for backend image
+        id: meta_backend
+        uses: docker/metadata-action@v4
+        with:
+          # IMPORTANT : Nom de l'image pour le backend
+          images: ghcr.io/${{ github.repository }}/ged-backend
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v4
+        with:
+          # IMPORTANT : Contexte pointant vers le dossier du backend
+          context: ./backend 
+          # Spécifier le chemin du Dockerfile s'il n'est pas à la racine du contexte
+          # file: ./backend/Dockerfile 
+          push: true
+          tags: ${{ steps.meta_backend.outputs.tags }}
+          labels: ${{ steps.meta_backend.outputs.labels }}
+
+  # DEUXIÈME JOB : Pour le Frontend
+  build_and_push_frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for frontend image
+        id: meta_frontend
+        uses: docker/metadata-action@v4
+        with:
+          # IMPORTANT : Nom de l'image pour le frontend
+          images: ghcr.io/${{ github.repository }}/ged-frontend
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v4
+        with:
+          # IMPORTANT : Contexte pointant vers le dossier du frontend
+          context: ./frontend
+          # file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta_frontend.outputs.tags }}
+          labels: ${{ steps.meta_frontend.outputs.labels }}
