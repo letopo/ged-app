@@ -7,15 +7,11 @@ const Workflow = sequelize.define('Workflow', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  // =======================================================
-  // ===        AJOUT DU CHAMP 'step' MANQUANT           ===
-  // =======================================================
   step: {
     type: DataTypes.INTEGER,
     allowNull: false,
     comment: "L'ordre de cette étape dans le workflow",
   },
-  // =======================================================
   status: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -30,7 +26,6 @@ const Workflow = sequelize.define('Workflow', {
     allowNull: false,
     field: 'validator_id',
   },
-  // J'ajoute également les champs 'comment' et 'validatedAt' pour la cohérence
   comment: {
     type: DataTypes.TEXT,
     allowNull: true,
@@ -40,6 +35,35 @@ const Workflow = sequelize.define('Workflow', {
     allowNull: true,
     field: 'validated_at',
   },
+  // ✅ NOUVEAU : Date d'assignation de la tâche
+  assignedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'assigned_at',
+    comment: 'Date à laquelle la tâche a été assignée au validateur',
+  },
+  // ✅ NOUVEAU : Flag pour indiquer si la validation est en retard
+  isOverdue: {
+    type: DataTypes.VIRTUAL,
+    get() {
+      if (!this.assignedAt || this.status !== 'pending') return false;
+      const now = new Date();
+      const assigned = new Date(this.assignedAt);
+      const hoursDiff = (now - assigned) / (1000 * 60 * 60);
+      return hoursDiff > 8;
+    }
+  },
+  // ✅ NOUVEAU : Heures de retard
+  hoursOverdue: {
+    type: DataTypes.VIRTUAL,
+    get() {
+      if (!this.assignedAt || this.status !== 'pending') return 0;
+      const now = new Date();
+      const assigned = new Date(this.assignedAt);
+      const hoursDiff = (now - assigned) / (1000 * 60 * 60);
+      return Math.max(0, Math.floor(hoursDiff - 8));
+    }
+  }
 }, {
   tableName: 'workflows',
   timestamps: true,

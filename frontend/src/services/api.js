@@ -113,6 +113,8 @@ export const workflowAPI = {
   validateTask: (taskId, data) => api.put(`/workflows/${taskId}/validate`, data),
   getDocumentWorkflow: (documentId) => api.get(`/workflows/document/${documentId}`),
   getValidators: () => api.get('/workflows/validators'),
+  // ✅ NOUVEAU : Validation en masse
+  bulkValidate: (data) => api.post('/workflows/bulk-validate', data),
 };
 
 // ============================================

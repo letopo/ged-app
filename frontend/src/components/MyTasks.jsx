@@ -1,4 +1,4 @@
-// frontend/src/components/MyTasks.jsx - VERSION FINALE COMPLÈTE
+// frontend/src/components/MyTasks.jsx - VERSION AVEC GESTION DES RETARDS
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { workflowAPI, listsAPI, documentsAPI } from '../services/api';
@@ -9,7 +9,8 @@ import DemandeBesoin from '../pages/templates/DemandeBesoin';
 import FicheSuiviEquipements from '../pages/templates/FicheSuiviEquipements';
 import { 
   Clock, CheckCircle, XCircle, User, Calendar, Loader, Eye, Edit, 
-  ShieldCheck, Filter, ThumbsUp, CalendarPlus, FileText, Send, AlertCircle 
+  ShieldCheck, Filter, ThumbsUp, CalendarPlus, FileText, Send, AlertCircle,
+  AlertTriangle // ✅ NOUVEAU : Icône pour les retards
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -94,6 +95,40 @@ const MyTasks = () => {
     }
   };
 
+  // ✅ NOUVEAU : Fonction pour calculer si une tâche est en retard
+  const isTaskOverdue = (task) => {
+    if (!task.assignedAt || task.status !== 'pending') return false;
+    const now = new Date();
+    const assigned = new Date(task.assignedAt);
+    const hoursDiff = (now - assigned) / (1000 * 60 * 60);
+    return hoursDiff > 8;
+  };
+
+  // ✅ NOUVEAU : Fonction pour calculer les heures de retard
+  const getHoursOverdue = (task) => {
+    if (!task.assignedAt || task.status !== 'pending') return 0;
+    const now = new Date();
+    const assigned = new Date(task.assignedAt);
+    const hoursDiff = (now - assigned) / (1000 * 60 * 60);
+    return Math.max(0, Math.floor(hoursDiff - 8));
+  };
+
+  // ✅ NOUVEAU : Vérifier si l'utilisateur peut valider une tâche en bypass (après 8h de retard)
+  const canBypassValidation = (task) => {
+    if (!task.document?.workflows) return false;
+    
+    // Trouver la tâche en attente actuelle
+    const currentPendingTask = task.document.workflows.find(
+      w => w.status === 'pending' && w.step < task.step
+    );
+    
+    // Si aucune tâche en attente avant nous, c'est notre tour normal
+    if (!currentPendingTask) return false;
+    
+    // Vérifier si la tâche en attente est en retard de plus de 8h
+    return isTaskOverdue(currentPendingTask);
+  };
+
   const filteredTasks = useMemo(() => {
     let filtered = tasks;
     if (filter !== 'all') {
@@ -117,10 +152,19 @@ const MyTasks = () => {
     setComment(task.comment || '');
     const metadata = task.document?.metadata || {};
     if (isWorkRequest(task) && isMG()) {
-      setDemandeBesoinsData(prev => ({ ...prev, service: metadata.service || '', reference: `DT-${task.document.id.slice(0, 8)}`, justification: `Suite à la demande de travaux concernant: ${metadata.motif || ''}` }));
+      setDemandeBesoinsData(prev => ({ 
+        ...prev, 
+        service: metadata.service || '', 
+        reference: `DT-${task.document.id.slice(0, 8)}`, 
+        justification: `Suite à la demande de travaux concernant: ${metadata.motif || ''}` 
+      }));
     }
     if (isWorkRequest(task) && isBiomedical()) {
-      setFicheSuiviData(prev => ({ ...prev, service: metadata.service || '', equipement: metadata.motif || '' }));
+      setFicheSuiviData(prev => ({ 
+        ...prev, 
+        service: metadata.service || '', 
+        equipement: metadata.motif || '' 
+      }));
     }
   };
 
@@ -143,11 +187,32 @@ const MyTasks = () => {
       return;
     }
     
+    // ✅ MODIFIÉ : Ajouter une confirmation pour les validations en bypass
+    const isBypass = taskToProcess.status === 'queued' && canBypassValidation(taskToProcess);
+    if (isBypass && ['approve', 'simple_approve'].includes(action)) {
+      const hoursOverdue = getHoursOverdue(
+        taskToProcess.document.workflows.find(w => w.status === 'pending' && w.step < taskToProcess.step)
+      );
+      const confirm = window.confirm(
+        `⚠️ VALIDATION EN BYPASS\n\n` +
+        `Le validateur précédent est en retard de ${hoursOverdue}h.\n` +
+        `Voulez-vous valider ce document à sa place ?\n\n` +
+        `Note : Cette action sera enregistrée dans l'historique.`
+      );
+      if (!confirm) return;
+    }
+    
     setActionLoading(action);
     setError('');
 
     try {
       let payload = { comment };
+      
+      // ✅ MODIFIÉ : Ajouter l'info de bypass dans le payload
+      if (isBypass) {
+        payload.isBypass = true;
+        payload.comment = (comment || '') + `\n[VALIDATION EN BYPASS - Retard du validateur précédent]`;
+      }
       
       if (action === 'approve') {
         payload.status = 'approved';
@@ -269,7 +334,11 @@ const MyTasks = () => {
   };
 
   const toggleDbValidator = (validatorId) => {
-    setSelectedDbValidators(prev => prev.includes(validatorId) ? prev.filter(id => id !== validatorId) : [...prev, validatorId]);
+    setSelectedDbValidators(prev => 
+      prev.includes(validatorId) 
+        ? prev.filter(id => id !== validatorId) 
+        : [...prev, validatorId]
+    );
   };
 
   const handleSubmitFicheSuivi = async () => {
@@ -334,14 +403,55 @@ const MyTasks = () => {
   const formatDate = (date) => new Date(date).toLocaleString('fr-FR');
   
   const getStatusBadge = (status) => {
-    const styles = { pending: 'bg-yellow-100 text-yellow-800', approved: 'bg-green-100 text-green-800', rejected: 'bg-red-100 text-red-800', en_pause: 'bg-purple-100 text-purple-800' };
-    const icons = { pending: Clock, approved: CheckCircle, rejected: XCircle, en_pause: AlertCircle };
+    const styles = { 
+      pending: 'bg-yellow-100 text-yellow-800', 
+      approved: 'bg-green-100 text-green-800', 
+      rejected: 'bg-red-100 text-red-800', 
+      en_pause: 'bg-purple-100 text-purple-800',
+      queued: 'bg-gray-100 text-gray-600' // ✅ NOUVEAU : Style pour "en attente"
+    };
+    const icons = { 
+      pending: Clock, 
+      approved: CheckCircle, 
+      rejected: XCircle, 
+      en_pause: AlertCircle,
+      queued: Clock // ✅ NOUVEAU
+    };
     const Icon = icons[status] || Clock;
-    const labels = { pending: 'En attente', approved: 'Approuvé', rejected: 'Rejeté', en_pause: 'En pause' };
+    const labels = { 
+      pending: 'En attente', 
+      approved: 'Approuvé', 
+      rejected: 'Rejeté', 
+      en_pause: 'En pause',
+      queued: 'File d\'attente' // ✅ NOUVEAU
+    };
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
         <Icon className="w-3 h-3 mr-1" />
         {labels[status] || status}
+      </span>
+    );
+  };
+
+  // ✅ NOUVEAU : Badge pour les tâches en retard
+  const getOverdueBadge = (task) => {
+    if (!isTaskOverdue(task)) return null;
+    const hoursOverdue = getHoursOverdue(task);
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 animate-pulse">
+        <AlertTriangle className="w-3 h-3 mr-1" />
+        ⚠️ Retard +{hoursOverdue}h
+      </span>
+    );
+  };
+
+  // ✅ NOUVEAU : Badge pour les validations possibles en bypass
+  const getBypassBadge = (task) => {
+    if (task.status !== 'queued' || !canBypassValidation(task)) return null;
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-300">
+        <AlertTriangle className="w-3 h-3 mr-1" />
+        🚀 Validation possible (bypass)
       </span>
     );
   };
@@ -370,9 +480,15 @@ const MyTasks = () => {
             <button 
               key={status} 
               onClick={() => setFilter(status)} 
-              className={`px-4 py-2 text-sm font-medium rounded-md transition ${filter === status ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition ${
+                filter === status 
+                  ? 'bg-blue-600 text-white shadow' 
+                  : 'text-gray-600 hover:bg-gray-200'
+              }`}
             >
-              {status === 'pending' ? 'En attente' : status === 'approved' ? 'Approuvées' : status === 'rejected' ? 'Rejetées' : 'Toutes'} 
+              {status === 'pending' ? 'En attente' : 
+               status === 'approved' ? 'Approuvées' : 
+               status === 'rejected' ? 'Rejetées' : 'Toutes'} 
               ({tasks.filter(t => status === 'all' || t.status === status).length})
             </button>
           ))}
@@ -381,11 +497,17 @@ const MyTasks = () => {
         {tasks.some(t => isWorkRequest(t)) && (
           <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 flex-wrap">
             <Filter size={18} className="text-blue-600" />
-            <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="px-4 py-2 border rounded-md text-sm">
+            <select 
+              value={serviceFilter} 
+              onChange={(e) => setServiceFilter(e.target.value)} 
+              className="px-4 py-2 border rounded-md text-sm"
+            >
               <option value="all">Tous les services</option>
               {services.map(s => (<option key={s.id} value={s.name}>{s.name}</option>))}
             </select>
-            <span className="text-sm text-blue-600">({filteredTasks.filter(t => isWorkRequest(t)).length} demandes de travaux)</span>
+            <span className="text-sm text-blue-600">
+              ({filteredTasks.filter(t => isWorkRequest(t)).length} demandes de travaux)
+            </span>
           </div>
         )}
       </div>
@@ -396,74 +518,342 @@ const MyTasks = () => {
             <p className="text-gray-500">Aucune tâche dans cette catégorie.</p>
           </div>
         ) : (
-          filteredTasks.map((task) => (
-            <div key={task.id} className="bg-white p-6 rounded-lg shadow-md border hover:border-blue-500 transition-all">
-              <div className="flex flex-col md:flex-row items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-3 flex-wrap">
-                    <h3 className="text-xl font-semibold">{task.document.title}</h3>
-                    {getStatusBadge(task.status)}
-                    {isWorkRequest(task) && (<span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"><FileText className="w-3 h-3 mr-1" /> Demande de Travaux</span>)}
+          filteredTasks.map((task) => {
+            const isOverdue = isTaskOverdue(task);
+            const canBypass = canBypassValidation(task);
+            const isBypassable = task.status === 'queued' && canBypass;
+
+            return (
+              <div 
+                key={task.id} 
+                className={`bg-white p-6 rounded-lg shadow-md border transition-all ${
+                  isOverdue 
+                    ? 'border-red-400 bg-red-50' 
+                    : isBypassable 
+                      ? 'border-orange-400 bg-orange-50'
+                      : 'hover:border-blue-500'
+                }`}
+              >
+                <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4 mb-3 flex-wrap">
+                      <h3 className="text-xl font-semibold">{task.document.title}</h3>
+                      {getStatusBadge(task.status)}
+                      {/* ✅ NOUVEAU : Afficher le badge de retard */}
+                      {getOverdueBadge(task)}
+                      {/* ✅ NOUVEAU : Afficher le badge de bypass possible */}
+                      {getBypassBadge(task)}
+                      {isWorkRequest(task) && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                          <FileText className="w-3 h-3 mr-1" /> Demande de Travaux
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600">
+                      <p className="flex items-center gap-2">
+                        <User size={14} /> 
+                        Soumis par: <strong>{task.document.uploadedBy?.firstName || 'Inconnu'}</strong>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Calendar size={14} /> 
+                        Le: <strong>{formatDate(task.createdAt)}</strong>
+                      </p>
+                      {/* ✅ NOUVEAU : Afficher la date d'assignation et le temps écoulé */}
+                      {task.assignedAt && task.status === 'pending' && (
+                        <p className="flex items-center gap-2">
+                          <Clock size={14} className={isOverdue ? 'text-red-600' : ''} /> 
+                          Assigné depuis: <strong className={isOverdue ? 'text-red-600 font-bold' : ''}>
+                            {Math.floor((new Date() - new Date(task.assignedAt)) / (1000 * 60 * 60))}h
+                          </strong>
+                        </p>
+                      )}
+                      {isWorkRequest(task) && task.document.metadata?.service && (
+                        <p className="flex items-center gap-2">
+                          <Filter size={14} /> 
+                          Service: <strong>{task.document.metadata.service}</strong>
+                        </p>
+                      )}
+                    </div>
+                    {/* ✅ NOUVEAU : Message d'alerte pour les tâches en retard */}
+                    {isOverdue && (
+                      <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg flex items-start gap-2">
+                        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-red-800">
+                          <p className="font-semibold">⚠️ Cette tâche est en retard de {getHoursOverdue(task)} heures</p>
+                          <p className="text-xs mt-1">
+                            Les validateurs suivants peuvent maintenant valider ce document.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {/* ✅ NOUVEAU : Message pour les validations en bypass */}
+                    {isBypassable && (
+                      <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg flex items-start gap-2">
+                        <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-orange-800">
+                          <p className="font-semibold">🚀 Validation en bypass disponible</p>
+                          <p className="text-xs mt-1">
+                            Le validateur précédent est en retard. Vous pouvez valider ce document à sa place.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600">
-                    <p className="flex items-center gap-2"><User size={14} /> Soumis par: <strong>{task.document.uploadedBy?.firstName || 'Inconnu'}</strong></p>
-                    <p className="flex items-center gap-2"><Calendar size={14} /> Le: <strong>{formatDate(task.createdAt)}</strong></p>
-                    {isWorkRequest(task) && task.document.metadata?.service && (<p className="flex items-center gap-2"><Filter size={14} /> Service: <strong>{task.document.metadata.service}</strong></p>)}
+                  <div className="flex items-center gap-3 flex-shrink-0 mt-4 md:mt-0">
+                    <button 
+                      onClick={() => setViewingDocument(task.document)} 
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-800 rounded-lg
+                      hover:bg-gray-200 font-medium transition"
+                    >
+                      <Eye size={16} /> Voir
+                    </button>
+                    {/* ✅ MODIFIÉ : Permettre le traitement si pending OU si bypass possible */}
+                    {(task.status === 'pending' || isBypassable) && (
+                      <button 
+                        onClick={() => openProcessingModal(task)} 
+                        className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg font-medium transition shadow ${
+                          isBypassable 
+                            ? 'bg-orange-600 hover:bg-orange-700' 
+                            : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                      >
+                        <CheckCircle size={16} /> 
+                        {isBypassable ? 'Valider (Bypass)' : 'Traiter'}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0 mt-4 md:mt-0">
-                  <button onClick={() => setViewingDocument(task.document)} className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 font-medium transition"><Eye size={16} /> Voir</button>
-                  {task.status === 'pending' && (<button onClick={() => openProcessingModal(task)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition shadow"><CheckCircle size={16} /> Traiter</button>)}
+                <div className="border-t mt-4 pt-4">
+                  <WorkflowProgress 
+                    workflows={task.document.workflows} 
+                    documentStatus={task.document.status} 
+                  />
                 </div>
               </div>
-              <div className="border-t mt-4 pt-4">
-                <WorkflowProgress workflows={task.document.workflows} documentStatus={task.document.status} />
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
+      {/* ✅ MODIFIÉ : Modal de traitement avec message de bypass */}
       {taskToProcess && !showDemandeBesoins && !showFicheSuivi && !showDBFromFS && !showValidatorsSelection && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex max-h-[90vh] overflow-hidden">
             <div className="w-1/2 p-6 border-r flex flex-col overflow-y-auto">
               <h2 className="text-2xl font-bold mb-4">Traiter le document</h2>
-              <p className="text-sm text-gray-600 mt-1 mb-4">Document: <strong>{taskToProcess.document.title}</strong></p>
-              <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Ajouter un commentaire (requis si rejet)..." className="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500" rows="3" />
+              <p className="text-sm text-gray-600 mt-1 mb-4">
+                Document: <strong>{taskToProcess.document.title}</strong>
+              </p>
+              
+              {/* ✅ NOUVEAU : Afficher un avertissement si c'est une validation en bypass */}
+              {taskToProcess.status === 'queued' && canBypassValidation(taskToProcess) && (
+                <div className="mb-4 p-4 bg-orange-50 border-2 border-orange-300 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-bold text-orange-900 mb-2">
+                        🚀 Validation en Bypass
+                      </h3>
+                      <p className="text-sm text-orange-800">
+                        Le validateur précédent est en retard de{' '}
+                        <strong>
+                          {getHoursOverdue(
+                            taskToProcess.document.workflows.find(
+                              w => w.status === 'pending' && w.step < taskToProcess.step
+                            )
+                          )}h
+                        </strong>
+                        . Vous pouvez valider ce document à sa place.
+                      </p>
+                      <p className="text-xs text-orange-700 mt-2">
+                        Cette validation sera marquée comme "bypass" dans l'historique.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <textarea 
+                value={comment} 
+                onChange={(e) => setComment(e.target.value)} 
+                placeholder="Ajouter un commentaire (requis si rejet)..." 
+                className="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500" 
+                rows="3" 
+              />
+              
               <div className="space-y-3 flex-grow">
                 <h3 className="font-semibold text-gray-700">Actions disponibles :</h3>
-                <button onClick={() => handleAction('simple_approve')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border text-left transition">{actionLoading === 'simple_approve' ? <Loader className="animate-spin w-5 h-5"/> : <CheckCircle className="text-gray-600"/>} Validation simple (sans signature)</button>
-                {user?.signaturePath && (<button onClick={() => handleAction('approve')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border text-left transition">{actionLoading === 'approve' ? <Loader className="animate-spin w-5 h-5" /> : <Edit className="text-blue-600"/>} Approuver et Signer</button>)}
-                {user?.stampPath && (taskToProcess.step === taskToProcess.document.workflows.length) && (<button onClick={() => handleAction('stamp')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg border text-left transition">{actionLoading === 'stamp' ? <Loader className="animate-spin w-5 h-5" /> : <ShieldCheck className="text-indigo-600"/>} Apposer le cachet</button>)}
-                {user?.email === 'hsjm.rh@gmail.com' && (<button onClick={() => handleAction('dater')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition">{actionLoading === 'dater' ? <Loader className="animate-spin w-5 h-5" /> : <CalendarPlus className="text-teal-600"/>} Apposer le Dateur</button>)}
-                {isWorkRequest(taskToProcess) && isMG() && (<><div className="border-t my-3"></div><button onClick={handleInitiateDB} className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg border text-left transition"><FileText className="text-purple-600"/> Initier une Demande de Besoin</button><p className="text-xs text-gray-500 pl-3">La DT sera mise en pause en attendant la validation de la DB</p></>)}
-                {isWorkRequest(taskToProcess) && isBiomedical() && (<><div className="border-t my-3"></div><button onClick={handleInitiateFicheSuivi} className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"><FileText className="text-teal-600"/> Créer Fiche de Suivi d'Équipements</button><p className="text-xs text-gray-500 pl-3">La DT sera mise en pause. Vous pourrez ensuite initier une DB si nécessaire.</p></>)}
+                
+                <button 
+                  onClick={() => handleAction('simple_approve')} 
+                  disabled={!!actionLoading} 
+                  className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border text-left transition"
+                >
+                  {actionLoading === 'simple_approve' ? (
+                    <Loader className="animate-spin w-5 h-5"/>
+                  ) : (
+                    <CheckCircle className="text-gray-600"/>
+                  )}
+                  Validation simple (sans signature)
+                </button>
+                
+                {user?.signaturePath && (
+                  <button 
+                    onClick={() => handleAction('approve')} 
+                    disabled={!!actionLoading} 
+                    className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border text-left transition"
+                  >
+                    {actionLoading === 'approve' ? (
+                      <Loader className="animate-spin w-5 h-5" />
+                    ) : (
+                      <Edit className="text-blue-600"/>
+                    )}
+                    Approuver et Signer
+                  </button>
+                )}
+                
+                {user?.stampPath && (taskToProcess.step === taskToProcess.document.workflows.length) && (
+                  <button 
+                    onClick={() => handleAction('stamp')} 
+                    disabled={!!actionLoading} 
+                    className="w-full flex items-center gap-3 p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg border text-left transition"
+                  >
+                    {actionLoading === 'stamp' ? (
+                      <Loader className="animate-spin w-5 h-5" />
+                    ) : (
+                      <ShieldCheck className="text-indigo-600"/>
+                    )}
+                    Apposer le cachet
+                  </button>
+                )}
+                
+                {user?.email === 'hsjm.rh@gmail.com' && (
+                  <button 
+                    onClick={() => handleAction('dater')} 
+                    disabled={!!actionLoading} 
+                    className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"
+                  >
+                    {actionLoading === 'dater' ? (
+                      <Loader className="animate-spin w-5 h-5" />
+                    ) : (
+                      <CalendarPlus className="text-teal-600"/>
+                    )}
+                    Apposer le Dateur
+                  </button>
+                )}
+                
+                {isWorkRequest(taskToProcess) && isMG() && (
+                  <>
+                    <div className="border-t my-3"></div>
+                    <button 
+                      onClick={handleInitiateDB} 
+                      className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg border text-left transition"
+                    >
+                      <FileText className="text-purple-600"/> 
+                      Initier une Demande de Besoin
+                    </button>
+                    <p className="text-xs text-gray-500 pl-3">
+                      La DT sera mise en pause en attendant la validation de la DB
+                    </p>
+                  </>
+                )}
+                
+                {isWorkRequest(taskToProcess) && isBiomedical() && (
+                  <>
+                    <div className="border-t my-3"></div>
+                    <button 
+                      onClick={handleInitiateFicheSuivi} 
+                      className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"
+                    >
+                      <FileText className="text-teal-600"/> 
+                      Créer Fiche de Suivi d'Équipements
+                    </button>
+                    <p className="text-xs text-gray-500 pl-3">
+                      La DT sera mise en pause. Vous pourrez ensuite initier une DB si nécessaire.
+                    </p>
+                  </>
+                )}
               </div>
+              
               <div className="border-t my-5"></div>
-              <button onClick={() => handleAction('reject')} disabled={!!actionLoading} className="w-full flex items-center gap-3 p-3 bg-red-50 hover:bg-red-100 rounded-lg border text-left transition">{actionLoading === 'reject' ? <Loader className="animate-spin w-5 h-5"/> : <XCircle className="text-red-600"/>} Rejeter le document</button>
-              <div className="mt-6 text-right"><button onClick={closeProcessingModal} className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 ml-auto transition"><ThumbsUp size={16} /> Terminer</button></div>
+              
+              <button 
+                onClick={() => handleAction('reject')} 
+                disabled={!!actionLoading} 
+                className="w-full flex items-center gap-3 p-3 bg-red-50 hover:bg-red-100 rounded-lg border text-left transition"
+              >
+                {actionLoading === 'reject' ? (
+                  <Loader className="animate-spin w-5 h-5"/>
+                ) : (
+                  <XCircle className="text-red-600"/>
+                )}
+                Rejeter le document
+              </button>
+              
+              <div className="mt-6 text-right">
+                <button 
+                  onClick={closeProcessingModal} 
+                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 ml-auto transition"
+                >
+                  <ThumbsUp size={16} /> Terminer
+                </button>
+              </div>
             </div>
+            
             <div className="w-1/2 p-6 bg-gray-50 overflow-y-auto">
               <h3 className="font-bold text-lg mb-4">Suivi de Validation</h3>
-              <WorkflowProgress workflows={taskToProcess.document.workflows} documentStatus={taskToProcess.document.status} />
+              <WorkflowProgress 
+                workflows={taskToProcess.document.workflows} 
+                documentStatus={taskToProcess.document.status} 
+              />
             </div>
           </div>
         </div>
       )}
 
+      {/* Reste des modals inchangés... */}
       {(showDemandeBesoins || showDBFromFS) && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl my-8">
             <div className="p-6 border-b">
               <h2 className="text-2xl font-bold">Créer une Demande de Besoin</h2>
-              <p className="text-sm text-gray-600 mt-2">{showDBFromFS ? 'Suite à la Fiche de Suivi d\'Équipements' : 'Cette demande sera liée à la Demande de Travaux en cours'}</p>
+              <p className="text-sm text-gray-600 mt-2">
+                {showDBFromFS ? 'Suite à la Fiche de Suivi d\'Équipements' : 'Cette demande sera liée à la Demande de Travaux en cours'}
+              </p>
             </div>
-            <div className="p-6 max-h-[70vh] overflow-y-auto"><DemandeBesoin formData={demandeBesoinsData} setFormData={setDemandeBesoinsData} pdfContainerRef={dbPdfRef}/></div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <DemandeBesoin 
+                formData={demandeBesoinsData} 
+                setFormData={setDemandeBesoinsData} 
+                pdfContainerRef={dbPdfRef}
+              />
+            </div>
             {error && <p className="text-red-500 px-6 py-2">{error}</p>}
             <div className="p-6 border-t flex justify-between">
-              <button onClick={() => { setShowDemandeBesoins(false); setShowDBFromFS(false); }} className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Annuler</button>
-              <button onClick={handleSubmitDemandeBesoins} disabled={submittingDB} className="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition">{submittingDB ? (<><Loader className="animate-spin w-5 h-5" /> Création...</>) : (<><Send size={18}/> Créer et Soumettre</>)}</button>
+              <button 
+                onClick={() => { 
+                  setShowDemandeBesoins(false); 
+                  setShowDBFromFS(false); 
+                }} 
+                className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleSubmitDemandeBesoins} 
+                disabled={submittingDB} 
+                className="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition"
+              >
+                {submittingDB ? (
+                  <>
+                    <Loader className="animate-spin w-5 h-5" /> Création...
+                  </>
+                ) : (
+                  <>
+                    <Send size={18}/> Créer et Soumettre
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -472,12 +862,40 @@ const MyTasks = () => {
       {showFicheSuivi && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl my-8">
-            <div className="p-6 border-b"><h2 className="text-2xl font-bold">Créer une Fiche de Suivi d'Équipements</h2><p className="text-sm text-gray-600 mt-2">Documentation de l'intervention biomédicale</p></div>
-            <div className="p-6 max-h-[75vh] overflow-y-auto"><FicheSuiviEquipements formData={ficheSuiviData} setFormData={setFicheSuiviData} pdfContainerRef={fsPdfRef}/></div>
+            <div className="p-6 border-b">
+              <h2 className="text-2xl font-bold">Créer une Fiche de Suivi d'Équipements</h2>
+              <p className="text-sm text-gray-600 mt-2">Documentation de l'intervention biomédicale</p>
+            </div>
+            <div className="p-6 max-h-[75vh] overflow-y-auto">
+              <FicheSuiviEquipements 
+                formData={ficheSuiviData} 
+                setFormData={setFicheSuiviData} 
+                pdfContainerRef={fsPdfRef}
+              />
+            </div>
             {error && <p className="text-red-500 px-6 py-2">{error}</p>}
             <div className="p-6 border-t flex justify-between">
-              <button onClick={() => setShowFicheSuivi(false)} className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Annuler</button>
-              <button onClick={handleSubmitFicheSuivi} disabled={submittingFS} className="px-8 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition">{submittingFS ? (<><Loader className="animate-spin w-5 h-5" /> Création...</>) : (<><Send size={18}/> Créer la Fiche</>)}</button>
+              <button 
+                onClick={() => setShowFicheSuivi(false)} 
+                className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleSubmitFicheSuivi} 
+                disabled={submittingFS} 
+                className="px-8 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition"
+              >
+                {submittingFS ? (
+                  <>
+                    <Loader className="animate-spin w-5 h-5" /> Création...
+                  </>
+                ) : (
+                  <>
+                    <Send size={18}/> Créer la Fiche
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -486,23 +904,78 @@ const MyTasks = () => {
       {showValidatorsSelection && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-            <div className="p-6 border-b"><h2 className="text-2xl font-bold">Sélectionner les validateurs</h2><p className="text-sm text-gray-600 mt-2">Choisissez les personnes qui doivent valider cette Demande de Besoin</p></div>
+            <div className="p-6 border-b">
+              <h2 className="text-2xl font-bold">Sélectionner les validateurs</h2>
+              <p className="text-sm text-gray-600 mt-2">
+                Choisissez les personnes qui doivent valider cette Demande de Besoin
+              </p>
+            </div>
             <div className="p-6 max-h-[60vh] overflow-y-auto">
-              {error && (<div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded-lg mb-4">{error}</div>)}
+              {error && (
+                <div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded-lg mb-4">
+                  {error}
+                </div>
+              )}
               <div className="space-y-3">
-                {dbValidators.length === 0 ? (<p className="text-gray-500 text-center py-4">Aucun validateur disponible. Contactez l'administrateur.</p>) : (
+                {dbValidators.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">
+                    Aucun validateur disponible. Contactez l'administrateur.
+                  </p>
+                ) : (
                   dbValidators.map(validator => (
-                    <label key={validator.id} className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${selectedDbValidators.includes(validator.id) ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
-                      <input type="checkbox" checked={selectedDbValidators.includes(validator.id)} onChange={() => toggleDbValidator(validator.id)} className="w-5 h-5"/>
-                      <div><p className="font-semibold">{validator.firstName} {validator.lastName}</p><p className="text-sm text-gray-600">{validator.position || validator.email}</p></div>
+                    <label 
+                      key={validator.id} 
+                      className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
+                        selectedDbValidators.includes(validator.id) 
+                          ? 'border-blue-600 bg-blue-50' 
+                          : 'border-gray-300 hover:border-blue-400'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={selectedDbValidators.includes(validator.id)} 
+                        onChange={() => toggleDbValidator(validator.id)} 
+                        className="w-5 h-5"
+                      />
+                      <div>
+                        <p className="font-semibold">
+                          {validator.firstName} {validator.lastName}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {validator.position || validator.email}
+                        </p>
+                      </div>
                     </label>
                   ))
                 )}
               </div>
             </div>
             <div className="p-6 border-t flex justify-between">
-              <button onClick={() => { setShowValidatorsSelection(false); setSelectedDbValidators([]); closeProcessingModal(); }} className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Annuler</button>
-              <button onClick={handleSubmitDBWorkflow} disabled={submittingDB || selectedDbValidators.length === 0} className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition">{submittingDB ? (<><Loader className="animate-spin w-5 h-5" /> Soumission...</>) : (<><Send size={18}/> Soumettre la Demande de Besoin</>)}</button>
+              <button 
+                onClick={() => { 
+                  setShowValidatorsSelection(false); 
+                  setSelectedDbValidators([]); 
+                  closeProcessingModal(); 
+                }} 
+                className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleSubmitDBWorkflow} 
+                disabled={submittingDB || selectedDbValidators.length === 0} 
+                className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition"
+              >
+                {submittingDB ? (
+                  <>
+                    <Loader className="animate-spin w-5 h-5" /> Soumission...
+                  </>
+                ) : (
+                  <>
+                    <Send size={18}/> Soumettre la Demande de Besoin
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -512,11 +985,17 @@ const MyTasks = () => {
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-6xl h-full flex gap-4">
             <div className="flex-1 bg-gray-500 rounded-lg h-full overflow-hidden">
-              <DocumentViewer document={viewingDocument} onClose={() => setViewingDocument(null)} />
+              <DocumentViewer 
+                document={viewingDocument} 
+                onClose={() => setViewingDocument(null)} 
+              />
             </div>
             <div className="w-96 bg-white rounded-lg p-4 overflow-y-auto h-full">
               <h3 className="font-bold text-lg mb-4">Suivi de Validation</h3>
-              <WorkflowProgress workflows={viewingDocument.workflows} documentStatus={viewingDocument.status} />
+              <WorkflowProgress 
+                workflows={viewingDocument.workflows} 
+                documentStatus={viewingDocument.status} 
+              />
             </div>
           </div>
         </div>

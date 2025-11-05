@@ -5,12 +5,12 @@ import {
   getMyTasks, 
   validateTask, 
   getDocumentWorkflow,
-  getValidators 
+  getValidators,
+  bulkValidateTask  // ← AJOUTER
 } from '../controllers/workflowController.js';
-import authMiddlewareObject from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
-const { protect } = authMiddlewareObject;
 
 // Routes pour les workflows
 router.post('/', protect, createWorkflow);
@@ -18,5 +18,8 @@ router.get('/my-tasks', protect, getMyTasks);
 router.put('/:taskId/validate', protect, validateTask);
 router.get('/document/:documentId', protect, getDocumentWorkflow);
 router.get('/validators', protect, getValidators);
+
+// ✅ NOUVEAU : Route pour validation en masse (directeur et admin uniquement)
+router.post('/bulk-validate', protect, authorize('director', 'admin'), bulkValidateTask);
 
 export default router;

@@ -322,3 +322,231 @@ export const getValidators = async (req, res) => {
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
+
+// ✅ NOUVEAU : Validation en masse
+export const bulkValidateTask = async (req, res) => {
+  const t = await sequelize.transaction();
+  
+  try {
+    const { taskIds, action, comment, applySignature } = req.body;
+    const userId = req.user.id;
+
+    // Validation des paramètres
+    if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+      await t.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'taskIds (array) est requis.' 
+      });
+    }
+
+    // Limite de 20 documents
+    if (taskIds.length > 20) {
+      await t.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Vous ne pouvez valider que 20 documents maximum à la fois.' 
+      });
+    }
+
+    if (!action || !['approve', 'reject'].includes(action)) {
+      await t.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'action doit être "approve" ou "reject".' 
+      });
+    }
+
+    // Récupérer toutes les tâches
+    const tasks = await Workflow.findAll({
+      where: { 
+        id: taskIds,
+        validatorId: userId 
+      },
+      include: [{ 
+        model: Document, 
+        as: 'document',
+        include: [{ 
+          model: Workflow, 
+          as: 'workflows',
+          include: [{ 
+            model: User, 
+            as: 'validator', 
+            attributes: ['id', 'firstName', 'lastName'] 
+          }]
+        }]
+      }],
+      transaction: t
+    });
+
+    if (tasks.length === 0) {
+      await t.rollback();
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Aucune tâche trouvée ou non autorisé.' 
+      });
+    }
+
+    const results = [];
+    const errors = [];
+
+    // Traiter chaque tâche
+    for (const task of tasks) {
+      try {
+        // Vérifier que la tâche est bien en attente ou queued (bypass)
+        if (!['pending', 'queued'].includes(task.status)) {
+          errors.push({
+            taskId: task.id,
+            documentTitle: task.document.title,
+            error: 'Tâche déjà traitée'
+          });
+          continue;
+        }
+
+        const document = task.document;
+        const validator = await User.findByPk(userId, { transaction: t });
+
+        // Application de la signature si demandé et disponible
+        if (action === 'approve' && applySignature && validator.signaturePath && document.fileType === 'application/pdf') {
+          try {
+            const pdfPath = path.resolve(process.cwd(), document.filePath);
+            const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
+            pdfDoc.registerFontkit(fontkit);
+            
+            const pages = pdfDoc.getPages();
+            const lastPage = pages[pages.length - 1];
+            const { width, height } = lastPage.getSize();
+            
+            const totalSteps = await Workflow.count({ 
+              where: { documentId: document.id }, 
+              transaction: t 
+            });
+
+            const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
+            const signatureImageBytes = await fs.readFile(signatureImagePath);
+            const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+            
+            const signatureBlockWidth = 170;
+            const margin = 50;
+            let x;
+            
+            if (totalSteps >= 3) {
+              if (task.step === 1) x = 50;
+              else if (task.step === 2) x = (width / 2) - (signatureBlockWidth / 2);
+              else x = width - signatureBlockWidth - margin;
+            } else if (totalSteps === 2) {
+              x = (task.step === 1) ? 50 : width - signatureBlockWidth - margin;
+            } else {
+              x = width - signatureBlockWidth - margin;
+            }
+            
+            const signatureDims = signatureImage.scaleToFit(140, 70);
+            const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
+            const signatureY = 88;
+            
+            lastPage.drawImage(signatureImage, { 
+              x: signatureX, 
+              y: signatureY, 
+              width: signatureDims.width, 
+              height: signatureDims.height 
+            });
+
+            const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
+            const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
+            await fs.writeFile(newFilePath, await pdfDoc.save());
+            
+            await document.update({
+              filePath: `uploads/${newFileName}`,
+              fileName: newFileName,
+              metadata: { ...document.metadata, has_signature: true },
+            }, { transaction: t });
+          } catch (pdfError) {
+            console.error('Erreur signature PDF:', pdfError);
+            // Continue sans signature en cas d'erreur
+          }
+        }
+
+        // Mise à jour de la tâche
+        const status = action === 'approve' ? 'approved' : 'rejected';
+        const bulkComment = comment ? `[VALIDATION EN MASSE] ${comment}` : '[VALIDATION EN MASSE]';
+        
+        await task.update({ 
+          status, 
+          comment: bulkComment, 
+          validatedAt: new Date() 
+        }, { transaction: t });
+
+        // Gestion du workflow suivant
+        if (status === 'approved') {
+          const nextTask = await Workflow.findOne({
+            where: { documentId: document.id, status: 'queued' },
+            order: [['step', 'ASC']],
+            transaction: t
+          });
+          
+          if (nextTask) {
+            await nextTask.update({ status: 'pending' }, { transaction: t });
+            await document.update({ status: 'in_progress' }, { transaction: t });
+            
+            const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
+            if (nextValidator?.email) {
+              try {
+                await sendNotificationEmail(
+                  nextValidator.email, 
+                  'Nouvelle tâche de validation', 
+                  `Le document "${document.title}" nécessite votre validation.`
+                );
+              } catch (e) { 
+                console.warn("Email error:", e.message); 
+              }
+            }
+          } else {
+            await document.update({ status: 'approved' }, { transaction: t });
+          }
+        } else if (status === 'rejected') {
+          await document.update({ status: 'rejected' }, { transaction: t });
+          await Workflow.update(
+            { status: 'rejected' }, 
+            { where: { documentId: document.id, status: 'queued' }, transaction: t }
+          );
+        }
+
+        results.push({
+          taskId: task.id,
+          documentTitle: task.document.title,
+          success: true
+        });
+
+      } catch (taskError) {
+        console.error(`Erreur traitement tâche ${task.id}:`, taskError);
+        errors.push({
+          taskId: task.id,
+          documentTitle: task.document.title,
+          error: taskError.message
+        });
+      }
+    }
+
+    await t.commit();
+
+    res.json({ 
+      success: true, 
+      message: `${results.length} document(s) traité(s) avec succès.`,
+      results,
+      errors: errors.length > 0 ? errors : undefined,
+      summary: {
+        total: taskIds.length,
+        succeeded: results.length,
+        failed: errors.length
+      }
+    });
+
+  } catch (error) {
+    if (t && !t.finished) await t.rollback();
+    console.error('❌ Erreur validation en masse:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur serveur lors de la validation en masse.' 
+    });
+  }
+};
