@@ -1,4 +1,4 @@
-// frontend/src/components/MyTasks.jsx - VERSION COMPLÈTE AVEC CACHETS POUR TOUS
+// frontend/src/components/MyTasks.jsx - VERSION COMPLÈTE AVEC WORKFLOW COMPTABLE
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { workflowAPI, listsAPI, documentsAPI } from '../services/api';
@@ -9,21 +9,23 @@ import BulkValidationBar from './BulkValidationBar';
 import QuickPreviewModal from './QuickPreviewModal';
 import DemandeBesoin from '../pages/templates/DemandeBesoin';
 import FicheSuiviEquipements from '../pages/templates/FicheSuiviEquipements';
+import PieceDeCaisse from '../pages/templates/PieceDeCaisse'; // ✅ NOUVEAU
 import { 
   Clock, CheckCircle, XCircle, User, Calendar, Loader, Eye, Edit, 
   ShieldCheck, Filter, ThumbsUp, CalendarPlus, FileText, Send, AlertCircle,
-  AlertTriangle,
-  ListChecks, X, ZoomIn
+  AlertTriangle, ListChecks, X, ZoomIn
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 const MAX_SELECTION = 20;
+const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com'; // ✅ NOUVEAU
 
 const MyTasks = () => {
   const { user } = useAuth();
   const dbPdfRef = useRef(null);
   const fsPdfRef = useRef(null);
+  const piecePdfRef = useRef(null); // ✅ NOUVEAU
   
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,16 @@ const MyTasks = () => {
     conclusion: ''
   });
   const [submittingFS, setSubmittingFS] = useState(false);
+  
+  // ✅ NOUVEAU : États pour Pièce de caisse depuis Ordre de mission
+  const [showPieceDeCaisseFromOM, setShowPieceDeCaisseFromOM] = useState(false);
+  const [pieceDeCaisseData, setPieceDeCaisseData] = useState({
+    nom: '',
+    date: new Date().toLocaleDateString('fr-FR'),
+    concerne: '',
+    lines: [{ refCompta: '', libelle: '', refGage: '', entrees: '', sorties: '' }],
+    totalEnLettres: ''
+  });
   
   const [showDBFromFS, setShowDBFromFS] = useState(false);
   const [showValidatorsSelection, setShowValidatorsSelection] = useState(false);
@@ -229,11 +241,22 @@ const MyTasks = () => {
   const isWorkRequest = (task) => task.document?.category === 'Demande de travaux';
   const isMG = () => user?.email === 'hsjm.moyengeneraux@gmail.com';
   const isBiomedical = () => user?.email === 'hsjm.cellulebiomedicale@gmail.com';
+  
+  // ✅ NOUVEAU : Vérifier si l'utilisateur est le comptable
+  const isComptable = () => user?.email === COMPTABLE_EMAIL;
+  
+  // ✅ NOUVEAU : Vérifier si c'est un Ordre de mission qui attend la Pièce de caisse
+  const needsPieceDeCaisse = (task) => {
+    return task.document?.category === 'Ordre de mission' && 
+           task.status === 'pending' && 
+           isComptable();
+  };
 
   const openProcessingModal = (task) => {
     setTaskToProcess(task);
     setComment(task.comment || '');
     const metadata = task.document?.metadata || {};
+    
     if (isWorkRequest(task) && isMG()) {
       setDemandeBesoinsData(prev => ({ 
         ...prev, 
@@ -242,12 +265,30 @@ const MyTasks = () => {
         justification: `Suite à la demande de travaux concernant: ${metadata.motif || ''}` 
       }));
     }
+    
     if (isWorkRequest(task) && isBiomedical()) {
       setFicheSuiviData(prev => ({ 
         ...prev, 
         service: metadata.service || '', 
         equipement: metadata.motif || '' 
       }));
+    }
+    
+    // ✅ NOUVEAU : Initialiser les données pour la Pièce de caisse si c'est un Ordre de mission
+    if (needsPieceDeCaisse(task)) {
+      setPieceDeCaisseData({
+        nom: metadata.nom_missionnaire || '',
+        date: new Date().toLocaleDateString('fr-FR'),
+        concerne: `Frais de mission - ${metadata.objet_mission || ''}`,
+        lines: [{ 
+          refCompta: '', 
+          libelle: `Mission du ${metadata.date_mission || ''} - ${metadata.service_demandeur || ''}`, 
+          refGage: '', 
+          entrees: '', 
+          sorties: '' 
+        }],
+        totalEnLettres: ''
+      });
     }
   };
 
@@ -258,6 +299,7 @@ const MyTasks = () => {
     setShowFicheSuivi(false);
     setShowDBFromFS(false);
     setShowValidatorsSelection(false);
+    setShowPieceDeCaisseFromOM(false); // ✅ NOUVEAU
     setSelectedDbValidators([]);
     setCreatedDBDocumentId(null);
     loadTasks();
@@ -317,10 +359,7 @@ const MyTasks = () => {
       );
       
       setTaskToProcess(response.data.data);
-
-      const updatedTask = response.data.data;
       
-      // ✅ MODIFIÉ : Ne plus vérifier isLastStep pour le cachet
       if (action === 'stamp') {
         alert('Cachet apposé avec succès !');
         closeProcessingModal();
@@ -329,7 +368,6 @@ const MyTasks = () => {
         closeProcessingModal();
       } else if (action === 'approve') {
         alert('Document signé avec succès !');
-        // Permettre de continuer pour apposer le cachet si disponible
       } else if (action === 'dater') {
         alert('Dateur apposé !');
       }
@@ -346,6 +384,64 @@ const MyTasks = () => {
 
   const handleInitiateDB = () => setShowDemandeBesoins(true);
   const handleInitiateFicheSuivi = () => setShowFicheSuivi(true);
+  
+  // ✅ NOUVEAU : Initialiser la création de Pièce de caisse depuis l'Ordre de mission
+  const handleCreatePieceDeCaisseFromOM = () => {
+    setShowPieceDeCaisseFromOM(true);
+  };
+  
+  // ✅ NOUVEAU : Soumettre la Pièce de caisse et finaliser l'Ordre de mission
+  const handleSubmitPieceDeCaisseFromOM = async () => {
+    setSubmittingDB(true);
+    setError('');
+    
+    try {
+      if (!piecePdfRef.current) throw new Error('Référence PDF introuvable');
+      
+      // Générer le PDF de la Pièce de caisse
+      const nonPrintableElements = piecePdfRef.current.querySelectorAll('.not-printable');
+      nonPrintableElements?.forEach(el => el.style.display = 'none');
+      const canvas = await html2canvas(piecePdfRef.current, { scale: 2, logging: false, useCORS: true });
+      nonPrintableElements?.forEach(el => el.style.display = 'block');
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+      const pdfBlob = pdf.output('blob');
+      
+      // Upload de la Pièce de caisse
+      const uploadData = new FormData();
+      const fileName = `Piece_Caisse_OM_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
+      uploadData.append('file', pdfBlob, fileName);
+      uploadData.append('title', `Pièce de caisse - ${pieceDeCaisseData.concerne}`);
+      uploadData.append('category', 'Pièce de caisse');
+      uploadData.append('metadata', JSON.stringify({
+        linkedOrderMissionId: taskToProcess.document.id,
+        nom: pieceDeCaisseData.nom,
+        concerne: pieceDeCaisseData.concerne
+      }));
+      
+      const uploadResponse = await documentsAPI.upload(uploadData);
+      console.log('✅ Pièce de caisse créée:', uploadResponse.data);
+      
+      // Valider l'Ordre de mission (le marquer comme terminé)
+      await workflowAPI.validateTask(taskToProcess.id, {
+        status: 'approved',
+        comment: `Pièce de caisse créée (${fileName}). Processus complété.`,
+        validationType: 'simple_approve'
+      });
+      
+      alert(`✅ Pièce de caisse créée avec succès !\n\nL'Ordre de mission est maintenant complet.`);
+      closeProcessingModal();
+      
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la création de la Pièce de caisse.');
+      console.error('Erreur Pièce de caisse:', err);
+      alert(`Erreur: ${err.response?.data?.message || 'Impossible de créer la Pièce de caisse'}`);
+    } finally {
+      setSubmittingDB(false);
+    }
+  };
   
   const handleSubmitDemandeBesoins = async () => {
     setSubmittingDB(true);
@@ -628,7 +724,13 @@ const MyTasks = () => {
                         {getBypassBadge(task)}
                         {task.document.category === 'Ordre de mission' && (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
-                            📋 4 signatures
+                            📋 4 signatures + Comptable
+                          </span>
+                        )}
+                        {/* ✅ NOUVEAU : Badge pour indiquer que c'est la tâche comptable */}
+                        {needsPieceDeCaisse(task) && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300 animate-pulse">
+                            💰 Créer Pièce de caisse
                           </span>
                         )}
                       </div>
@@ -665,14 +767,28 @@ const MyTasks = () => {
                           </div>
                         </div>
                       )}
+                      {/* ✅ NOUVEAU : Message pour le comptable */}
+                      {needsPieceDeCaisse(task) && (
+                        <div className="mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded-lg flex items-start gap-2">
+                          <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                          <div className="text-sm text-yellow-800">
+                            <p className="font-semibold">💰 Ordre de mission validé - Action requise</p>
+                            <p className="text-xs mt-1">Cet ordre de mission a été validé par tous les responsables. Vous devez créer la Pièce de caisse pour finaliser le processus.</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 mt-4 md:mt-0">
                       <button onClick={() => setTaskForPreview(task)} className="p-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200" title="Aperçu rapide"><ZoomIn size={18} /></button>
                       <button onClick={() => setViewingDocument(task.document)} className="p-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200" title="Voir le document complet"><Eye size={18} /></button>
                       {(task.status === 'pending' || isBypassable) && (
-                        <button onClick={() => openProcessingModal(task)} className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg font-medium transition shadow ${isBypassable ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                        <button onClick={() => openProcessingModal(task)} className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg font-medium transition shadow ${
+                          needsPieceDeCaisse(task) ? 'bg-yellow-600 hover:bg-yellow-700' :
+                          isBypassable ? 'bg-orange-600 hover:bg-orange-700' : 
+                          'bg-blue-600 hover:bg-blue-700'
+                        }`}>
                           <CheckCircle size={16} />
-                          {isBypassable ? 'Valider (Bypass)' : 'Traiter'}
+                          {needsPieceDeCaisse(task) ? 'Créer Pièce de caisse' : isBypassable ? 'Valider (Bypass)' : 'Traiter'}
                         </button>
                       )}
                     </div>
@@ -700,7 +816,8 @@ const MyTasks = () => {
         <QuickPreviewModal task={taskForPreview} onClose={() => setTaskForPreview(null)} />
       )}
       
-      {taskToProcess && !showDemandeBesoins && !showFicheSuivi && !showDBFromFS && !showValidatorsSelection && (
+      {/* Modal de traitement principal */}
+      {taskToProcess && !showDemandeBesoins && !showFicheSuivi && !showDBFromFS && !showValidatorsSelection && !showPieceDeCaisseFromOM && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex max-h-[90vh] overflow-hidden">
             <div className="w-1/2 p-6 border-r flex flex-col overflow-y-auto">
@@ -709,11 +826,30 @@ const MyTasks = () => {
                 Document: <strong>{taskToProcess.document.title}</strong>
               </p>
               
-              {taskToProcess.document.category === 'Ordre de mission' && (
+              {taskToProcess.document.category === 'Ordre de mission' && !needsPieceDeCaisse(taskToProcess) && (
                 <div className="mb-4 p-3 bg-purple-50 border-2 border-purple-200 rounded-lg">
                   <p className="text-sm text-purple-800 font-semibold">
-                    📋 Ordre de mission : 4 signatures et cachets autorisés
+                    📋 Ordre de mission : 4 signatures + Comptable
                   </p>
+                  <p className="text-xs text-purple-600 mt-1">
+                    Après validation par tous, le comptable créera la Pièce de caisse
+                  </p>
+                </div>
+              )}
+              
+              {/* ✅ NOUVEAU : Alerte spéciale pour le comptable */}
+              {needsPieceDeCaisse(taskToProcess) && (
+                <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <FileText className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-bold text-yellow-900 mb-2">💰 Créer la Pièce de caisse</h3>
+                      <p className="text-sm text-yellow-800">
+                        Cet Ordre de mission a été validé par tous les responsables. 
+                        Vous devez maintenant créer la Pièce de caisse correspondante pour finaliser le processus.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
               
@@ -750,117 +886,141 @@ const MyTasks = () => {
               <div className="space-y-3 flex-grow">
                 <h3 className="font-semibold text-gray-700">Actions disponibles :</h3>
                 
-                <button 
-                  onClick={() => handleAction('simple_approve')} 
-                  disabled={!!actionLoading} 
-                  className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border text-left transition"
-                >
-                  {actionLoading === 'simple_approve' ? (
-                    <Loader className="animate-spin w-5 h-5"/>
-                  ) : (
-                    <CheckCircle className="text-gray-600"/>
-                  )}
-                  Validation simple (sans signature)
-                </button>
-                
-                {user?.signaturePath && (
-                  <button 
-                    onClick={() => handleAction('approve')} 
-                    disabled={!!actionLoading} 
-                    className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border text-left transition"
-                  >
-                    {actionLoading === 'approve' ? (
-                      <Loader className="animate-spin w-5 h-5" />
-                    ) : (
-                      <Edit className="text-blue-600"/>
-                    )}
-                    Approuver et Signer
-                  </button>
-                )}
-                
-                {/* ✅ MODIFIÉ : Cachet disponible pour TOUS les validateurs (pas seulement le dernier) */}
-                {user?.stampPath && (
-                  <button 
-                    onClick={() => handleAction('stamp')} 
-                    disabled={!!actionLoading} 
-                    className="w-full flex items-center gap-3 p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg border text-left transition"
-                  >
-                    {actionLoading === 'stamp' ? (
-                      <Loader className="animate-spin w-5 h-5" />
-                    ) : (
-                      <ShieldCheck className="text-indigo-600"/>
-                    )}
-                    Apposer le cachet
-                    {taskToProcess.document.category === 'Ordre de mission' && (
-                      <span className="text-xs text-indigo-600 ml-auto">
-                        (4 cachets possibles)
-                      </span>
-                    )}
-                  </button>
-                )}
-                
-                {user?.email === 'hsjm.rh@gmail.com' && (
-                  <button 
-                    onClick={() => handleAction('dater')} 
-                    disabled={!!actionLoading} 
-                    className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"
-                  >
-                    {actionLoading === 'dater' ? (
-                      <Loader className="animate-spin w-5 h-5" />
-                    ) : (
-                      <CalendarPlus className="text-teal-600"/>
-                    )}
-                    Apposer le Dateur
-                  </button>
-                )}
-                
-                {isWorkRequest(taskToProcess) && isMG() && (
+                {/* ✅ NOUVEAU : Bouton spécial pour le comptable */}
+                {needsPieceDeCaisse(taskToProcess) && (
                   <>
-                    <div className="border-t my-3"></div>
                     <button 
-                      onClick={handleInitiateDB} 
-                      className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg border text-left transition"
+                      onClick={handleCreatePieceDeCaisseFromOM} 
+                      className="w-full flex items-center gap-3 p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg border-2 border-yellow-400 text-left transition shadow-sm"
                     >
-                      <FileText className="text-purple-600"/> 
-                      Initier une Demande de Besoin
+                      <FileText className="text-yellow-600 w-6 h-6"/> 
+                      <div>
+                        <p className="font-semibold text-yellow-900">Créer Pièce de caisse</p>
+                        <p className="text-xs text-yellow-700">Pour finaliser cet Ordre de mission</p>
+                      </div>
                     </button>
-                    <p className="text-xs text-gray-500 pl-3">
-                      La DT sera mise en pause en attendant la validation de la DB
-                    </p>
+                    <div className="border-t my-3"></div>
                   </>
                 )}
                 
-                {isWorkRequest(taskToProcess) && isBiomedical() && (
+                {/* Actions standards */}
+                {!needsPieceDeCaisse(taskToProcess) && (
                   <>
-                    <div className="border-t my-3"></div>
                     <button 
-                      onClick={handleInitiateFicheSuivi} 
-                      className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"
+                      onClick={() => handleAction('simple_approve')} 
+                      disabled={!!actionLoading} 
+                      className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border text-left transition"
                     >
-                      <FileText className="text-teal-600"/> 
-                      Créer Fiche de Suivi d'Équipements
+                      {actionLoading === 'simple_approve' ? (
+                        <Loader className="animate-spin w-5 h-5"/>
+                      ) : (
+                        <CheckCircle className="text-gray-600"/>
+                      )}
+                      Validation simple (sans signature)
                     </button>
-                    <p className="text-xs text-gray-500 pl-3">
-                      La DT sera mise en pause. Vous pourrez ensuite initier une DB si nécessaire.
-                    </p>
+                    
+                    {user?.signaturePath && (
+                      <button 
+                        onClick={() => handleAction('approve')} 
+                        disabled={!!actionLoading} 
+                        className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border text-left transition"
+                      >
+                        {actionLoading === 'approve' ? (
+                          <Loader className="animate-spin w-5 h-5" />
+                        ) : (
+                          <Edit className="text-blue-600"/>
+                        )}
+                        Approuver et Signer
+                      </button>
+                    )}
+                    
+                    {user?.stampPath && (
+                      <button 
+                        onClick={() => handleAction('stamp')} 
+                        disabled={!!actionLoading} 
+                        className="w-full flex items-center gap-3 p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg border text-left transition"
+                      >
+                        {actionLoading === 'stamp' ? (
+                          <Loader className="animate-spin w-5 h-5" />
+                        ) : (
+                          <ShieldCheck className="text-indigo-600"/>
+                        )}
+                        Apposer le cachet
+                        {taskToProcess.document.category === 'Ordre de mission' && (
+                          <span className="text-xs text-indigo-600 ml-auto">
+                            (4 cachets possibles)
+                          </span>
+                        )}
+                      </button>
+                    )}
+                    
+                    {user?.email === 'hsjm.rh@gmail.com' && (
+                      <button 
+                        onClick={() => handleAction('dater')} 
+                        disabled={!!actionLoading} 
+                        className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"
+                      >
+                        {actionLoading === 'dater' ? (
+                          <Loader className="animate-spin w-5 h-5" />
+                        ) : (
+                          <CalendarPlus className="text-teal-600"/>
+                        )}
+                        Apposer le Dateur
+                      </button>
+                    )}
+                    
+                    {isWorkRequest(taskToProcess) && isMG() && (
+                      <>
+                        <div className="border-t my-3"></div>
+                        <button 
+                          onClick={handleInitiateDB} 
+                          className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg border text-left transition"
+                        >
+                          <FileText className="text-purple-600"/> 
+                          Initier une Demande de Besoin
+                        </button>
+                        <p className="text-xs text-gray-500 pl-3">
+                          La DT sera mise en pause en attendant la validation de la DB
+                        </p>
+                      </>
+                    )}
+                    
+                    {isWorkRequest(taskToProcess) && isBiomedical() && (
+                      <>
+                        <div className="border-t my-3"></div>
+                        <button 
+                          onClick={handleInitiateFicheSuivi} 
+                          className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"
+                        >
+                          <FileText className="text-teal-600"/> 
+                          Créer Fiche de Suivi d'Équipements
+                        </button>
+                        <p className="text-xs text-gray-500 pl-3">
+                          La DT sera mise en pause. Vous pourrez ensuite initier une DB si nécessaire.
+                        </p>
+                      </>
+                    )}
                   </>
                 )}
               </div>
               
-              <div className="border-t my-5"></div>
-              
-              <button 
-                onClick={() => handleAction('reject')} 
-                disabled={!!actionLoading} 
-                className="w-full flex items-center gap-3 p-3 bg-red-50 hover:bg-red-100 rounded-lg border text-left transition"
-              >
-                {actionLoading === 'reject' ? (
-                  <Loader className="animate-spin w-5 h-5"/>
-                ) : (
-                  <XCircle className="text-red-600"/>
-                )}
-                Rejeter le document
-              </button>
+              {!needsPieceDeCaisse(taskToProcess) && (
+                <>
+                  <div className="border-t my-5"></div>
+                  <button 
+                    onClick={() => handleAction('reject')} 
+                    disabled={!!actionLoading} 
+                    className="w-full flex items-center gap-3 p-3 bg-red-50 hover:bg-red-100 rounded-lg border text-left transition"
+                  >
+                    {actionLoading === 'reject' ? (
+                      <Loader className="animate-spin w-5 h-5"/>
+                    ) : (
+                      <XCircle className="text-red-600"/>
+                    )}
+                    Rejeter le document
+                  </button>
+                </>
+              )}
               
               <div className="mt-6 text-right">
                 <button 
@@ -883,6 +1043,55 @@ const MyTasks = () => {
         </div>
       )}
 
+      {/* ✅ NOUVEAU : Modal Pièce de caisse depuis Ordre de mission */}
+      {showPieceDeCaisseFromOM && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl my-8">
+            <div className="p-6 border-b">
+              <h2 className="text-2xl font-bold">💰 Créer Pièce de caisse</h2>
+              <p className="text-sm text-gray-600 mt-2">
+                Suite à l'Ordre de mission validé : <strong>{taskToProcess?.document?.title}</strong>
+              </p>
+              <p className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded mt-2 border border-yellow-200">
+                📌 Cette Pièce de caisse sera automatiquement liée à l'Ordre de mission
+              </p>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <PieceDeCaisse 
+                formData={pieceDeCaisseData} 
+                setFormData={setPieceDeCaisseData} 
+                pdfContainerRef={piecePdfRef}
+              />
+            </div>
+            {error && <p className="text-red-500 px-6 py-2 font-semibold">{error}</p>}
+            <div className="p-6 border-t flex justify-between">
+              <button 
+                onClick={() => setShowPieceDeCaisseFromOM(false)} 
+                className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition font-semibold"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleSubmitPieceDeCaisseFromOM} 
+                disabled={submittingDB} 
+                className="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition shadow"
+              >
+                {submittingDB ? (
+                  <>
+                    <Loader className="animate-spin w-5 h-5" /> Création en cours...
+                  </>
+                ) : (
+                  <>
+                    <Send size={18}/> Créer et Finaliser l'OM
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modals existants pour Demande de besoin */}
       {(showDemandeBesoins || showDBFromFS) && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl my-8">
@@ -930,6 +1139,7 @@ const MyTasks = () => {
         </div>
       )}
 
+      {/* Modal Fiche de Suivi */}
       {showFicheSuivi && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl my-8">
@@ -961,8 +1171,7 @@ const MyTasks = () => {
                   <>
                     <Loader className="animate-spin w-5 h-5" /> Création...
                   </>
-                ) : (
-                  <>
+                ) : (<>
                     <Send size={18}/> Créer la Fiche
                   </>
                 )}
@@ -972,6 +1181,7 @@ const MyTasks = () => {
         </div>
       )}
 
+      {/* Modal Sélection des validateurs pour DB */}
       {showValidatorsSelection && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
@@ -1052,6 +1262,7 @@ const MyTasks = () => {
         </div>
       )}
 
+      {/* Modal Viewer de document */}
       {viewingDocument && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-6xl h-full flex gap-4">

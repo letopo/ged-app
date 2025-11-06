@@ -1,4 +1,4 @@
-// backend/src/controllers/workflowController.js - VERSION AVEC 4 SIGNATURES POUR ORDRE DE MISSION
+// backend/src/controllers/workflowController.js - VERSION COMPLÈTE AVEC WORKFLOW COMPTABLE
 
 import { Workflow, Document, User } from '../models/index.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
@@ -9,30 +9,59 @@ import path from 'path';
 import { Op } from 'sequelize';
 import { sequelize } from '../models/index.js';
 
-// Créer un workflow
+// ✅ NOUVEAU : Email du comptable
+const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com';
+
+// Créer un workflow avec ajout automatique du comptable pour Ordre de mission
 export const createWorkflow = async (req, res) => {
   try {
     const { documentId, validatorIds } = req.body;
     if (!documentId || !validatorIds || !Array.isArray(validatorIds) || validatorIds.length === 0) {
       return res.status(400).json({ success: false, message: 'documentId et validatorIds (array) sont requis.' });
     }
+    
     const document = await Document.findByPk(documentId);
     if (!document) {
       return res.status(404).json({ success: false, message: 'Document introuvable.' });
     }
+
+    // ✅ NOUVEAU : Si c'est un Ordre de mission, ajouter automatiquement le comptable
+    let finalValidatorIds = [...validatorIds];
+    let comptableAdded = false;
+    
+    if (document.category === 'Ordre de mission') {
+      // Trouver le comptable par email
+      const comptable = await User.findOne({ 
+        where: { email: COMPTABLE_EMAIL }
+      });
+      
+      if (comptable) {
+        // Vérifier que le comptable n'est pas déjà dans la liste
+        if (!finalValidatorIds.includes(comptable.id)) {
+          finalValidatorIds.push(comptable.id);
+          comptableAdded = true;
+          console.log(`✅ Comptable ${COMPTABLE_EMAIL} ajouté automatiquement à l'Ordre de Mission`);
+        }
+      } else {
+        console.warn(`⚠️ Comptable introuvable - email: ${COMPTABLE_EMAIL}`);
+      }
+    }
+    
     const workflows = await Promise.all(
-      validatorIds.map((validatorId, index) =>
+      finalValidatorIds.map((validatorId, index) =>
         Workflow.create({
           documentId,
           validatorId,
           step: index + 1,
           status: index === 0 ? 'pending' : 'queued',
-          assignedAt: index === 0 ? new Date() : null, // ✅ Initialiser assignedAt
+          assignedAt: index === 0 ? new Date() : null,
         })
       )
     );
+    
     await document.update({ status: 'pending_validation' });
-    const firstValidator = await User.findByPk(validatorIds[0]);
+    
+    const firstValidator = await User.findByPk(finalValidatorIds[0]);
     if (firstValidator?.email) {
       try {
         await sendNotificationEmail(
@@ -44,12 +73,20 @@ export const createWorkflow = async (req, res) => {
         console.warn('⚠️ Erreur envoi email:', emailError.message);
       }
     }
+    
     const workflowsWithValidators = await Workflow.findAll({
       where: { documentId },
       include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }],
       order: [['step', 'ASC']],
     });
-    res.status(201).json({ success: true, data: workflowsWithValidators, message: 'Workflow créé avec succès.' });
+    
+    res.status(201).json({ 
+      success: true, 
+      data: workflowsWithValidators, 
+      message: comptableAdded 
+        ? 'Workflow créé avec succès. Le comptable a été ajouté automatiquement pour la création de la Pièce de caisse.' 
+        : 'Workflow créé avec succès.' 
+    });
   } catch (error) {
     console.error('❌ Erreur création workflow:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
@@ -118,7 +155,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       await pausedWorkflow.update({ 
         status: 'pending', 
         comment: `${reason}. Reprise du processus.`,
-        assignedAt: new Date() // ✅ Réinitialiser assignedAt
+        assignedAt: new Date()
       }, { transaction });
       
       await workRequest.update({ status: 'in_progress' }, { transaction });
@@ -142,7 +179,8 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
   }
 }
 
-// ✅ MODIFIÉ : Valider une tâche avec logique adaptative pour signatures et cachets
+// Valider une tâche
+// Valider une tâche
 export const validateTask = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -168,22 +206,35 @@ export const validateTask = async (req, res) => {
     const document = task.document;
     const validator = await User.findByPk(userId, { transaction: t });
 
-    // ✅ NOUVEAU : Déterminer le nombre de signatures selon le type de document
-    const totalSteps = await Workflow.count({ 
-      where: { documentId: document.id }, 
-      transaction: t 
+    // ✅ NOUVEAU : Récupérer TOUS les workflows pour ce document
+    const allWorkflows = await Workflow.findAll({
+      where: { documentId: document.id },
+      include: [{ model: User, as: 'validator', attributes: ['email'] }],
+      order: [['step', 'ASC']],
+      transaction: t
     });
     
-    // ✅ LOGIQUE ADAPTATIVE : 4 signatures pour Ordre de mission, 3 pour les autres
+    const totalSteps = allWorkflows.length;
+    
+    // ✅ NOUVEAU : Identifier si le dernier workflow est le comptable
+    const lastWorkflow = allWorkflows[allWorkflows.length - 1];
+    const isLastWorkflowComptable = lastWorkflow.validator.email === COMPTABLE_EMAIL;
+    
+    // ✅ NOUVEAU : Calculer le nombre d'étapes SANS le comptable
+    const totalStepsWithoutComptable = isLastWorkflowComptable ? totalSteps - 1 : totalSteps;
+    
+    console.log(`📄 Document: ${document.category}`);
+    console.log(`👥 Total d'étapes: ${totalSteps}`);
+    console.log(`💼 Le comptable est la dernière étape: ${isLastWorkflowComptable}`);
+    console.log(`📊 Étapes SANS comptable: ${totalStepsWithoutComptable}`);
+    console.log(`📍 Étape actuelle: ${task.step}`);
+    
+    // ✅ MODIFIÉ : Déterminer le nombre de signatures en fonction du document
     const documentsNeeding4Signatures = ['Ordre de mission'];
     const numberOfSignatures = documentsNeeding4Signatures.includes(document.category) ? 4 : 3;
     
-    console.log(`📄 Document: ${document.category}`);
     console.log(`✍️ Nombre de signatures requises: ${numberOfSignatures}`);
-    console.log(`👥 Total d'étapes: ${totalSteps}`);
-    console.log(`📍 Étape actuelle: ${task.step}`);
 
-    // Gestion de la pause
     if (validationType === 'pause') {
       await task.update({ 
         status: 'en_pause', 
@@ -205,9 +256,26 @@ export const validateTask = async (req, res) => {
       });
     }
 
-    // ✅ MODIFIÉ : Application des signatures et cachets avec logique adaptative
+    // ✅ MODIFIÉ : Le comptable ne peut PAS signer, il crée seulement la Pièce de caisse
+    const isComptableTask = validator.email === COMPTABLE_EMAIL;
+    
+    if (isComptableTask) {
+      console.log(`💰 Tâche du comptable - Pas de signature/cachet autorisé`);
+      
+      // Le comptable peut seulement valider simplement, pas de signature/cachet
+      if (['signature', 'stamp', 'dater'].includes(validationType)) {
+        await t.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Le comptable ne peut pas apposer de signature ou cachet. Veuillez créer la Pièce de caisse.' 
+        });
+      }
+    }
+
+    // ✅ MODIFIÉ : Calculer si on est dans la plage de signature (en excluant le comptable)
     if (['signature', 'stamp', 'dater'].includes(validationType) && 
-        document.fileType === 'application/pdf') {
+        document.fileType === 'application/pdf' &&
+        !isComptableTask) { // ✅ Le comptable ne peut jamais signer
       
       console.log(`🔧 Application de ${validationType} sur le PDF...`);
       
@@ -219,12 +287,12 @@ export const validateTask = async (req, res) => {
       const lastPage = pages[pages.length - 1];
       const { width, height } = lastPage.getSize();
       
-      // ✅ Vérifier si c'est dans la plage de signature
-      const isInSignatureRange = task.step > (totalSteps - numberOfSignatures);
+      // ✅ MODIFIÉ : Calculer la plage de signature en utilisant totalStepsWithoutComptable
+      const isInSignatureRange = task.step > (totalStepsWithoutComptable - numberOfSignatures);
 
-      console.log(`🎯 Dans la plage de signature? ${isInSignatureRange} (étape ${task.step} > ${totalSteps - numberOfSignatures})`);
+      console.log(`🎯 Dans la plage de signature? ${isInSignatureRange}`);
+      console.log(`   Calcul: étape ${task.step} > ${totalStepsWithoutComptable} - ${numberOfSignatures} = ${totalStepsWithoutComptable - numberOfSignatures}`);
 
-      // Dateur (RH uniquement)
       if (validationType === 'dater' && validator.email === 'hsjm.rh@gmail.com') {
         const specialEliteFontPath = path.resolve(process.cwd(), 'fonts/SpecialElite-Regular.ttf');
         try {
@@ -251,52 +319,48 @@ export const validateTask = async (req, res) => {
         }
       }
 
-      // ✅ MODIFIÉ : Signature (pour les N derniers validateurs)
       if (validationType === 'signature' && validator.signaturePath && isInSignatureRange) {
         const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
         const signatureImageBytes = await fs.readFile(signatureImagePath);
         const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
         
-        const signatureBlockWidth = 150; // ✅ Réduit de 170 à 150
-        const margin = 40; // ✅ Réduit de 50 à 40
+        const signatureBlockWidth = 120;
+        const margin = 30;
         let x;
         
-        // ✅ Position selon le nombre de signatures
-        const positionInSignatureGroup = task.step - (totalSteps - numberOfSignatures);
+        // ✅ MODIFIÉ : Calculer la position dans le groupe en excluant le comptable
+        const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
+        
+        console.log(`📍 Position dans le groupe de ${numberOfSignatures} signatures: ${positionInSignatureGroup}/${numberOfSignatures}`);
         
         if (numberOfSignatures === 4) {
-          // ✅ CORRIGÉ : Pour 4 signatures - répartition uniforme sur toute la largeur
-          console.log(`📍 Position dans le groupe de 4 signatures: ${positionInSignatureGroup}/4`);
-          
-          // Calcul de l'espacement égal entre les 4 signatures
-          const totalWidth = width - (2 * margin); // Largeur utilisable
-          const spacing = totalWidth / 4; // Diviser en 4 zones égales
+          const pageUsableWidth = width - (2 * margin);
+          const totalBlocksWidth = 4 * signatureBlockWidth;
+          const totalSpacingWidth = pageUsableWidth - totalBlocksWidth;
+          const spaceBetweenSignatures = totalSpacingWidth / 3;
           
           if (positionInSignatureGroup === 1) {
-            x = margin; // Première signature (tout à gauche)
+            x = margin;
           } else if (positionInSignatureGroup === 2) {
-            x = margin + spacing; // Deuxième signature
+            x = margin + signatureBlockWidth + spaceBetweenSignatures;
           } else if (positionInSignatureGroup === 3) {
-            x = margin + (spacing * 2); // Troisième signature
+            x = margin + (2 * signatureBlockWidth) + (2 * spaceBetweenSignatures);
           } else {
-            x = margin + (spacing * 3); // Quatrième signature (tout à droite)
+            x = margin + (3 * signatureBlockWidth) + (3 * spaceBetweenSignatures);
           }
         } else {
-          // Pour 3 signatures (documents standards)
-          console.log(`📍 Position dans le groupe de 3 signatures: ${positionInSignatureGroup}/3`);
-          
           if (positionInSignatureGroup === 1) {
-            x = margin; // Première signature (gauche)
+            x = margin;
           } else if (positionInSignatureGroup === 2) {
-            x = (width / 2) - (signatureBlockWidth / 2); // Deuxième (centre)
+            x = (width / 2) - (signatureBlockWidth / 2);
           } else {
-            x = width - signatureBlockWidth - margin; // Troisième (droite)
+            x = width - signatureBlockWidth - margin;
           }
         }
         
-        const signatureDims = signatureImage.scaleToFit(130, 65); // ✅ Réduit de 140x70 à 130x65
+        const signatureDims = signatureImage.scaleToFit(110, 55);
         const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
-        const signatureY = 88;
+        const signatureY = 90;
         
         lastPage.drawImage(signatureImage, { 
           x: signatureX, 
@@ -305,34 +369,36 @@ export const validateTask = async (req, res) => {
           height: signatureDims.height 
         });
         
-        console.log(`✅ Signature ${positionInSignatureGroup}/4 appliquée à x=${signatureX.toFixed(2)}`);
+        console.log(`✅ Signature ${positionInSignatureGroup}/${numberOfSignatures} appliquée à x=${signatureX.toFixed(2)}, y=${signatureY}`);
       }
 
-      // ✅ MODIFIÉ : Cachet (pour TOUS les validateurs dans la plage de signature qui ont un cachet)
       if (validationType === 'stamp' && isInSignatureRange && validator.stampPath) {
         const stampImagePath = path.resolve(process.cwd(), validator.stampPath);
         const stampImageBytes = await fs.readFile(stampImagePath);
         const stampImage = await pdfDoc.embedPng(stampImageBytes);
         
-        const stampDims = stampImage.scaleToFit(80, 80);
-        const signatureBlockWidth = 150;
-        const margin = 40;
+        const stampDims = stampImage.scaleToFit(70, 70);
+        const signatureBlockWidth = 120;
+        const margin = 30;
         
-        const positionInSignatureGroup = task.step - (totalSteps - numberOfSignatures);
+        // ✅ MODIFIÉ : Même calcul que pour les signatures
+        const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
         let stampBaseX;
         
         if (numberOfSignatures === 4) {
-          const totalWidth = width - (2 * margin);
-          const spacing = totalWidth / 4;
+          const pageUsableWidth = width - (2 * margin);
+          const totalBlocksWidth = 4 * signatureBlockWidth;
+          const totalSpacingWidth = pageUsableWidth - totalBlocksWidth;
+          const spaceBetweenSignatures = totalSpacingWidth / 3;
           
           if (positionInSignatureGroup === 1) {
             stampBaseX = margin;
           } else if (positionInSignatureGroup === 2) {
-            stampBaseX = margin + spacing;
+            stampBaseX = margin + signatureBlockWidth + spaceBetweenSignatures;
           } else if (positionInSignatureGroup === 3) {
-            stampBaseX = margin + (spacing * 2);
+            stampBaseX = margin + (2 * signatureBlockWidth) + (2 * spaceBetweenSignatures);
           } else {
-            stampBaseX = margin + (spacing * 3);
+            stampBaseX = margin + (3 * signatureBlockWidth) + (3 * spaceBetweenSignatures);
           }
         } else {
           if (positionInSignatureGroup === 1) {
@@ -345,7 +411,7 @@ export const validateTask = async (req, res) => {
         }
         
         const stampX = stampBaseX + (signatureBlockWidth / 2) - (stampDims.width / 2);
-        const stampY = 135; // ✅ MODIFIÉ : Remonté de 110 à 135 pour être bien au-dessus
+        const stampY = 145;
         
         lastPage.drawImage(stampImage, { 
           x: stampX, 
@@ -354,10 +420,9 @@ export const validateTask = async (req, res) => {
           height: stampDims.height 
         });
         
-        console.log(`✅ Cachet ${positionInSignatureGroup}/4 apposé à x=${stampX.toFixed(2)}, y=${stampY}`);
+        console.log(`✅ Cachet ${positionInSignatureGroup}/${numberOfSignatures} apposé à x=${stampX.toFixed(2)}, y=${stampY}`);
       }
 
-      // Sauvegarder le PDF modifié
       const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
       const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
       await fs.writeFile(newFilePath, await pdfDoc.save());
@@ -372,7 +437,6 @@ export const validateTask = async (req, res) => {
       }, { transaction: t });
     }
 
-    // Mise à jour du statut de la tâche
     if (status) {
       await task.update({ 
         status, 
@@ -390,7 +454,7 @@ export const validateTask = async (req, res) => {
         if (nextTask) {
           await nextTask.update({ 
             status: 'pending',
-            assignedAt: new Date() // ✅ Initialiser assignedAt pour le prochain
+            assignedAt: new Date()
           }, { transaction: t });
           
           await document.update({ status: 'in_progress' }, { transaction: t });
@@ -398,10 +462,18 @@ export const validateTask = async (req, res) => {
           const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
           if (nextValidator?.email) {
             try {
+              const emailSubject = nextValidator.email === COMPTABLE_EMAIL 
+                ? '💰 Ordre de mission validé - Créer Pièce de caisse'
+                : 'Nouvelle tâche de validation';
+              
+              const emailBody = nextValidator.email === COMPTABLE_EMAIL
+                ? `L'Ordre de mission "${document.title}" a été validé par tous les responsables. Vous devez maintenant créer la Pièce de caisse correspondante.`
+                : `Le document "${document.title}" nécessite votre validation.`;
+              
               await sendNotificationEmail(
                 nextValidator.email, 
-                'Nouvelle tâche de validation', 
-                `Le document "${document.title}" nécessite votre validation.`
+                emailSubject, 
+                emailBody
               );
             } catch(e) { 
               console.warn("Email error:", e.message); 
@@ -410,7 +482,6 @@ export const validateTask = async (req, res) => {
         } else {
           await document.update({ status: 'approved' }, { transaction: t });
           
-          // Réactivation si nécessaire
           if (document.category === 'Demande de besoin' || 
               document.category === "Fiche de suivi d'équipements") {
             await reactivateLinkedWorkRequest(document, t);
@@ -491,7 +562,7 @@ export const getValidators = async (req, res) => {
   }
 };
 
-// ✅ Validation en masse
+// Validation en masse
 export const bulkValidateTask = async (req, res) => {
   const t = await sequelize.transaction();
   
@@ -569,7 +640,6 @@ export const bulkValidateTask = async (req, res) => {
         const document = task.document;
         const validator = await User.findByPk(userId, { transaction: t });
 
-        // Application de la signature avec logique adaptative
         if (action === 'approve' && applySignature && validator.signaturePath && 
             document.fileType === 'application/pdf') {
           try {
@@ -586,7 +656,6 @@ export const bulkValidateTask = async (req, res) => {
               transaction: t 
             });
             
-            // ✅ Logique adaptative
             const documentsNeeding4Signatures = ['Ordre de mission'];
             const numberOfSignatures = documentsNeeding4Signatures.includes(document.category) ? 4 : 3;
             const isInSignatureRange = task.step > (totalSteps - numberOfSignatures);
@@ -596,23 +665,25 @@ export const bulkValidateTask = async (req, res) => {
               const signatureImageBytes = await fs.readFile(signatureImagePath);
               const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
               
-              const signatureBlockWidth = 170;
-              const margin = 50;
+              const signatureBlockWidth = 150;
+              const margin = 40;
               const positionInSignatureGroup = task.step - (totalSteps - numberOfSignatures);
               let x;
               
               if (numberOfSignatures === 4) {
-                if (positionInSignatureGroup === 1) x = 50;
-                else if (positionInSignatureGroup === 2) x = width * 0.25 - (signatureBlockWidth / 2);
-                else if (positionInSignatureGroup === 3) x = width * 0.75 - (signatureBlockWidth / 2);
-                else x = width - signatureBlockWidth - margin;
+                const totalWidth = width - (2 * margin);
+                const spacing = totalWidth / 4;
+                if (positionInSignatureGroup === 1) x = margin;
+                else if (positionInSignatureGroup === 2) x = margin + spacing;
+                else if (positionInSignatureGroup === 3) x = margin + (spacing * 2);
+                else x = margin + (spacing * 3);
               } else {
-                if (positionInSignatureGroup === 1) x = 50;
+                if (positionInSignatureGroup === 1) x = margin;
                 else if (positionInSignatureGroup === 2) x = (width / 2) - (signatureBlockWidth / 2);
                 else x = width - signatureBlockWidth - margin;
               }
               
-              const signatureDims = signatureImage.scaleToFit(140, 70);
+              const signatureDims = signatureImage.scaleToFit(130, 65);
               const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
               const signatureY = 88;
               
@@ -664,10 +735,18 @@ export const bulkValidateTask = async (req, res) => {
             const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
             if (nextValidator?.email) {
               try {
+                const emailSubject = nextValidator.email === COMPTABLE_EMAIL 
+                  ? '💰 Ordre de mission validé - Créer Pièce de caisse'
+                  : 'Nouvelle tâche de validation';
+                
+                const emailBody = nextValidator.email === COMPTABLE_EMAIL
+                  ? `L'Ordre de mission "${document.title}" a été validé. Vous devez créer la Pièce de caisse.`
+                  : `Le document "${document.title}" nécessite votre validation.`;
+                
                 await sendNotificationEmail(
                   nextValidator.email, 
-                  'Nouvelle tâche de validation', 
-                  `Le document "${document.title}" nécessite votre validation.`
+                  emailSubject, 
+                  emailBody
                 );
               } catch (e) { 
                 console.warn("Email error:", e.message); 
@@ -721,5 +800,14 @@ export const bulkValidateTask = async (req, res) => {
       success: false, 
       message: 'Erreur serveur lors de la validation en masse.' 
     });
-  }
+     }
+};
+
+export default {
+  createWorkflow,
+  getMyTasks,
+  validateTask,
+  getDocumentWorkflow,
+  getValidators,
+  bulkValidateTask
 };
