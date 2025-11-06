@@ -1,4 +1,4 @@
-// backend/src/controllers/workflowController.js - VERSION FINALE COMPLÈTE
+// backend/src/controllers/workflowController.js - VERSION AVEC 4 SIGNATURES POUR ORDRE DE MISSION
 
 import { Workflow, Document, User } from '../models/index.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
@@ -27,6 +27,7 @@ export const createWorkflow = async (req, res) => {
           validatorId,
           step: index + 1,
           status: index === 0 ? 'pending' : 'queued',
+          assignedAt: index === 0 ? new Date() : null, // ✅ Initialiser assignedAt
         })
       )
     );
@@ -104,11 +105,22 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         return;
     }
 
-    const pausedWorkflow = await Workflow.findOne({ where: { documentId: workRequest.id, status: 'en_pause' }, transaction });
+    const pausedWorkflow = await Workflow.findOne({ 
+      where: { documentId: workRequest.id, status: 'en_pause' }, 
+      transaction 
+    });
+    
     if (pausedWorkflow) {
-      const reason = originDocument.category === 'Demande de besoin' ? 'Demande de Besoin validée' : 'Fiche de Suivi validée';
+      const reason = originDocument.category === 'Demande de besoin' 
+        ? 'Demande de Besoin validée' 
+        : 'Fiche de Suivi validée';
       
-      await pausedWorkflow.update({ status: 'pending', comment: `${reason}. Reprise du processus.` }, { transaction });
+      await pausedWorkflow.update({ 
+        status: 'pending', 
+        comment: `${reason}. Reprise du processus.`,
+        assignedAt: new Date() // ✅ Réinitialiser assignedAt
+      }, { transaction });
+      
       await workRequest.update({ status: 'in_progress' }, { transaction });
       
       const nextValidator = await User.findByPk(pausedWorkflow.validatorId, { transaction });
@@ -130,7 +142,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
   }
 }
 
-// Valider une tâche (VERSION CORRIGÉE GÉRANT LA RÉACTIVATION VIA FS)
+// ✅ MODIFIÉ : Valider une tâche avec logique adaptative pour signatures et cachets
 export const validateTask = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -138,11 +150,16 @@ export const validateTask = async (req, res) => {
     const { status, comment, validationType } = req.body;
     const userId = req.user.id;
 
-    const task = await Workflow.findByPk(taskId, { include: [{ model: Document, as: 'document' }], transaction: t });
+    const task = await Workflow.findByPk(taskId, { 
+      include: [{ model: Document, as: 'document' }], 
+      transaction: t 
+    });
+    
     if (!task) {
       await t.rollback();
       return res.status(404).json({ success: false, message: 'Tâche introuvable.' });
     }
+    
     if (task.validatorId !== userId) {
       await t.rollback();
       return res.status(403).json({ success: false, message: 'Non autorisé.' });
@@ -151,113 +168,260 @@ export const validateTask = async (req, res) => {
     const document = task.document;
     const validator = await User.findByPk(userId, { transaction: t });
 
+    // ✅ NOUVEAU : Déterminer le nombre de signatures selon le type de document
+    const totalSteps = await Workflow.count({ 
+      where: { documentId: document.id }, 
+      transaction: t 
+    });
+    
+    // ✅ LOGIQUE ADAPTATIVE : 4 signatures pour Ordre de mission, 3 pour les autres
+    const documentsNeeding4Signatures = ['Ordre de mission'];
+    const numberOfSignatures = documentsNeeding4Signatures.includes(document.category) ? 4 : 3;
+    
+    console.log(`📄 Document: ${document.category}`);
+    console.log(`✍️ Nombre de signatures requises: ${numberOfSignatures}`);
+    console.log(`👥 Total d'étapes: ${totalSteps}`);
+    console.log(`📍 Étape actuelle: ${task.step}`);
+
+    // Gestion de la pause
     if (validationType === 'pause') {
-        await task.update({ status: 'en_pause', comment, validatedAt: new Date() }, { transaction: t });
-        await document.update({ status: 'en_attente_dependance' }, { transaction: t });
-        await t.commit();
-        const updatedTask = await Workflow.findByPk(taskId, { include: [{ model: Document, as: 'document' }] });
-        return res.json({ success: true, data: updatedTask, message: 'Tâche mise en pause.' });
+      await task.update({ 
+        status: 'en_pause', 
+        comment, 
+        validatedAt: new Date() 
+      }, { transaction: t });
+      
+      await document.update({ status: 'en_attente_dependance' }, { transaction: t });
+      await t.commit();
+      
+      const updatedTask = await Workflow.findByPk(taskId, { 
+        include: [{ model: Document, as: 'document' }] 
+      });
+      
+      return res.json({ 
+        success: true, 
+        data: updatedTask, 
+        message: 'Tâche mise en pause.' 
+      });
     }
 
-    if (['signature', 'stamp', 'dater'].includes(validationType) && document.fileType === 'application/pdf') {
-        console.log(`📝 Application de ${validationType} sur le PDF...`);
-        const pdfPath = path.resolve(process.cwd(), document.filePath);
-        const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
-        pdfDoc.registerFontkit(fontkit);
-        const pages = pdfDoc.getPages();
-        const lastPage = pages[pages.length - 1];
-        const { width, height } = lastPage.getSize();
-        const totalSteps = await Workflow.count({ where: { documentId: document.id }, transaction: t });
-        const isLastStep = task.step === totalSteps;
+    // ✅ MODIFIÉ : Application des signatures et cachets avec logique adaptative
+    if (['signature', 'stamp', 'dater'].includes(validationType) && 
+        document.fileType === 'application/pdf') {
+      
+      console.log(`🔧 Application de ${validationType} sur le PDF...`);
+      
+      const pdfPath = path.resolve(process.cwd(), document.filePath);
+      const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
+      pdfDoc.registerFontkit(fontkit);
+      
+      const pages = pdfDoc.getPages();
+      const lastPage = pages[pages.length - 1];
+      const { width, height } = lastPage.getSize();
+      
+      // ✅ Vérifier si c'est dans la plage de signature
+      const isInSignatureRange = task.step > (totalSteps - numberOfSignatures);
 
-        if (validationType === 'dater' && validator.email === 'hsjm.rh@gmail.com') {
-            const specialEliteFontPath = path.resolve(process.cwd(), 'fonts/SpecialElite-Regular.ttf');
-            try {
-                const specialEliteFontBytes = await fs.readFile(specialEliteFontPath);
-                const customFont = await pdfDoc.embedFont(specialEliteFontBytes);
-                const dateText = `Reçu le : ${new Date().toLocaleDateString('fr-FR')}`;
-                lastPage.drawText(dateText, { x: 420, y: height - 100, size: 13, font: customFont, color: rgb(0.8, 0, 0) });
-            } catch (fontError) {
-                const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-                const dateText = `Reçu le : ${new Date().toLocaleDateString('fr-FR')}`;
-                lastPage.drawText(dateText, { x: 420, y: height - 100, size: 13, font, color: rgb(0.8, 0, 0) });
-            }
+      console.log(`🎯 Dans la plage de signature? ${isInSignatureRange} (étape ${task.step} > ${totalSteps - numberOfSignatures})`);
+
+      // Dateur (RH uniquement)
+      if (validationType === 'dater' && validator.email === 'hsjm.rh@gmail.com') {
+        const specialEliteFontPath = path.resolve(process.cwd(), 'fonts/SpecialElite-Regular.ttf');
+        try {
+          const specialEliteFontBytes = await fs.readFile(specialEliteFontPath);
+          const customFont = await pdfDoc.embedFont(specialEliteFontBytes);
+          const dateText = `Reçu le : ${new Date().toLocaleDateString('fr-FR')}`;
+          lastPage.drawText(dateText, { 
+            x: 420, 
+            y: height - 100, 
+            size: 13, 
+            font: customFont, 
+            color: rgb(0.8, 0, 0) 
+          });
+        } catch (fontError) {
+          const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+          const dateText = `Reçu le : ${new Date().toLocaleDateString('fr-FR')}`;
+          lastPage.drawText(dateText, { 
+            x: 420, 
+            y: height - 100, 
+            size: 13, 
+            font, 
+            color: rgb(0.8, 0, 0) 
+          });
         }
+      }
 
-        if (validationType === 'signature' && validator.signaturePath) {
-            const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
-            const signatureImageBytes = await fs.readFile(signatureImagePath);
-            const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
-            const signatureBlockWidth = 170;
-            const margin = 50;
-            let x;
-            if (totalSteps >= 3) {
-                if (task.step === 1) x = 50;
-                else if (task.step === 2) x = (width / 2) - (signatureBlockWidth / 2);
-                else x = width - signatureBlockWidth - margin;
-            } else if (totalSteps === 2) {
-                x = (task.step === 1) ? 50 : width - signatureBlockWidth - margin;
-            } else {
-                x = width - signatureBlockWidth - margin;
-            }
-            const signatureDims = signatureImage.scaleToFit(140, 70);
-            const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
-            const signatureY = 88;
-            lastPage.drawImage(signatureImage, { x: signatureX, y: signatureY, width: signatureDims.width, height: signatureDims.height });
+      // ✅ MODIFIÉ : Signature (pour les N derniers validateurs)
+      if (validationType === 'signature' && validator.signaturePath && isInSignatureRange) {
+        const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
+        const signatureImageBytes = await fs.readFile(signatureImagePath);
+        const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+        
+        const signatureBlockWidth = 150; // ✅ Réduit de 170 à 150
+        const margin = 40; // ✅ Réduit de 50 à 40
+        let x;
+        
+        // ✅ Position selon le nombre de signatures
+        const positionInSignatureGroup = task.step - (totalSteps - numberOfSignatures);
+        
+        if (numberOfSignatures === 4) {
+          // ✅ CORRIGÉ : Pour 4 signatures - répartition uniforme sur toute la largeur
+          console.log(`📍 Position dans le groupe de 4 signatures: ${positionInSignatureGroup}/4`);
+          
+          // Calcul de l'espacement égal entre les 4 signatures
+          const totalWidth = width - (2 * margin); // Largeur utilisable
+          const spacing = totalWidth / 4; // Diviser en 4 zones égales
+          
+          if (positionInSignatureGroup === 1) {
+            x = margin; // Première signature (tout à gauche)
+          } else if (positionInSignatureGroup === 2) {
+            x = margin + spacing; // Deuxième signature
+          } else if (positionInSignatureGroup === 3) {
+            x = margin + (spacing * 2); // Troisième signature
+          } else {
+            x = margin + (spacing * 3); // Quatrième signature (tout à droite)
+          }
+        } else {
+          // Pour 3 signatures (documents standards)
+          console.log(`📍 Position dans le groupe de 3 signatures: ${positionInSignatureGroup}/3`);
+          
+          if (positionInSignatureGroup === 1) {
+            x = margin; // Première signature (gauche)
+          } else if (positionInSignatureGroup === 2) {
+            x = (width / 2) - (signatureBlockWidth / 2); // Deuxième (centre)
+          } else {
+            x = width - signatureBlockWidth - margin; // Troisième (droite)
+          }
         }
+        
+        const signatureDims = signatureImage.scaleToFit(130, 65); // ✅ Réduit de 140x70 à 130x65
+        const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
+        const signatureY = 88;
+        
+        lastPage.drawImage(signatureImage, { 
+          x: signatureX, 
+          y: signatureY, 
+          width: signatureDims.width, 
+          height: signatureDims.height 
+        });
+        
+        console.log(`✅ Signature ${positionInSignatureGroup}/4 appliquée à x=${signatureX.toFixed(2)}`);
+      }
 
-        if (validationType === 'stamp' && isLastStep && validator.stampPath) {
-            const stampImagePath = path.resolve(process.cwd(), validator.stampPath);
-            const stampImageBytes = await fs.readFile(stampImagePath);
-            const stampImage = await pdfDoc.embedPng(stampImageBytes);
-            const stampDims = stampImage.scaleToFit(90, 90);
-            const signatureBlockWidth = 170;
-            const margin = 50;
-            let lastSignatureX;
-            if (totalSteps === 1) lastSignatureX = width - signatureBlockWidth - margin;
-            else if (totalSteps === 2) lastSignatureX = width - signatureBlockWidth - margin;
-            else lastSignatureX = width - signatureBlockWidth - margin;
-            const stampX = lastSignatureX + (signatureBlockWidth / 2) - (stampDims.width / 2);
-            const stampY = 120;
-            lastPage.drawImage(stampImage, { x: stampX, y: stampY, width: stampDims.width, height: stampDims.height });
+      // ✅ MODIFIÉ : Cachet (pour TOUS les validateurs dans la plage de signature qui ont un cachet)
+      if (validationType === 'stamp' && isInSignatureRange && validator.stampPath) {
+        const stampImagePath = path.resolve(process.cwd(), validator.stampPath);
+        const stampImageBytes = await fs.readFile(stampImagePath);
+        const stampImage = await pdfDoc.embedPng(stampImageBytes);
+        
+        const stampDims = stampImage.scaleToFit(80, 80);
+        const signatureBlockWidth = 150;
+        const margin = 40;
+        
+        const positionInSignatureGroup = task.step - (totalSteps - numberOfSignatures);
+        let stampBaseX;
+        
+        if (numberOfSignatures === 4) {
+          const totalWidth = width - (2 * margin);
+          const spacing = totalWidth / 4;
+          
+          if (positionInSignatureGroup === 1) {
+            stampBaseX = margin;
+          } else if (positionInSignatureGroup === 2) {
+            stampBaseX = margin + spacing;
+          } else if (positionInSignatureGroup === 3) {
+            stampBaseX = margin + (spacing * 2);
+          } else {
+            stampBaseX = margin + (spacing * 3);
+          }
+        } else {
+          if (positionInSignatureGroup === 1) {
+            stampBaseX = margin;
+          } else if (positionInSignatureGroup === 2) {
+            stampBaseX = (width / 2) - (signatureBlockWidth / 2);
+          } else {
+            stampBaseX = width - signatureBlockWidth - margin;
+          }
         }
+        
+        const stampX = stampBaseX + (signatureBlockWidth / 2) - (stampDims.width / 2);
+        const stampY = 135; // ✅ MODIFIÉ : Remonté de 110 à 135 pour être bien au-dessus
+        
+        lastPage.drawImage(stampImage, { 
+          x: stampX, 
+          y: stampY, 
+          width: stampDims.width, 
+          height: stampDims.height 
+        });
+        
+        console.log(`✅ Cachet ${positionInSignatureGroup}/4 apposé à x=${stampX.toFixed(2)}, y=${stampY}`);
+      }
 
-        const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
-        const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
-        await fs.writeFile(newFilePath, await pdfDoc.save());
-        await document.update({
-            filePath: `uploads/${newFileName}`,
-            fileName: newFileName,
-            metadata: { ...document.metadata, [`has_${validationType}`]: true },
-        }, { transaction: t });
+      // Sauvegarder le PDF modifié
+      const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
+      const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
+      await fs.writeFile(newFilePath, await pdfDoc.save());
+      
+      await document.update({
+        filePath: `uploads/${newFileName}`,
+        fileName: newFileName,
+        metadata: { 
+          ...document.metadata, 
+          [`has_${validationType}`]: true 
+        },
+      }, { transaction: t });
     }
 
+    // Mise à jour du statut de la tâche
     if (status) {
-      await task.update({ status, comment, validatedAt: new Date() }, { transaction: t });
+      await task.update({ 
+        status, 
+        comment, 
+        validatedAt: new Date() 
+      }, { transaction: t });
+      
       if (status === 'approved') {
         const nextTask = await Workflow.findOne({
           where: { documentId: document.id, status: 'queued' },
           order: [['step', 'ASC']],
           transaction: t
         });
+        
         if (nextTask) {
-          await nextTask.update({ status: 'pending' }, { transaction: t });
+          await nextTask.update({ 
+            status: 'pending',
+            assignedAt: new Date() // ✅ Initialiser assignedAt pour le prochain
+          }, { transaction: t });
+          
           await document.update({ status: 'in_progress' }, { transaction: t });
+          
           const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
           if (nextValidator?.email) {
             try {
-              await sendNotificationEmail(nextValidator.email, 'Nouvelle tâche de validation', `Le document "${document.title}" nécessite votre validation.`);
-            } catch(e){ console.warn("Email error:", e.message) }
+              await sendNotificationEmail(
+                nextValidator.email, 
+                'Nouvelle tâche de validation', 
+                `Le document "${document.title}" nécessite votre validation.`
+              );
+            } catch(e) { 
+              console.warn("Email error:", e.message); 
+            }
           }
         } else {
           await document.update({ status: 'approved' }, { transaction: t });
-          if (document.category === 'Demande de besoin' || document.category === "Fiche de suivi d'équipements") {
+          
+          // Réactivation si nécessaire
+          if (document.category === 'Demande de besoin' || 
+              document.category === "Fiche de suivi d'équipements") {
             await reactivateLinkedWorkRequest(document, t);
           }
         }
       } else if (status === 'rejected') {
         await document.update({ status: 'rejected' }, { transaction: t });
-        await Workflow.update({ status: 'rejected' }, { where: { documentId: document.id, status: 'queued' }, transaction: t });
+        await Workflow.update(
+          { status: 'rejected' }, 
+          { where: { documentId: document.id, status: 'queued' }, transaction: t }
+        );
       }
     }
 
@@ -280,7 +444,11 @@ export const validateTask = async (req, res) => {
       ]
     });
 
-    res.json({ success: true, data: updatedTask, message: `Action '${validationType || status}' effectuée.` });
+    res.json({ 
+      success: true, 
+      data: updatedTask, 
+      message: `Action '${validationType || status}' effectuée.` 
+    });
 
   } catch (error) {
     if (t && !t.finished) await t.rollback();
@@ -323,7 +491,7 @@ export const getValidators = async (req, res) => {
   }
 };
 
-// ✅ NOUVEAU : Validation en masse
+// ✅ Validation en masse
 export const bulkValidateTask = async (req, res) => {
   const t = await sequelize.transaction();
   
@@ -331,7 +499,6 @@ export const bulkValidateTask = async (req, res) => {
     const { taskIds, action, comment, applySignature } = req.body;
     const userId = req.user.id;
 
-    // Validation des paramètres
     if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
       await t.rollback();
       return res.status(400).json({ 
@@ -340,7 +507,6 @@ export const bulkValidateTask = async (req, res) => {
       });
     }
 
-    // Limite de 20 documents
     if (taskIds.length > 20) {
       await t.rollback();
       return res.status(400).json({ 
@@ -357,7 +523,6 @@ export const bulkValidateTask = async (req, res) => {
       });
     }
 
-    // Récupérer toutes les tâches
     const tasks = await Workflow.findAll({
       where: { 
         id: taskIds,
@@ -390,10 +555,8 @@ export const bulkValidateTask = async (req, res) => {
     const results = [];
     const errors = [];
 
-    // Traiter chaque tâche
     for (const task of tasks) {
       try {
-        // Vérifier que la tâche est bien en attente ou queued (bypass)
         if (!['pending', 'queued'].includes(task.status)) {
           errors.push({
             taskId: task.id,
@@ -406,8 +569,9 @@ export const bulkValidateTask = async (req, res) => {
         const document = task.document;
         const validator = await User.findByPk(userId, { transaction: t });
 
-        // Application de la signature si demandé et disponible
-        if (action === 'approve' && applySignature && validator.signaturePath && document.fileType === 'application/pdf') {
+        // Application de la signature avec logique adaptative
+        if (action === 'approve' && applySignature && validator.signaturePath && 
+            document.fileType === 'application/pdf') {
           try {
             const pdfPath = path.resolve(process.cwd(), document.filePath);
             const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
@@ -415,58 +579,65 @@ export const bulkValidateTask = async (req, res) => {
             
             const pages = pdfDoc.getPages();
             const lastPage = pages[pages.length - 1];
-            const { width, height } = lastPage.getSize();
+            const { width } = lastPage.getSize();
             
             const totalSteps = await Workflow.count({ 
               where: { documentId: document.id }, 
               transaction: t 
             });
+            
+            // ✅ Logique adaptative
+            const documentsNeeding4Signatures = ['Ordre de mission'];
+            const numberOfSignatures = documentsNeeding4Signatures.includes(document.category) ? 4 : 3;
+            const isInSignatureRange = task.step > (totalSteps - numberOfSignatures);
+            
+            if (isInSignatureRange) {
+              const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
+              const signatureImageBytes = await fs.readFile(signatureImagePath);
+              const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+              
+              const signatureBlockWidth = 170;
+              const margin = 50;
+              const positionInSignatureGroup = task.step - (totalSteps - numberOfSignatures);
+              let x;
+              
+              if (numberOfSignatures === 4) {
+                if (positionInSignatureGroup === 1) x = 50;
+                else if (positionInSignatureGroup === 2) x = width * 0.25 - (signatureBlockWidth / 2);
+                else if (positionInSignatureGroup === 3) x = width * 0.75 - (signatureBlockWidth / 2);
+                else x = width - signatureBlockWidth - margin;
+              } else {
+                if (positionInSignatureGroup === 1) x = 50;
+                else if (positionInSignatureGroup === 2) x = (width / 2) - (signatureBlockWidth / 2);
+                else x = width - signatureBlockWidth - margin;
+              }
+              
+              const signatureDims = signatureImage.scaleToFit(140, 70);
+              const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
+              const signatureY = 88;
+              
+              lastPage.drawImage(signatureImage, { 
+                x: signatureX, 
+                y: signatureY, 
+                width: signatureDims.width, 
+                height: signatureDims.height 
+              });
 
-            const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
-            const signatureImageBytes = await fs.readFile(signatureImagePath);
-            const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
-            
-            const signatureBlockWidth = 170;
-            const margin = 50;
-            let x;
-            
-            if (totalSteps >= 3) {
-              if (task.step === 1) x = 50;
-              else if (task.step === 2) x = (width / 2) - (signatureBlockWidth / 2);
-              else x = width - signatureBlockWidth - margin;
-            } else if (totalSteps === 2) {
-              x = (task.step === 1) ? 50 : width - signatureBlockWidth - margin;
-            } else {
-              x = width - signatureBlockWidth - margin;
+              const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
+              const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
+              await fs.writeFile(newFilePath, await pdfDoc.save());
+              
+              await document.update({
+                filePath: `uploads/${newFileName}`,
+                fileName: newFileName,
+                metadata: { ...document.metadata, has_signature: true },
+              }, { transaction: t });
             }
-            
-            const signatureDims = signatureImage.scaleToFit(140, 70);
-            const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
-            const signatureY = 88;
-            
-            lastPage.drawImage(signatureImage, { 
-              x: signatureX, 
-              y: signatureY, 
-              width: signatureDims.width, 
-              height: signatureDims.height 
-            });
-
-            const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
-            const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
-            await fs.writeFile(newFilePath, await pdfDoc.save());
-            
-            await document.update({
-              filePath: `uploads/${newFileName}`,
-              fileName: newFileName,
-              metadata: { ...document.metadata, has_signature: true },
-            }, { transaction: t });
           } catch (pdfError) {
             console.error('Erreur signature PDF:', pdfError);
-            // Continue sans signature en cas d'erreur
           }
         }
 
-        // Mise à jour de la tâche
         const status = action === 'approve' ? 'approved' : 'rejected';
         const bulkComment = comment ? `[VALIDATION EN MASSE] ${comment}` : '[VALIDATION EN MASSE]';
         
@@ -476,7 +647,6 @@ export const bulkValidateTask = async (req, res) => {
           validatedAt: new Date() 
         }, { transaction: t });
 
-        // Gestion du workflow suivant
         if (status === 'approved') {
           const nextTask = await Workflow.findOne({
             where: { documentId: document.id, status: 'queued' },
@@ -485,7 +655,10 @@ export const bulkValidateTask = async (req, res) => {
           });
           
           if (nextTask) {
-            await nextTask.update({ status: 'pending' }, { transaction: t });
+            await nextTask.update({ 
+              status: 'pending',
+              assignedAt: new Date()
+            }, { transaction: t });
             await document.update({ status: 'in_progress' }, { transaction: t });
             
             const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });

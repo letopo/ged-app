@@ -263,9 +263,9 @@ const DocumentList = () => {
         <div className="bg-white p-4 rounded-lg shadow-sm border sticky top-8">
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2"><FilePlus size={20} />Créer un document</h3>
             <ul className="space-y-2">
-                <li><Link to="/create-from-template" state={{ templateName: "📄 Demande de permission" }} className="block p-3 bg-gray-50 hover:bg-blue-50">📄 Demande de permission</Link></li>
+                <li><Link to="/create-from-template" state={{ templateName: "Demande de permission" }} className="block p-3 bg-gray-50 hover:bg-blue-50">📄 Demande de permission</Link></li>
                 {user && authorizedEmailsForCaisse.includes(user.email) && (
-                    <li><Link to="/create-from-template" state={{ templateName: "💰 Pièce de caisse" }} className="block p-3 bg-gray-50 hover:bg-blue-50">💰 Pièce de caisse</Link></li>
+                    <li><Link to="/create-from-template" state={{ templateName: "Pièce de caisse" }} className="block p-3 bg-gray-50 hover:bg-blue-50">💰 Pièce de caisse</Link></li>
                 )}
                 {/* MODIFICATION DU LIEN POUR LA DEMANDE DE TRAVAUX */}
                 <li>
