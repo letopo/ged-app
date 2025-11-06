@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import DemandePermission from './templates/DemandePermission';
 import PieceDeCaisse from './templates/PieceDeCaisse';
 import DemandeTravaux from './templates/DemandeTravaux';
+import OrdreDeMission from './templates/OrdreDeMission'; // ✅ NOUVEAU
 
 // Définir les modèles disponibles
 const templates = {
@@ -46,6 +47,20 @@ const templates = {
             description_travaux: '',
             realise_par: '',
             date_realisation: ''
+        }
+    },
+    // ✅ NOUVEAU : Ordre de mission
+    "Ordre de mission": {
+        component: OrdreDeMission,
+        initialState: {
+            numero_ordre: '',
+            date_mission: new Date().toISOString().split('T')[0],
+            service_demandeur: '',
+            objet_mission: '',
+            nom_conducteur: '',
+            nom_missionnaire: '',
+            immat_vehicule: '',
+            frais_mission: false
         }
     }
 };
