@@ -22,6 +22,7 @@ import notificationRoutes from './routes/notifications.js';
 import calendarRoutes from './routes/calendar.js';
 import healthRouter from './routes/health.js';
 import listsRoutes from './routes/lists.js';
+import holidaysRoutes from './routes/holidays.js';
 
 // Configuration
 dotenv.config();
@@ -81,6 +82,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api', healthRouter);
 app.use('/api/lists', listsRoutes);
+app.use('/api/holidays', holidaysRoutes); // ✅ NOUVEAU
 
 // ============================================
 // GESTION DES ROUTES NON TROUVÉES ET ERREURS

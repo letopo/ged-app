@@ -1,7 +1,8 @@
-// frontend/src/components/Calendar.jsx - VERSION AVEC NOM DU DEMANDEUR
+// frontend/src/components/Calendar.jsx - VERSION AVEC JOURS FÉRIÉS CAMEROUNAIS
 import React, { useState, useEffect } from 'react';
 import { calendarAPI } from '../services/api';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Flag } from 'lucide-react';
+import { isHoliday, getHolidayColor } from '../utils/cameroonHolidays';
 
 const Calendar = ({ month, year }) => {
   const [permissions, setPermissions] = useState([]);
@@ -86,17 +87,20 @@ const Calendar = ({ month, year }) => {
     return colors[index % colors.length];
   };
 
-  // ⬇️ FONCTION MODIFIÉE pour obtenir le nom du demandeur
   const getRequesterName = (permission) => {
-    // Priorité au nom du demandeur dans metadata
     if (permission.metadata?.nomsDemandeur) {
       return permission.metadata.nomsDemandeur;
     }
-    // Sinon, utiliser le nom de l'utilisateur qui a uploadé
     if (permission.uploadedBy) {
       return `${permission.uploadedBy.firstName || ''} ${permission.uploadedBy.lastName || ''}`.trim();
     }
     return 'N/A';
+  };
+
+  // ✅ NOUVEAU : Vérifier si c'est un dimanche
+  const isSunday = (day) => {
+    const date = new Date(year, month, day);
+    return date.getDay() === 0;
   };
 
   const renderCalendarDays = () => {
@@ -104,12 +108,14 @@ const Calendar = ({ month, year }) => {
     const firstDay = getFirstDayOfMonth();
     const days = [];
 
+    // Cases vides avant le 1er du mois
     for (let i = 0; i < firstDay; i++) {
       days.push(
-        <div key={`empty-${i}`} className="h-20 bg-gray-50 border border-gray-200"></div>
+        <div key={`empty-${i}`} className="h-24 bg-gray-50 border border-gray-200"></div>
       );
     }
 
+    // Jours du mois
     for (let day = 1; day <= daysInMonth; day++) {
       const dayPermissions = getPermissionsForDay(day);
       const today = new Date();
@@ -117,19 +123,53 @@ const Calendar = ({ month, year }) => {
                       today.getMonth() === month && 
                       today.getFullYear() === year;
 
+      // ✅ NOUVEAU : Vérifier si c'est un jour férié
+      const holiday = isHoliday(year, month, day);
+      const isSundayDay = isSunday(day);
+
+      // ✅ NOUVEAU : Classes CSS dynamiques selon le type de jour
+      let dayClasses = 'h-24 border border-gray-200 p-2 relative transition-all hover:shadow-md';
+      
+      if (isToday) {
+        dayClasses += ' bg-blue-50 border-blue-400 border-2 ring-2 ring-blue-200';
+      } else if (holiday) {
+        dayClasses += ` ${getHolidayColor(holiday.type)} border-2`;
+      } else if (isSundayDay) {
+        dayClasses += ' bg-red-50 border-red-200';
+      } else {
+        dayClasses += ' bg-white';
+      }
+
       days.push(
-        <div
-          key={day}
-          className={`h-20 border border-gray-200 p-1 relative ${
-            isToday ? 'bg-blue-50 border-blue-400 border-2' : 'bg-white'
-          }`}
-        >
-          <div className={`text-sm font-semibold ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>
-            {day}
+        <div key={day} className={dayClasses}>
+          {/* En-tête du jour */}
+          <div className="flex items-center justify-between mb-1">
+            <div className={`text-sm font-semibold ${
+              isToday ? 'text-blue-600' : 
+              holiday ? 'text-red-600' : 
+              isSundayDay ? 'text-red-500' : 
+              'text-gray-700'
+            }`}>
+              {day}
+            </div>
+            
+            {/* ✅ NOUVEAU : Icône pour les jours fériés */}
+            {holiday && (
+              <Flag className="w-3 h-3 text-red-600" title={holiday.title} />
+            )}
           </div>
-          <div className="flex flex-wrap gap-1 mt-1">
+
+          {/* ✅ NOUVEAU : Nom du jour férié */}
+          {holiday && (
+            <div className="text-[9px] font-semibold text-red-700 mb-1 leading-tight">
+              🇨🇲 {holiday.title}
+            </div>
+          )}
+
+          {/* Points des permissions */}
+          <div className="flex flex-wrap gap-1">
             {dayPermissions.map((permission, index) => {
-              const userName = getRequesterName(permission); // ⬇️ UTILISATION DE LA NOUVELLE FONCTION
+              const userName = getRequesterName(permission);
               
               return (
                 <div
@@ -171,43 +211,79 @@ const Calendar = ({ month, year }) => {
       ) : (
         <>
           <div className="grid grid-cols-7 gap-0 mb-2">
-            {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map((day) => (
-              <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
+            {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map((day, index) => (
+              <div 
+                key={day} 
+                className={`text-center text-xs font-semibold py-2 ${
+                  index === 0 ? 'text-red-600' : 'text-gray-600'
+                }`}
+              >
                 {day}
               </div>
             ))}
           </div>
+          
           <div className="grid grid-cols-7 gap-0">
             {renderCalendarDays()}
           </div>
 
-          {permissions.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Légende :</h4>
-              <div className="space-y-1">
-                {permissions.slice(0, 3).map((permission, index) => {
-                  const userName = getRequesterName(permission); // ⬇️ UTILISATION DE LA NOUVELLE FONCTION
-                  
-                  const startDate = new Date(permission.dateDebut);
-                  const endDate = new Date(permission.dateFin);
-                  
-                  return (
-                    <div key={permission.id} className="flex items-center gap-2 text-xs">
-                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${getColorForPermission(index)}`}></div>
-                      <span className="text-gray-700 truncate">
-                        {userName} - {startDate.toLocaleDateString('fr-FR')} au {endDate.toLocaleDateString('fr-FR')}
-                      </span>
-                    </div>
-                  );
-                })}
-                {permissions.length > 3 && (
-                  <div className="text-xs text-gray-500 italic">
-                    ... et {permissions.length - 3} autre(s)
-                  </div>
-                )}
+          {/* ✅ NOUVEAU : Légende avec jours fériés */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Flag className="w-4 h-4" />
+              Légende :
+            </h4>
+            
+            {/* Légende des types de jours */}
+            <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-red-100 border-2 border-red-300 rounded"></div>
+                <span className="text-gray-700">Jours fériés civils</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-100 border-2 border-green-300 rounded"></div>
+                <span className="text-gray-700">Fête Nationale</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-purple-100 border-2 border-purple-300 rounded"></div>
+                <span className="text-gray-700">Fériés chrétiens</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-teal-100 border-2 border-teal-300 rounded"></div>
+                <span className="text-gray-700">Fériés musulmans</span>
               </div>
             </div>
-          )}
+
+            {/* Légende des permissions */}
+            {permissions.length > 0 && (
+              <>
+                <div className="border-t pt-3 mb-2">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Permissions en cours :</p>
+                </div>
+                <div className="space-y-1">
+                  {permissions.slice(0, 3).map((permission, index) => {
+                    const userName = getRequesterName(permission);
+                    const startDate = new Date(permission.dateDebut);
+                    const endDate = new Date(permission.dateFin);
+                    
+                    return (
+                      <div key={permission.id} className="flex items-center gap-2 text-xs">
+                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${getColorForPermission(index)}`}></div>
+                        <span className="text-gray-700 truncate">
+                          {userName} - {startDate.toLocaleDateString('fr-FR')} au {endDate.toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {permissions.length > 3 && (
+                    <div className="text-xs text-gray-500 italic">
+                      ... et {permissions.length - 3} autre(s)
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </>
       )}
     </div>

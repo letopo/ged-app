@@ -136,4 +136,10 @@ export const calendarAPI = {
   },
 };
 
+// ✅ NOUVEAU : API Jours fériés
+export const holidaysAPI = {
+  getHolidays: (year) => api.get('/holidays', { params: { year } }),
+  checkHoliday: (date) => api.get('/holidays/check', { params: { date } })
+};
+
 export default api;
