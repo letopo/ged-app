@@ -1,4 +1,4 @@
-// frontend/src/pages/CreateWorkRequest.jsx - VERSION COMPLÈTE AVEC GESTION DES SERVICES
+// frontend/src/pages/CreateWorkRequest.jsx - VERSION AVEC TRI CORRECT DES VALIDATEURS
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -108,7 +108,30 @@ const CreateWorkRequest = () => {
         }
     }, [formData.type]);
 
-    // Construire la liste dynamique des validateurs
+    // ✅ NOUVEAU : Fonction pour déterminer l'ordre des validateurs
+    const getValidatorOrder = (email) => {
+        const orderMap = {
+            // Directeur du Soutien - TOUJOURS EN DERNIER
+            'hsjm.directeurdusoutien@gmail.com': 999,
+            'hsjm.directeursoutien@gmail.com': 999,
+            
+            // MG et SécuLog - Milieu
+            'hsjm.moyengeneraux@gmail.com': 2,
+            'hsjm.securitelogistique@gmail.com': 3,
+            'hsjm.chefseculog@gmail.com': 3,
+            
+            // Biomédical
+            'hsjm.cellulebiomedicale@gmail.com': 2,
+            'hsjm.pharma@gmail.com': 3,
+            
+            // Chef de Service - TOUJOURS EN PREMIER
+            'default': 1
+        };
+        
+        return orderMap[email] || orderMap['default'];
+    };
+
+    // Construire la liste dynamique des validateurs avec tri correct
     useEffect(() => {
         if (formData.type && availableValidators.length > 0) {
             const validators = [];
@@ -132,10 +155,17 @@ const CreateWorkRequest = () => {
                 const mgValidators = availableValidators.filter(v => 
                     v.email === 'hsjm.moyengeneraux@gmail.com' ||
                     v.email === 'hsjm.chefseculog@gmail.com' ||
-                    v.email === 'hsjm.directeurdusoutien@gmail.com'
+                    v.email === 'hsjm.securitelogistique@gmail.com' ||
+                    v.email === 'hsjm.directeurdusoutien@gmail.com' ||
+                    v.email === 'hsjm.directeursoutien@gmail.com'
                 );
-                mgValidators.forEach((v, index) => {
-                    validators.push({ ...v, ordre: index + 2 });
+                
+                // ✅ MODIFIÉ : Assigner l'ordre selon la fonction
+                mgValidators.forEach(v => {
+                    validators.push({ 
+                        ...v, 
+                        ordre: getValidatorOrder(v.email)
+                    });
                 });
             } else if (formData.type === 'Biomedical') {
                 // Biomédical → Chef de Service → Cellule Biomédical → Directrice Adjointe
@@ -143,17 +173,34 @@ const CreateWorkRequest = () => {
                     v.email === 'hsjm.cellulebiomedicale@gmail.com' ||
                     v.email === 'hsjm.pharma@gmail.com'
                 );
-                bioValidators.forEach((v, index) => {
-                    validators.push({ ...v, ordre: index + 2 });
+                
+                bioValidators.forEach(v => {
+                    validators.push({ 
+                        ...v, 
+                        ordre: getValidatorOrder(v.email)
+                    });
                 });
             }
 
-            // Trier par ordre
+            // ✅ CRITIQUE : Trier par ordre (le Directeur du Soutien sera automatiquement à la fin)
             validators.sort((a, b) => a.ordre - b.ordre);
-            setDynamicValidators(validators);
+            
+            // ✅ NOUVEAU : Réassigner les ordres d'affichage après tri
+            const sortedValidators = validators.map((v, index) => ({
+                ...v,
+                displayOrder: index + 1 // Pour l'affichage dans l'UI
+            }));
+            
+            setDynamicValidators(sortedValidators);
 
             // Présélectionner automatiquement tous les validateurs
-            setSelectedValidators(validators.map(v => v.id));
+            setSelectedValidators(sortedValidators.map(v => v.id));
+            
+            // ✅ NOUVEAU : Log pour debug
+            console.log('📋 Ordre des validateurs construit:');
+            sortedValidators.forEach((v, i) => {
+                console.log(`   Étape ${i + 1}: ${v.firstName} ${v.lastName} (${v.email})`);
+            });
         }
     }, [formData.type, chefDeService, availableValidators, formData.service]);
 
@@ -253,11 +300,19 @@ const CreateWorkRequest = () => {
             const uploadResponse = await documentsAPI.upload(uploadData);
             const documentId = uploadResponse.data.data.id;
 
-            // Étape 4: Soumettre au workflow avec les validateurs sélectionnés dans l'ordre
+            // ✅ MODIFIÉ : Étape 4 - Trier les validateurs sélectionnés dans le bon ordre
             const orderedValidators = dynamicValidators
                 .filter(v => selectedValidators.includes(v.id))
-                .sort((a, b) => a.ordre - b.ordre)
+                .sort((a, b) => a.ordre - b.ordre) // ✅ Tri par ordre (pas par displayOrder)
                 .map(v => v.id);
+
+            console.log('🚀 Soumission avec ordre final:');
+            dynamicValidators
+                .filter(v => selectedValidators.includes(v.id))
+                .sort((a, b) => a.ordre - b.ordre)
+                .forEach((v, i) => {
+                    console.log(`   Étape ${i + 1}: ${v.firstName} ${v.lastName} (${v.email})`);
+                });
 
             await workflowAPI.submitWorkflow({
                 documentId,
@@ -389,9 +444,9 @@ const CreateWorkRequest = () => {
                                 <Info className="text-blue-600 flex-shrink-0 mt-1" size={20} />
                                 <div className="text-sm text-blue-800">
                                     {formData.type === 'MG' ? (
-                                        <p><strong>Demande Moyens Généraux :</strong> Sélectionnez Chef de Service → MG → SécuLog → Directrice du Soutient</p>
+                                        <p><strong>Demande Moyens Généraux :</strong> Chef de Service → MG → SécuLog → <strong className="text-red-600">Directeur du Soutien (EN DERNIER)</strong></p>
                                     ) : (
-                                        <p><strong>Demande Biomédical :</strong> Sélectionnez Chef de Service → Cellule Biomédical → Directrice Adjointe</p>
+                                        <p><strong>Demande Biomédical :</strong> Chef de Service → Cellule Biomédical → Directrice Adjointe</p>
                                     )}
                                 </div>
                             </div>
@@ -415,7 +470,13 @@ const CreateWorkRequest = () => {
                                     dynamicValidators.map((validator, index) => (
                                         <label 
                                             key={validator.id} 
-                                            className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${selectedValidators.includes(validator.id) ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+                                            className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
+                                                selectedValidators.includes(validator.id) ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
+                                            } ${
+                                                validator.email === 'hsjm.directeurdusoutien@gmail.com' || validator.email === 'hsjm.directeursoutien@gmail.com' 
+                                                    ? 'border-red-300 bg-red-50' 
+                                                    : ''
+                                            }`}
                                         >
                                             <input 
                                                 type="checkbox" 
@@ -434,6 +495,11 @@ const CreateWorkRequest = () => {
                                                     {validator.isChefService && (
                                                         <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                                                             Chef de Service
+                                                        </span>
+                                                    )}
+                                                    {(validator.email === 'hsjm.directeurdusoutien@gmail.com' || validator.email === 'hsjm.directeursoutien@gmail.com') && (
+                                                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded font-bold">
+                                                            ⚠️ EN DERNIER
                                                         </span>
                                                     )}
                                                 </div>
