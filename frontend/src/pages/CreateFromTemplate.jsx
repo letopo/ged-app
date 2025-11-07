@@ -54,7 +54,8 @@ const templates = {
         component: OrdreDeMission,
         initialState: {
             numero_ordre: '',
-            date_mission: new Date().toISOString().split('T')[0],
+            date_depart: new Date().toISOString().split('T')[0], // ✅ NOUVEAU
+            date_retour: '', // ✅ NOUVEAU
             service_demandeur: '',
             objet_mission: '',
             nom_conducteur: '',

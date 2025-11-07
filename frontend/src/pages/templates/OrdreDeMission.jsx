@@ -1,32 +1,5 @@
-// frontend/src/pages/templates/OrdreDeMission.jsx
-import React, { useState, useEffect } from 'react';
-import { usersAPI } from '../../services/api';
-import logo from '../../assets/logo-ordre-malte.png';
-
 const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setLoading(true);
-        const userServiceResponse = await usersAPI.getMyService();
-        if (userServiceResponse.data.success && userServiceResponse.data.service) {
-          setFormData(prev => ({
-            ...prev,
-            service_demandeur: userServiceResponse.data.service.name
-          }));
-        }
-      } catch (error) {
-        console.error('Erreur chargement données utilisateur:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchUserData();
-  }, [setFormData]);
-
+  
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -35,227 +8,302 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
     }));
   };
 
-  // Générer le numéro automatiquement
-  const generateOrderNumber = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000);
-    return `${random}/OM/DIR/HSJM/${month}/${day}/${year}`;
-  };
-
-  useEffect(() => {
-    if (!formData.numero_ordre) {
-      setFormData(prev => ({
-        ...prev,
-        numero_ordre: generateOrderNumber()
-      }));
-    }
-  }, []);
-
-  // Style pour les champs statiques (pour PDF)
-  const staticFieldStyle = {
-    borderBottom: '1px solid #000',
-    padding: '4px 8px',
-    minHeight: '30px',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#000000',
-    lineHeight: '1.5'
-  };
-
   return (
-    <div 
-      ref={pdfContainerRef} 
-      className="bg-white p-8 shadow-lg mx-auto relative" 
-      style={{ 
-        width: '210mm', 
-        minHeight: '297mm', 
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '14px'
-      }}
-    >
-      {/* En-tête */}
-      <div className="flex items-start justify-between mb-8">
-        <img src={logo} alt="Logo Ordre de Malte" style={{ width: '180px', height: 'auto' }} />
-      </div>
-
-      {/* Titre */}
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold border-2 border-black py-2">
-          ORDRE DE MISSION
-        </h1>
-      </div>
-
-      {/* Numéro d'ordre */}
-      <div className="text-center mb-8">
-        <div className="inline-block">
-          <label className="font-semibold mr-2">N°</label>
-          {/* Input pour édition */}
-          <input
-            name="numero_ordre"
-            value={formData.numero_ordre || ''}
-            onChange={handleChange}
-            className="not-printable border-b-2 border-gray-400 px-2 py-1 text-center"
-            style={{ width: '400px', fontSize: '16px' }}
-            placeholder="/OM/DIR/HSJM/  /  /20__"
-          />
-          {/* Texte statique pour PDF */}
-          <span className="print-only" style={{ ...staticFieldStyle, display: 'none' }}>
-            {formData.numero_ordre || '\u00A0'}
-          </span>
-        </div>
-      </div>
-
-      {/* Zone d'édition pour les dates et informations (cachée lors de la génération PDF) */}
-      <div className="not-printable mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded">
-        <h3 className="font-bold text-blue-900 mb-4">📝 Remplir les informations</h3>
+    <div className="max-w-4xl mx-auto">
+      {/* Formulaire de saisie */}
+      <div className="bg-white p-6 rounded-lg shadow mb-6 not-printable">
+        <h3 className="text-lg font-bold mb-4 text-gray-800">Remplir les informations</h3>
         
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* ✅ MODIFIÉ : Deux champs de date séparés */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Date (A/R)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              📅 Date de Départ *
+            </label>
             <input
               type="date"
-              name="date_mission"
-              value={formData.date_mission || ''}
+              name="date_depart"
+              value={formData.date_depart || ''}
               onChange={handleChange}
-              className="w-full px-3 py-2 border-2 border-blue-300 rounded focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
             />
           </div>
+
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Service Demandeur</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              📅 Date de Retour *
+            </label>
             <input
+              type="date"
+              name="date_retour"
+              value={formData.date_retour || ''}
+              onChange={handleChange}
+              min={formData.date_depart || ''} // ✅ La date de retour doit être après le départ
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              🏢 Service Demandeur *
+            </label>
+            <input
+              type="text"
               name="service_demandeur"
               value={formData.service_demandeur || ''}
               onChange={handleChange}
-              className="w-full px-3 py-2 border-2 border-blue-300 rounded focus:outline-none focus:border-blue-500"
-              placeholder="Service"
+              placeholder="Ex: Direction"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
             />
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Objet de la mission</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              📋 Numéro d'Ordre
+            </label>
+            <input
+              type="text"
+              name="numero_ordre"
+              value={formData.numero_ordre || ''}
+              onChange={handleChange}
+              placeholder="Ex: OM-2025-001"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              📝 Objet de la Mission *
+            </label>
             <textarea
               name="objet_mission"
               value={formData.objet_mission || ''}
               onChange={handleChange}
-              className="w-full px-3 py-2 border-2 border-blue-300 rounded focus:outline-none focus:border-blue-500"
-              rows="2"
-              placeholder="Description de la mission..."
+              placeholder="Décrivez l'objet de la mission..."
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
             />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Nom du Conducteur</label>
-            <input
-              name="nom_conducteur"
-              value={formData.nom_conducteur || ''}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border-2 border-blue-300 rounded focus:outline-none focus:border-blue-500"
-            />
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Nom du Missionnaire</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              👤 Nom du Missionnaire *
+            </label>
             <input
+              type="text"
               name="nom_missionnaire"
               value={formData.nom_missionnaire || ''}
               onChange={handleChange}
-              className="w-full px-3 py-2 border-2 border-blue-300 rounded focus:outline-none focus:border-blue-500"
+              placeholder="Nom complet"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
             />
           </div>
+
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Immatriculation du véhicule</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              🚗 Nom du Conducteur *
+            </label>
             <input
+              type="text"
+              name="nom_conducteur"
+              value={formData.nom_conducteur || ''}
+              onChange={handleChange}
+              placeholder="Nom complet"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              🚙 Immatriculation du Véhicule *
+            </label>
+            <input
+              type="text"
               name="immat_vehicule"
               value={formData.immat_vehicule || ''}
               onChange={handleChange}
-              className="w-full px-3 py-2 border-2 border-blue-300 rounded focus:outline-none focus:border-blue-500"
+              placeholder="Ex: AB-123-CD"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
             />
           </div>
-        </div>
 
-        <div>
-          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+          <div className="flex items-center">
             <input
               type="checkbox"
               name="frais_mission"
               checked={formData.frais_mission || false}
               onChange={handleChange}
-              className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
             />
-            Ouvre droit aux frais de mission (OUI) / Imputation budgétaire
-          </label>
+            <label className="ml-3 text-sm font-semibold text-gray-700">
+              💰 Ouvre droit aux frais de mission (OUI) / Imputation budgétaire
+            </label>
+          </div>
         </div>
       </div>
 
-      {/* Tableau */}
-      <table className="w-full border-collapse border-2 border-black mb-8" style={{ fontSize: '13px' }}>
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="border-2 border-black p-2 text-center font-bold">
-              DATE<br/>(A/R)
-            </th>
-            <th className="border-2 border-black p-2 text-center font-bold">
-              OBJET DE LA MISSION<br/>SERVICE DEMANDEUR
-            </th>
-            <th className="border-2 border-black p-2 text-center font-bold">
-              NOM DU<br/>CONDUCTEUR
-            </th>
-            <th className="border-2 border-black p-2 text-center font-bold">
-              NOM DU<br/>MISSIONNAIRE
-            </th>
-            <th className="border-2 border-black p-2 text-center font-bold">
-              IMMAT. DU VEHICULE
-            </th>
-            <th className="border-2 border-black p-2 text-center font-bold">
-              OUVRE DROIT AUX FRAIS DE<br/>MISSION (OUI OU NON) /<br/>IMPUTATION BUDGETAIRE
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className="border-2 border-black p-4 text-center" style={{ minHeight: '120px', verticalAlign: 'top' }}>
-              {formData.date_mission ? new Date(formData.date_mission).toLocaleDateString('fr-FR') : '\u00A0'}
-            </td>
-            <td className="border-2 border-black p-4" style={{ verticalAlign: 'top' }}>
-              {formData.objet_mission || '\u00A0'}
-            </td>
-            <td className="border-2 border-black p-4 text-center" style={{ verticalAlign: 'top' }}>
-              {formData.nom_conducteur || '\u00A0'}
-            </td>
-            <td className="border-2 border-black p-4 text-center" style={{ verticalAlign: 'top' }}>
-              {formData.nom_missionnaire || '\u00A0'}
-            </td>
-            <td className="border-2 border-black p-4 text-center" style={{ verticalAlign: 'top' }}>
-              {formData.immat_vehicule || '\u00A0'}
-            </td>
-            <td className="border-2 border-black p-4 text-center" style={{ verticalAlign: 'top' }}>
-              {formData.frais_mission ? 'OUI' : 'NON'}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {/* Prévisualisation PDF */}
+      <div ref={pdfContainerRef} className="bg-white p-8 shadow-lg" style={{ width: '210mm', minHeight: '297mm' }}>
+        {/* En-tête */}
+        <div className="flex items-start justify-between mb-6 pb-4 border-b-2 border-gray-800">
+          <div className="flex items-center gap-4">
+            <img 
+              src="/logo-hopital.png" 
+              alt="Logo" 
+              className="w-16 h-16 object-contain"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            <div>
+              <p className="text-xs font-bold uppercase">Office de Malte</p>
+              <p className="text-[10px]">Hôpital Saint Jean de Malte</p>
+              <p className="text-[10px]">BP 15 Njombé - Littoral - Cameroun</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <h1 className="text-xl font-bold text-red-700 uppercase">Ordre de Mission</h1>
+            <p className="text-xs text-gray-600 mt-1">Hôpital Saint Jean de Malte</p>
+            {formData.numero_ordre && (
+              <p className="text-xs font-semibold mt-2">N° {formData.numero_ordre}</p>
+            )}
+          </div>
+        </div>
 
-      {/* Signatures */}
-      <div className="grid grid-cols-4 gap-8 mt-16" style={{ fontSize: '13px' }}>
-        <div className="text-center border-t-2 border-black pt-2">
-          <p className="font-bold">SIGNATURE</p>
-          <p className="font-bold">SERVICE DEMANDEUR</p>
+        {/* Formulaire principal */}
+        <div className="mb-6">
+          <div className="mb-4 p-4 bg-red-50 border-2 border-red-600 rounded">
+            <h2 className="text-sm font-bold text-center">✏️ Remplir les informations</h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* ✅ MODIFIÉ : Affichage des deux dates */}
+            <div className="border-2 border-gray-800 p-3">
+              <p className="text-xs font-bold mb-2">📅 Date de Départ (A)</p>
+              <p className="text-sm font-semibold border-b-2 border-dotted border-gray-400 pb-1 min-h-[24px]">
+                {formData.date_depart ? new Date(formData.date_depart).toLocaleDateString('fr-FR') : '___/___/_____'}
+              </p>
+            </div>
+
+            <div className="border-2 border-gray-800 p-3">
+              <p className="text-xs font-bold mb-2">📅 Date de Retour (R)</p>
+              <p className="text-sm font-semibold border-b-2 border-dotted border-gray-400 pb-1 min-h-[24px]">
+                {formData.date_retour ? new Date(formData.date_retour).toLocaleDateString('fr-FR') : '___/___/_____'}
+              </p>
+            </div>
+
+            <div className="border-2 border-gray-800 p-3">
+              <p className="text-xs font-bold mb-2">🏢 Service Demandeur</p>
+              <p className="text-sm font-semibold border-b-2 border-dotted border-gray-400 pb-1 min-h-[24px]">
+                {formData.service_demandeur || '_____________________'}
+              </p>
+            </div>
+
+            <div className="border-2 border-gray-800 p-3">
+              <p className="text-xs font-bold mb-2">👤 Nom du Missionnaire</p>
+              <p className="text-sm font-semibold border-b-2 border-dotted border-gray-400 pb-1 min-h-[24px]">
+                {formData.nom_missionnaire || '_____________________'}
+              </p>
+            </div>
+          </div>
+
+          <div className="border-2 border-gray-800 p-3 mb-4">
+            <p className="text-xs font-bold mb-2">📝 Objet de la Mission</p>
+            <div className="min-h-[60px] text-sm border-b-2 border-dotted border-gray-400 pb-2">
+              {formData.objet_mission || '__________________________________________'}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="border-2 border-gray-800 p-3">
+              <p className="text-xs font-bold mb-2">🚗 Nom du Conducteur</p>
+              <p className="text-sm font-semibold border-b-2 border-dotted border-gray-400 pb-1 min-h-[24px]">
+                {formData.nom_conducteur || '_____________________'}
+              </p>
+            </div>
+
+            <div className="border-2 border-gray-800 p-3">
+              <p className="text-xs font-bold mb-2">🚙 Immatriculation du Véhicule</p>
+              <p className="text-sm font-semibold border-b-2 border-dotted border-gray-400 pb-1 min-h-[24px]">
+                {formData.immat_vehicule || '_____________________'}
+              </p>
+            </div>
+          </div>
+
+          <div className="border-2 border-gray-800 p-3">
+            <p className="text-xs font-bold mb-2">
+              💰 Ouvre droit aux frais de mission (OUI) / Imputation budgétaire
+            </p>
+            <p className="text-sm font-semibold">
+              {formData.frais_mission ? 'OUI' : 'NON'}
+            </p>
+          </div>
         </div>
-        <div className="text-center border-t-2 border-black pt-2">
-          <p className="font-bold">SIGNATURE D.D.S</p>
-          <p className="text-xs">(POUR VHL SANITAIRE)</p>
+
+        {/* Tableau récapitulatif */}
+        <div className="mb-6">
+          <table className="w-full border-2 border-gray-800 text-xs">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-800 p-2 font-bold">DATE (A/R)</th>
+                <th className="border border-gray-800 p-2 font-bold">OBJET DE LA MISSION<br/>SERVICE DEMANDEUR</th>
+                <th className="border border-gray-800 p-2 font-bold">NOM DU<br/>CONDUCTEUR</th>
+                <th className="border border-gray-800 p-2 font-bold">NOM DU<br/>MISSIONNAIRE</th>
+                <th className="border border-gray-800 p-2 font-bold">IMMAT. DU<br/>VÉHICULE</th>
+                <th className="border border-gray-800 p-2 font-bold">MISSION (OUI OU NON) /<br/>IMPUTATION BUDGÉTAIRE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {/* ✅ MODIFIÉ : Afficher les deux dates dans le tableau */}
+                <td className="border border-gray-800 p-2 text-center align-top">
+                  {formData.date_depart && formData.date_retour ? (
+                    <>
+                      <div className="font-semibold">A: {new Date(formData.date_depart).toLocaleDateString('fr-FR')}</div>
+                      <div className="font-semibold mt-1">R: {new Date(formData.date_retour).toLocaleDateString('fr-FR')}</div>
+                    </>
+                  ) : (
+                    <div className="text-gray-400">___/___/_____</div>
+                  )}
+                </td>
+                <td className="border border-gray-800 p-2 align-top">
+                  <div className="font-semibold">{formData.objet_mission || ''}</div>
+                  <div className="text-[10px] text-gray-600 mt-1">{formData.service_demandeur || ''}</div>
+                </td>
+                <td className="border border-gray-800 p-2 text-center align-top">{formData.nom_conducteur || ''}</td>
+                <td className="border border-gray-800 p-2 text-center align-top">{formData.nom_missionnaire || ''}</td>
+                <td className="border border-gray-800 p-2 text-center align-top">{formData.immat_vehicule || ''}</td>
+                <td className="border border-gray-800 p-2 text-center align-top font-semibold">
+                  {formData.frais_mission ? 'OUI' : 'NON'}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div className="text-center border-t-2 border-black pt-2">
-          <p className="font-bold">SIGNATURE D.S</p>
-        </div>
-        <div className="text-center border-t-2 border-black pt-2">
-          <p className="font-bold">VALIDATION DIRECTEUR</p>
+
+        {/* Signatures */}
+        <div className="mt-8 grid grid-cols-4 gap-4 text-center text-xs">
+          <div>
+            <div className="border-b-2 border-gray-400 pb-16 mb-2"></div>
+            <p className="font-bold uppercase">Signature<br/>Service Demandeur</p>
+          </div>
+          <div>
+            <div className="border-b-2 border-gray-400 pb-16 mb-2"></div>
+            <p className="font-bold uppercase">Signature D.D.S<br/>(pour VHL Sanitaire)</p>
+          </div>
+          <div>
+            <div className="border-b-2 border-gray-400 pb-16 mb-2"></div>
+            <p className="font-bold uppercase">Signature D.S</p>
+          </div>
+          <div>
+            <div className="border-b-2 border-gray-400 pb-16 mb-2"></div>
+            <p className="font-bold uppercase">Validation Directeur</p>
+          </div>
         </div>
       </div>
     </div>
