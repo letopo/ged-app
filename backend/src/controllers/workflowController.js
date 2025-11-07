@@ -180,7 +180,6 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
 }
 
 // Valider une tâche
-// Valider une tâche
 export const validateTask = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -206,7 +205,7 @@ export const validateTask = async (req, res) => {
     const document = task.document;
     const validator = await User.findByPk(userId, { transaction: t });
 
-    // ✅ NOUVEAU : Récupérer TOUS les workflows pour ce document
+    // Récupérer TOUS les workflows pour ce document
     const allWorkflows = await Workflow.findAll({
       where: { documentId: document.id },
       include: [{ model: User, as: 'validator', attributes: ['email'] }],
@@ -216,11 +215,11 @@ export const validateTask = async (req, res) => {
     
     const totalSteps = allWorkflows.length;
     
-    // ✅ NOUVEAU : Identifier si le dernier workflow est le comptable
+    // Identifier si le dernier workflow est le comptable
     const lastWorkflow = allWorkflows[allWorkflows.length - 1];
     const isLastWorkflowComptable = lastWorkflow.validator.email === COMPTABLE_EMAIL;
     
-    // ✅ NOUVEAU : Calculer le nombre d'étapes SANS le comptable
+    // Calculer le nombre d'étapes SANS le comptable
     const totalStepsWithoutComptable = isLastWorkflowComptable ? totalSteps - 1 : totalSteps;
     
     console.log(`📄 Document: ${document.category}`);
@@ -229,7 +228,7 @@ export const validateTask = async (req, res) => {
     console.log(`📊 Étapes SANS comptable: ${totalStepsWithoutComptable}`);
     console.log(`📍 Étape actuelle: ${task.step}`);
     
-    // ✅ MODIFIÉ : Déterminer le nombre de signatures en fonction du document
+    // Déterminer le nombre de signatures en fonction du document
     const documentsNeeding4Signatures = ['Ordre de mission'];
     const numberOfSignatures = documentsNeeding4Signatures.includes(document.category) ? 4 : 3;
     
@@ -256,26 +255,28 @@ export const validateTask = async (req, res) => {
       });
     }
 
-    // ✅ MODIFIÉ : Le comptable ne peut PAS signer, il crée seulement la Pièce de caisse
+    // ✅ MODIFIÉ : Le comptable NE PEUT PAS signer/cacheter UNIQUEMENT pour les Ordres de mission
     const isComptableTask = validator.email === COMPTABLE_EMAIL;
+    const isOrderMission = document.category === 'Ordre de mission';
     
-    if (isComptableTask) {
-      console.log(`💰 Tâche du comptable - Pas de signature/cachet autorisé`);
+    // ✅ NOUVELLE LOGIQUE : Le comptable peut valider normalement les Pièces de caisse
+    if (isComptableTask && isOrderMission) {
+      console.log(`💰 Tâche du comptable sur Ordre de mission - Pas de signature/cachet autorisé`);
       
-      // Le comptable peut seulement valider simplement, pas de signature/cachet
+      // Le comptable peut seulement valider simplement les OM, pas de signature/cachet
       if (['signature', 'stamp', 'dater'].includes(validationType)) {
         await t.rollback();
         return res.status(400).json({ 
           success: false, 
-          message: 'Le comptable ne peut pas apposer de signature ou cachet. Veuillez créer la Pièce de caisse.' 
+          message: 'Le comptable ne peut pas apposer de signature ou cachet sur un Ordre de mission. Veuillez créer la Pièce de caisse.' 
         });
       }
     }
 
-    // ✅ MODIFIÉ : Calculer si on est dans la plage de signature (en excluant le comptable)
+    // ✅ Le comptable PEUT signer/cacheter les Pièces de caisse et autres documents
     if (['signature', 'stamp', 'dater'].includes(validationType) && 
         document.fileType === 'application/pdf' &&
-        !isComptableTask) { // ✅ Le comptable ne peut jamais signer
+        !(isComptableTask && isOrderMission)) { // ✅ Exclu seulement si comptable + OM
       
       console.log(`🔧 Application de ${validationType} sur le PDF...`);
       
@@ -287,7 +288,7 @@ export const validateTask = async (req, res) => {
       const lastPage = pages[pages.length - 1];
       const { width, height } = lastPage.getSize();
       
-      // ✅ MODIFIÉ : Calculer la plage de signature en utilisant totalStepsWithoutComptable
+      // Calculer la plage de signature en utilisant totalStepsWithoutComptable
       const isInSignatureRange = task.step > (totalStepsWithoutComptable - numberOfSignatures);
 
       console.log(`🎯 Dans la plage de signature? ${isInSignatureRange}`);
@@ -328,7 +329,6 @@ export const validateTask = async (req, res) => {
         const margin = 30;
         let x;
         
-        // ✅ MODIFIÉ : Calculer la position dans le groupe en excluant le comptable
         const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
         
         console.log(`📍 Position dans le groupe de ${numberOfSignatures} signatures: ${positionInSignatureGroup}/${numberOfSignatures}`);
@@ -381,7 +381,6 @@ export const validateTask = async (req, res) => {
         const signatureBlockWidth = 120;
         const margin = 30;
         
-        // ✅ MODIFIÉ : Même calcul que pour les signatures
         const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
         let stampBaseX;
         
@@ -462,11 +461,11 @@ export const validateTask = async (req, res) => {
           const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
           if (nextValidator?.email) {
             try {
-              const emailSubject = nextValidator.email === COMPTABLE_EMAIL 
+              const emailSubject = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
                 ? '💰 Ordre de mission validé - Créer Pièce de caisse'
                 : 'Nouvelle tâche de validation';
               
-              const emailBody = nextValidator.email === COMPTABLE_EMAIL
+              const emailBody = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
                 ? `L'Ordre de mission "${document.title}" a été validé par tous les responsables. Vous devez maintenant créer la Pièce de caisse correspondante.`
                 : `Le document "${document.title}" nécessite votre validation.`;
               
@@ -508,7 +507,7 @@ export const validateTask = async (req, res) => {
             { 
               model: Workflow, 
               as: 'workflows', 
-              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }] 
+              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }] 
             }
           ]
         }
