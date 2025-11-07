@@ -60,7 +60,7 @@ router.get('/motifs', protect, getMotifs);
 // router.put('/motifs/:motifId', protect, adminOnly, updateMotif);
 // router.delete('/motifs/:motifId', protect, adminOnly, deleteMotif);
 // --- APRÈS ---
-router.post('/motifs', protect, isAdmin, createMotif); // Utilisez isAdmin
+router.post('/motifs', protect, createMotif);  // Utilisez isAdmin
 router.put('/motifs/:motifId', protect, isAdmin, updateMotif); // Utilisez isAdmin
 router.delete('/motifs/:motifId', protect, isAdmin, deleteMotif); // Utilisez isAdmin
 
