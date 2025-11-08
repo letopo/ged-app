@@ -12,6 +12,9 @@ import { sequelize } from '../models/index.js';
 // ✅ NOUVEAU : Email du comptable
 const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com';
 
+// ✅ NOUVEAU : Email du DG qui peut signer + cacheter en une seule fois
+const DG_EMAIL = 'hopitalcameroun@ordredemaltefrance.org';
+
 // Créer un workflow avec ajout automatique du comptable pour Ordre de mission
 export const createWorkflow = async (req, res) => {
   try {
@@ -205,6 +208,230 @@ export const validateTask = async (req, res) => {
     const document = task.document;
     const validator = await User.findByPk(userId, { transaction: t });
 
+    // ✅ NOUVEAU : Validation combinée pour le DG uniquement
+    if (validationType === 'approve_sign_stamp') {
+      // Vérifier que c'est bien le DG
+      if (validator.email !== DG_EMAIL) {
+        await t.rollback();
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Cette action est réservée au Directeur Général.' 
+        });
+      }
+
+      console.log(`🎯 Validation combinée (Approuver + Signer + Cacheter) pour le DG`);
+
+      // Vérifier que c'est un PDF
+      if (document.fileType !== 'application/pdf') {
+        await t.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Cette action n\'est disponible que pour les documents PDF.' 
+        });
+      }
+
+      // Vérifier que le DG a signature ET cachet
+      if (!validator.signaturePath || !validator.stampPath) {
+        await t.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Vous devez avoir une signature et un cachet enregistrés pour utiliser cette action.' 
+        });
+      }
+
+      // Charger le PDF
+      const pdfPath = path.resolve(process.cwd(), document.filePath);
+      const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
+      pdfDoc.registerFontkit(fontkit);
+      
+      const pages = pdfDoc.getPages();
+      const lastPage = pages[pages.length - 1];
+      const { width, height } = lastPage.getSize();
+
+      // Récupérer tous les workflows pour calculer la position
+      const allWorkflows = await Workflow.findAll({
+        where: { documentId: document.id },
+        include: [{ model: User, as: 'validator', attributes: ['email'] }],
+        order: [['step', 'ASC']],
+        transaction: t
+      });
+      
+      const totalSteps = allWorkflows.length;
+      const lastWorkflow = allWorkflows[allWorkflows.length - 1];
+      const isLastWorkflowComptable = lastWorkflow.validator.email === COMPTABLE_EMAIL;
+      const totalStepsWithoutComptable = isLastWorkflowComptable ? totalSteps - 1 : totalSteps;
+      
+      const documentsNeeding4Signatures = ['Ordre de mission'];
+      const numberOfSignatures = documentsNeeding4Signatures.includes(document.category) ? 4 : 3;
+      const isInSignatureRange = task.step > (totalStepsWithoutComptable - numberOfSignatures);
+
+      if (!isInSignatureRange) {
+        await t.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Votre étape ne fait pas partie des étapes de signature pour ce document.' 
+        });
+      }
+
+      // 1️⃣ APPLIQUER LA SIGNATURE
+      const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
+      const signatureImageBytes = await fs.readFile(signatureImagePath);
+      const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+      
+      const signatureBlockWidth = 120;
+      const margin = 30;
+      const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
+      let x;
+      
+      // Calculer la position X selon le nombre de signatures
+      if (numberOfSignatures === 4) {
+        const pageUsableWidth = width - (2 * margin);
+        const totalBlocksWidth = 4 * signatureBlockWidth;
+        const totalSpacingWidth = pageUsableWidth - totalBlocksWidth;
+        const spaceBetweenSignatures = totalSpacingWidth / 3;
+        
+        if (positionInSignatureGroup === 1) {
+          x = margin;
+        } else if (positionInSignatureGroup === 2) {
+          x = margin + signatureBlockWidth + spaceBetweenSignatures;
+        } else if (positionInSignatureGroup === 3) {
+          x = margin + (2 * signatureBlockWidth) + (2 * spaceBetweenSignatures);
+        } else {
+          x = margin + (3 * signatureBlockWidth) + (3 * spaceBetweenSignatures);
+        }
+      } else {
+        if (positionInSignatureGroup === 1) {
+          x = margin;
+        } else if (positionInSignatureGroup === 2) {
+          x = (width / 2) - (signatureBlockWidth / 2);
+        } else {
+          x = width - signatureBlockWidth - margin;
+        }
+      }
+      
+      const signatureDims = signatureImage.scaleToFit(110, 55);
+      const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
+      const signatureY = 90;
+      
+      lastPage.drawImage(signatureImage, { 
+        x: signatureX, 
+        y: signatureY, 
+        width: signatureDims.width, 
+        height: signatureDims.height 
+      });
+      
+      console.log(`✅ Signature DG appliquée à x=${signatureX.toFixed(2)}, y=${signatureY}`);
+
+      // 2️⃣ APPLIQUER LE CACHET
+      const stampImagePath = path.resolve(process.cwd(), validator.stampPath);
+      const stampImageBytes = await fs.readFile(stampImagePath);
+      const stampImage = await pdfDoc.embedPng(stampImageBytes);
+      
+      const stampDims = stampImage.scaleToFit(70, 70);
+      const stampX = x + (signatureBlockWidth / 2) - (stampDims.width / 2);
+      const stampY = 145;
+      
+      lastPage.drawImage(stampImage, { 
+        x: stampX, 
+        y: stampY, 
+        width: stampDims.width, 
+        height: stampDims.height 
+      });
+      
+      console.log(`✅ Cachet DG apposé à x=${stampX.toFixed(2)}, y=${stampY}`);
+
+      // Sauvegarder le PDF modifié
+      const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
+      const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
+      await fs.writeFile(newFilePath, await pdfDoc.save());
+      
+      await document.update({
+        filePath: `uploads/${newFileName}`,
+        fileName: newFileName,
+        metadata: { 
+          ...document.metadata, 
+          has_signature: true,
+          has_stamp: true
+        },
+      }, { transaction: t });
+
+      // Mettre à jour le statut de la tâche
+      await task.update({ 
+        status: 'approved', 
+        comment: comment || 'Approuvé, signé et cacheté par le DG', 
+        validatedAt: new Date() 
+      }, { transaction: t });
+
+      // Gérer la suite du workflow
+      const nextTask = await Workflow.findOne({
+        where: { documentId: document.id, status: 'queued' },
+        order: [['step', 'ASC']],
+        transaction: t
+      });
+      
+      if (nextTask) {
+        await nextTask.update({ 
+          status: 'pending',
+          assignedAt: new Date()
+        }, { transaction: t });
+        
+        await document.update({ status: 'in_progress' }, { transaction: t });
+        
+        const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
+        if (nextValidator?.email) {
+          try {
+            const emailSubject = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
+              ? '💰 Ordre de mission validé - Créer Pièce de caisse'
+              : 'Nouvelle tâche de validation';
+            
+            const emailBody = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
+              ? `L'Ordre de mission "${document.title}" a été validé par le DG. Vous devez maintenant créer la Pièce de caisse correspondante.`
+              : `Le document "${document.title}" nécessite votre validation.`;
+            
+            await sendNotificationEmail(
+              nextValidator.email, 
+              emailSubject, 
+              emailBody
+            );
+          } catch(e) { 
+            console.warn("Email error:", e.message); 
+          }
+        }
+      } else {
+        await document.update({ status: 'approved' }, { transaction: t });
+        
+        if (document.category === 'Demande de besoin' || 
+            document.category === "Fiche de suivi d'équipements") {
+          await reactivateLinkedWorkRequest(document, t);
+        }
+      }
+
+      await t.commit();
+
+      const updatedTask = await Workflow.findByPk(taskId, {
+        include: [
+          {
+            model: Document,
+            as: 'document',
+            include: [
+              { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
+              { 
+                model: Workflow, 
+                as: 'workflows', 
+                include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }] 
+              }
+            ]
+          }
+        ]
+      });
+
+      return res.json({ 
+        success: true, 
+        data: updatedTask, 
+        message: 'Document approuvé, signé et cacheté avec succès par le DG' 
+      });
+    }
+    
     // Récupérer TOUS les workflows pour ce document
     const allWorkflows = await Workflow.findAll({
       where: { documentId: document.id },

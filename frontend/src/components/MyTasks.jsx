@@ -1,4 +1,4 @@
-// frontend/src/components/MyTasks.jsx - VERSION COMPLÈTE AVEC WORKFLOW COMPTABLE
+// frontend/src/components/MyTasks.jsx - VERSION COMPLÈTE AVEC WORKFLOW COMPTABLE ET ACTION COMBINÉE DG
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { workflowAPI, listsAPI, documentsAPI } from '../services/api';
@@ -9,7 +9,7 @@ import BulkValidationBar from './BulkValidationBar';
 import QuickPreviewModal from './QuickPreviewModal';
 import DemandeBesoin from '../pages/templates/DemandeBesoin';
 import FicheSuiviEquipements from '../pages/templates/FicheSuiviEquipements';
-import PieceDeCaisse from '../pages/templates/PieceDeCaisse'; // ✅ NOUVEAU
+import PieceDeCaisse from '../pages/templates/PieceDeCaisse';
 import { 
   Clock, CheckCircle, XCircle, User, Calendar, Loader, Eye, Edit, 
   ShieldCheck, Filter, ThumbsUp, CalendarPlus, FileText, Send, AlertCircle,
@@ -19,13 +19,14 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 const MAX_SELECTION = 20;
-const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com'; // ✅ NOUVEAU
+const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com';
+const DG_EMAIL = 'hopitalcameroun@ordredemaltefrance.org'; // ✅ NOUVEAU
 
 const MyTasks = () => {
   const { user } = useAuth();
   const dbPdfRef = useRef(null);
   const fsPdfRef = useRef(null);
-  const piecePdfRef = useRef(null); // ✅ NOUVEAU
+  const piecePdfRef = useRef(null);
   
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +67,6 @@ const MyTasks = () => {
   });
   const [submittingFS, setSubmittingFS] = useState(false);
   
-  // ✅ NOUVEAU : États pour Pièce de caisse depuis Ordre de mission
   const [showPieceDeCaisseFromOM, setShowPieceDeCaisseFromOM] = useState(false);
   const [pieceDeCaisseData, setPieceDeCaisseData] = useState({
     nom: '',
@@ -241,11 +241,9 @@ const MyTasks = () => {
   const isWorkRequest = (task) => task.document?.category === 'Demande de travaux';
   const isMG = () => user?.email === 'hsjm.moyengeneraux@gmail.com';
   const isBiomedical = () => user?.email === 'hsjm.cellulebiomedicale@gmail.com';
-  
-  // ✅ NOUVEAU : Vérifier si l'utilisateur est le comptable
   const isComptable = () => user?.email === COMPTABLE_EMAIL;
+  const isDG = () => user?.email === DG_EMAIL; // ✅ NOUVEAU
   
-  // ✅ NOUVEAU : Vérifier si c'est un Ordre de mission qui attend la Pièce de caisse
   const needsPieceDeCaisse = (task) => {
     return task.document?.category === 'Ordre de mission' && 
            task.status === 'pending' && 
@@ -274,7 +272,6 @@ const MyTasks = () => {
       }));
     }
     
-    // ✅ NOUVEAU : Initialiser les données pour la Pièce de caisse si c'est un Ordre de mission
     if (needsPieceDeCaisse(task)) {
       setPieceDeCaisseData({
         nom: metadata.nom_missionnaire || '',
@@ -299,7 +296,7 @@ const MyTasks = () => {
     setShowFicheSuivi(false);
     setShowDBFromFS(false);
     setShowValidatorsSelection(false);
-    setShowPieceDeCaisseFromOM(false); // ✅ NOUVEAU
+    setShowPieceDeCaisseFromOM(false);
     setSelectedDbValidators([]);
     setCreatedDBDocumentId(null);
     loadTasks();
@@ -313,7 +310,7 @@ const MyTasks = () => {
     }
     
     const isBypass = taskToProcess.status === 'queued' && canBypassValidation(taskToProcess);
-    if (isBypass && ['approve', 'simple_approve'].includes(action)) {
+    if (isBypass && ['approve', 'simple_approve', 'approve_sign_stamp'].includes(action)) {
       const hoursOverdue = getHoursOverdue(
         taskToProcess.document.workflows.find(w => w.status === 'pending' && w.step < taskToProcess.step)
       );
@@ -340,6 +337,9 @@ const MyTasks = () => {
       if (action === 'approve') {
         payload.status = 'approved';
         payload.validationType = 'signature';
+      } else if (action === 'approve_sign_stamp') {
+        // ✅ NOUVEAU : Action combinée pour le DG
+        payload.validationType = 'approve_sign_stamp';
       } else if (action === 'reject') {
         payload.status = 'rejected';
       } else if (action === 'stamp') {
@@ -363,6 +363,10 @@ const MyTasks = () => {
       if (action === 'stamp') {
         alert('Cachet apposé avec succès !');
         closeProcessingModal();
+      } else if (action === 'approve_sign_stamp') {
+        // ✅ NOUVEAU
+        alert('✅ Document approuvé, signé et cacheté avec succès par le DG !');
+        closeProcessingModal();
       } else if (['reject', 'simple_approve'].includes(action)) {
         alert('Tâche traitée avec succès !');
         closeProcessingModal();
@@ -385,12 +389,10 @@ const MyTasks = () => {
   const handleInitiateDB = () => setShowDemandeBesoins(true);
   const handleInitiateFicheSuivi = () => setShowFicheSuivi(true);
   
-  // ✅ NOUVEAU : Initialiser la création de Pièce de caisse depuis l'Ordre de mission
   const handleCreatePieceDeCaisseFromOM = () => {
     setShowPieceDeCaisseFromOM(true);
   };
   
-  // ✅ NOUVEAU : Soumettre la Pièce de caisse et finaliser l'Ordre de mission
   const handleSubmitPieceDeCaisseFromOM = async () => {
     setSubmittingDB(true);
     setError('');
@@ -398,7 +400,6 @@ const MyTasks = () => {
     try {
       if (!piecePdfRef.current) throw new Error('Référence PDF introuvable');
       
-      // Générer le PDF de la Pièce de caisse
       const nonPrintableElements = piecePdfRef.current.querySelectorAll('.not-printable');
       nonPrintableElements?.forEach(el => el.style.display = 'none');
       const canvas = await html2canvas(piecePdfRef.current, { scale: 2, logging: false, useCORS: true });
@@ -409,7 +410,6 @@ const MyTasks = () => {
       pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
       const pdfBlob = pdf.output('blob');
       
-      // Upload de la Pièce de caisse
       const uploadData = new FormData();
       const fileName = `Piece_Caisse_OM_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
       uploadData.append('file', pdfBlob, fileName);
@@ -424,7 +424,6 @@ const MyTasks = () => {
       const uploadResponse = await documentsAPI.upload(uploadData);
       console.log('✅ Pièce de caisse créée:', uploadResponse.data);
       
-      // Valider l'Ordre de mission (le marquer comme terminé)
       await workflowAPI.validateTask(taskToProcess.id, {
         status: 'approved',
         comment: `Pièce de caisse créée (${fileName}). Processus complété.`,
@@ -559,7 +558,7 @@ const MyTasks = () => {
             date_demande: new Date().toLocaleDateString('fr-FR'),
             service: ficheSuiviData.service,
             reference: `FS-${taskToProcess.document.id.slice(0, 8)}`,
-            justification: `Pièces nécessaires suite à: ${ficheSuiviData.equipement}`,
+            justification: `Pièces nécessaires suite à : ${ficheSuiviData.equipement}`,
             lines: ficheSuiviData.pieces.map(p => ({
               designation: p.designation,
               quantite: p.quantite,
@@ -655,7 +654,7 @@ const MyTasks = () => {
       
       <div className="mb-6 p-4 bg-gray-50 rounded-lg border flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-2 flex-wrap">
-          {['pending', 'approved', 'rejected', 'all'].map(status => (
+          {['pending', 'approved','rejected', 'all'].map(status => (
             <button key={status} onClick={() => setFilter(status)} className={`px-4 py-2 text-sm font-medium rounded-md transition ${filter === status ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
               {{pending: 'En attente', approved: 'Approuvées', rejected: 'Rejetées', all: 'Toutes'}[status]} ({tasks.filter(t => status === 'all' || t.status === status).length})
             </button>
@@ -727,7 +726,6 @@ const MyTasks = () => {
                             📋 4 signatures + Comptable
                           </span>
                         )}
-                        {/* ✅ NOUVEAU : Badge pour indiquer que c'est la tâche comptable */}
                         {needsPieceDeCaisse(task) && (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300 animate-pulse">
                             💰 Créer Pièce de caisse
@@ -767,7 +765,6 @@ const MyTasks = () => {
                           </div>
                         </div>
                       )}
-                      {/* ✅ NOUVEAU : Message pour le comptable */}
                       {needsPieceDeCaisse(task) && (
                         <div className="mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded-lg flex items-start gap-2">
                           <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
@@ -837,7 +834,6 @@ const MyTasks = () => {
                 </div>
               )}
               
-              {/* ✅ NOUVEAU : Alerte spéciale pour le comptable */}
               {needsPieceDeCaisse(taskToProcess) && (
                 <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
                   <div className="flex items-start gap-3">
@@ -886,20 +882,26 @@ const MyTasks = () => {
               <div className="space-y-3 flex-grow">
                 <h3 className="font-semibold text-gray-700">Actions disponibles :</h3>
                 
-                {/* ✅ NOUVEAU : Bouton spécial pour le comptable */}
-                {needsPieceDeCaisse(taskToProcess) && (
+                {/* ✅ NOUVEAU : Action combinée pour le DG */}
+                {isDG() && taskToProcess.document.fileType === 'application/pdf' && user?.signaturePath && user?.stampPath && (
                   <>
                     <button 
-                      onClick={handleCreatePieceDeCaisseFromOM} 
-                      className="w-full flex items-center gap-3 p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg border-2 border-yellow-400 text-left transition shadow-sm"
+                      onClick={() => handleAction('approve_sign_stamp')} 
+                      disabled={!!actionLoading} 
+                      className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 rounded-lg border-2 border-purple-400 text-left transition shadow-md"
                     >
-                      <FileText className="text-yellow-600 w-6 h-6"/> 
-                      <div>
-                        <p className="font-semibold text-yellow-900">Créer Pièce de caisse</p>
-                        <p className="text-xs text-yellow-700">Pour finaliser cet Ordre de mission</p>
+                      {actionLoading === 'approve_sign_stamp' ? (
+                        <Loader className="animate-spin w-6 h-6 text-purple-600"/>
+                      ) : (
+                        <ShieldCheck className="text-purple-600 w-6 h-6"/>
+                      )}
+                      <div className="flex-1">
+                        <p className="font-bold text-purple-900">Approuver, Signer et Apposer le cachet</p>
+                        <p className="text-xs text-purple-700 mt-0.5">Action rapide réservée au Directeur Général</p>
                       </div>
                     </button>
                     <div className="border-t my-3"></div>
+                    <p className="text-xs text-gray-500 italic">Ou choisissez une action individuelle :</p>
                   </>
                 )}
                 
@@ -1002,6 +1004,23 @@ const MyTasks = () => {
                     )}
                   </>
                 )}
+                
+                {/* ✅ Bouton spécial pour le comptable */}
+                {needsPieceDeCaisse(taskToProcess) && (
+                  <>
+                    <button 
+                      onClick={handleCreatePieceDeCaisseFromOM} 
+                      className="w-full flex items-center gap-3 p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg border-2 border-yellow-400 text-left transition shadow-sm"
+                    >
+                      <FileText className="text-yellow-600 w-6 h-6"/> 
+                      <div>
+                        <p className="font-semibold text-yellow-900">Créer Pièce de caisse</p>
+                        <p className="text-xs text-yellow-700">Pour finaliser cet Ordre de mission</p>
+                      </div>
+                    </button>
+                    <div className="border-t my-3"></div>
+                  </>
+                )}
               </div>
               
               {!needsPieceDeCaisse(taskToProcess) && (
@@ -1043,7 +1062,7 @@ const MyTasks = () => {
         </div>
       )}
 
-      {/* ✅ NOUVEAU : Modal Pièce de caisse depuis Ordre de mission */}
+      {/* ✅ Modal Pièce de caisse depuis Ordre de mission */}
       {showPieceDeCaisseFromOM && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl my-8">
@@ -1171,7 +1190,8 @@ const MyTasks = () => {
                   <>
                     <Loader className="animate-spin w-5 h-5" /> Création...
                   </>
-                ) : (<>
+                ) : (
+                  <>
                     <Send size={18}/> Créer la Fiche
                   </>
                 )}
