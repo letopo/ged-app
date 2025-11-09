@@ -302,7 +302,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
           </div>
           <div>
             <div className="border-b-2 border-gray-400 pb-16 mb-2"></div>
-            <p className="font-bold uppercase">Validation Directeur</p>
+            <p className="font-bold uppercase">Directeur Général</p>
           </div>
         </div>
       </div>

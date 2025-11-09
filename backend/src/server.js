@@ -1,4 +1,4 @@
-﻿// backend/src/server.js - VERSION COMPLÈTE AVEC ROUTES LISTES
+﻿// backend/src/server.js - VERSION COMPLÈTE AVEC ROUTES LISTES ET SEED ADMIN
 
 import express from 'express';
 import cors from 'cors';
@@ -23,6 +23,7 @@ import calendarRoutes from './routes/calendar.js';
 import healthRouter from './routes/health.js';
 import listsRoutes from './routes/lists.js';
 import holidaysRoutes from './routes/holidays.js';
+import { createDefaultAdmin } from './seeders/createDefaultAdmin.js';
 
 // Configuration
 dotenv.config();
@@ -82,7 +83,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api', healthRouter);
 app.use('/api/lists', listsRoutes);
-app.use('/api/holidays', holidaysRoutes); // ✅ NOUVEAU
+app.use('/api/holidays', holidaysRoutes);
 
 // ============================================
 // GESTION DES ROUTES NON TROUVÉES ET ERREURS
@@ -103,13 +104,25 @@ app.use((err, req, res, next) => {
 // ============================================
 const startServer = async () => {
   try {
+    // 1️⃣ Connexion à la base de données
     await sequelize.authenticate();
     console.log('✅ Base de données connectée avec succès.');
     
+    // 2️⃣ Synchronisation des modèles (avec alter pour mettre à jour la structure)
+    await sequelize.sync({ alter: true });
+    console.log('✅ Modèles synchronisés avec succès.');
+    
+    // 3️⃣ Créer l'utilisateur admin par défaut
+    console.log('');
+    console.log('🔐 Vérification de l\'utilisateur admin par défaut...');
+    await createDefaultAdmin();
+    console.log('');
+    
+    // 4️⃣ Démarrage du serveur
     app.listen(PORT, '0.0.0.0', () => {
       console.log('');
       console.log('╔═══════════════════════════════════════╗');
-      console.log('🚀 Serveur Backend GED Démarré');
+      console.log('║  🚀 Serveur Backend GED Démarré      ║');
       console.log('╚═══════════════════════════════════════╝');
       console.log(`📡 URL: http://localhost:${PORT}`);
       console.log(`🌍 Environnement: ${process.env.NODE_ENV || 'development'}`);

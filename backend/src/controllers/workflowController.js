@@ -8,6 +8,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
 import { sequelize } from '../models/index.js';
+import { getSignatureConfig } from '../config/documentSignatureConfig.js';
 
 // ✅ NOUVEAU : Email du comptable
 const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com';
@@ -273,45 +274,53 @@ export const validateTask = async (req, res) => {
         });
       }
 
+      // ✅ UTILISER LA CONFIGURATION POUR CE TYPE DE DOCUMENT
+      const signatureConfig = getSignatureConfig(document.category);
+      console.log(`📐 Configuration DG pour "${document.category}":`, signatureConfig);
+
       // 1️⃣ APPLIQUER LA SIGNATURE
       const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
       const signatureImageBytes = await fs.readFile(signatureImagePath);
       const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
       
-      const signatureBlockWidth = 120;
-      const margin = 30;
-      const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
+      const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - signatureConfig.numberOfSignatures);
       let x;
       
-      // Calculer la position X selon le nombre de signatures
-      if (numberOfSignatures === 4) {
-        const pageUsableWidth = width - (2 * margin);
-        const totalBlocksWidth = 4 * signatureBlockWidth;
+      // Calculer la position X selon la configuration
+      if (signatureConfig.numberOfSignatures === 4) {
+        const pageUsableWidth = width - (2 * signatureConfig.margin);
+        const totalBlocksWidth = 4 * signatureConfig.blockWidth;
         const totalSpacingWidth = pageUsableWidth - totalBlocksWidth;
         const spaceBetweenSignatures = totalSpacingWidth / 3;
         
         if (positionInSignatureGroup === 1) {
-          x = margin;
+          x = signatureConfig.margin;
         } else if (positionInSignatureGroup === 2) {
-          x = margin + signatureBlockWidth + spaceBetweenSignatures;
+          x = signatureConfig.margin + signatureConfig.blockWidth + spaceBetweenSignatures;
         } else if (positionInSignatureGroup === 3) {
-          x = margin + (2 * signatureBlockWidth) + (2 * spaceBetweenSignatures);
+          x = signatureConfig.margin + (2 * signatureConfig.blockWidth) + (2 * spaceBetweenSignatures);
         } else {
-          x = margin + (3 * signatureBlockWidth) + (3 * spaceBetweenSignatures);
+          x = signatureConfig.margin + (3 * signatureConfig.blockWidth) + (3 * spaceBetweenSignatures);
         }
-      } else {
+      } else if (signatureConfig.numberOfSignatures === 3) {
         if (positionInSignatureGroup === 1) {
-          x = margin;
+          x = signatureConfig.margin;
         } else if (positionInSignatureGroup === 2) {
-          x = (width / 2) - (signatureBlockWidth / 2);
+          x = (width / 2) - (signatureConfig.blockWidth / 2);
         } else {
-          x = width - signatureBlockWidth - margin;
+          x = width - signatureConfig.blockWidth - signatureConfig.margin;
+        }
+      } else if (signatureConfig.numberOfSignatures === 2) {
+        if (positionInSignatureGroup === 1) {
+          x = (width / 3) - (signatureConfig.blockWidth / 2);
+        } else {
+          x = (2 * width / 3) - (signatureConfig.blockWidth / 2);
         }
       }
       
-      const signatureDims = signatureImage.scaleToFit(110, 55);
-      const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
-      const signatureY = 90;
+      const signatureDims = signatureImage.scaleToFit(signatureConfig.signatureWidth, signatureConfig.signatureHeight);
+      const signatureX = x + (signatureConfig.blockWidth / 2) - (signatureDims.width / 2);
+      const signatureY = signatureConfig.signatureY;
       
       lastPage.drawImage(signatureImage, { 
         x: signatureX, 
@@ -327,9 +336,9 @@ export const validateTask = async (req, res) => {
       const stampImageBytes = await fs.readFile(stampImagePath);
       const stampImage = await pdfDoc.embedPng(stampImageBytes);
       
-      const stampDims = stampImage.scaleToFit(70, 70);
-      const stampX = x + (signatureBlockWidth / 2) - (stampDims.width / 2);
-      const stampY = 145;
+      const stampDims = stampImage.scaleToFit(signatureConfig.stampWidth, signatureConfig.stampHeight);
+      const stampX = x + (signatureConfig.blockWidth / 2) - (stampDims.width / 2);
+      const stampY = signatureConfig.stampY;
       
       lastPage.drawImage(stampImage, { 
         x: stampX, 
@@ -455,11 +464,12 @@ export const validateTask = async (req, res) => {
     console.log(`📊 Étapes SANS comptable: ${totalStepsWithoutComptable}`);
     console.log(`📍 Étape actuelle: ${task.step}`);
     
-    // Déterminer le nombre de signatures en fonction du document
-    const documentsNeeding4Signatures = ['Ordre de mission'];
-    const numberOfSignatures = documentsNeeding4Signatures.includes(document.category) ? 4 : 3;
+    // ✅ UTILISER LA CONFIGURATION POUR CE TYPE DE DOCUMENT
+    const signatureConfig = getSignatureConfig(document.category);
+    const numberOfSignatures = signatureConfig.numberOfSignatures;
     
-    console.log(`✍️ Nombre de signatures requises: ${numberOfSignatures}`);
+    console.log(`✏️ Nombre de signatures requises: ${numberOfSignatures}`);
+    console.log(`📐 Configuration pour "${document.category}":`, signatureConfig);
 
     if (validationType === 'pause') {
       await task.update({ 
@@ -552,42 +562,51 @@ export const validateTask = async (req, res) => {
         const signatureImageBytes = await fs.readFile(signatureImagePath);
         const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
         
-        const signatureBlockWidth = 120;
-        const margin = 30;
         let x;
-        
         const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
         
         console.log(`📍 Position dans le groupe de ${numberOfSignatures} signatures: ${positionInSignatureGroup}/${numberOfSignatures}`);
         
+        // ✅ UTILISER LA CONFIGURATION
         if (numberOfSignatures === 4) {
-          const pageUsableWidth = width - (2 * margin);
-          const totalBlocksWidth = 4 * signatureBlockWidth;
+          const pageUsableWidth = width - (2 * signatureConfig.margin);
+          const totalBlocksWidth = 4 * signatureConfig.blockWidth;
           const totalSpacingWidth = pageUsableWidth - totalBlocksWidth;
           const spaceBetweenSignatures = totalSpacingWidth / 3;
           
           if (positionInSignatureGroup === 1) {
-            x = margin;
+            x = signatureConfig.margin;
           } else if (positionInSignatureGroup === 2) {
-            x = margin + signatureBlockWidth + spaceBetweenSignatures;
+            x = signatureConfig.margin + signatureConfig.blockWidth + spaceBetweenSignatures;
           } else if (positionInSignatureGroup === 3) {
-            x = margin + (2 * signatureBlockWidth) + (2 * spaceBetweenSignatures);
+            x = signatureConfig.margin + (2 * signatureConfig.blockWidth) + (2 * spaceBetweenSignatures);
           } else {
-            x = margin + (3 * signatureBlockWidth) + (3 * spaceBetweenSignatures);
+            x = signatureConfig.margin + (3 * signatureConfig.blockWidth) + (3 * spaceBetweenSignatures);
           }
-        } else {
+        } else if (numberOfSignatures === 3) {
+          const pageUsableWidth = width - (2 * signatureConfig.margin);
+          const totalBlocksWidth = 3 * signatureConfig.blockWidth;
+          const totalSpacingWidth = pageUsableWidth - totalBlocksWidth;
+          const spaceBetweenSignatures = totalSpacingWidth / 2;
+          
           if (positionInSignatureGroup === 1) {
-            x = margin;
+            x = signatureConfig.margin;
           } else if (positionInSignatureGroup === 2) {
-            x = (width / 2) - (signatureBlockWidth / 2);
+            x = signatureConfig.margin + signatureConfig.blockWidth + spaceBetweenSignatures;
           } else {
-            x = width - signatureBlockWidth - margin;
+            x = signatureConfig.margin + (2 * signatureConfig.blockWidth) + (2 * spaceBetweenSignatures);
+          }
+        } else if (numberOfSignatures === 2) {
+          if (positionInSignatureGroup === 1) {
+            x = (width / 3) - (signatureConfig.blockWidth / 2);
+          } else {
+            x = (2 * width / 3) - (signatureConfig.blockWidth / 2);
           }
         }
         
-        const signatureDims = signatureImage.scaleToFit(110, 55);
-        const signatureX = x + (signatureBlockWidth / 2) - (signatureDims.width / 2);
-        const signatureY = 90;
+        const signatureDims = signatureImage.scaleToFit(signatureConfig.signatureWidth, signatureConfig.signatureHeight);
+        const signatureX = x + (signatureConfig.blockWidth / 2) - (signatureDims.width / 2);
+        const signatureY = signatureConfig.signatureY;
         
         lastPage.drawImage(signatureImage, { 
           x: signatureX, 
@@ -604,40 +623,49 @@ export const validateTask = async (req, res) => {
         const stampImageBytes = await fs.readFile(stampImagePath);
         const stampImage = await pdfDoc.embedPng(stampImageBytes);
         
-        const stampDims = stampImage.scaleToFit(70, 70);
-        const signatureBlockWidth = 120;
-        const margin = 30;
-        
+        const stampDims = stampImage.scaleToFit(signatureConfig.stampWidth, signatureConfig.stampHeight);
         const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
         let stampBaseX;
         
+        // ✅ UTILISER LA CONFIGURATION
         if (numberOfSignatures === 4) {
-          const pageUsableWidth = width - (2 * margin);
-          const totalBlocksWidth = 4 * signatureBlockWidth;
+          const pageUsableWidth = width - (2 * signatureConfig.margin);
+          const totalBlocksWidth = 4 * signatureConfig.blockWidth;
           const totalSpacingWidth = pageUsableWidth - totalBlocksWidth;
           const spaceBetweenSignatures = totalSpacingWidth / 3;
           
           if (positionInSignatureGroup === 1) {
-            stampBaseX = margin;
+            stampBaseX = signatureConfig.margin;
           } else if (positionInSignatureGroup === 2) {
-            stampBaseX = margin + signatureBlockWidth + spaceBetweenSignatures;
+            stampBaseX = signatureConfig.margin + signatureConfig.blockWidth + spaceBetweenSignatures;
           } else if (positionInSignatureGroup === 3) {
-            stampBaseX = margin + (2 * signatureBlockWidth) + (2 * spaceBetweenSignatures);
+            stampBaseX = signatureConfig.margin + (2 * signatureConfig.blockWidth) + (2 * spaceBetweenSignatures);
           } else {
-            stampBaseX = margin + (3 * signatureBlockWidth) + (3 * spaceBetweenSignatures);
+            stampBaseX = signatureConfig.margin + (3 * signatureConfig.blockWidth) + (3 * spaceBetweenSignatures);
           }
-        } else {
+        } else if (numberOfSignatures === 3) {
+          const pageUsableWidth = width - (2 * signatureConfig.margin);
+          const totalBlocksWidth = 3 * signatureConfig.blockWidth;
+          const totalSpacingWidth = pageUsableWidth - totalBlocksWidth;
+          const spaceBetweenSignatures = totalSpacingWidth / 2;
+          
           if (positionInSignatureGroup === 1) {
-            stampBaseX = margin;
+            stampBaseX = signatureConfig.margin;
           } else if (positionInSignatureGroup === 2) {
-            stampBaseX = (width / 2) - (signatureBlockWidth / 2);
+            stampBaseX = signatureConfig.margin + signatureConfig.blockWidth + spaceBetweenSignatures;
           } else {
-            stampBaseX = width - signatureBlockWidth - margin;
+            stampBaseX = signatureConfig.margin + (2 * signatureConfig.blockWidth) + (2 * spaceBetweenSignatures);
+          }
+        } else if (numberOfSignatures === 2) {
+          if (positionInSignatureGroup === 1) {
+            stampBaseX = (width / 3) - (signatureConfig.blockWidth / 2);
+          } else {
+            stampBaseX = (2 * width / 3) - (signatureConfig.blockWidth / 2);
           }
         }
         
-        const stampX = stampBaseX + (signatureBlockWidth / 2) - (stampDims.width / 2);
-        const stampY = 145;
+        const stampX = stampBaseX + (signatureConfig.blockWidth / 2) - (stampDims.width / 2);
+        const stampY = signatureConfig.stampY;
         
         lastPage.drawImage(stampImage, { 
           x: stampX, 
