@@ -64,18 +64,48 @@ export const createUser = async (req, res, next) => {
 // @access  Private (Admin)
 export const updateUser = async (req, res, next) => {
   try {
-    const { role, isActive } = req.body;
-    const user = await User.findByPk(req.params.id);
+    // Champs à mettre à jour, y compris ceux que vous voulez ajouter
+    const { role, isActive, firstName, lastName, email, username } = req.body; 
+    const userId = req.params.id;
+    const user = await User.findByPk(userId);
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
     }
-    
+
+    // --- Validation d'unicité pour Email et Username ---
+    // Vérifier si un autre utilisateur utilise déjà ce nouvel email
+    if (email !== undefined && email !== user.email) {
+      const existingUser = await User.findOne({ where: { email: email, id: { [Op.ne]: userId } } });
+      if (existingUser) {
+        return res.status(409).json({ success: false, error: 'Email déjà utilisé par un autre utilisateur.' });
+      }
+      user.email = email;
+    }
+
+    // Vérifier si un autre utilisateur utilise déjà ce nouveau nom d'utilisateur
+    if (username !== undefined && username !== user.username) {
+      const existingUser = await User.findOne({ where: { username: username, id: { [Op.ne]: userId } } });
+      if (existingUser) {
+        return res.status(409).json({ success: false, error: 'Nom d\'utilisateur déjà utilisé par un autre utilisateur.' });
+      }
+      user.username = username;
+    }
+    // ----------------------------------------------------
+
+    // Mise à jour des autres champs
     if (role !== undefined) user.role = role;
     if (isActive !== undefined) user.isActive = isActive;
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
 
     await user.save();
-    res.json({ success: true, message: 'Utilisateur mis à jour', user });
+    
+    // Pour ne pas renvoyer le mot de passe
+    const userResult = user.toJSON();
+    delete userResult.password;
+    
+    res.json({ success: true, message: 'Utilisateur mis à jour', user: userResult });
   } catch (error) {
     next(error);
   }
@@ -86,18 +116,31 @@ export const updateUser = async (req, res, next) => {
 // @access  Private (Admin)
 export const resetUserPassword = async (req, res, next) => {
     try {
+        // Récupération du nouveau mot de passe envoyé par le frontend (peut être vide)
+        const { newPassword } = req.body; 
         const user = await User.findByPk(req.params.id);
+        
         if (!user) {
             return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
         }
-        const newPassword = Math.random().toString(36).slice(-8);
-        user.password = newPassword;
+        
+        let finalPassword;
+
+        if (newPassword && newPassword.length >= 6) { // Vérifie la présence et une longueur minimale
+            finalPassword = newPassword;
+        } else {
+            // Logique actuelle : générer un mot de passe aléatoire (sécurité si l'admin oublie de saisir)
+            finalPassword = Math.random().toString(36).slice(-8); 
+        }
+
+        user.password = finalPassword; // Le hook Sequelize hachera ce mot de passe
         await user.save();
 
+        // On renvoie le mot de passe EN CLAIR pour qu'il soit affiché à l'admin
         res.json({
             success: true,
             message: `Le mot de passe pour ${user.username} a été réinitialisé.`,
-            newPassword: newPassword
+            newPassword: finalPassword 
         });
     } catch (error) {
         next(error);

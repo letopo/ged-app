@@ -94,7 +94,7 @@ export const usersAPI = {
   create: (userData) => api.post('/users', userData),
   update: (userId, data) => api.put(`/users/${userId}`, data),
   delete: (userId) => api.delete(`/users/${userId}`),
-  resetPassword: (userId) => api.post(`/users/${userId}/reset-password`),
+  resetPassword: (userId, newPassword) => api.post(`/users/${userId}/reset-password`, { newPassword }),
   uploadSignature: (userId, formData) => api.post(`/users/${userId}/signature`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),

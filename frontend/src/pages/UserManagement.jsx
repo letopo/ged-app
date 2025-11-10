@@ -13,6 +13,9 @@ const UserManagement = () => {
   
   const [modalData, setModalData] = useState({});
   const [newPassword, setNewPassword] = useState(null);
+  const [isResetModalOpen, setResetModalOpen] = useState(false);
+  const [userToReset, setUserToReset] = useState(null);
+  const [resetPasswordField, setResetPasswordField] = useState(''); // Pour le champ de saisie
 
   // --- NOUVEAUX ÉTATS POUR LE MODAL D'UPLOAD ---
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
@@ -56,33 +59,63 @@ const UserManagement = () => {
   };
 
   const handleSave = async (e) => {
-    e.preventDefault();
-    const isCreating = !editingUser;
-    try {
-      if (isCreating) {
-        await usersAPI.create(modalData);
-        alert('Utilisateur créé avec succès !');
-      } else {
-        await usersAPI.update(editingUser.id, { role: modalData.role });
-        alert('Rôle mis à jour avec succès !');
-      }
-      handleCloseModal();
-      loadUsers();
-    } catch (err) {
-      alert(`Erreur: ${err.response?.data?.error || 'Une erreur est survenue'}`);
+  e.preventDefault();
+  const isCreating = !editingUser;
+  
+  try {
+    if (isCreating) {
+      // Pour la création, on envoie toutes les données
+      await usersAPI.create(modalData); 
+      alert('Utilisateur créé avec succès !');
+    } else {
+      // Pour l'édition, on envoie les champs modifiés (firstName, lastName, email, username, role)
+      const dataToUpdate = {
+        firstName: modalData.firstName,
+        lastName: modalData.lastName,
+        email: modalData.email,
+        username: modalData.username,
+        role: modalData.role,
+        // On peut aussi ajouter isActive si besoin
+      };
+      await usersAPI.update(editingUser.id, dataToUpdate);
+      alert('Utilisateur mis à jour avec succès !');
     }
-  };
+    handleCloseModal();
+    loadUsers();
+  } catch (err) {
+    alert(`Erreur: ${err.response?.data?.error || 'Une erreur est survenue'}`);
+  }
+};
 
-  const handleResetPassword = async (user) => {
-    if (window.confirm(`Réinitialiser le mot de passe pour ${user.username} ?`)) {
-      try {
-        const response = await usersAPI.resetPassword(user.id);
-        setNewPassword({ username: user.username, password: response.data.newPassword });
-      } catch (err) {
+  const handleResetPassword = (user) => {
+  setUserToReset(user);
+  setResetPasswordField(''); // Réinitialise le champ à chaque ouverture
+  setResetModalOpen(true);
+};
+
+// Nouvelle fonction pour l'action de réinitialisation réelle
+const confirmResetPassword = async () => {
+    if (!userToReset) return;
+
+    // Le password à envoyer (la chaîne vide '' si rien n'a été saisi)
+    const passwordToSend = resetPasswordField.trim(); 
+
+    try {
+        // Appel à l'API avec le mot de passe saisi (ou vide si non saisi)
+        const response = await usersAPI.resetPassword(userToReset.id, passwordToSend); 
+        
+        // On affiche la modale de succès
+        setNewPassword({ username: userToReset.username, password: response.data.newPassword });
+        
+        // Fermeture de la modale de saisie
+        setResetModalOpen(false);
+        setUserToReset(null);
+
+    } catch (err) {
         alert('Erreur lors de la réinitialisation.');
-      }
+        setResetModalOpen(false);
     }
-  };
+};
 
   const handleDelete = async (user) => {
       if (window.confirm(`Supprimer l'utilisateur ${user.username} ? Cette action est irréversible.`)) {
@@ -172,13 +205,124 @@ const UserManagement = () => {
           </div>
         </div>
       )}
-
+      {/* MODAL pour SAISIR le nouveau mot de passe */}
+      {isResetModalOpen && userToReset && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30 p-4">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+            <h2 className="text-xl font-bold mb-4">Réinitialiser le mot de passe</h2>
+            <p className="mb-4">Pour l'utilisateur : <strong>{userToReset.username}</strong></p>
+            
+            <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="new-password-field">
+                Nouveau mot de passe (min. 6 caractères) :
+            </label>
+            <input 
+                id="new-password-field"
+                type="text" // Utilisez "text" pour l'instant si vous voulez qu'il soit visible lors de la saisie
+                placeholder="Laisser vide pour générer un mot de passe aléatoire"
+                value={resetPasswordField} 
+                onChange={e => setResetPasswordField(e.target.value)} 
+                className="w-full p-2 border rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500" 
+            />
+            
+            <div className="flex justify-end gap-4 mt-4">
+              <button 
+                type="button" 
+                onClick={() => setResetModalOpen(false)} 
+                className="px-4 py-2 bg-gray-200 rounded-lg"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={confirmResetPassword} 
+                className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50"
+                // Désactiver si le champ n'est pas vide ET si la longueur est trop courte
+                disabled={resetPasswordField.length > 0 && resetPasswordField.length < 6}
+              >
+                Confirmer la réinitialisation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* MODAL pour afficher le nouveau mot de passe */}
       {newPassword && ( <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20"> <div className="bg-white p-6 rounded-lg shadow-xl text-center"> <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" /> <h3 className="text-lg font-bold">Mot de passe réinitialisé !</h3> <p className="my-2">Le nouveau mot de passe pour <strong>{newPassword.username}</strong> est :</p> <p className="bg-gray-100 p-2 rounded font-mono text-lg my-4">{newPassword.password}</p> <button onClick={() => setNewPassword(null)} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Fermer</button> </div> </div> )}
 
       {/* MODAL pour créer ou éditer un utilisateur */}
-      {(isCreateModalOpen || editingUser) && ( <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20"> <form onSubmit={handleSave} className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md"> <h2 className="text-2xl font-bold mb-6">{isCreateModalOpen ? 'Créer un utilisateur' : 'Modifier l\'utilisateur'}</h2> {isCreateModalOpen && ( <> <input type="text" placeholder="Prénom" required value={modalData.firstName || ''} onChange={e => setModalData({...modalData, firstName: e.target.value})} className="w-full p-2 border rounded mb-3"/> <input type="text" placeholder="Nom" required value={modalData.lastName || ''} onChange={e => setModalData({...modalData, lastName: e.target.value})} className="w-full p-2 border rounded mb-3"/> <input type="text" placeholder="Nom d'utilisateur" required value={modalData.username || ''} onChange={e => setModalData({...modalData, username: e.target.value})} className="w-full p-2 border rounded mb-3"/> <input type="email" placeholder="Email" required value={modalData.email || ''} onChange={e => setModalData({...modalData, email: e.target.value})} className="w-full p-2 border rounded mb-3"/> <input type="password" placeholder="Mot de passe" required value={modalData.password || ''} onChange={e => setModalData({...modalData, password: e.target.value})} className="w-full p-2 border rounded mb-3"/> </> )} <label className="block mb-2">Rôle</label> <select value={modalData.role || 'user'} onChange={e => setModalData({...modalData, role: e.target.value})} className="w-full p-2 border rounded mb-6"> <option value="user">Utilisateur</option> <option value="validator">Validateur</option> <option value="director">Directeur</option> <option value="admin">Admin</option> </select> <div className="flex justify-end gap-4"> <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-lg">Annuler</button> <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">Sauvegarder</button> </div> </form> </div> )}
+      {(isCreateModalOpen || editingUser) && ( 
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20"> 
+          <form onSubmit={handleSave} className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md"> 
+            <h2 className="text-2xl font-bold mb-6">{isCreateModalOpen ? 'Créer un utilisateur' : 'Modifier l\'utilisateur'}</h2> 
+            
+            {/* CHAMPS COMMUNS: Affichés en Création ET en Édition */}
+            <input 
+              type="text" 
+              placeholder="Prénom" 
+              required 
+              value={modalData.firstName || ''} 
+              onChange={e => setModalData({...modalData, firstName: e.target.value})} 
+              className="w-full p-2 border rounded mb-3"
+              disabled={!editingUser && !isCreateModalOpen} // Au cas où, mais pas essentiel
+            /> 
+            <input 
+              type="text" 
+              placeholder="Nom" 
+              required 
+              value={modalData.lastName || ''} 
+              onChange={e => setModalData({...modalData, lastName: e.target.value})} 
+              className="w-full p-2 border rounded mb-3"
+              disabled={!editingUser && !isCreateModalOpen}
+            /> 
+            <input 
+              type="text" 
+              placeholder="Nom d'utilisateur" 
+              required 
+              value={modalData.username || ''} 
+              onChange={e => setModalData({...modalData, username: e.target.value})} 
+              className="w-full p-2 border rounded mb-3"
+              disabled={!editingUser && !isCreateModalOpen}
+            /> 
+            <input 
+              type="email" 
+              placeholder="Email" 
+              required 
+              value={modalData.email || ''} 
+              onChange={e => setModalData({...modalData, email: e.target.value})} 
+              className="w-full p-2 border rounded mb-3"
+              disabled={!editingUser && !isCreateModalOpen}
+            /> 
 
+            {/* CHAMPS SPÉCIFIQUES À LA CRÉATION */}
+            {isCreateModalOpen && (
+              <input 
+                type="password" 
+                placeholder="Mot de passe" 
+                required 
+                value={modalData.password || ''} 
+                onChange={e => setModalData({...modalData, password: e.target.value})} 
+                className="w-full p-2 border rounded mb-3"
+              />
+            )}
+            
+            {/* CHAMP RÔLE (Commun à la Création et l'Édition) */}
+            <label className="block mb-2">Rôle</label> 
+            <select 
+              value={modalData.role || 'user'} 
+              onChange={e => setModalData({...modalData, role: e.target.value})} 
+              className="w-full p-2 border rounded mb-6"
+            > 
+              <option value="user">Utilisateur</option> 
+              <option value="validator">Validateur</option> 
+              <option value="director">Directeur</option> 
+              <option value="admin">Admin</option> 
+            </select> 
+            
+            <div className="flex justify-end gap-4"> 
+              <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-lg">Annuler</button> 
+              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">Sauvegarder</button> 
+            </div> 
+          </form> 
+        </div> 
+      )}
       <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
