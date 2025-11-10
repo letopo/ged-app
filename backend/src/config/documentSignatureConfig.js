@@ -82,8 +82,8 @@ export const SIGNATURE_CONFIGS = {
   // Configuration par défaut
   'default': {
     numberOfSignatures: 3,
-    signatureY: 190,
-    stampY: 230,
+    signatureY: 180,
+    stampY: 220,
     signatureWidth: 110,
     signatureHeight: 55,
     stampWidth: 70,
