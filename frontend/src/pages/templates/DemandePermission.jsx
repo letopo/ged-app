@@ -301,7 +301,7 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
                     <p className="font-semibold">Chef de Pôle</p>
                 </div>
                 <div>
-                    <p className="font-semibold">Signature du supérieur</p>
+                    <p className="font-semibold">Signature du RH</p>
                 </div>
                 <div>
                     <p className="font-semibold">Le Directeur Général</p>

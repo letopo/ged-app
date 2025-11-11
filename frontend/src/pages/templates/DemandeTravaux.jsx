@@ -68,7 +68,7 @@ const DemandeTravaux = ({ formData, setFormData, pdfContainerRef }) => {
             </div>
             <div className="mt-16 grid grid-cols-3 gap-8 text-center text-sm">
                 <div><div className="h-24 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">Demandeur</p></div></div>
-                <div><div className="h-24 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">Chef de Service</p></div></div>
+                <div><div className="h-24 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">MG</p></div></div>
                 <div><div className="h-24 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">Validation Finale</p></div></div>
             </div>
             <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-600 text-center not-printable">Document généré le {new Date().toLocaleDateString('fr-FR')}</div>
