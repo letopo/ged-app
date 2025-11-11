@@ -244,6 +244,29 @@ const MyTasks = () => {
   const isComptable = () => user?.email === COMPTABLE_EMAIL;
   const isDG = () => user?.email === DG_EMAIL; // ✅ NOUVEAU
   
+  // Définissez cette variable au début du composant pour la réutiliser
+  const ROLES_FOR_COMBINED_ACTION = ['admin', 'director', 'validator'];
+  // Fonction helper pour l'action combinée
+  const canUseCombinedAction = () => {
+  // 1. Vérifier si l'utilisateur a un des rôles autorisés
+  const isAuthorizedRole = user?.role && ROLES_FOR_COMBINED_ACTION.includes(user.role);
+  
+  // 2. Vérifier si l'utilisateur a les chemins de signature ET de cachet enregistrés
+  const hasSignatureAndStamp = user?.signaturePath && user?.stampPath;
+  
+  // La permission est donnée si l'utilisateur a un rôle privilégié ET les deux images sont enregistrées.
+  // NOTE : Si vous voulez que TOUT le monde puisse le faire, supprimez isPrivilegedUser
+  return isAuthorizedRole && hasSignatureAndStamp;
+  // Pour tout le monde (solution que vous avez demandée, mais moins sécurisée) : 
+  // return hasSignatureAndStamp;
+  };
+
+  // --- DÉCLARATION DES VARIABLES DE DÉBOGAGE ICI ---
+// Ces variables doivent être déclarées avant le return du composant
+  const debugCombinedAction = canUseCombinedAction();
+  const isDirectorOrAdmin = user?.role === 'admin' || user?.role === 'director';
+  const hasSignatureAndStamp = user?.signaturePath && user?.stampPath;
+
   const needsPieceDeCaisse = (task) => {
     return task.document?.category === 'Ordre de mission' && 
            task.status === 'pending' && 
@@ -883,27 +906,28 @@ const MyTasks = () => {
                 <h3 className="font-semibold text-gray-700">Actions disponibles :</h3>
                 
                 {/* ✅ NOUVEAU : Action combinée pour le DG */}
-                {isDG() && taskToProcess.document.fileType === 'application/pdf' && user?.signaturePath && user?.stampPath && (
-                  <>
-                    <button 
-                      onClick={() => handleAction('approve_sign_stamp')} 
-                      disabled={!!actionLoading} 
-                      className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 rounded-lg border-2 border-purple-400 text-left transition shadow-md"
-                    >
-                      {actionLoading === 'approve_sign_stamp' ? (
-                        <Loader className="animate-spin w-6 h-6 text-purple-600"/>
-                      ) : (
-                        <ShieldCheck className="text-purple-600 w-6 h-6"/>
-                      )}
-                      <div className="flex-1">
-                        <p className="font-bold text-purple-900">Approuver, Signer et Apposer le cachet</p>
-                        <p className="text-xs text-purple-700 mt-0.5">Action rapide réservée au Directeur Général</p>
-                      </div>
-                    </button>
-                    <div className="border-t my-3"></div>
-                    <p className="text-xs text-gray-500 italic">Ou choisissez une action individuelle :</p>
-                  </>
-                )}
+                {canUseCombinedAction() && taskToProcess.document.fileType === 'application/pdf' && (
+                <>
+                  <button 
+                    onClick={() => handleAction('approve_sign_stamp')} 
+                    disabled={!!actionLoading} 
+                    className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 rounded-lg border-2 border-purple-400 text-left transition shadow-md"
+                  >
+                    {actionLoading === 'approve_sign_stamp' ? (
+                      <Loader className="animate-spin w-6 h-6 text-purple-600"/>
+                    ) : (
+                      <ShieldCheck className="text-purple-600 w-6 h-6"/>
+                    )}
+                    <div className="flex-1">
+                      <p className="font-bold text-purple-900">Approuver, Signer et Apposer le cachet</p>
+                      {/* On modifie le texte pour généraliser l'action */}
+                      <p className="text-xs text-purple-700 mt-0.5">Action rapide (Nécessite Signature et Cachet)</p> 
+                    </div>
+                  </button>
+                  <div className="border-t my-3"></div>
+                  <p className="text-xs text-gray-500 italic">Ou choisissez une action individuelle :</p>
+                </>
+              )}
                 
                 {/* Actions standards */}
                 {!needsPieceDeCaisse(taskToProcess) && (

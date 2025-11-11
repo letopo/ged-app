@@ -209,18 +209,32 @@ export const validateTask = async (req, res) => {
     const document = task.document;
     const validator = await User.findByPk(userId, { transaction: t });
 
-    // ✅ NOUVEAU : Validation combinée pour le DG uniquement
-    if (validationType === 'approve_sign_stamp') {
-      // Vérifier que c'est bien le DG
-      if (validator.email !== DG_EMAIL) {
+    // ✅ NOUVEAU : Validation combinée
+if (validationType === 'approve_sign_stamp') {
+  
+  // Ancien code :
+  // if (validator.email !== DG_EMAIL) {
+  //   await t.rollback();
+  //   return res.status(403).json({ 
+  //     success: false, 
+  //     message: 'Cette action est réservée au Directeur Général.' 
+  //   });
+  // }
+  
+  // NOUVEAU CODE : Vérifier si l'utilisateur a un rôle privilégié
+      const ROLES_FOR_COMBINED_ACTION = ['admin', 'director', 'validator'];
+
+      const isAuthorizedForCombinedAction = validator.role && ROLES_FOR_COMBINED_ACTION.includes(validator.role);
+
+      if (!isAuthorizedForCombinedAction) {
         await t.rollback();
         return res.status(403).json({ 
           success: false, 
-          message: 'Cette action est réservée au Directeur Général.' 
+          message: 'Cette action est réservée aux Administrateurs, Directeurs et Validateurs.' 
         });
       }
 
-      console.log(`🎯 Validation combinée (Approuver + Signer + Cacheter) pour le DG`);
+      console.log(`🎯 Validation combinée (Approuver + Signer + Cacheter) par un utilisateur autorisé.`);
 
       // Vérifier que c'est un PDF
       if (document.fileType !== 'application/pdf') {
