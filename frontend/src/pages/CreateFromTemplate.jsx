@@ -10,7 +10,8 @@ import jsPDF from 'jspdf';
 import DemandePermission from './templates/DemandePermission';
 import PieceDeCaisse from './templates/PieceDeCaisse';
 import DemandeTravaux from './templates/DemandeTravaux';
-import OrdreDeMission from './templates/OrdreDeMission'; // ✅ NOUVEAU
+import OrdreDeMission from './templates/OrdreDeMission';
+import DemandePermutation from './templates/DemandePermutation'; // <-- NOUVEL IMPORT
 
 // Définir les modèles disponibles
 const templates = {
@@ -49,7 +50,6 @@ const templates = {
             date_realisation: ''
         }
     },
-    // ✅ NOUVEAU : Ordre de mission
     "Ordre de mission": {
         component: OrdreDeMission,
         initialState: {
@@ -62,6 +62,19 @@ const templates = {
             nom_missionnaire: '',
             immat_vehicule: '',
             frais_mission: false
+        }
+    },
+    // ✅ NOUVEAU : Demande de permutation
+    "Demande de permutation": {
+        component: DemandePermutation,
+        initialState: {
+            demandeur_noms_prenoms: '', // sera rempli par useEffect
+            service: '', // sera rempli par useEffect
+            permute_id: '',
+            permute_noms_prenoms: '',
+            date_permutation: new Date().toISOString().split('T')[0],
+            plage_horaire_debut: '',
+            plage_horaire_fin: ''
         }
     }
 };

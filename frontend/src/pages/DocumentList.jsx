@@ -276,7 +276,12 @@ const DocumentList = () => {
                 <li>
                     <Link to="/create-from-template" state={{ templateName: "Ordre de mission" }} className="block p-3 bg-gray-50 hover:bg-blue-50 rounded-lg transition">
                         🚗 Ordre de mission
-                  </Link>
+                    </Link>
+                </li>
+                <li>
+                    <Link to="/create-from-template" state={{ templateName: "Demande de permutation" }} className="block p-3 bg-gray-50 hover:bg-blue-50 rounded-lg transition">
+                        🔄 Demande de permutation
+                    </Link>
                 </li>
             </ul>
         </div>
