@@ -5,7 +5,9 @@ FROM node:20-alpine AS base
 RUN apk add --no-cache \
     tesseract-ocr \
     tesseract-ocr-data-fra \
-    tesseract-ocr-data-eng
+    tesseract-ocr-data-eng \
+    postgresql-client \
+    bash
 
 WORKDIR /app
 
@@ -56,6 +58,11 @@ COPY --from=builder --chown=nodejs:nodejs /app/ ./
 RUN mkdir -p uploads signatures fonts database/migrations database/seeders && \
     chown -R nodejs:nodejs /app
 
+# Copier le script d'entrée
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    chown nodejs:nodejs /usr/local/bin/docker-entrypoint.sh
+
 USER nodejs
 
 EXPOSE 3000
@@ -64,4 +71,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "src/server.js"]
