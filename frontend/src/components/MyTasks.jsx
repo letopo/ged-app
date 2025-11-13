@@ -268,49 +268,51 @@ const MyTasks = () => {
   const hasSignatureAndStamp = user?.signaturePath && user?.stampPath;
 
   const needsPieceDeCaisse = (task) => {
-    return task.document?.category === 'Ordre de mission' && 
-           task.status === 'pending' && 
-           isComptable();
+    return task.status === 'pending' && isComptable();
   };
 
   const openProcessingModal = (task) => {
-    setTaskToProcess(task);
-    setComment(task.comment || '');
-    const metadata = task.document?.metadata || {};
+  setTaskToProcess(task);
+  setComment(task.comment || '');
+  const metadata = task.document?.metadata || {};
+  
+  if (isWorkRequest(task) && isMG()) {
+    setDemandeBesoinsData(prev => ({ 
+      ...prev, 
+      service: metadata.service || '', 
+      reference: `DT-${task.document.id.slice(0, 8)}`, 
+      justification: `Suite à la demande de travaux concernant: ${metadata.motif || ''}` 
+    }));
+  }
+  
+  if (isWorkRequest(task) && isBiomedical()) {
+    setFicheSuiviData(prev => ({ 
+      ...prev, 
+      service: metadata.service || '', 
+      equipement: metadata.motif || '' 
+    }));
+  }
+  
+  // ✅ MODIFIÉ : Préparer la PC pour tous les documents du comptable
+  if (needsPieceDeCaisse(task)) {
+    const docTitle = task.document.title || 'Document';
+    const docCategory = task.document.category || 'Document';
     
-    if (isWorkRequest(task) && isMG()) {
-      setDemandeBesoinsData(prev => ({ 
-        ...prev, 
-        service: metadata.service || '', 
-        reference: `DT-${task.document.id.slice(0, 8)}`, 
-        justification: `Suite à la demande de travaux concernant: ${metadata.motif || ''}` 
-      }));
-    }
-    
-    if (isWorkRequest(task) && isBiomedical()) {
-      setFicheSuiviData(prev => ({ 
-        ...prev, 
-        service: metadata.service || '', 
-        equipement: metadata.motif || '' 
-      }));
-    }
-    
-    if (needsPieceDeCaisse(task)) {
-      setPieceDeCaisseData({
-        nom: metadata.nom_missionnaire || '',
-        date: new Date().toLocaleDateString('fr-FR'),
-        concerne: `Frais de mission - ${metadata.objet_mission || ''}`,
-        lines: [{ 
-          refCompta: '', 
-          libelle: `Mission du ${metadata.date_mission || ''} - ${metadata.service_demandeur || ''}`, 
-          refGage: '', 
-          entrees: '', 
-          sorties: '' 
-        }],
-        totalEnLettres: ''
-      });
-    }
-  };
+    setPieceDeCaisseData({
+      nom: metadata.nom_missionnaire || metadata.noms_prenoms || '',
+      date: new Date().toLocaleDateString('fr-FR'),
+      concerne: `Pièce justificative - ${docCategory}: ${docTitle}`,
+      lines: [{ 
+        refCompta: '', 
+        libelle: `${docCategory} - ${metadata.service || metadata.service_demandeur || ''}`, 
+        refGage: '', 
+        entrees: '', 
+        sorties: '' 
+      }],
+      totalEnLettres: ''
+    });
+  }
+};
 
   const closeProcessingModal = () => {
     setTaskToProcess(null);
@@ -434,16 +436,17 @@ const MyTasks = () => {
     const pdfBlob = pdf.output('blob');
     
     const uploadData = new FormData();
-    const fileName = `Piece_Caisse_OM_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
+    const fileName = `Piece_Caisse_${taskToProcess.document.category.replace(/\s/g, '_')}_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
     uploadData.append('file', pdfBlob, fileName);
     uploadData.append('title', `Pièce de caisse - ${pieceDeCaisseData.concerne}`);
     uploadData.append('category', 'Pièce de caisse');
     
-    // ✅ CRITIQUE : Ajouter linkedOrdreMissionId en paramètre séparé
+    // ✅ TOUJOURS linkedOrdreMissionId (pas linkedDocumentId)
     uploadData.append('linkedOrdreMissionId', taskToProcess.document.id);
-    console.log('🔗 Liaison OM depuis modal:', taskToProcess.document.id);
+    console.log('🔗 Liaison document depuis modal:', taskToProcess.document.id);
+    console.log('📄 Type de document:', taskToProcess.document.category);
     
-    // ✅ Metadata sans linkedOrdreMissionId
+    // Metadata sans linkedOrdreMissionId
     uploadData.append('metadata', JSON.stringify({
       nom: pieceDeCaisseData.nom,
       concerne: pieceDeCaisseData.concerne
@@ -451,8 +454,11 @@ const MyTasks = () => {
     
     // ✅ Log pour debug
     console.log('📤 Upload depuis modal MyTasks:');
-    console.log('   linkedOrdreMissionId:', taskToProcess.document.id);
-    console.log('   title:', `Pièce de caisse - ${pieceDeCaisseData.concerne}`);
+    for (let pair of uploadData.entries()) {
+      if (pair[0] !== 'file') {
+        console.log(`   ${pair[0]}:`, pair[1]);
+      }
+    }
     
     const uploadResponse = await documentsAPI.upload(uploadData);
     console.log('✅ Réponse upload:', uploadResponse.data);
@@ -466,14 +472,14 @@ const MyTasks = () => {
     
     await workflowAPI.validateTask(taskToProcess.id, {
       status: 'approved',
-      comment: `Pièce de caisse créée et fusionnée avec l'OM (${fileName}). Processus complété.`,
+      comment: `Pièce de caisse créée et fusionnée (${fileName}). Processus complété.`,
       validationType: 'simple_approve'
     });
     
     alert(
       uploadResponse.data.data.metadata?.fusionné
-        ? `✅ Pièce de caisse créée et fusionnée avec l'Ordre de Mission!\n\nLe document final contient l'OM et la PC.`
-        : `✅ Pièce de caisse créée avec succès!\n\nL'Ordre de mission est maintenant complet.`
+        ? `✅ Pièce de caisse créée et fusionnée avec ${taskToProcess.document.category}!\n\nLe document final contient les deux documents.`
+        : `✅ Pièce de caisse créée avec succès!\n\nLe processus est maintenant complet.`
     );
     closeProcessingModal();
     
@@ -813,8 +819,10 @@ const MyTasks = () => {
                         <div className="mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded-lg flex items-start gap-2">
                           <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                           <div className="text-sm text-yellow-800">
-                            <p className="font-semibold">💰 Ordre de mission validé - Action requise</p>
-                            <p className="text-xs mt-1">Cet ordre de mission a été validé par tous les responsables. Vous devez créer la Pièce de caisse pour finaliser le processus.</p>
+                            <p className="font-semibold">💰 Action comptable - Créer Pièce de caisse</p>
+                            <p className="text-xs mt-1">
+                              Ce document nécessite une Pièce de caisse. Le document sera joint automatiquement comme pièce justificative.
+                            </p>
                           </div>
                         </div>
                       )}
@@ -867,17 +875,7 @@ const MyTasks = () => {
                 Document: <strong>{taskToProcess.document.title}</strong>
               </p>
               
-              {taskToProcess.document.category === 'Ordre de mission' && !needsPieceDeCaisse(taskToProcess) && (
-                <div className="mb-4 p-3 bg-purple-50 border-2 border-purple-200 rounded-lg">
-                  <p className="text-sm text-purple-800 font-semibold">
-                    📋 Ordre de mission : 4 signatures + Comptable
-                  </p>
-                  <p className="text-xs text-purple-600 mt-1">
-                    Après validation par tous, le comptable créera la Pièce de caisse
-                  </p>
-                </div>
-              )}
-              
+              {/* ✅ MODIFIÉ : Message générique pour tous les documents */}
               {needsPieceDeCaisse(taskToProcess) && (
                 <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
                   <div className="flex items-start gap-3">
@@ -885,8 +883,8 @@ const MyTasks = () => {
                     <div>
                       <h3 className="font-bold text-yellow-900 mb-2">💰 Créer la Pièce de caisse</h3>
                       <p className="text-sm text-yellow-800">
-                        Cet Ordre de mission a été validé par tous les responsables. 
-                        Vous devez maintenant créer la Pièce de caisse correspondante pour finaliser le processus.
+                        Ce document (<strong>{taskToProcess.document.category}</strong>) nécessite une Pièce de caisse. 
+                        Le document sera automatiquement joint comme pièce justificative.
                       </p>
                     </div>
                   </div>
@@ -1114,10 +1112,10 @@ const MyTasks = () => {
             <div className="p-6 border-b">
               <h2 className="text-2xl font-bold">💰 Créer Pièce de caisse</h2>
               <p className="text-sm text-gray-600 mt-2">
-                Suite à l'Ordre de mission validé : <strong>{taskToProcess?.document?.title}</strong>
+                Document source : <strong>{taskToProcess?.document?.title}</strong>
               </p>
               <p className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded mt-2 border border-yellow-200">
-                📌 Cette Pièce de caisse sera automatiquement liée à l'Ordre de mission
+                📌 Ce document sera automatiquement joint comme pièce justificative (au-dessus de la PC)
               </p>
             </div>
             <div className="p-6 max-h-[70vh] overflow-y-auto">

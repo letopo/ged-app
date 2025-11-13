@@ -16,22 +16,24 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
     }, [showOrdreMissionSelector]);
 
     const loadOrdresMission = async () => {
-        try {
-            setLoadingOM(true);
-            
-            console.log('📋 Chargement des Ordres de Mission...');
-            const response = await documentsAPI.getValidatedOrdreMission();
-            
-            console.log('✅ Ordres de Mission reçus:', response.data.data?.length || 0);
-            console.log('📄 Détails:', response.data.data);
-            
-            setOrdresMission(response.data.data || []);
-        } catch (error) {
-            console.error('❌ Erreur chargement OM:', error);
-            console.error('❌ Détails:', error.response?.data);
-        } finally {
-            setLoadingOM(false);
-        }
+    try {
+        setLoadingOM(true);
+        
+        console.log('📋 Chargement des documents validés pour PC...');
+        
+        // ✅ UTILISER LA NOUVELLE ROUTE
+        const response = await documentsAPI.getValidatedForPC();
+        
+        console.log('✅ Documents validés reçus:', response.data.data?.length || 0);
+        console.log('📄 Détails:', response.data.data);
+        
+        setOrdresMission(response.data.data || []);
+    } catch (error) {
+        console.error('❌ Erreur chargement documents:', error);
+        console.error('❌ Détails:', error.response?.data);
+    } finally {
+        setLoadingOM(false);
+    }
     };
 
     const handleChange = (e) => {
@@ -64,49 +66,49 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
             {showOrdreMissionSelector && (
                 <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-6 not-printable">
                     <div className="flex items-center gap-3 mb-4">
-                        <LinkIcon className="text-blue-600" size={24} />
-                        <h3 className="text-lg font-bold text-blue-900">Lier à un Ordre de Mission</h3>
+                    <LinkIcon className="text-blue-600" size={24} />
+                    <h3 className="text-lg font-bold text-blue-900">Lier à un document justificatif</h3>
                     </div>
                     
                     <p className="text-sm text-blue-800 mb-4">
-                        ⚠️ <strong>Important :</strong> En sélectionnant un Ordre de Mission, le PDF généré contiendra 
-                        automatiquement l'OM en haut et la Pièce de Caisse en bas. Le Directeur Général pourra ainsi 
-                        tout visualiser d'un seul coup.
+                    ⚠️ <strong>Important :</strong> En sélectionnant un document, le PDF généré contiendra 
+                    automatiquement le document justificatif en haut et la Pièce de Caisse en bas. Le Directeur Général pourra ainsi 
+                    tout visualiser d'un seul coup.
                     </p>
 
                     {loadingOM ? (
-                        <div className="text-center py-4 text-blue-600">Chargement des Ordres de Mission...</div>
+                    <div className="text-center py-4 text-blue-600">Chargement des documents...</div>
                     ) : (
-                        <>
-                            <select
-                                name="linkedOrdreMissionId"
-                                value={formData.linkedOrdreMissionId || ''}
-                                onChange={handleChange}
-                                className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                            >
-                                <option value="">-- Aucun Ordre de Mission lié --</option>
-                                {ordresMission.map(om => (
-                                    <option key={om.id} value={om.id}>
-                                        {om.title} - {new Date(om.createdAt).toLocaleDateString('fr-FR')} - {om.status}
-                                    </option>
-                                ))}
-                            </select>
-                            
-                            {ordresMission.length === 0 && (
-                                <p className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
-                                    ⚠️ Aucun Ordre de Mission disponible. Assurez-vous qu'il y a des OM validés ou en cours.
-                                </p>
-                            )}
-                        </>
+                    <>
+                        <select
+                        name="linkedOrdreMissionId"
+                        value={formData.linkedOrdreMissionId || ''}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        >
+                        <option value="">-- Aucun document lié --</option>
+                        {ordresMission.map(doc => (
+                            <option key={doc.id} value={doc.id}>
+                            [{doc.category}] {doc.title} - {new Date(doc.createdAt).toLocaleDateString('fr-FR')} - {doc.status}
+                            </option>
+                        ))}
+                        </select>
+                        
+                        {ordresMission.length === 0 && (
+                        <p className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+                            ⚠️ Aucun document disponible. Assurez-vous qu'il y a des documents validés.
+                        </p>
+                        )}
+                    </>
                     )}
 
                     {formData.linkedOrdreMissionId && (
-                        <div className="mt-3 p-3 bg-green-50 border border-green-300 rounded text-sm text-green-800">
-                            ✅ Le PDF final contiendra l'Ordre de Mission sélectionné suivi de cette Pièce de Caisse
-                        </div>
+                    <div className="mt-3 p-3 bg-green-50 border border-green-300 rounded text-sm text-green-800">
+                        ✅ Le PDF final contiendra le document sélectionné suivi de cette Pièce de Caisse
+                    </div>
                     )}
                 </div>
-            )}
+                )}
 
             {/* Template Pièce de Caisse */}
             <div ref={pdfContainerRef} className="bg-white p-12 shadow-lg mx-auto flex flex-col" style={{ width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>

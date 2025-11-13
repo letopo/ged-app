@@ -44,6 +44,7 @@ export const documentsAPI = {
   delete: (documentId) => api.delete(`/documents/${documentId}`),
   updateMetadata: (documentId, data) => api.patch(`/documents/${documentId}/metadata`, data),
   getValidatedOrdreMission: () => api.get('/documents/ordres-mission/valides'),
+  getValidatedForPC: () => api.get('/documents/valides-pour-pc'),
 };
 
 // ============================================

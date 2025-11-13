@@ -12,20 +12,16 @@ export const uploadDocument = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Aucun fichier fourni.' });
     }
     
-    // ✅ AJOUTER CE LOG
-    console.log('📥 Données reçues du frontend:');
-    console.log('   Body:', req.body);
-    console.log('   linkedOrdreMissionId:', req.body.linkedOrdreMissionId);
-    console.log('   category:', req.body.category);
-
-    const { title, category, dateDebut, dateFin, nomsDemandeur, metadata, linkedOrdreMissionId } = req.body;
+    // ✅ MODIFIÉ : Accepter linkedOrdreMissionId OU linkedDocumentId
+    const linkedDocId = req.body.linkedOrdreMissionId || req.body.linkedDocumentId;
+    
+    const { title, category, dateDebut, dateFin, nomsDemandeur, metadata } = req.body;
     const { filename, originalname, size, mimetype } = req.file;
 
     let finalFilePath = `uploads/${filename}`;
     let finalFileName = filename;
     let finalSize = size;
 
-    // Parse le metadata
     let parsedMetadata = {};
     if (metadata) {
       try {
@@ -36,55 +32,54 @@ export const uploadDocument = async (req, res) => {
       }
     }
     
+    console.log('📥 Données reçues du frontend:');
+    console.log('   Body:', req.body);
+    console.log('   linkedDocumentId (unifié):', linkedDocId);
+    console.log('   category:', category);
     console.log('📦 Metadata reçu et parsé:', parsedMetadata);
 
-    // ✅ NOUVELLE LOGIQUE : Fusion automatique si Pièce de Caisse liée à un Ordre de Mission
-    if (category === 'Pièce de caisse' && linkedOrdreMissionId && mimetype === 'application/pdf') {
+    // ✅ LOGIQUE GÉNÉRALISÉE : Fusion pour toute Pièce de Caisse avec document lié
+    if (category === 'Pièce de caisse' && linkedDocId && mimetype === 'application/pdf') {
       try {
-        console.log('🔗 Pièce de Caisse liée à un Ordre de Mission détectée');
-        console.log('   OM ID:', linkedOrdreMissionId);
+        console.log('🔗 Pièce de Caisse liée à un document détectée');
+        console.log('   Document lié ID:', linkedDocId);
 
-        // Récupérer l'Ordre de Mission lié
-        const ordreMission = await Document.findByPk(linkedOrdreMissionId);
+        // Récupérer le document lié (n'importe quel type)
+        const linkedDocument = await Document.findByPk(linkedDocId);
         
-        if (!ordreMission) {
-          console.warn('⚠️ Ordre de Mission introuvable:', linkedOrdreMissionId);
-          throw new Error('Ordre de Mission introuvable');
+        if (!linkedDocument) {
+          console.warn('⚠️ Document lié introuvable:', linkedDocId);
+          throw new Error('Document lié introuvable');
         }
 
-        if (ordreMission.category !== 'Ordre de mission') {
-          console.warn('⚠️ Le document lié n\'est pas un Ordre de Mission');
-          throw new Error('Le document lié n\'est pas un Ordre de Mission');
+        // Vérifier que le document lié est en PDF
+        if (linkedDocument.fileType !== 'application/pdf') {
+          console.warn('⚠️ Le document lié n\'est pas au format PDF');
+          throw new Error('Le document lié doit être au format PDF pour être fusionné');
         }
 
-        // Vérifier que l'OM est en PDF
-        if (ordreMission.fileType !== 'application/pdf') {
-          console.warn('⚠️ L\'Ordre de Mission n\'est pas au format PDF');
-          throw new Error('L\'Ordre de Mission doit être au format PDF');
-        }
-
-        const omPath = path.resolve(process.cwd(), ordreMission.filePath);
+        const linkedDocPath = path.resolve(process.cwd(), linkedDocument.filePath);
         const pcPath = path.resolve(process.cwd(), finalFilePath);
 
         // Valider les deux PDFs
-        const omValid = await validatePDF(omPath);
+        const linkedDocValid = await validatePDF(linkedDocPath);
         const pcValid = await validatePDF(pcPath);
 
-        if (!omValid || !pcValid) {
+        if (!linkedDocValid || !pcValid) {
           throw new Error('Un des PDFs est invalide ou inaccessible');
         }
 
         console.log('✅ Validation des PDFs réussie, début de la fusion...');
 
-        // Fusionner les PDFs (OM en premier, PC en second)
-        const mergedPdfBytes = await mergePDFs(omPath, pcPath);
+        // Fusionner les PDFs (Document justificatif en premier, PC en second)
+        const mergedPdfBytes = await mergePDFs(linkedDocPath, pcPath);
 
         // Sauvegarder le PDF fusionné
-        const mergedFileName = `PC_OM_fusionné_${Date.now()}.pdf`;
+        const mergedFileName = `PC_${linkedDocument.category.replace(/\s/g, '_')}_fusionné_${Date.now()}.pdf`;
         const mergedFilePath = path.resolve(process.cwd(), `uploads/${mergedFileName}`);
         await fs.writeFile(mergedFilePath, mergedPdfBytes);
 
-        // Supprimer le PDF de la Pièce de Caisse seule (on garde l'OM original)
+        // Supprimer le PDF de la Pièce de Caisse seule (on garde le document original)
         try {
           await fs.unlink(pcPath);
           console.log('🗑️ PDF original de la PC supprimé');
@@ -99,22 +94,22 @@ export const uploadDocument = async (req, res) => {
 
         // Ajouter l'info de fusion dans les métadonnées
         parsedMetadata.fusionné = true;
-        parsedMetadata.ordreMissionId = linkedOrdreMissionId;
-        parsedMetadata.ordreMissionTitle = ordreMission.title;
+        parsedMetadata.linkedDocumentId = linkedDocId;
+        parsedMetadata.linkedDocumentTitle = linkedDocument.title;
+        parsedMetadata.linkedDocumentCategory = linkedDocument.category;
         parsedMetadata.fusionDate = new Date().toISOString();
 
         console.log('✅ Fusion réussie! Nouveau fichier:', mergedFileName);
 
       } catch (fusionError) {
         console.error('❌ Erreur lors de la fusion des PDFs:', fusionError);
-        // On continue avec le PDF non fusionné, mais on log l'erreur
         parsedMetadata.fusionError = fusionError.message;
         parsedMetadata.fusionAttempted = true;
       }
     }
 
     const documentData = {
-      title: title || `Demande de travaux - ${parsedMetadata.service || 'Inconnu'}`,
+      title: title || `Document - ${parsedMetadata.service || 'Inconnu'}`,
       fileName: finalFileName,
       originalName: originalname,
       filePath: finalFilePath,
@@ -122,7 +117,7 @@ export const uploadDocument = async (req, res) => {
       fileType: mimetype,
       userId: req.user.id,
       category: category || parsedMetadata.type || null,
-      linkedDocumentId: linkedOrdreMissionId || null, // ✅ NOUVEAU : Sauvegarder la liaison
+      linkedDocumentId: linkedDocId || null,
       metadata: parsedMetadata,
       status: 'draft',
       dateDebut: dateDebut ? new Date(dateDebut) : null,
@@ -139,7 +134,7 @@ export const uploadDocument = async (req, res) => {
       success: true, 
       data: resultWithUser, 
       message: parsedMetadata.fusionné 
-        ? '✅ Document uploadé et fusionné avec l\'Ordre de Mission avec succès.' 
+        ? '✅ Document uploadé et fusionné avec la pièce justificative avec succès.' 
         : 'Document uploadé avec succès.' 
     });
 

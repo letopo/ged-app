@@ -70,6 +70,65 @@ router.get('/ordres-mission/valides', protect, async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/documents/valides-pour-pc
+ * @desc    Récupérer tous les documents validés pour créer une Pièce de Caisse
+ * @access  Private (Comptable uniquement)
+ */
+router.get(
+  '/valides-pour-pc',
+  protect,
+  async (req, res) => {
+    try {
+      console.log('📋 Requête pour récupérer les documents validés pour PC');
+      console.log('👤 Utilisateur:', req.user.email, '- Rôle:', req.user.role);
+
+      // ✅ MODIFIÉ : Récupérer les documents où le comptable a une tâche (pending OU approved)
+      const documents = await Document.findAll({
+        include: [
+          {
+            model: User,
+            as: 'uploadedBy',
+            attributes: ['id', 'firstName', 'lastName', 'email']
+          },
+          {
+            model: Workflow,
+            as: 'workflows',
+            where: {
+              validatorId: req.user.id,
+              status: ['pending', 'approved'] // ✅ Inclure pending ET approved
+            },
+            required: true
+          }
+        ],
+        order: [['createdAt', 'DESC']]
+      });
+
+      // Filtrer pour ne garder que les documents en PDF
+      const pdfDocuments = documents.filter(doc => doc.fileType === 'application/pdf');
+
+      console.log(`✅ ${pdfDocuments.length} documents trouvés (PDF uniquement)`);
+      pdfDocuments.forEach(doc => {
+        const workflow = doc.workflows[0];
+        console.log(`   - ${doc.title} | Category: ${doc.category} | Workflow: ${workflow?.status || 'N/A'} | Créé par: ${doc.uploadedBy?.firstName || 'Inconnu'} ${doc.uploadedBy?.lastName || ''}`);
+      });
+
+      res.json({
+        success: true,
+        data: pdfDocuments
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération des documents validés:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la récupération des documents validés.'
+      });
+    }
+  }
+);
+
+
 // Appliquer la protection par token JWT à toutes les routes de ce fichier
 router.use(protect);
 
