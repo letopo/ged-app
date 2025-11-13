@@ -1,4 +1,4 @@
-// frontend/src/pages/CreateFromTemplate.jsx - VERSION COMPLÈTE CORRIGÉE
+// frontend/src/pages/CreateFromTemplate.jsx - VERSION COMPLÈTE CORRIGÉE AVEC SUPPORT DARK MODE
 import React, { useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { documentsAPI } from '../services/api';
@@ -108,11 +108,10 @@ const CreateFromTemplate = () => {
         setLoading(true);
         setError('');
         
-        // ✅ LOGS DE DÉBOGAGE
+        // LOGS DE DÉBOGAGE
         console.log('📋 === DÉBUT GÉNÉRATION DOCUMENT ===');
         console.log('🔍 Template Name:', templateName);
         console.log('🔍 FormData complet:', formData);
-        console.log('🔍 linkedOrdreMissionId:', formData.linkedOrdreMissionId);
         
         const notPrintable = pdfContainerRef.current?.querySelectorAll('.not-printable');
         const printOnly = pdfContainerRef.current?.querySelectorAll('.print-only');
@@ -125,7 +124,7 @@ const CreateFromTemplate = () => {
                 scale: 3,
                 useCORS: true,
                 logging: false,
-                backgroundColor: '#ffffff',
+                backgroundColor: '#ffffff', // Forcer le fond blanc pour le PDF
                 windowWidth: 1200,
                 windowHeight: 1697
             });
@@ -163,7 +162,7 @@ const CreateFromTemplate = () => {
             uploadData.append('title', documentTitle);
             uploadData.append('category', templateName);
             
-            // ✅ LOGIQUE ROBUSTE : Détecter si c'est une Pièce de Caisse
+            // LOGIQUE ROBUSTE : Détecter si c'est une Pièce de Caisse
             const isPieceDeCaisse = templateName === 'Pièce de caisse' || 
                                     templateName.toLowerCase().includes('piece') ||
                                     templateName.toLowerCase().includes('caisse');
@@ -175,7 +174,7 @@ const CreateFromTemplate = () => {
                 linkedOMValue: formData.linkedOrdreMissionId
             });
             
-            // ✅ ENVOYER linkedOrdreMissionId en paramètre séparé
+            // ENVOYER linkedOrdreMissionId en paramètre séparé
             if (isPieceDeCaisse && formData.linkedOrdreMissionId) {
                 console.log('🔗 ✅ Ajout linkedOrdreMissionId au FormData:', formData.linkedOrdreMissionId);
                 uploadData.append('linkedOrdreMissionId', formData.linkedOrdreMissionId);
@@ -192,12 +191,12 @@ const CreateFromTemplate = () => {
                 uploadData.append('date_demande', formData.date_demande);
             }
 
-            // ✅ Préparer les metadata SANS linkedOrdreMissionId
+            // Préparer les metadata SANS linkedOrdreMissionId
             const metadataToSend = { ...formData };
             delete metadataToSend.linkedOrdreMissionId; // Supprimer pour éviter duplication
             uploadData.append('metadata', JSON.stringify(metadataToSend));
 
-            // ✅ LOG du contenu du FormData
+            // LOG du contenu du FormData
             console.log('📤 Données envoyées au backend:');
             for (let pair of uploadData.entries()) {
                 if (pair[0] !== 'file') { // Ne pas logger le blob
@@ -227,6 +226,7 @@ const CreateFromTemplate = () => {
             setError("Erreur lors de la génération ou de l'upload du document.");
             console.error('❌ Erreur détaillée:', err);
             
+            // Assurer que les éléments cachés sont rétablis en cas d'erreur
             notPrintable.forEach(el => el.style.display = 'block');
             printOnly.forEach(el => el.style.display = 'none');
         } finally {
@@ -235,30 +235,33 @@ const CreateFromTemplate = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-8 bg-gray-100">
-            <h1 className="text-3xl font-bold mb-2">Créer : {templateName}</h1>
-            <p className="text-gray-600 mb-8">Remplissez les champs pour générer le document PDF.</p>
+        // Conteneur de la page - Support Dark Mode
+        <div className="max-w-4xl mx-auto p-8 bg-gray-100 dark:bg-dark-bg">
+            {/* Titre - Support Dark Mode */}
+            <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-dark-text">Créer : {templateName}</h1>
+            <p className="text-gray-600 dark:text-dark-text-secondary mb-8">Remplissez les champs pour générer le document PDF.</p>
             
             {/* Rendu du template */}
+            {/* Note : Le template lui-même gère son propre fond (blanc pour l'impression) */}
             <TemplateComponent 
                 formData={formData} 
                 setFormData={setFormData} 
                 pdfContainerRef={pdfContainerRef} 
             />
 
-            {/* Message d'erreur */}
+            {/* Message d'erreur - Support Dark Mode */}
             {error && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-300 text-red-700 rounded-lg text-center">
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/10 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg text-center">
                     {error}
                 </div>
             )}
             
-            {/* Bouton de génération */}
+            {/* Bouton de génération - Support Dark Mode */}
             <div className="text-center mt-8">
                 <button 
                     onClick={handleSubmit} 
                     disabled={loading} 
-                    className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto transition-all shadow-lg hover:shadow-xl"
+                    className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto transition-all shadow-lg hover:shadow-xl dark:bg-blue-700 dark:hover:bg-blue-600"
                 >
                     {loading ? (
                         <>
@@ -274,17 +277,17 @@ const CreateFromTemplate = () => {
                 </button>
             </div>
 
-            {/* Informations de débogage */}
+            {/* Informations de débogage - Support Dark Mode */}
             {process.env.NODE_ENV === 'development' && (
-                <div className="mt-8 p-4 bg-gray-50 border border-gray-300 rounded-lg">
-                    <h3 className="font-semibold mb-2">🔧 Debug Info</h3>
-                    <p className="text-sm text-gray-600">Template: {templateName}</p>
-                    <p className="text-sm text-gray-600 mt-2">
+                <div className="mt-8 p-4 bg-gray-50 dark:bg-dark-surface border border-gray-300 dark:border-dark-border rounded-lg">
+                    <h3 className="font-semibold mb-2 text-gray-900 dark:text-dark-text">🔧 Debug Info</h3>
+                    <p className="text-sm text-gray-600 dark:text-dark-text-secondary">Template: {templateName}</p>
+                    <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-2">
                         Linked OM ID: {formData.linkedOrdreMissionId || 'Aucun'}
                     </p>
-                    <details className="mt-2">
+                    <details className="mt-2 text-gray-900 dark:text-dark-text">
                         <summary className="text-sm font-medium cursor-pointer">Voir FormData complet</summary>
-                        <pre className="text-xs bg-white p-2 rounded mt-2 overflow-auto max-h-40">
+                        <pre className="text-xs bg-white dark:bg-dark-bg p-2 rounded mt-2 overflow-auto max-h-40 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-dark-text">
                             {JSON.stringify(formData, null, 2)}
                         </pre>
                     </details>

@@ -1,7 +1,8 @@
-// frontend/src/components/Calendar.jsx - VERSION AVEC JOURS FÉRIÉS CAMEROUNAIS
+// frontend/src/components/Calendar.jsx - VERSION AVEC JOURS FÉRIÉS CAMEROUNAIS ET DARK MODE
 import React, { useState, useEffect } from 'react';
 import { calendarAPI } from '../services/api';
 import { Calendar as CalendarIcon, Flag } from 'lucide-react';
+// Assurez-vous que les fonctions suivantes sont mises à jour pour le Dark Mode si elles retournent des classes de couleur de fond/texte
 import { isHoliday, getHolidayColor } from '../utils/cameroonHolidays';
 
 const Calendar = ({ month, year }) => {
@@ -40,6 +41,7 @@ const Calendar = ({ month, year }) => {
   };
 
   const getFirstDayOfMonth = () => {
+    // getDay() retourne 0 pour dimanche, 1 pour lundi...
     return new Date(year, month, 1).getDay();
   };
 
@@ -58,6 +60,7 @@ const Calendar = ({ month, year }) => {
         return false;
       }
       
+      // Réinitialiser les heures pour une comparaison jour-par-jour
       currentDate.setHours(0, 0, 0, 0);
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(0, 0, 0, 0);
@@ -74,6 +77,7 @@ const Calendar = ({ month, year }) => {
   };
 
   const getColorForPermission = (index) => {
+    // Les couleurs des points de permission n'ont pas de dark: variant ici
     const colors = [
       'bg-blue-500',
       'bg-green-500',
@@ -97,7 +101,7 @@ const Calendar = ({ month, year }) => {
     return 'N/A';
   };
 
-  // ✅ NOUVEAU : Vérifier si c'est un dimanche
+  // Vérifier si c'est un dimanche
   const isSunday = (day) => {
     const date = new Date(year, month, day);
     return date.getDay() === 0;
@@ -106,12 +110,14 @@ const Calendar = ({ month, year }) => {
   const renderCalendarDays = () => {
     const daysInMonth = getDaysInMonth();
     const firstDay = getFirstDayOfMonth();
+    // Le getDay() de JS est 0=Dimanche, 1=Lundi... donc on utilise l'index directement
     const days = [];
 
     // Cases vides avant le 1er du mois
     for (let i = 0; i < firstDay; i++) {
+      // Styles Dark Mode pour les cases vides
       days.push(
-        <div key={`empty-${i}`} className="h-24 bg-gray-50 border border-gray-200"></div>
+        <div key={`empty-${i}`} className="h-24 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border"></div>
       );
     }
 
@@ -123,45 +129,53 @@ const Calendar = ({ month, year }) => {
                       today.getMonth() === month && 
                       today.getFullYear() === year;
 
-      // ✅ NOUVEAU : Vérifier si c'est un jour férié
+      // Vérifier si c'est un jour férié
       const holiday = isHoliday(year, month, day);
       const isSundayDay = isSunday(day);
 
-      // ✅ NOUVEAU : Classes CSS dynamiques selon le type de jour
-      let dayClasses = 'h-24 border border-gray-200 p-2 relative transition-all hover:shadow-md';
+      // Classes CSS dynamiques selon le type de jour
+      let dayClasses = 'h-24 border border-gray-200 dark:border-dark-border p-2 relative transition-all hover:shadow-md';
+      let numberClasses = 'text-sm font-semibold';
       
       if (isToday) {
-        dayClasses += ' bg-blue-50 border-blue-400 border-2 ring-2 ring-blue-200';
+        // Aujourd'hui (bleu)
+        dayClasses += ' bg-blue-50 border-blue-400 border-2 ring-2 ring-blue-200 dark:bg-blue-900/20 dark:border-blue-700 dark:ring-blue-700/50';
+        numberClasses += ' text-blue-600 dark:text-blue-400';
       } else if (holiday) {
-        dayClasses += ` ${getHolidayColor(holiday.type)} border-2`;
+        // Jours fériés (utilise la fonction getHolidayColor)
+        const holidayColorClass = getHolidayColor(holiday.type); // Ex: bg-red-50 border-red-200
+        const isCivil = holiday.type === 'civil';
+        const darkColorClass = isCivil ? 'bg-red-900/10 border-red-700' : 'bg-green-900/10 border-green-700'; // Simplifié pour le Dark Mode
+        
+        dayClasses += ` ${holidayColorClass} border-2 dark:${darkColorClass}`;
+        numberClasses += ' text-red-600 dark:text-red-400';
       } else if (isSundayDay) {
-        dayClasses += ' bg-red-50 border-red-200';
+        // Dimanche (rouge clair)
+        dayClasses += ' bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-700';
+        numberClasses += ' text-red-500 dark:text-red-400';
       } else {
-        dayClasses += ' bg-white';
+        // Jours normaux (blanc/surface)
+        dayClasses += ' bg-white dark:bg-dark-surface';
+        numberClasses += ' text-gray-700 dark:text-dark-text';
       }
 
       days.push(
         <div key={day} className={dayClasses}>
           {/* En-tête du jour */}
           <div className="flex items-center justify-between mb-1">
-            <div className={`text-sm font-semibold ${
-              isToday ? 'text-blue-600' : 
-              holiday ? 'text-red-600' : 
-              isSundayDay ? 'text-red-500' : 
-              'text-gray-700'
-            }`}>
+            <div className={numberClasses}>
               {day}
             </div>
             
-            {/* ✅ NOUVEAU : Icône pour les jours fériés */}
+            {/* Icône pour les jours fériés */}
             {holiday && (
-              <Flag className="w-3 h-3 text-red-600" title={holiday.title} />
+              <Flag className="w-3 h-3 text-red-600 dark:text-red-400" title={holiday.title} />
             )}
           </div>
 
-          {/* ✅ NOUVEAU : Nom du jour férié */}
+          {/* Nom du jour férié */}
           {holiday && (
-            <div className="text-[9px] font-semibold text-red-700 mb-1 leading-tight">
+            <div className="text-[9px] font-semibold text-red-700 dark:text-red-300 mb-1 leading-tight">
               🇨🇲 {holiday.title}
             </div>
           )}
@@ -189,17 +203,20 @@ const Calendar = ({ month, year }) => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <p className="text-red-600 text-sm">Erreur de chargement du calendrier</p>
+      // Support Dark Mode pour le message d'erreur
+      <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm dark:shadow-none border border-gray-200 dark:border-dark-border p-4">
+        <p className="text-red-600 dark:text-red-400 text-sm">Erreur de chargement du calendrier</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    // Support Dark Mode pour le conteneur principal
+    <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm dark:shadow-none border border-gray-200 dark:border-dark-border p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 capitalize flex items-center gap-2">
-          <CalendarIcon className="w-5 h-5 text-blue-600" />
+        {/* Support Dark Mode pour le titre */}
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text capitalize flex items-center gap-2">
+          <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           {getMonthName()}
         </h3>
       </div>
@@ -211,11 +228,12 @@ const Calendar = ({ month, year }) => {
       ) : (
         <>
           <div className="grid grid-cols-7 gap-0 mb-2">
+            {/* Jours de la semaine - Support Dark Mode pour le texte */}
             {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map((day, index) => (
               <div 
                 key={day} 
                 className={`text-center text-xs font-semibold py-2 ${
-                  index === 0 ? 'text-red-600' : 'text-gray-600'
+                  index === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-dark-text-secondary'
                 }`}
               >
                 {day}
@@ -227,38 +245,38 @@ const Calendar = ({ month, year }) => {
             {renderCalendarDays()}
           </div>
 
-          {/* ✅ NOUVEAU : Légende avec jours fériés */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          {/* Légende - Support Dark Mode */}
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-dark-border">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-dark-text mb-3 flex items-center gap-2">
               <Flag className="w-4 h-4" />
               Légende :
             </h4>
             
-            {/* Légende des types de jours */}
+            {/* Légende des types de jours - Support Dark Mode pour le texte et les couleurs des blocs */}
             <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-100 border-2 border-red-300 rounded"></div>
-                <span className="text-gray-700">Jours fériés civils</span>
+                <div className="w-4 h-4 bg-red-100 border-2 border-red-300 dark:bg-red-900/30 dark:border-red-700 rounded"></div>
+                <span className="text-gray-700 dark:text-dark-text">Jours fériés civils</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-100 border-2 border-green-300 rounded"></div>
-                <span className="text-gray-700">Fête Nationale</span>
+                <div className="w-4 h-4 bg-green-100 border-2 border-green-300 dark:bg-green-900/30 dark:border-green-700 rounded"></div>
+                <span className="text-gray-700 dark:text-dark-text">Fête Nationale</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-purple-100 border-2 border-purple-300 rounded"></div>
-                <span className="text-gray-700">Fériés chrétiens</span>
+                <div className="w-4 h-4 bg-purple-100 border-2 border-purple-300 dark:bg-purple-900/30 dark:border-purple-700 rounded"></div>
+                <span className="text-gray-700 dark:text-dark-text">Fériés chrétiens</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-teal-100 border-2 border-teal-300 rounded"></div>
-                <span className="text-gray-700">Fériés musulmans</span>
+                <div className="w-4 h-4 bg-teal-100 border-2 border-teal-300 dark:bg-teal-900/30 dark:border-teal-700 rounded"></div>
+                <span className="text-gray-700 dark:text-dark-text">Fériés musulmans</span>
               </div>
             </div>
 
             {/* Légende des permissions */}
             {permissions.length > 0 && (
               <>
-                <div className="border-t pt-3 mb-2">
-                  <p className="text-xs font-semibold text-gray-600 mb-2">Permissions en cours :</p>
+                <div className="border-t border-gray-200 dark:border-dark-border pt-3 mb-2">
+                  <p className="text-xs font-semibold text-gray-600 dark:text-dark-text-secondary mb-2">Permissions en cours :</p>
                 </div>
                 <div className="space-y-1">
                   {permissions.slice(0, 3).map((permission, index) => {
@@ -269,14 +287,14 @@ const Calendar = ({ month, year }) => {
                     return (
                       <div key={permission.id} className="flex items-center gap-2 text-xs">
                         <div className={`w-3 h-3 rounded-full flex-shrink-0 ${getColorForPermission(index)}`}></div>
-                        <span className="text-gray-700 truncate">
+                        <span className="text-gray-700 dark:text-dark-text truncate">
                           {userName} - {startDate.toLocaleDateString('fr-FR')} au {endDate.toLocaleDateString('fr-FR')}
                         </span>
                       </div>
                     );
                   })}
                   {permissions.length > 3 && (
-                    <div className="text-xs text-gray-500 italic">
+                    <div className="text-xs text-gray-500 dark:text-dark-text-secondary italic">
                       ... et {permissions.length - 3} autre(s)
                     </div>
                   )}

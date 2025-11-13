@@ -1,4 +1,4 @@
-// frontend/src/components/MyTasks.jsx - VERSION COMPLÈTE AVEC WORKFLOW COMPTABLE ET ACTION COMBINÉE DG
+// frontend/src/components/MyTasks.jsx - VERSION COMPLÈTE AVEC WORKFLOW COMPTABLE, ACTION COMBINÉE DG ET SUPPORT DARK MODE
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { workflowAPI, listsAPI, documentsAPI } from '../services/api';
@@ -20,7 +20,7 @@ import jsPDF from 'jspdf';
 
 const MAX_SELECTION = 20;
 const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com';
-const DG_EMAIL = 'hopitalcameroun@ordredemaltefrance.org'; // ✅ NOUVEAU
+const DG_EMAIL = 'hopitalcameroun@ordredemaltefrance.org'; 
 
 const MyTasks = () => {
   const { user } = useAuth();
@@ -242,27 +242,15 @@ const MyTasks = () => {
   const isMG = () => user?.email === 'hsjm.moyengeneraux@gmail.com';
   const isBiomedical = () => user?.email === 'hsjm.cellulebiomedicale@gmail.com';
   const isComptable = () => user?.email === COMPTABLE_EMAIL;
-  const isDG = () => user?.email === DG_EMAIL; // ✅ NOUVEAU
+  const isDG = () => user?.email === DG_EMAIL;
   
-  // Définissez cette variable au début du composant pour la réutiliser
   const ROLES_FOR_COMBINED_ACTION = ['admin', 'director', 'validator'];
-  // Fonction helper pour l'action combinée
   const canUseCombinedAction = () => {
-  // 1. Vérifier si l'utilisateur a un des rôles autorisés
-  const isAuthorizedRole = user?.role && ROLES_FOR_COMBINED_ACTION.includes(user.role);
-  
-  // 2. Vérifier si l'utilisateur a les chemins de signature ET de cachet enregistrés
-  const hasSignatureAndStamp = user?.signaturePath && user?.stampPath;
-  
-  // La permission est donnée si l'utilisateur a un rôle privilégié ET les deux images sont enregistrées.
-  // NOTE : Si vous voulez que TOUT le monde puisse le faire, supprimez isPrivilegedUser
-  return isAuthorizedRole && hasSignatureAndStamp;
-  // Pour tout le monde (solution que vous avez demandée, mais moins sécurisée) : 
-  // return hasSignatureAndStamp;
+    const isAuthorizedRole = user?.role && ROLES_FOR_COMBINED_ACTION.includes(user.role);
+    const hasSignatureAndStamp = user?.signaturePath && user?.stampPath;
+    return isAuthorizedRole && hasSignatureAndStamp;
   };
 
-  // --- DÉCLARATION DES VARIABLES DE DÉBOGAGE ICI ---
-// Ces variables doivent être déclarées avant le return du composant
   const debugCombinedAction = canUseCombinedAction();
   const isDirectorOrAdmin = user?.role === 'admin' || user?.role === 'director';
   const hasSignatureAndStamp = user?.signaturePath && user?.stampPath;
@@ -272,47 +260,46 @@ const MyTasks = () => {
   };
 
   const openProcessingModal = (task) => {
-  setTaskToProcess(task);
-  setComment(task.comment || '');
-  const metadata = task.document?.metadata || {};
-  
-  if (isWorkRequest(task) && isMG()) {
-    setDemandeBesoinsData(prev => ({ 
-      ...prev, 
-      service: metadata.service || '', 
-      reference: `DT-${task.document.id.slice(0, 8)}`, 
-      justification: `Suite à la demande de travaux concernant: ${metadata.motif || ''}` 
-    }));
-  }
-  
-  if (isWorkRequest(task) && isBiomedical()) {
-    setFicheSuiviData(prev => ({ 
-      ...prev, 
-      service: metadata.service || '', 
-      equipement: metadata.motif || '' 
-    }));
-  }
-  
-  // ✅ MODIFIÉ : Préparer la PC pour tous les documents du comptable
-  if (needsPieceDeCaisse(task)) {
-    const docTitle = task.document.title || 'Document';
-    const docCategory = task.document.category || 'Document';
+    setTaskToProcess(task);
+    setComment(task.comment || '');
+    const metadata = task.document?.metadata || {};
     
-    setPieceDeCaisseData({
-      nom: metadata.nom_missionnaire || metadata.noms_prenoms || '',
-      date: new Date().toLocaleDateString('fr-FR'),
-      concerne: `Pièce justificative - ${docCategory}: ${docTitle}`,
-      lines: [{ 
-        refCompta: '', 
-        libelle: `${docCategory} - ${metadata.service || metadata.service_demandeur || ''}`, 
-        refGage: '', 
-        entrees: '', 
-        sorties: '' 
-      }],
-      totalEnLettres: ''
-    });
-  }
-};
+    if (isWorkRequest(task) && isMG()) {
+      setDemandeBesoinsData(prev => ({ 
+        ...prev, 
+        service: metadata.service || '', 
+        reference: `DT-${task.document.id.slice(0, 8)}`, 
+        justification: `Suite à la demande de travaux concernant: ${metadata.motif || ''}` 
+      }));
+    }
+    
+    if (isWorkRequest(task) && isBiomedical()) {
+      setFicheSuiviData(prev => ({ 
+        ...prev, 
+        service: metadata.service || '', 
+        equipement: metadata.motif || '' 
+      }));
+    }
+    
+    if (needsPieceDeCaisse(task)) {
+      const docTitle = task.document.title || 'Document';
+      const docCategory = task.document.category || 'Document';
+      
+      setPieceDeCaisseData({
+        nom: metadata.nom_missionnaire || metadata.noms_prenoms || '',
+        date: new Date().toLocaleDateString('fr-FR'),
+        concerne: `Pièce justificative - ${docCategory}: ${docTitle}`,
+        lines: [{ 
+          refCompta: '', 
+          libelle: `${docCategory} - ${metadata.service || metadata.service_demandeur || ''}`, 
+          refGage: '', 
+          entrees: '', 
+          sorties: '' 
+        }],
+        totalEnLettres: ''
+      });
+    }
+  };
 
   const closeProcessingModal = () => {
     setTaskToProcess(null);
@@ -336,9 +323,9 @@ const MyTasks = () => {
     
     const isBypass = taskToProcess.status === 'queued' && canBypassValidation(taskToProcess);
     if (isBypass && ['approve', 'simple_approve', 'approve_sign_stamp'].includes(action)) {
-      const hoursOverdue = getHoursOverdue(
-        taskToProcess.document.workflows.find(w => w.status === 'pending' && w.step < taskToProcess.step)
-      );
+      const pendingTask = taskToProcess.document.workflows.find(w => w.status === 'pending' && w.step < taskToProcess.step);
+      const hoursOverdue = pendingTask ? getHoursOverdue(pendingTask) : 0;
+      
       const confirm = window.confirm(
         `⚠️ VALIDATION EN BYPASS\n\n` +
         `Le validateur précédent est en retard de ${hoursOverdue}h.\n` +
@@ -363,7 +350,6 @@ const MyTasks = () => {
         payload.status = 'approved';
         payload.validationType = 'signature';
       } else if (action === 'approve_sign_stamp') {
-        // ✅ NOUVEAU : Action combinée pour le DG
         payload.validationType = 'approve_sign_stamp';
       } else if (action === 'reject') {
         payload.status = 'rejected';
@@ -389,16 +375,13 @@ const MyTasks = () => {
         alert('Cachet apposé avec succès !');
         closeProcessingModal();
       } else if (action === 'approve_sign_stamp') {
-        // ✅ NOUVEAU
-        alert('✅ Document approuvé, signé et cacheté avec succès par le DG !');
+        alert('✅ Document approuvé, signé et cacheté avec succès !');
         closeProcessingModal();
-      } else if (['reject', 'simple_approve'].includes(action)) {
+      } else if (['reject', 'simple_approve'].includes(action) || action === 'dater') {
         alert('Tâche traitée avec succès !');
         closeProcessingModal();
       } else if (action === 'approve') {
         alert('Document signé avec succès !');
-      } else if (action === 'dater') {
-        alert('Dateur apposé !');
       }
 
     } catch (err) {
@@ -419,78 +402,58 @@ const MyTasks = () => {
   };
   
   const handleSubmitPieceDeCaisseFromOM = async () => {
-  setSubmittingDB(true);
-  setError('');
-  
-  try {
-    if (!piecePdfRef.current) throw new Error('Référence PDF introuvable');
+    setSubmittingDB(true);
+    setError('');
     
-    const nonPrintableElements = piecePdfRef.current.querySelectorAll('.not-printable');
-    nonPrintableElements?.forEach(el => el.style.display = 'none');
-    const canvas = await html2canvas(piecePdfRef.current, { scale: 2, logging: false, useCORS: true });
-    nonPrintableElements?.forEach(el => el.style.display = 'block');
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
-    const pdfBlob = pdf.output('blob');
-    
-    const uploadData = new FormData();
-    const fileName = `Piece_Caisse_${taskToProcess.document.category.replace(/\s/g, '_')}_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
-    uploadData.append('file', pdfBlob, fileName);
-    uploadData.append('title', `Pièce de caisse - ${pieceDeCaisseData.concerne}`);
-    uploadData.append('category', 'Pièce de caisse');
-    
-    // ✅ TOUJOURS linkedOrdreMissionId (pas linkedDocumentId)
-    uploadData.append('linkedOrdreMissionId', taskToProcess.document.id);
-    console.log('🔗 Liaison document depuis modal:', taskToProcess.document.id);
-    console.log('📄 Type de document:', taskToProcess.document.category);
-    
-    // Metadata sans linkedOrdreMissionId
-    uploadData.append('metadata', JSON.stringify({
-      nom: pieceDeCaisseData.nom,
-      concerne: pieceDeCaisseData.concerne
-    }));
-    
-    // ✅ Log pour debug
-    console.log('📤 Upload depuis modal MyTasks:');
-    for (let pair of uploadData.entries()) {
-      if (pair[0] !== 'file') {
-        console.log(`   ${pair[0]}:`, pair[1]);
-      }
+    try {
+      if (!piecePdfRef.current) throw new Error('Référence PDF introuvable');
+      
+      const nonPrintableElements = piecePdfRef.current.querySelectorAll('.not-printable');
+      nonPrintableElements?.forEach(el => el.style.display = 'none');
+      const canvas = await html2canvas(piecePdfRef.current, { scale: 2, logging: false, useCORS: true });
+      nonPrintableElements?.forEach(el => el.style.display = 'block');
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+      const pdfBlob = pdf.output('blob');
+      
+      const uploadData = new FormData();
+      const fileName = `Piece_Caisse_${taskToProcess.document.category.replace(/\s/g, '_')}_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
+      uploadData.append('file', pdfBlob, fileName);
+      uploadData.append('title', `Pièce de caisse - ${pieceDeCaisseData.concerne}`);
+      uploadData.append('category', 'Pièce de caisse');
+      
+      uploadData.append('linkedOrdreMissionId', taskToProcess.document.id);
+      
+      uploadData.append('metadata', JSON.stringify({
+        nom: pieceDeCaisseData.nom,
+        concerne: pieceDeCaisseData.concerne
+      }));
+      
+      const uploadResponse = await documentsAPI.upload(uploadData);
+      
+      await workflowAPI.validateTask(taskToProcess.id, {
+        status: 'approved',
+        comment: `Pièce de caisse créée et fusionnée (${fileName}). Processus complété.`,
+        validationType: 'simple_approve'
+      });
+      
+      alert(
+        uploadResponse.data.data.metadata?.fusionné
+          ? `✅ Pièce de caisse créée et fusionnée avec ${taskToProcess.document.category}!\n\nLe document final contient les deux documents.`
+          : `✅ Pièce de caisse créée avec succès!\n\nLe processus est maintenant complet.`
+      );
+      closeProcessingModal();
+      
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la création de la Pièce de caisse.');
+      console.error('❌ Erreur Pièce de caisse:', err);
+      alert(`Erreur: ${err.response?.data?.message || 'Impossible de créer la Pièce de caisse'}`);
+    } finally {
+      setSubmittingDB(false);
     }
-    
-    const uploadResponse = await documentsAPI.upload(uploadData);
-    console.log('✅ Réponse upload:', uploadResponse.data);
-    
-    // Vérifier si la fusion a réussi
-    if (uploadResponse.data.data.metadata?.fusionné) {
-      console.log('✅ Fusion réussie!');
-    } else if (uploadResponse.data.data.metadata?.fusionError) {
-      console.warn('⚠️ Erreur fusion:', uploadResponse.data.data.metadata.fusionError);
-    }
-    
-    await workflowAPI.validateTask(taskToProcess.id, {
-      status: 'approved',
-      comment: `Pièce de caisse créée et fusionnée (${fileName}). Processus complété.`,
-      validationType: 'simple_approve'
-    });
-    
-    alert(
-      uploadResponse.data.data.metadata?.fusionné
-        ? `✅ Pièce de caisse créée et fusionnée avec ${taskToProcess.document.category}!\n\nLe document final contient les deux documents.`
-        : `✅ Pièce de caisse créée avec succès!\n\nLe processus est maintenant complet.`
-    );
-    closeProcessingModal();
-    
-  } catch (err) {
-    setError(err.response?.data?.message || 'Erreur lors de la création de la Pièce de caisse.');
-    console.error('❌ Erreur Pièce de caisse:', err);
-    alert(`Erreur: ${err.response?.data?.message || 'Impossible de créer la Pièce de caisse'}`);
-  } finally {
-    setSubmittingDB(false);
-  }
-};
+  };
   
   const handleSubmitDemandeBesoins = async () => {
     setSubmittingDB(true);
@@ -633,12 +596,13 @@ const MyTasks = () => {
   const formatDate = (date) => new Date(date).toLocaleString('fr-FR');
   
   const getStatusBadge = (status) => {
+    // Badges de statut - Support Dark Mode
     const styles = { 
-      pending: 'bg-yellow-100 text-yellow-800', 
-      approved: 'bg-green-100 text-green-800', 
-      rejected: 'bg-red-100 text-red-800', 
-      en_pause: 'bg-purple-100 text-purple-800',
-      queued: 'bg-gray-100 text-gray-600'
+      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200', 
+      approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200', 
+      rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200', 
+      en_pause: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200',
+      queued: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
     };
     const icons = { 
       pending: Clock, 
@@ -656,7 +620,7 @@ const MyTasks = () => {
       queued: 'File d\'attente'
     };
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
         <Icon className="w-3 h-3 mr-1" />
         {labels[status] || status}
       </span>
@@ -667,7 +631,8 @@ const MyTasks = () => {
     if (!isTaskOverdue(task)) return null;
     const hoursOverdue = getHoursOverdue(task);
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 animate-pulse">
+      // Badge Retard - Support Dark Mode
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700 animate-pulse">
         <AlertTriangle className="w-3 h-3 mr-1" />
         ⚠️ Retard +{hoursOverdue}h
       </span>
@@ -677,7 +642,8 @@ const MyTasks = () => {
   const getBypassBadge = (task) => {
     if (task.status !== 'queued' || !canBypassValidation(task)) return null;
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-300">
+      // Badge Bypass - Support Dark Mode
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700">
         <AlertTriangle className="w-3 h-3 mr-1" />
         🚀 Validation possible (bypass)
       </span>
@@ -694,59 +660,67 @@ const MyTasks = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Mes tâches de validation</h1>
+      {/* Titre - Support Dark Mode */}
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-dark-text mb-6">Mes tâches de validation</h1>
       
+      {/* Message d'erreur - Support Dark Mode */}
       {error && (
-        <div className="bg-red-100 border border-red-300 text-red-700 p-4 rounded-lg mb-4">
+        <div className="bg-red-100 dark:bg-red-900/10 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 p-4 rounded-lg mb-4">
           {error}
         </div>
       )}
       
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg border flex flex-col md:flex-row justify-between items-center gap-4">
+      {/* Conteneur de Filtres - Support Dark Mode */}
+      <div className="mb-6 p-4 bg-gray-50 dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Boutons de filtre - Support Dark Mode */}
           {['pending', 'approved','rejected', 'all'].map(status => (
-            <button key={status} onClick={() => setFilter(status)} className={`px-4 py-2 text-sm font-medium rounded-md transition ${filter === status ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
+            <button key={status} onClick={() => setFilter(status)} className={`px-4 py-2 text-sm font-medium rounded-md transition ${filter === status ? 'bg-blue-600 text-white shadow dark:bg-blue-700' : 'text-gray-600 dark:text-dark-text-secondary hover:bg-gray-200 dark:hover:bg-gray-700 dark:bg-dark-bg'}`}>
               {{pending: 'En attente', approved: 'Approuvées', rejected: 'Rejetées', all: 'Toutes'}[status]} ({tasks.filter(t => status === 'all' || t.status === status).length})
             </button>
           ))}
         </div>
         
         <div className="flex items-center gap-4 flex-wrap">
-          <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="px-3 py-2 border rounded-md text-sm bg-white">
+          {/* Select Services - Support Dark Mode */}
+          <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="px-3 py-2 border rounded-md text-sm bg-white dark:bg-dark-bg dark:text-dark-text dark:border-dark-border">
             <option value="all">Tous les services</option>
             {services.map(s => (<option key={s.id} value={s.name}>{s.name}</option>))}
           </select>
-          <select onChange={(e) => setSortConfig({ ...sortConfig, key: e.target.value })} value={sortConfig.key} className="px-3 py-2 border rounded-md text-sm bg-white">
+          {/* Select Trier par - Support Dark Mode */}
+          <select onChange={(e) => setSortConfig({ ...sortConfig, key: e.target.value })} value={sortConfig.key} className="px-3 py-2 border rounded-md text-sm bg-white dark:bg-dark-bg dark:text-dark-text dark:border-dark-border">
             <option value="createdAt">Trier par Date</option>
             <option value="service">Trier par Service</option>
           </select>
         </div>
 
         {(user?.role === 'director' || user?.role === 'admin') && (
-          <button onClick={handleToggleSelectionMode} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition ${isInSelectionMode ? 'bg-red-500 text-white' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'}`}>
+          <button onClick={handleToggleSelectionMode} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition ${isInSelectionMode ? 'bg-red-500 text-white' : 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50'}`}>
             {isInSelectionMode ? <X size={18} /> : <ListChecks size={18} />}
             {isInSelectionMode ? 'Annuler' : 'Validation en masse'}
           </button>
         )}
       </div>
 
+      {/* Barre de Sélection en Masse - Support Dark Mode */}
       {isInSelectionMode && (
-        <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg flex justify-between items-center">
+        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-500 dark:border-blue-700 rounded-r-lg flex justify-between items-center">
           <div>
-            <h3 className="font-bold text-blue-900">Mode Sélection Activé</h3>
-            <p className="text-sm text-blue-700">{selectedTaskIds.length} / {MAX_SELECTION} document(s) sélectionné(s)</p>
+            <h3 className="font-bold text-blue-900 dark:text-blue-300">Mode Sélection Activé</h3>
+            <p className="text-sm text-blue-700 dark:text-blue-400">{selectedTaskIds.length} / {MAX_SELECTION} document(s) sélectionné(s)</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleSelectAll} className="px-3 py-1 text-sm bg-white border rounded hover:bg-gray-50">Tout sélectionner</button>
-            <button onClick={handleDeselectAll} className="px-3 py-1 text-sm bg-white border rounded hover:bg-gray-50">Tout désélectionner</button>
+            <button onClick={handleSelectAll} className="px-3 py-1 text-sm bg-white dark:bg-dark-surface dark:text-dark-text border rounded hover:bg-gray-50 dark:hover:bg-gray-700">Tout sélectionner</button>
+            <button onClick={handleDeselectAll} className="px-3 py-1 text-sm bg-white dark:bg-dark-surface dark:text-dark-text border rounded hover:bg-gray-50 dark:hover:bg-gray-700">Tout désélectionner</button>
           </div>
         </div>
       )}
       
       <div className="space-y-6">
         {filteredAndSortedTasks.length === 0 ? (
-          <div className="text-center py-16 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">Aucune tâche dans cette catégorie.</p>
+          // Message aucune tâche - Support Dark Mode
+          <div className="text-center py-16 bg-gray-50 dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border">
+            <p className="text-gray-500 dark:text-dark-text-secondary">Aucune tâche dans cette catégorie.</p>
           </div>
         ) : (
           filteredAndSortedTasks.map((task) => {
@@ -757,7 +731,13 @@ const MyTasks = () => {
             const isBypassable = task.status === 'queued' && canBypassValidation(task);
 
             return (
-              <div key={task.id} className={`bg-white p-4 rounded-lg shadow-md border transition-all flex items-start gap-4 ${isSelected ? 'border-blue-600 ring-2 ring-blue-500' : isOverdue ? 'border-red-400 bg-red-50' : isBypassable ? 'border-orange-400 bg-orange-50' : 'hover:border-blue-500'}`}>
+              // Carte de tâche - Support Dark Mode
+              <div key={task.id} className={`bg-white dark:bg-dark-surface p-4 rounded-lg shadow-md border transition-all flex items-start gap-4 
+                ${isSelected ? 'border-blue-600 ring-2 ring-blue-500 dark:ring-blue-400 dark:border-blue-400' : 
+                  isOverdue ? 'border-red-400 bg-red-50 dark:bg-red-900/10 dark:border-red-700' : 
+                  isBypassable ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/10 dark:border-orange-700' : 
+                  'hover:border-blue-500 dark:border-gray-700'}`
+              }>
                 {isInSelectionMode && (
                   <div className="flex items-center h-full pt-1">
                     <input type="checkbox" checked={isSelected} disabled={isDisabledForSelection} onChange={() => handleTaskSelection(task.id)} className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-200"/>
@@ -767,28 +747,31 @@ const MyTasks = () => {
                   <div className="flex flex-col md:flex-row items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-4 mb-3 flex-wrap">
-                        <h3 className="text-xl font-semibold">{task.document.title}</h3>
+                        {/* Titre de tâche - Support Dark Mode */}
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-dark-text">{task.document.title}</h3>
                         {getStatusBadge(task.status)}
                         {getOverdueBadge(task)}
                         {getBypassBadge(task)}
+                        {/* Badges spécifiques - Support Dark Mode */}
                         {task.document.category === 'Ordre de mission' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700">
                             📋 4 signatures + Comptable
                           </span>
                         )}
                         {needsPieceDeCaisse(task) && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300 animate-pulse">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700 animate-pulse">
                             💰 Créer Pièce de caisse
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600">
+                      {/* Métadonnées de tâche - Support Dark Mode */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600 dark:text-dark-text-secondary">
                         <p className="flex items-center gap-2"><User size={14} /> Soumis par: <strong>{task.document.uploadedBy?.firstName || 'Inconnu'}</strong></p>
                         <p className="flex items-center gap-2"><Calendar size={14} /> Le: <strong>{formatDate(task.createdAt)}</strong></p>
                         {task.assignedAt && task.status === 'pending' && (
                           <p className="flex items-center gap-2">
-                            <Clock size={14} className={isOverdue ? 'text-red-600' : ''} /> 
-                            Assigné depuis: <strong className={isOverdue ? 'text-red-600 font-bold' : ''}>
+                            <Clock size={14} className={isOverdue ? 'text-red-600 dark:text-red-400' : ''} /> 
+                            Assigné depuis: <strong className={isOverdue ? 'text-red-600 dark:text-red-400 font-bold' : ''}>
                               {Math.floor((new Date() - new Date(task.assignedAt)) / (1000 * 60 * 60))}h
                             </strong>
                           </p>
@@ -797,28 +780,29 @@ const MyTasks = () => {
                           <p className="flex items-center gap-2"><Filter size={14} /> Service: <strong>{task.document.metadata.service}</strong></p>
                         )}
                       </div>
+                      {/* Messages d'alerte - Support Dark Mode */}
                       {isOverdue && (
-                        <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg flex items-start gap-2">
-                          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-sm text-red-800">
+                        <div className="mt-3 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-2">
+                          <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-sm text-red-800 dark:text-red-300">
                             <p className="font-semibold">⚠️ Cette tâche est en retard de {getHoursOverdue(task)} heures</p>
                             <p className="text-xs mt-1">Les validateurs suivants peuvent maintenant valider ce document.</p>
                           </div>
                         </div>
                       )}
                       {isBypassable && (
-                        <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg flex items-start gap-2">
-                          <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-sm text-orange-800">
+                        <div className="mt-3 p-3 bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700 rounded-lg flex items-start gap-2">
+                          <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-sm text-orange-800 dark:text-orange-300">
                             <p className="font-semibold">🚀 Validation en bypass disponible</p>
                             <p className="text-xs mt-1">Le validateur précédent est en retard. Vous pouvez valider ce document.</p>
                           </div>
                         </div>
                       )}
                       {needsPieceDeCaisse(task) && (
-                        <div className="mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded-lg flex items-start gap-2">
-                          <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-sm text-yellow-800">
+                        <div className="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg flex items-start gap-2">
+                          <FileText className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-sm text-yellow-800 dark:text-yellow-300">
                             <p className="font-semibold">💰 Action comptable - Créer Pièce de caisse</p>
                             <p className="text-xs mt-1">
                               Ce document nécessite une Pièce de caisse. Le document sera joint automatiquement comme pièce justificative.
@@ -827,14 +811,15 @@ const MyTasks = () => {
                         </div>
                       )}
                     </div>
+                    {/* Boutons d'action - Support Dark Mode */}
                     <div className="flex items-center gap-3 flex-shrink-0 mt-4 md:mt-0">
-                      <button onClick={() => setTaskForPreview(task)} className="p-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200" title="Aperçu rapide"><ZoomIn size={18} /></button>
-                      <button onClick={() => setViewingDocument(task.document)} className="p-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200" title="Voir le document complet"><Eye size={18} /></button>
+                      <button onClick={() => setTaskForPreview(task)} className="p-2 bg-gray-100 dark:bg-dark-bg text-gray-800 dark:text-dark-text rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700" title="Aperçu rapide"><ZoomIn size={18} /></button>
+                      <button onClick={() => setViewingDocument(task.document)} className="p-2 bg-gray-100 dark:bg-dark-bg text-gray-800 dark:text-dark-text rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700" title="Voir le document complet"><Eye size={18} /></button>
                       {(task.status === 'pending' || isBypassable) && (
                         <button onClick={() => openProcessingModal(task)} className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg font-medium transition shadow ${
-                          needsPieceDeCaisse(task) ? 'bg-yellow-600 hover:bg-yellow-700' :
-                          isBypassable ? 'bg-orange-600 hover:bg-orange-700' : 
-                          'bg-blue-600 hover:bg-blue-700'
+                          needsPieceDeCaisse(task) ? 'bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-600' :
+                          isBypassable ? 'bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600' : 
+                          'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600'
                         }`}>
                           <CheckCircle size={16} />
                           {needsPieceDeCaisse(task) ? 'Créer Pièce de caisse' : isBypassable ? 'Valider (Bypass)' : 'Traiter'}
@@ -842,7 +827,8 @@ const MyTasks = () => {
                       )}
                     </div>
                   </div>
-                  <div className="border-t mt-4 pt-4">
+                  {/* Progression du Workflow - Support Dark Mode pour la bordure */}
+                  <div className="border-t border-gray-200 dark:border-dark-border mt-4 pt-4">
                     <WorkflowProgress workflows={task.document.workflows} documentStatus={task.document.status} />
                   </div>
                 </div>
@@ -861,28 +847,30 @@ const MyTasks = () => {
         disabled={bulkActionLoading} 
       />
       
+      {/* QuickPreviewModal (doit être mis à jour séparément si nécessaire) */}
       {taskForPreview && (
         <QuickPreviewModal task={taskForPreview} onClose={() => setTaskForPreview(null)} />
       )}
       
-      {/* Modal de traitement principal */}
+      {/* Modal de traitement principal - Support Dark Mode */}
       {taskToProcess && !showDemandeBesoins && !showFicheSuivi && !showDBFromFS && !showValidatorsSelection && !showPieceDeCaisseFromOM && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex max-h-[90vh] overflow-hidden">
-            <div className="w-1/2 p-6 border-r flex flex-col overflow-y-auto">
-              <h2 className="text-2xl font-bold mb-4">Traiter le document</h2>
-              <p className="text-sm text-gray-600 mt-1 mb-4">
+          <div className="bg-white dark:bg-dark-surface rounded-lg shadow-xl w-full max-w-2xl flex max-h-[90vh] overflow-hidden">
+            {/* Colonne Gauche (Actions) - Support Dark Mode */}
+            <div className="w-1/2 p-6 border-r border-gray-200 dark:border-dark-border flex flex-col overflow-y-auto">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-4">Traiter le document</h2>
+              <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-1 mb-4">
                 Document: <strong>{taskToProcess.document.title}</strong>
               </p>
               
-              {/* ✅ MODIFIÉ : Message générique pour tous les documents */}
+              {/* Message Pièce de caisse - Support Dark Mode */}
               {needsPieceDeCaisse(taskToProcess) && (
-                <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/10 border-2 border-yellow-300 dark:border-yellow-700 rounded-lg">
                   <div className="flex items-start gap-3">
-                    <FileText className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <FileText className="w-6 h-6 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="font-bold text-yellow-900 mb-2">💰 Créer la Pièce de caisse</h3>
-                      <p className="text-sm text-yellow-800">
+                      <h3 className="font-bold text-yellow-900 dark:text-yellow-300 mb-2">💰 Créer la Pièce de caisse</h3>
+                      <p className="text-sm text-yellow-800 dark:text-yellow-400">
                         Ce document (<strong>{taskToProcess.document.category}</strong>) nécessite une Pièce de caisse. 
                         Le document sera automatiquement joint comme pièce justificative.
                       </p>
@@ -891,13 +879,14 @@ const MyTasks = () => {
                 </div>
               )}
               
+              {/* Message Bypass - Support Dark Mode */}
               {taskToProcess.status === 'queued' && canBypassValidation(taskToProcess) && (
-                <div className="mb-4 p-4 bg-orange-50 border-2 border-orange-300 rounded-lg">
+                <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-900/10 border-2 border-orange-300 dark:border-orange-700 rounded-lg">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-6 h-6 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="font-bold text-orange-900 mb-2">🚀 Validation en Bypass</h3>
-                      <p className="text-sm text-orange-800">
+                      <h3 className="font-bold text-orange-900 dark:text-orange-300 mb-2">🚀 Validation en Bypass</h3>
+                      <p className="text-sm text-orange-800 dark:text-orange-400">
                         Le validateur précédent est en retard de{' '}
                         <strong>
                           {getHoursOverdue(
@@ -913,69 +902,69 @@ const MyTasks = () => {
                 </div>
               )}
               
+              {/* Commentaire - Support Dark Mode */}
               <textarea 
                 value={comment} 
                 onChange={(e) => setComment(e.target.value)} 
                 placeholder="Ajouter un commentaire (requis si rejet)..." 
-                className="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500" 
+                className="w-full p-3 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-lg mb-4 focus:ring-2 focus:ring-blue-500" 
                 rows="3" 
               />
               
               <div className="space-y-3 flex-grow">
-                <h3 className="font-semibold text-gray-700">Actions disponibles :</h3>
+                <h3 className="font-semibold text-gray-700 dark:text-dark-text">Actions disponibles :</h3>
                 
-                {/* ✅ NOUVEAU : Action combinée pour le DG */}
+                {/* Action combinée DG - Support Dark Mode */}
                 {canUseCombinedAction() && taskToProcess.document.fileType === 'application/pdf' && (
                 <>
                   <button 
                     onClick={() => handleAction('approve_sign_stamp')} 
                     disabled={!!actionLoading} 
-                    className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 rounded-lg border-2 border-purple-400 text-left transition shadow-md"
+                    className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 rounded-lg border-2 border-purple-400 text-left transition shadow-md dark:from-dark-bg dark:to-gray-800 dark:hover:from-purple-900/50 dark:hover:to-blue-900/50 dark:border-purple-700"
                   >
                     {actionLoading === 'approve_sign_stamp' ? (
-                      <Loader className="animate-spin w-6 h-6 text-purple-600"/>
+                      <Loader className="animate-spin w-6 h-6 text-purple-600 dark:text-purple-400"/>
                     ) : (
-                      <ShieldCheck className="text-purple-600 w-6 h-6"/>
+                      <ShieldCheck className="text-purple-600 dark:text-purple-400 w-6 h-6"/>
                     )}
                     <div className="flex-1">
-                      <p className="font-bold text-purple-900">Approuver, Signer et Apposer le cachet</p>
-                      {/* On modifie le texte pour généraliser l'action */}
-                      <p className="text-xs text-purple-700 mt-0.5">Action rapide (Nécessite Signature et Cachet)</p> 
+                      <p className="font-bold text-purple-900 dark:text-purple-300">Approuver, Signer et Apposer le cachet</p>
+                      <p className="text-xs text-purple-700 dark:text-purple-400 mt-0.5">Action rapide (Nécessite Signature et Cachet)</p> 
                     </div>
                   </button>
-                  <div className="border-t my-3"></div>
-                  <p className="text-xs text-gray-500 italic">Ou choisissez une action individuelle :</p>
+                  <div className="border-t border-gray-200 dark:border-dark-border my-3"></div>
+                  <p className="text-xs text-gray-500 dark:text-dark-text-secondary italic">Ou choisissez une action individuelle :</p>
                 </>
               )}
                 
-                {/* Actions standards */}
+                {/* Actions standards - Support Dark Mode */}
                 {!needsPieceDeCaisse(taskToProcess) && (
                   <>
                     <button 
                       onClick={() => handleAction('simple_approve')} 
                       disabled={!!actionLoading} 
-                      className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border text-left transition"
+                      className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 dark:bg-dark-bg dark:hover:bg-gray-700 rounded-lg border border-gray-200 dark:border-dark-border text-left transition"
                     >
                       {actionLoading === 'simple_approve' ? (
                         <Loader className="animate-spin w-5 h-5"/>
                       ) : (
-                        <CheckCircle className="text-gray-600"/>
+                        <CheckCircle className="text-gray-600 dark:text-gray-300"/>
                       )}
-                      Validation simple (sans signature)
+                      <span className='text-gray-700 dark:text-dark-text'>Validation simple (sans signature)</span>
                     </button>
                     
                     {user?.signaturePath && (
                       <button 
                         onClick={() => handleAction('approve')} 
                         disabled={!!actionLoading} 
-                        className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border text-left transition"
+                        className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/10 dark:hover:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700 text-left transition"
                       >
                         {actionLoading === 'approve' ? (
-                          <Loader className="animate-spin w-5 h-5" />
+                          <Loader className="animate-spin w-5 h-5 text-blue-600 dark:text-blue-400" />
                         ) : (
-                          <Edit className="text-blue-600"/>
+                          <Edit className="text-blue-600 dark:text-blue-400"/>
                         )}
-                        Approuver et Signer
+                        <span className='text-blue-900 dark:text-blue-300'>Approuver et Signer</span>
                       </button>
                     )}
                     
@@ -983,16 +972,16 @@ const MyTasks = () => {
                       <button 
                         onClick={() => handleAction('stamp')} 
                         disabled={!!actionLoading} 
-                        className="w-full flex items-center gap-3 p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg border text-left transition"
+                        className="w-full flex items-center gap-3 p-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/10 dark:hover:bg-indigo-900/30 rounded-lg border border-indigo-200 dark:border-indigo-700 text-left transition"
                       >
                         {actionLoading === 'stamp' ? (
-                          <Loader className="animate-spin w-5 h-5" />
+                          <Loader className="animate-spin w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                         ) : (
-                          <ShieldCheck className="text-indigo-600"/>
+                          <ShieldCheck className="text-indigo-600 dark:text-indigo-400"/>
                         )}
-                        Apposer le cachet
+                        <span className='text-indigo-900 dark:text-indigo-300'>Apposer le cachet</span>
                         {taskToProcess.document.category === 'Ordre de mission' && (
-                          <span className="text-xs text-indigo-600 ml-auto">
+                          <span className="text-xs text-indigo-600 dark:text-indigo-400 ml-auto">
                             (4 cachets possibles)
                           </span>
                         )}
@@ -1003,28 +992,28 @@ const MyTasks = () => {
                       <button 
                         onClick={() => handleAction('dater')} 
                         disabled={!!actionLoading} 
-                        className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"
+                        className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 dark:bg-teal-900/10 dark:hover:bg-teal-900/30 rounded-lg border border-teal-200 dark:border-teal-700 text-left transition"
                       >
                         {actionLoading === 'dater' ? (
-                          <Loader className="animate-spin w-5 h-5" />
+                          <Loader className="animate-spin w-5 h-5 text-teal-600 dark:text-teal-400" />
                         ) : (
-                          <CalendarPlus className="text-teal-600"/>
+                          <CalendarPlus className="text-teal-600 dark:text-teal-400"/>
                         )}
-                        Apposer le Dateur
+                        <span className='text-teal-900 dark:text-teal-300'>Apposer le Dateur</span>
                       </button>
                     )}
                     
                     {isWorkRequest(taskToProcess) && isMG() && (
                       <>
-                        <div className="border-t my-3"></div>
+                        <div className="border-t border-gray-200 dark:border-dark-border my-3"></div>
                         <button 
                           onClick={handleInitiateDB} 
-                          className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg border text-left transition"
+                          className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/10 dark:hover:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-700 text-left transition"
                         >
-                          <FileText className="text-purple-600"/> 
-                          Initier une Demande de Besoin
+                          <FileText className="text-purple-600 dark:text-purple-400"/> 
+                          <span className='text-purple-900 dark:text-purple-300'>Initier une Demande de Besoin</span>
                         </button>
-                        <p className="text-xs text-gray-500 pl-3">
+                        <p className="text-xs text-gray-500 dark:text-dark-text-secondary pl-3">
                           La DT sera mise en pause en attendant la validation de la DB
                         </p>
                       </>
@@ -1032,15 +1021,15 @@ const MyTasks = () => {
                     
                     {isWorkRequest(taskToProcess) && isBiomedical() && (
                       <>
-                        <div className="border-t my-3"></div>
+                        <div className="border-t border-gray-200 dark:border-dark-border my-3"></div>
                         <button 
                           onClick={handleInitiateFicheSuivi} 
-                          className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg border text-left transition"
+                          className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 dark:bg-teal-900/10 dark:hover:bg-teal-900/30 rounded-lg border border-teal-200 dark:border-teal-700 text-left transition"
                         >
-                          <FileText className="text-teal-600"/> 
-                          Créer Fiche de Suivi d'Équipements
+                          <FileText className="text-teal-600 dark:text-teal-400"/> 
+                          <span className='text-teal-900 dark:text-teal-300'>Créer Fiche de Suivi d'Équipements</span>
                         </button>
-                        <p className="text-xs text-gray-500 pl-3">
+                        <p className="text-xs text-gray-500 dark:text-dark-text-secondary pl-3">
                           La DT sera mise en pause. Vous pourrez ensuite initier une DB si nécessaire.
                         </p>
                       </>
@@ -1048,38 +1037,38 @@ const MyTasks = () => {
                   </>
                 )}
                 
-                {/* ✅ Bouton spécial pour le comptable */}
+                {/* Bouton spécial pour le comptable (Créer Pièce de caisse) - Support Dark Mode */}
                 {needsPieceDeCaisse(taskToProcess) && (
                   <>
                     <button 
                       onClick={handleCreatePieceDeCaisseFromOM} 
-                      className="w-full flex items-center gap-3 p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg border-2 border-yellow-400 text-left transition shadow-sm"
+                      className="w-full flex items-center gap-3 p-4 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/10 dark:hover:bg-yellow-900/30 rounded-lg border-2 border-yellow-400 dark:border-yellow-700 text-left transition shadow-sm"
                     >
-                      <FileText className="text-yellow-600 w-6 h-6"/> 
+                      <FileText className="text-yellow-600 dark:text-yellow-400 w-6 h-6"/> 
                       <div>
-                        <p className="font-semibold text-yellow-900">Créer Pièce de caisse</p>
-                        <p className="text-xs text-yellow-700">Pour finaliser cet Ordre de mission</p>
+                        <p className="font-semibold text-yellow-900 dark:text-yellow-300">Créer Pièce de caisse</p>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-400">Pour finaliser cet Ordre de mission</p>
                       </div>
                     </button>
-                    <div className="border-t my-3"></div>
+                    <div className="border-t border-gray-200 dark:border-dark-border my-3"></div>
                   </>
                 )}
               </div>
               
               {!needsPieceDeCaisse(taskToProcess) && (
                 <>
-                  <div className="border-t my-5"></div>
+                  <div className="border-t border-gray-200 dark:border-dark-border my-5"></div>
                   <button 
                     onClick={() => handleAction('reject')} 
                     disabled={!!actionLoading} 
-                    className="w-full flex items-center gap-3 p-3 bg-red-50 hover:bg-red-100 rounded-lg border text-left transition"
+                    className="w-full flex items-center gap-3 p-3 bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-700 text-left transition"
                   >
                     {actionLoading === 'reject' ? (
-                      <Loader className="animate-spin w-5 h-5"/>
+                      <Loader className="animate-spin w-5 h-5 text-red-600 dark:text-red-400"/>
                     ) : (
-                      <XCircle className="text-red-600"/>
+                      <XCircle className="text-red-600 dark:text-red-400"/>
                     )}
-                    Rejeter le document
+                    <span className='text-red-900 dark:text-red-300'>Rejeter le document</span>
                   </button>
                 </>
               )}
@@ -1087,15 +1076,16 @@ const MyTasks = () => {
               <div className="mt-6 text-right">
                 <button 
                   onClick={closeProcessingModal} 
-                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 ml-auto transition"
+                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 ml-auto transition dark:bg-blue-700 dark:hover:bg-blue-600"
                 >
                   <ThumbsUp size={16} /> Terminer
                 </button>
               </div>
             </div>
             
-            <div className="w-1/2 p-6 bg-gray-50 overflow-y-auto">
-              <h3 className="font-bold text-lg mb-4">Suivi de Validation</h3>
+            {/* Colonne Droite (Progression) - Support Dark Mode */}
+            <div className="w-1/2 p-6 bg-gray-50 dark:bg-dark-bg overflow-y-auto">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-dark-text mb-4">Suivi de Validation</h3>
               <WorkflowProgress 
                 workflows={taskToProcess.document.workflows} 
                 documentStatus={taskToProcess.document.status} 
@@ -1105,46 +1095,64 @@ const MyTasks = () => {
         </div>
       )}
 
-      {/* ✅ Modal Pièce de caisse depuis Ordre de mission */}
-      {showPieceDeCaisseFromOM && (
+      {/* Modals Création de Document (Pièce de caisse, DB, Fiche Suivi) - Support Dark Mode */}
+      {/* Note : Le contenu interne (les templates) devra être adapté séparément si nécessaire, 
+         mais le conteneur du modal est adapté ici. */}
+      {/* Modal Pièce de caisse */}
+      {(showPieceDeCaisseFromOM || showDemandeBesoins || showDBFromFS || showFicheSuivi) && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl my-8">
-            <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold">💰 Créer Pièce de caisse</h2>
-              <p className="text-sm text-gray-600 mt-2">
-                Document source : <strong>{taskToProcess?.document?.title}</strong>
+          <div className="bg-white dark:bg-dark-surface rounded-lg shadow-xl w-full max-w-4xl my-8">
+            <div className="p-6 border-b border-gray-200 dark:border-dark-border">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text">
+                {showPieceDeCaisseFromOM && '💰 Créer Pièce de caisse'}
+                {(showDemandeBesoins || showDBFromFS) && 'Créer une Demande de Besoin'}
+                {showFicheSuivi && 'Créer une Fiche de Suivi d\'Équipements'}
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-2">
+                {showPieceDeCaisseFromOM ? `Document source : ${taskToProcess?.document?.title}` : showDBFromFS ? 'Suite à la Fiche de Suivi d\'Équipements' : showFicheSuivi ? 'Documentation de l\'intervention biomédicale' : 'Cette demande sera liée à la Demande de Travaux en cours'}
               </p>
-              <p className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded mt-2 border border-yellow-200">
-                📌 Ce document sera automatiquement joint comme pièce justificative (au-dessus de la PC)
-              </p>
+              {showPieceDeCaisseFromOM && (
+                <p className="text-xs p-2 rounded mt-2 border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/30 dark:border-yellow-700 text-yellow-700 dark:text-yellow-300">
+                  📌 Ce document sera automatiquement joint comme pièce justificative (au-dessus de la PC)
+                </p>
+              )}
             </div>
+            {/* Le contenu du template (PieceDeCaisse, DemandeBesoin, etc.) se charge ici. 
+               Il faudrait les modifier individuellement si le contenu est toujours blanc. */}
             <div className="p-6 max-h-[70vh] overflow-y-auto">
-              <PieceDeCaisse 
-                formData={pieceDeCaisseData} 
-                setFormData={setPieceDeCaisseData} 
-                pdfContainerRef={piecePdfRef}
-              />
+              {showPieceDeCaisseFromOM && <PieceDeCaisse formData={pieceDeCaisseData} setFormData={setPieceDeCaisseData} pdfContainerRef={piecePdfRef} />}
+              {(showDemandeBesoins || showDBFromFS) && <DemandeBesoin formData={demandeBesoinsData} setFormData={setDemandeBesoinsData} pdfContainerRef={dbPdfRef} />}
+              {showFicheSuivi && <FicheSuiviEquipements formData={ficheSuiviData} setFormData={setFicheSuiviData} pdfContainerRef={fsPdfRef} />}
             </div>
-            {error && <p className="text-red-500 px-6 py-2 font-semibold">{error}</p>}
-            <div className="p-6 border-t flex justify-between">
+            {error && <p className="text-red-500 dark:text-red-400 px-6 py-2 font-semibold">{error}</p>}
+            <div className="p-6 border-t border-gray-200 dark:border-dark-border flex justify-between">
               <button 
-                onClick={() => setShowPieceDeCaisseFromOM(false)} 
-                className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition font-semibold"
+                onClick={() => { 
+                  if(showPieceDeCaisseFromOM) setShowPieceDeCaisseFromOM(false);
+                  if(showDemandeBesoins) setShowDemandeBesoins(false);
+                  if(showDBFromFS) setShowDBFromFS(false);
+                  if(showFicheSuivi) setShowFicheSuivi(false);
+                }} 
+                className="px-6 py-3 bg-gray-200 dark:bg-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition font-semibold"
               >
                 Annuler
               </button>
               <button 
-                onClick={handleSubmitPieceDeCaisseFromOM} 
-                disabled={submittingDB} 
-                className="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition shadow"
+                onClick={showPieceDeCaisseFromOM ? handleSubmitPieceDeCaisseFromOM : showFicheSuivi ? handleSubmitFicheSuivi : handleSubmitDemandeBesoins} 
+                disabled={submittingDB || submittingFS} 
+                className={`px-8 py-3 text-white font-semibold rounded-lg disabled:bg-gray-400 flex items-center justify-center gap-2 transition shadow ${
+                  showFicheSuivi ? 'bg-teal-600 hover:bg-teal-700 dark:bg-teal-700 dark:hover:bg-teal-600' : 
+                  showPieceDeCaisseFromOM ? 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600' :
+                  'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600'
+                }`}
               >
-                {submittingDB ? (
+                {submittingDB || submittingFS ? (
                   <>
                     <Loader className="animate-spin w-5 h-5" /> Création en cours...
                   </>
                 ) : (
                   <>
-                    <Send size={18}/> Créer et Finaliser l'OM
+                    <Send size={18}/> {showPieceDeCaisseFromOM ? 'Créer et Finaliser l\'OM' : showFicheSuivi ? 'Créer la Fiche' : 'Créer et Soumettre'}
                   </>
                 )}
               </button>
@@ -1153,127 +1161,36 @@ const MyTasks = () => {
         </div>
       )}
 
-      {/* Modals existants pour Demande de besoin */}
-      {(showDemandeBesoins || showDBFromFS) && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl my-8">
-            <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold">Créer une Demande de Besoin</h2>
-              <p className="text-sm text-gray-600 mt-2">
-                {showDBFromFS ? 'Suite à la Fiche de Suivi d\'Équipements' : 'Cette demande sera liée à la Demande de Travaux en cours'}
-              </p>
-            </div>
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
-              <DemandeBesoin 
-                formData={demandeBesoinsData} 
-                setFormData={setDemandeBesoinsData} 
-                pdfContainerRef={dbPdfRef}
-              />
-            </div>
-            {error && <p className="text-red-500 px-6 py-2">{error}</p>}
-            <div className="p-6 border-t flex justify-between">
-              <button 
-                onClick={() => { 
-                  setShowDemandeBesoins(false); 
-                  setShowDBFromFS(false); 
-                }} 
-                className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
-              >
-                Annuler
-              </button>
-              <button 
-                onClick={handleSubmitDemandeBesoins} 
-                disabled={submittingDB} 
-                className="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition"
-              >
-                {submittingDB ? (
-                  <>
-                    <Loader className="animate-spin w-5 h-5" /> Création...
-                  </>
-                ) : (
-                  <>
-                    <Send size={18}/> Créer et Soumettre
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Fiche de Suivi */}
-      {showFicheSuivi && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl my-8">
-            <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold">Créer une Fiche de Suivi d'Équipements</h2>
-              <p className="text-sm text-gray-600 mt-2">Documentation de l'intervention biomédicale</p>
-            </div>
-            <div className="p-6 max-h-[75vh] overflow-y-auto">
-              <FicheSuiviEquipements 
-                formData={ficheSuiviData} 
-                setFormData={setFicheSuiviData} 
-                pdfContainerRef={fsPdfRef}
-              />
-            </div>
-            {error && <p className="text-red-500 px-6 py-2">{error}</p>}
-            <div className="p-6 border-t flex justify-between">
-              <button 
-                onClick={() => setShowFicheSuivi(false)} 
-                className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
-              >
-                Annuler
-              </button>
-              <button 
-                onClick={handleSubmitFicheSuivi} 
-                disabled={submittingFS} 
-                className="px-8 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition"
-              >
-                {submittingFS ? (
-                  <>
-                    <Loader className="animate-spin w-5 h-5" /> Création...
-                  </>
-                ) : (
-                  <>
-                    <Send size={18}/> Créer la Fiche
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Sélection des validateurs pour DB */}
+      {/* Modal Sélection des validateurs pour DB - Support Dark Mode */}
       {showValidatorsSelection && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-            <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold">Sélectionner les validateurs</h2>
-              <p className="text-sm text-gray-600 mt-2">
+          <div className="bg-white dark:bg-dark-surface rounded-lg shadow-xl w-full max-w-2xl">
+            <div className="p-6 border-b border-gray-200 dark:border-dark-border">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text">Sélectionner les validateurs</h2>
+              <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-2">
                 Choisissez les personnes qui doivent valider cette Demande de Besoin
               </p>
             </div>
             <div className="p-6 max-h-[60vh] overflow-y-auto">
               {error && (
-                <div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded-lg mb-4">
+                <div className="bg-red-100 dark:bg-red-900/10 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 p-3 rounded-lg mb-4">
                   {error}
                 </div>
               )}
               <div className="space-y-3">
                 {dbValidators.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">
+                  <p className="text-gray-500 dark:text-dark-text-secondary text-center py-4">
                     Aucun validateur disponible. Contactez l'administrateur.
                   </p>
                 ) : (
                   dbValidators.map(validator => (
                     <label 
                       key={validator.id} 
-                      className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
-                        selectedDbValidators.includes(validator.id) 
-                          ? 'border-blue-600 bg-blue-50' 
-                          : 'border-gray-300 hover:border-blue-400'
-                      }`}
+                      className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition 
+                        ${selectedDbValidators.includes(validator.id) 
+                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30' 
+                          : 'border-gray-300 hover:border-blue-400 dark:border-dark-border dark:hover:border-blue-700 dark:bg-dark-bg'
+                        }`}
                     >
                       <input 
                         type="checkbox" 
@@ -1281,11 +1198,11 @@ const MyTasks = () => {
                         onChange={() => toggleDbValidator(validator.id)} 
                         className="w-5 h-5"
                       />
-                      <div>
+                      <div className='text-gray-900 dark:text-dark-text'>
                         <p className="font-semibold">
                           {validator.firstName} {validator.lastName}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-dark-text-secondary">
                           {validator.position || validator.email}
                         </p>
                       </div>
@@ -1294,21 +1211,21 @@ const MyTasks = () => {
                 )}
               </div>
             </div>
-            <div className="p-6 border-t flex justify-between">
+            <div className="p-6 border-t border-gray-200 dark:border-dark-border flex justify-between">
               <button 
                 onClick={() => { 
                   setShowValidatorsSelection(false); 
                   setSelectedDbValidators([]); 
                   closeProcessingModal(); 
                 }} 
-                className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+                className="px-6 py-3 bg-gray-200 dark:bg-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition font-semibold"
               >
                 Annuler
               </button>
               <button 
                 onClick={handleSubmitDBWorkflow} 
                 disabled={submittingDB || selectedDbValidators.length === 0} 
-                className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition"
+                className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition dark:bg-blue-700 dark:hover:bg-blue-600"
               >
                 {submittingDB ? (
                   <>
@@ -1325,7 +1242,7 @@ const MyTasks = () => {
         </div>
       )}
 
-      {/* Modal Viewer de document */}
+      {/* Modal Viewer de document (DocumentViewer doit être mis à jour séparément) */}
       {viewingDocument && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-6xl h-full flex gap-4">
@@ -1335,8 +1252,9 @@ const MyTasks = () => {
                 onClose={() => setViewingDocument(null)} 
               />
             </div>
-            <div className="w-96 bg-white rounded-lg p-4 overflow-y-auto h-full">
-              <h3 className="font-bold text-lg mb-4">Suivi de Validation</h3>
+            {/* Colonne latérale du Viewer - Support Dark Mode */}
+            <div className="w-96 bg-white dark:bg-dark-surface rounded-lg p-4 overflow-y-auto h-full">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-dark-text mb-4">Suivi de Validation</h3>
               <WorkflowProgress 
                 workflows={viewingDocument.workflows} 
                 documentStatus={viewingDocument.status} 

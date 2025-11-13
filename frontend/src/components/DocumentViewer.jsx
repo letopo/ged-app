@@ -1,4 +1,4 @@
-// frontend/src/components/DocumentViewer.jsx - CORRIGÉ
+// frontend/src/components/DocumentViewer.jsx - VERSION 100% COMPLÈTE AVEC SUPPORT DARK MODE
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +24,7 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
         // Calculer les dimensions du PDF pour le positionnement des signatures
         if (iframeRef.current) {
             const handleLoad = () => {
+                // Utiliser la taille du conteneur parent ou la taille de l'iframe après chargement
                 setPdfDimensions({
                     width: iframeRef.current.offsetWidth,
                     height: iframeRef.current.offsetHeight,
@@ -54,21 +55,22 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[95%] flex flex-col">
-                {/* Header */}
-                <div className="flex justify-between items-center p-4 border-b">
-                    <h2 className="text-xl font-bold truncate">{doc.title}</h2>
+            <div className="bg-white dark:bg-dark-surface rounded-lg shadow-xl w-full max-w-4xl h-[95%] flex flex-col">
+                
+                {/* Header - Support Dark Mode pour le fond et le bouton de fermeture */}
+                <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-dark-border">
+                    <h2 className="text-xl font-bold truncate text-gray-900 dark:text-dark-text">{doc.title}</h2>
                     <button 
                         onClick={onClose} 
-                        className="p-2 rounded-full hover:bg-gray-200 transition"
+                        className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition text-gray-700 dark:text-dark-text"
                     >
                         <X size={24} />
                     </button>
                 </div>
 
                 {/* Viewer avec superposition des signatures */}
-                <div className="flex-grow bg-gray-200 overflow-hidden relative">
-                    {/* PDF en arrière-plan */}
+                <div className="flex-grow bg-gray-200 dark:bg-dark-bg overflow-hidden relative">
+                    {/* PDF en arrière-plan (l'iframe garde son propre style) */}
                     <iframe 
                         ref={iframeRef}
                         src={documentUrl} 
@@ -77,13 +79,13 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
                         frameBorder="0" 
                     />
 
-                    {/* ✅ SUPERPOSITION DES SIGNATURES/CACHETS/DATEUR */}
+                    {/* SUPERPOSITION DES SIGNATURES/CACHETS/DATEUR */}
                     {signatureZones.length > 0 && pdfDimensions.width > 0 && (
                         <div className="absolute inset-0 pointer-events-none">
                             {signatureZones.map((zone, index) => {
-                                // Calcul de la position (adapter selon votre mise en page)
-                                const scaleX = pdfDimensions.width / 595; // A4 width en points
-                                const scaleY = pdfDimensions.height / 842; // A4 height en points
+                                // Les positions sont calculées en fonction de la taille du PDF
+                                const scaleX = pdfDimensions.width / 595; // A4 width en points (approx.)
+                                const scaleY = pdfDimensions.height / 842; // A4 height en points (approx.)
 
                                 const left = zone.x * scaleX;
                                 const top = zone.y * scaleY;
@@ -110,10 +112,11 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
                                                     e.target.style.display = 'none';
                                                 }}
                                             />
-                                            <div className="text-xs text-center mt-1 bg-white bg-opacity-75 px-1 rounded">
+                                            {/* Détails de signature/cachet - Support Dark Mode */}
+                                            <div className="text-xs text-center mt-1 bg-white dark:bg-dark-surface bg-opacity-75 px-1 rounded shadow text-gray-900 dark:text-dark-text">
                                                 <p className="font-semibold">{zone.validatorName}</p>
-                                                <p className="text-gray-600">{zone.position}</p>
-                                                <p className="text-gray-500">
+                                                <p className="text-gray-600 dark:text-dark-text-secondary">{zone.position}</p>
+                                                <p className="text-gray-500 dark:text-gray-500">
                                                     {new Date(zone.date).toLocaleDateString('fr-FR')}
                                                 </p>
                                             </div>
@@ -132,7 +135,8 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
                                                 fontSize: `${zone.fontSize}px`,
                                                 color: zone.color || '#FF0000',
                                             }}
-                                            className="font-bold bg-white bg-opacity-75 px-2 py-1 rounded"
+                                            // Détails du dateur - Support Dark Mode
+                                            className="font-bold bg-white dark:bg-dark-surface bg-opacity-75 px-2 py-1 rounded shadow text-red-600 dark:text-red-400"
                                         >
                                             📅 {zone.text}
                                         </div>
@@ -147,11 +151,11 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
 
                 {/* Actions de validation */}
                 {showActions && (
-                    <div className="p-4 border-t bg-gray-50">
+                    <div className="p-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg">
                         {showRejectInput ? (
-                            // Vue pour le rejet
+                            // Vue pour le rejet - Support Dark Mode
                             <div className="space-y-3">
-                                <h3 className="font-bold text-red-600 flex items-center gap-2">
+                                <h3 className="font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
                                     <AlertTriangle /> Motif du Rejet (obligatoire)
                                 </h3>
                                 <textarea
@@ -159,28 +163,31 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
                                     onChange={(e) => setRejectComment(e.target.value)}
                                     rows="3"
                                     placeholder="Expliquez pourquoi le document est rejeté..."
-                                    className="w-full p-2 border rounded-md"
+                                    // Input - Support Dark Mode
+                                    className="w-full p-2 border border-gray-300 dark:border-dark-border dark:bg-dark-surface dark:text-dark-text rounded-md"
                                 />
                                 <div className="flex justify-end gap-3">
                                     <button 
                                         onClick={() => setShowRejectInput(false)} 
-                                        className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                                        // Bouton Annuler - Support Dark Mode
+                                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                                     >
                                         Annuler
                                     </button>
                                     <button 
                                         onClick={handleReject} 
-                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                        // Bouton Confirmer - Support Dark Mode
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
                                     >
                                         Confirmer le Rejet
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            // Vue pour la validation
+                            // Vue pour la validation - Support Dark Mode
                             <div className="space-y-3">
                                 <div>
-                                    <label className="font-bold flex items-center gap-2">
+                                    <label className="font-bold text-gray-700 dark:text-dark-text flex items-center gap-2">
                                         <MessageSquare /> Commentaire (optionnel)
                                     </label>
                                     <textarea
@@ -188,19 +195,22 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
                                         onChange={(e) => setComment(e.target.value)}
                                         rows="2"
                                         placeholder="Ajoutez un commentaire..."
-                                        className="w-full mt-1 p-2 border rounded-md"
+                                        // Input - Support Dark Mode
+                                        className="w-full mt-1 p-2 border border-gray-300 dark:border-dark-border dark:bg-dark-surface dark:text-dark-text rounded-md"
                                     />
                                 </div>
                                 <div className="flex justify-end gap-3">
                                     <button 
                                         onClick={() => setShowRejectInput(true)} 
-                                        className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                                        // Bouton Rejeter - Support Dark Mode
+                                        className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-600"
                                     >
                                         Rejeter
                                     </button>
                                     <button 
                                         onClick={handleValidate} 
-                                        className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
+                                        // Bouton Approuver - Support Dark Mode
+                                        className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-600 flex items-center gap-2"
                                     >
                                         <Check /> Approuver
                                     </button>

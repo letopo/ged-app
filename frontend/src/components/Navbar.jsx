@@ -1,5 +1,4 @@
-﻿// frontend/src/components/Navbar.jsx - VERSION FINALE CORRIGÉE
-
+﻿// frontend/src/components/Navbar.jsx - AVEC THEME TOGGLE
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
@@ -13,10 +12,11 @@ import {
   X,
   Bell,
   Users,
-  LayoutGrid // Icône pour les services
+  LayoutGrid
 } from 'lucide-react';
 import { workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import ThemeToggle from './ThemeToggle'; // ✅ AJOUT
 
 export default function Navbar({ onLogout }) {
   const { user } = useAuth();
@@ -36,15 +36,15 @@ export default function Navbar({ onLogout }) {
     try {
       const response = await workflowAPI.getMyTasks('pending');
       setPendingCount(response.data.tasks?.length || 0);
-    } catch (err) { // <-- SYNTAXE CORRIGÉE ICI
+    } catch (err) {
       console.error('Erreur chargement tâches:', err);
     }
   };
 
   const isActive = (path) => {
     return location.pathname === path
-      ? 'bg-blue-700 text-white'
-      : 'text-blue-100 hover:bg-blue-700';
+      ? 'bg-blue-700 text-white dark:bg-blue-800'
+      : 'text-blue-100 hover:bg-blue-700 dark:hover:bg-blue-800';
   };
 
   const navItems = [
@@ -58,7 +58,7 @@ export default function Navbar({ onLogout }) {
   ];
 
   return (
-    <nav className="bg-blue-600 shadow-lg">
+    <nav className="bg-blue-600 dark:bg-gray-800 shadow-lg transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
@@ -91,6 +91,8 @@ export default function Navbar({ onLogout }) {
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
+            <ThemeToggle /> {/* ✅ AJOUT DU TOGGLE */}
+            
             {pendingCount > 0 && (
               <Link
                 to="/my-tasks"
@@ -104,18 +106,19 @@ export default function Navbar({ onLogout }) {
             )}
             <div className="text-white text-sm">
               <div className="font-medium">{user?.username}</div>
-              <div className="text-blue-200 text-xs">{user?.role}</div>
+              <div className="text-blue-200 dark:text-gray-400 text-xs">{user?.role}</div>
             </div>
             <button
               onClick={onLogout}
-              className="text-blue-100 hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors"
+              className="text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Déconnexion
             </button>
           </div>
           
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center space-x-2">
+            <ThemeToggle /> {/* ✅ AJOUT DU TOGGLE MOBILE */}
             <button onClick={() => setIsOpen(!isOpen)} className="text-white hover:text-blue-200 p-2">
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -145,14 +148,14 @@ export default function Navbar({ onLogout }) {
                   </Link>
                 );
               })}
-              <div className="border-t border-blue-500 pt-4 mt-4 px-3">
+              <div className="border-t border-blue-500 dark:border-gray-700 pt-4 mt-4 px-3">
                 <div className="text-white text-sm mb-2">
                   <div className="font-medium">{user?.username}</div>
-                  <div className="text-blue-200 text-xs">{user?.email}</div>
+                  <div className="text-blue-200 dark:text-gray-400 text-xs">{user?.email}</div>
                 </div>
                 <button
                   onClick={() => { setIsOpen(false); onLogout(); }}
-                  className="w-full text-left text-blue-100 hover:bg-blue-700 px-3 py-2 rounded-md text-base font-medium flex items-center transition-colors"
+                  className="w-full text-left text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 px-3 py-2 rounded-md text-base font-medium flex items-center transition-colors"
                 >
                   <LogOut className="w-5 h-5 mr-3" />
                   Déconnexion

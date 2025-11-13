@@ -1,3 +1,43 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Styles de base pour le dark mode */
+@layer base {
+  :root {
+    --color-primary: #3b82f6;
+    --color-primary-dark: #2563eb;
+  }
+
+  /* Mode clair */
+  body {
+    @apply bg-gray-50 text-gray-900 transition-colors duration-200;
+  }
+
+  /* Mode sombre */
+  .dark body {
+    @apply bg-dark-bg text-dark-text;
+  }
+}
+
+/* Transitions douces pour le changement de thème */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Styles pour les scrollbars en dark mode */
+.dark ::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  @apply bg-dark-surface;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-dark-border rounded-lg;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-600;
+}
