@@ -12,6 +12,7 @@ import PieceDeCaisse from './templates/PieceDeCaisse';
 import DemandeTravaux from './templates/DemandeTravaux';
 import OrdreDeMission from './templates/OrdreDeMission';
 import DemandePermutation from './templates/DemandePermutation';
+import BonDeSortie from './templates/BonDeSortie';
 
 // Définir les modèles disponibles
 const templates = {
@@ -76,7 +77,18 @@ const templates = {
             plage_horaire_debut: '',
             plage_horaire_fin: ''
         }
+    },
+    "Bon de sortie": {
+    component: BonDeSortie,
+    initialState: {
+      date: new Date().toISOString().split('T')[0],
+      nomDemandeur: '',
+      lines: [
+        { designation: '', quantite: '', pu: '', montant: '' }
+      ],
+      montantEnLettres: ''
     }
+  }
 };
 
 const CreateFromTemplate = () => {

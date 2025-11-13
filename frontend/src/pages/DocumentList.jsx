@@ -283,6 +283,12 @@ const DocumentList = () => {
                         🔄 Demande de permutation
                     </Link>
                 </li>
+                <li>
+                  <Link to="/create-from-template" state={{ templateName: "Bon de sortie" }} 
+                    className="block p-3 bg-gray-50 hover:bg-blue-50 rounded-lg transition">
+                    📦 Bon de sortie
+                  </Link>
+                </li>
             </ul>
         </div>
       </aside>
