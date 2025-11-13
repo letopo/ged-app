@@ -417,53 +417,74 @@ const MyTasks = () => {
   };
   
   const handleSubmitPieceDeCaisseFromOM = async () => {
-    setSubmittingDB(true);
-    setError('');
+  setSubmittingDB(true);
+  setError('');
+  
+  try {
+    if (!piecePdfRef.current) throw new Error('Référence PDF introuvable');
     
-    try {
-      if (!piecePdfRef.current) throw new Error('Référence PDF introuvable');
-      
-      const nonPrintableElements = piecePdfRef.current.querySelectorAll('.not-printable');
-      nonPrintableElements?.forEach(el => el.style.display = 'none');
-      const canvas = await html2canvas(piecePdfRef.current, { scale: 2, logging: false, useCORS: true });
-      nonPrintableElements?.forEach(el => el.style.display = 'block');
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-      pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
-      const pdfBlob = pdf.output('blob');
-      
-      const uploadData = new FormData();
-      const fileName = `Piece_Caisse_OM_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
-      uploadData.append('file', pdfBlob, fileName);
-      uploadData.append('title', `Pièce de caisse - ${pieceDeCaisseData.concerne}`);
-      uploadData.append('category', 'Pièce de caisse');
-      uploadData.append('metadata', JSON.stringify({
-        linkedOrderMissionId: taskToProcess.document.id,
-        nom: pieceDeCaisseData.nom,
-        concerne: pieceDeCaisseData.concerne
-      }));
-      
-      const uploadResponse = await documentsAPI.upload(uploadData);
-      console.log('✅ Pièce de caisse créée:', uploadResponse.data);
-      
-      await workflowAPI.validateTask(taskToProcess.id, {
-        status: 'approved',
-        comment: `Pièce de caisse créée (${fileName}). Processus complété.`,
-        validationType: 'simple_approve'
-      });
-      
-      alert(`✅ Pièce de caisse créée avec succès !\n\nL'Ordre de mission est maintenant complet.`);
-      closeProcessingModal();
-      
-    } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de la création de la Pièce de caisse.');
-      console.error('Erreur Pièce de caisse:', err);
-      alert(`Erreur: ${err.response?.data?.message || 'Impossible de créer la Pièce de caisse'}`);
-    } finally {
-      setSubmittingDB(false);
+    const nonPrintableElements = piecePdfRef.current.querySelectorAll('.not-printable');
+    nonPrintableElements?.forEach(el => el.style.display = 'none');
+    const canvas = await html2canvas(piecePdfRef.current, { scale: 2, logging: false, useCORS: true });
+    nonPrintableElements?.forEach(el => el.style.display = 'block');
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+    const pdfBlob = pdf.output('blob');
+    
+    const uploadData = new FormData();
+    const fileName = `Piece_Caisse_OM_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
+    uploadData.append('file', pdfBlob, fileName);
+    uploadData.append('title', `Pièce de caisse - ${pieceDeCaisseData.concerne}`);
+    uploadData.append('category', 'Pièce de caisse');
+    
+    // ✅ CRITIQUE : Ajouter linkedOrdreMissionId en paramètre séparé
+    uploadData.append('linkedOrdreMissionId', taskToProcess.document.id);
+    console.log('🔗 Liaison OM depuis modal:', taskToProcess.document.id);
+    
+    // ✅ Metadata sans linkedOrdreMissionId
+    uploadData.append('metadata', JSON.stringify({
+      nom: pieceDeCaisseData.nom,
+      concerne: pieceDeCaisseData.concerne
+    }));
+    
+    // ✅ Log pour debug
+    console.log('📤 Upload depuis modal MyTasks:');
+    console.log('   linkedOrdreMissionId:', taskToProcess.document.id);
+    console.log('   title:', `Pièce de caisse - ${pieceDeCaisseData.concerne}`);
+    
+    const uploadResponse = await documentsAPI.upload(uploadData);
+    console.log('✅ Réponse upload:', uploadResponse.data);
+    
+    // Vérifier si la fusion a réussi
+    if (uploadResponse.data.data.metadata?.fusionné) {
+      console.log('✅ Fusion réussie!');
+    } else if (uploadResponse.data.data.metadata?.fusionError) {
+      console.warn('⚠️ Erreur fusion:', uploadResponse.data.data.metadata.fusionError);
     }
-  };
+    
+    await workflowAPI.validateTask(taskToProcess.id, {
+      status: 'approved',
+      comment: `Pièce de caisse créée et fusionnée avec l'OM (${fileName}). Processus complété.`,
+      validationType: 'simple_approve'
+    });
+    
+    alert(
+      uploadResponse.data.data.metadata?.fusionné
+        ? `✅ Pièce de caisse créée et fusionnée avec l'Ordre de Mission!\n\nLe document final contient l'OM et la PC.`
+        : `✅ Pièce de caisse créée avec succès!\n\nL'Ordre de mission est maintenant complet.`
+    );
+    closeProcessingModal();
+    
+  } catch (err) {
+    setError(err.response?.data?.message || 'Erreur lors de la création de la Pièce de caisse.');
+    console.error('❌ Erreur Pièce de caisse:', err);
+    alert(`Erreur: ${err.response?.data?.message || 'Impossible de créer la Pièce de caisse'}`);
+  } finally {
+    setSubmittingDB(false);
+  }
+};
   
   const handleSubmitDemandeBesoins = async () => {
     setSubmittingDB(true);

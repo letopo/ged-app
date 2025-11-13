@@ -1,4 +1,4 @@
-// frontend/src/pages/CreateFromTemplate.jsx - VERSION COMPLÈTE AMÉLIORÉE
+// frontend/src/pages/CreateFromTemplate.jsx - VERSION COMPLÈTE CORRIGÉE
 import React, { useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { documentsAPI } from '../services/api';
@@ -11,7 +11,7 @@ import DemandePermission from './templates/DemandePermission';
 import PieceDeCaisse from './templates/PieceDeCaisse';
 import DemandeTravaux from './templates/DemandeTravaux';
 import OrdreDeMission from './templates/OrdreDeMission';
-import DemandePermutation from './templates/DemandePermutation'; // <-- NOUVEL IMPORT
+import DemandePermutation from './templates/DemandePermutation';
 
 // Définir les modèles disponibles
 const templates = {
@@ -35,7 +35,8 @@ const templates = {
             date: new Date().toLocaleDateString('fr-FR'), 
             concerne: '',
             lines: [{ refCompta: '', libelle: '', refGage: '', entrees: '', sorties: '' }],
-            totalEnLettres: ''
+            totalEnLettres: '',
+            linkedOrdreMissionId: '' // ✅ AJOUTÉ
         }
     },
     "Demande de travaux": {
@@ -54,8 +55,8 @@ const templates = {
         component: OrdreDeMission,
         initialState: {
             numero_ordre: '',
-            date_depart: new Date().toISOString().split('T')[0], // ✅ NOUVEAU
-            date_retour: '', // ✅ NOUVEAU
+            date_depart: new Date().toISOString().split('T')[0],
+            date_retour: '',
             service_demandeur: '',
             objet_mission: '',
             nom_conducteur: '',
@@ -64,12 +65,11 @@ const templates = {
             frais_mission: false
         }
     },
-    // ✅ NOUVEAU : Demande de permutation
     "Demande de permutation": {
         component: DemandePermutation,
         initialState: {
-            demandeur_noms_prenoms: '', // sera rempli par useEffect
-            service: '', // sera rempli par useEffect
+            demandeur_noms_prenoms: '',
+            service: '',
             permute_id: '',
             permute_noms_prenoms: '',
             date_permutation: new Date().toISOString().split('T')[0],
@@ -96,7 +96,12 @@ const CreateFromTemplate = () => {
         setLoading(true);
         setError('');
         
-        // Cacher les inputs et afficher le texte statique
+        // ✅ LOGS DE DÉBOGAGE
+        console.log('📋 === DÉBUT GÉNÉRATION DOCUMENT ===');
+        console.log('🔍 Template Name:', templateName);
+        console.log('🔍 FormData complet:', formData);
+        console.log('🔍 linkedOrdreMissionId:', formData.linkedOrdreMissionId);
+        
         const notPrintable = pdfContainerRef.current?.querySelectorAll('.not-printable');
         const printOnly = pdfContainerRef.current?.querySelectorAll('.print-only');
         
@@ -113,7 +118,6 @@ const CreateFromTemplate = () => {
                 windowHeight: 1697
             });
             
-            // Restaurer l'affichage
             notPrintable.forEach(el => el.style.display = 'block');
             printOnly.forEach(el => el.style.display = 'none');
 
@@ -147,22 +151,69 @@ const CreateFromTemplate = () => {
             uploadData.append('title', documentTitle);
             uploadData.append('category', templateName);
             
+            // ✅ LOGIQUE ROBUSTE : Détecter si c'est une Pièce de Caisse
+            const isPieceDeCaisse = templateName === 'Pièce de caisse' || 
+                                    templateName.toLowerCase().includes('piece') ||
+                                    templateName.toLowerCase().includes('caisse');
+            
+            console.log('🔍 Vérification type document:', {
+                templateName,
+                isPieceDeCaisse,
+                hasLinkedOM: !!formData.linkedOrdreMissionId,
+                linkedOMValue: formData.linkedOrdreMissionId
+            });
+            
+            // ✅ ENVOYER linkedOrdreMissionId en paramètre séparé
+            if (isPieceDeCaisse && formData.linkedOrdreMissionId) {
+                console.log('🔗 ✅ Ajout linkedOrdreMissionId au FormData:', formData.linkedOrdreMissionId);
+                uploadData.append('linkedOrdreMissionId', formData.linkedOrdreMissionId);
+            } else {
+                console.log('⚠️ Pas de liaison OM détectée');
+            }
+            
             if (formData.date_debut && formData.date_fin) {
-                uploadData.append('date_debut', formData.date_debut);
-                uploadData.append('date_fin', formData.date_fin);
+                uploadData.append('dateDebut', formData.date_debut);
+                uploadData.append('dateFin', formData.date_fin);
             }
             
             if (formData.date_demande) {
                 uploadData.append('date_demande', formData.date_demande);
             }
 
-            await documentsAPI.upload(uploadData);
-            alert('Document généré et sauvegardé avec succès !');
+            // ✅ Préparer les metadata SANS linkedOrdreMissionId
+            const metadataToSend = { ...formData };
+            delete metadataToSend.linkedOrdreMissionId; // Supprimer pour éviter duplication
+            uploadData.append('metadata', JSON.stringify(metadataToSend));
+
+            // ✅ LOG du contenu du FormData
+            console.log('📤 Données envoyées au backend:');
+            for (let pair of uploadData.entries()) {
+                if (pair[0] !== 'file') { // Ne pas logger le blob
+                    console.log(`   ${pair[0]}:`, pair[1]);
+                }
+            }
+
+            const response = await documentsAPI.upload(uploadData);
+            
+            console.log('✅ Réponse backend:', response.data);
+            
+            // Afficher un message spécial si fusion réussie
+            if (response.data.data.metadata?.fusionné) {
+                alert('✅ Pièce de Caisse générée et fusionnée avec l\'Ordre de Mission avec succès!\n\nLe document final contient l\'OM et la PC.');
+            } else if (response.data.data.metadata?.fusionError) {
+                alert('⚠️ Pièce de Caisse créée, mais la fusion avec l\'OM a échoué:\n' + response.data.data.metadata.fusionError);
+            } else if (isPieceDeCaisse && formData.linkedOrdreMissionId) {
+                // Si on attendait une fusion mais qu'il n'y a pas de flag
+                alert('⚠️ Document créé, mais la fusion n\'a pas eu lieu. Vérifiez les logs backend.');
+            } else {
+                alert('Document généré et sauvegardé avec succès !');
+            }
+            
             navigate('/documents');
 
         } catch (err) {
             setError("Erreur lors de la génération ou de l'upload du document.");
-            console.error('Erreur détaillée:', err);
+            console.error('❌ Erreur détaillée:', err);
             
             notPrintable.forEach(el => el.style.display = 'block');
             printOnly.forEach(el => el.style.display = 'none');
@@ -211,14 +262,20 @@ const CreateFromTemplate = () => {
                 </button>
             </div>
 
-            {/* Informations de débogage (en développement) */}
+            {/* Informations de débogage */}
             {process.env.NODE_ENV === 'development' && (
                 <div className="mt-8 p-4 bg-gray-50 border border-gray-300 rounded-lg">
                     <h3 className="font-semibold mb-2">🔧 Debug Info</h3>
                     <p className="text-sm text-gray-600">Template: {templateName}</p>
-                    <p className="text-sm text-gray-600">
-                        Form Data: {JSON.stringify(formData, null, 2)}
+                    <p className="text-sm text-gray-600 mt-2">
+                        Linked OM ID: {formData.linkedOrdreMissionId || 'Aucun'}
                     </p>
+                    <details className="mt-2">
+                        <summary className="text-sm font-medium cursor-pointer">Voir FormData complet</summary>
+                        <pre className="text-xs bg-white p-2 rounded mt-2 overflow-auto max-h-40">
+                            {JSON.stringify(formData, null, 2)}
+                        </pre>
+                    </details>
                 </div>
             )}
         </div>

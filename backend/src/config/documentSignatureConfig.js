@@ -79,6 +79,19 @@ export const SIGNATURE_CONFIGS = {
     layout: 'horizontal'
   },
   
+  'Demande de permutation': {
+    numberOfSignatures: 3,
+    signatureY: 100,
+    stampY: 140,
+    signatureWidth: 110,
+    signatureHeight: 55,
+    stampWidth: 70,
+    stampHeight: 70,
+    blockWidth: 150,
+    margin: 40,
+    layout: 'horizontal'
+  },
+
   // Configuration par défaut
   'default': {
     numberOfSignatures: 3,
