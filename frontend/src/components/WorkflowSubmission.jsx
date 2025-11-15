@@ -1,7 +1,7 @@
 // frontend/src/components/WorkflowSubmission.jsx - VERSION 100% COMPLÈTE AVEC SUPPORT DARK MODE
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // Ajout de useMemo
 import { workflowAPI, usersAPI } from '../services/api';
-import { CheckCircle, XCircle, Loader, Users } from 'lucide-react';
+import { CheckCircle, XCircle, Loader, Users, Search } from 'lucide-react'; // Ajout de Search
 
 export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
   const [users, setUsers] = useState([]);
@@ -10,6 +10,7 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // Nouvelle: État pour le terme de recherche
 
   useEffect(() => {
     loadUsers();
@@ -33,6 +34,18 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
       setLoadingUsers(false);
     }
   };
+
+  // Nouvelle: Fonction de filtrage des utilisateurs
+  const filteredUsers = useMemo(() => {
+    if (!searchTerm) {
+      return users;
+    }
+    const lowerCaseSearch = searchTerm.toLowerCase();
+    return users.filter(user =>
+      (user.fullName || user.username).toLowerCase().includes(lowerCaseSearch) ||
+      user.email.toLowerCase().includes(lowerCaseSearch)
+    );
+  }, [users, searchTerm]);
 
   const toggleValidator = (userId) => {
     setSelectedValidators(prev =>
@@ -114,46 +127,70 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
               ({selectedValidators.length} sélectionné{selectedValidators.length > 1 ? 's' : ''})
             </span>
           </label>
+          
+          {/* Nouvelle: Barre de recherche des utilisateurs */}
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <input
+              type="text"
+              placeholder="Rechercher par nom ou email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              // Style du champ de recherche - Support Dark Mode
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
 
           {/* Liste des validateurs */}
           <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-dark-border rounded-lg p-2">
-            {users.map((user, index) => (
-              <div
-                key={user.id}
-                // Item de la liste - Support Dark Mode
-                className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                  selectedValidators.includes(user.id)
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border-gray-200 hover:border-gray-300 dark:border-dark-border dark:hover:border-gray-600 dark:bg-dark-bg'
-                }`}
-                onClick={() => toggleValidator(user.id)}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedValidators.includes(user.id)}
-                  onChange={() => toggleValidator(user.id)}
-                  className="w-4 h-4 text-blue-600 rounded mr-3"
-                />
-                <div className="flex-1">
-                  {/* Nom et email - Support Dark Mode */}
-                  <div className="font-medium text-gray-900 dark:text-dark-text">
-                    {user.fullName || user.username}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-dark-text-secondary">{user.email}</div>
+            {filteredUsers.length > 0 ? ( // Utiliser filteredUsers
+                filteredUsers.map((user, index) => (
+                    <div
+                        key={user.id}
+                        // Item de la liste - Support Dark Mode
+                        className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            selectedValidators.includes(user.id)
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                                : 'border-gray-200 hover:border-gray-300 dark:border-dark-border dark:hover:border-gray-600 dark:bg-dark-bg'
+                        }`}
+                        onClick={() => toggleValidator(user.id)}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={selectedValidators.includes(user.id)}
+                            onChange={() => toggleValidator(user.id)}
+                            className="w-4 h-4 text-blue-600 rounded mr-3"
+                        />
+                        <div className="flex-1">
+                            {/* Nom et email - Support Dark Mode */}
+                            <div className="font-medium text-gray-900 dark:text-dark-text">
+                                {user.fullName || user.username}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-dark-text-secondary">{user.email}</div>
+                        </div>
+                        {/* Badge Étape - Support Dark Mode */}
+                        {/* Note: L'affichage de "Étape X" n'est plus pertinent car l'ordre de la liste change avec la recherche. On le supprime pour éviter la confusion. */}
+                        {/* <div className="text-xs bg-gray-100 dark:bg-gray-700 dark:text-dark-text-secondary px-2 py-1 rounded">
+                            Étape {index + 1}
+                        </div> */}
+                    </div>
+                ))
+            ) : (
+                <div className="text-center py-4 text-gray-500 dark:text-dark-text-secondary">
+                    {searchTerm 
+                      ? "Aucun utilisateur trouvé pour cette recherche." 
+                      : "Aucun utilisateur disponible pour la validation"}
                 </div>
-                {/* Badge Étape - Support Dark Mode */}
-                <div className="text-xs bg-gray-100 dark:bg-gray-700 dark:text-dark-text-secondary px-2 py-1 rounded">
-                  Étape {index + 1}
-                </div>
-              </div>
-            ))}
+            )}
           </div>
-
-          {users.length === 0 && (
+          
+          {/* Ancien bloc de vérification users.length === 0, remplacé par la logique ci-dessus pour gérer la recherche */}
+          {/* {users.length === 0 && (
             <div className="text-center py-8 text-gray-500 dark:text-dark-text-secondary">
               Aucun utilisateur disponible pour la validation
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Messages d'erreur/succès - Support Dark Mode */}

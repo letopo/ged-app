@@ -1,6 +1,6 @@
 // frontend/src/pages/DocumentList.jsx - VERSION 100% COMPLÈTE AVEC SUPPORT DARK MODE
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { documentsAPI, workflowAPI, usersAPI } from '../services/api';
@@ -25,6 +25,8 @@ const DocumentList = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [viewingDocument, setViewingDocument] = useState(null);
+  // Nouvelle: État pour la recherche dans la modale des validateurs
+  const [searchValidatorTerm, setSearchValidatorTerm] = useState(''); 
 
   const authorizedEmailsForCaisse = [
     'raoulwouapi2017@yahoo.com',
@@ -61,8 +63,10 @@ const DocumentList = () => {
       setLoadingUsers(true);
       const response = await usersAPI.getAll();
       const usersList = response.data?.users || [];
+      // Filtrer l'utilisateur courant et les non-validateurs/directeurs/admins
+      const currentUser = JSON.parse(localStorage.getItem('user'));
       const validators = usersList.filter(user => 
-        ['validator', 'director', 'admin'].includes(user.role)
+        ['validator', 'director', 'admin'].includes(user.role) && user.id !== currentUser?.id
       );
       setAvailableUsers(validators);
     } catch (err) {
@@ -77,6 +81,7 @@ const DocumentList = () => {
     setShowSubmitModal(true);
     setSelectedValidators([]);
     setSubmitComment('');
+    setSearchValidatorTerm(''); // Nouvelle: Réinitialiser la recherche
     await loadAvailableUsers();
   };
 
@@ -159,6 +164,19 @@ const DocumentList = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Nouvelle: Logique pour filtrer les utilisateurs dans la modale
+  const filteredAvailableUsers = useMemo(() => {
+    if (!searchValidatorTerm) {
+      return availableUsers;
+    }
+    const lowerCaseSearch = searchValidatorTerm.toLowerCase();
+    return availableUsers.filter(user =>
+      (user.firstName + ' ' + user.lastName).toLowerCase().includes(lowerCaseSearch) ||
+      user.role.toLowerCase().includes(lowerCaseSearch) ||
+      user.email?.toLowerCase().includes(lowerCaseSearch)
+    );
+  }, [availableUsers, searchValidatorTerm]);
+
   const filteredDocuments = documents.filter(doc => {
     const searchTermLower = searchTerm.toLowerCase();
     const matchSearch = doc.title?.toLowerCase().includes(searchTermLower) ||
@@ -233,7 +251,7 @@ const DocumentList = () => {
                     <div className="p-4 border-b border-gray-200 dark:border-dark-border">
                       <div className="flex items-start justify-between mb-2">
                         <FileText size={24} className="text-blue-600" />
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${ doc.status === 'approved' ? 'bg-green-100 text-green-800' : doc.status === 'rejected' ? 'bg-red-100 text-red-800' : doc.status === 'pending_validation' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${ doc.status === 'approved' ? 'bg-green-100 text-green-800' : doc.status === 'rejected' ? 'bg-red-100 text-red-800' : doc.status === 'pending_validation' ? 'bg-yellow-100 text-yellow-800' : doc.status === 'draft' ? 'bg-gray-100 text-gray-800' : 'bg-gray-100'}`}>
                           {doc.status.replace('_', ' ')}
                         </span>
                       </div>
@@ -285,7 +303,7 @@ const DocumentList = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${ doc.status === 'approved' ? 'bg-green-100 text-green-800' : doc.status === 'rejected' ? 'bg-red-100 text-red-800' : doc.status === 'pending_validation' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${ doc.status === 'approved' ? 'bg-green-100 text-green-800' : doc.status === 'rejected' ? 'bg-red-100 text-red-800' : doc.status === 'pending_validation' ? 'bg-yellow-100 text-yellow-800' : doc.status === 'draft' ? 'bg-gray-100 text-gray-800' : 'bg-gray-100'}`}>
                               {doc.status.replace('_', ' ')}
                             </span>
                           </td>
@@ -360,15 +378,48 @@ const DocumentList = () => {
                 <p className="text-sm text-gray-700 dark:text-dark-text">Document : <span className="font-medium">{documentToSubmit?.title}</span></p>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-3">Sélectionnez les validateurs (dans l'ordre)</label>
-                    {loadingUsers ? <div className="flex justify-center py-8"><Loader className="animate-spin text-blue-600" /></div> : availableUsers.length === 0 ? <div className="text-center py-8 bg-gray-50 dark:bg-dark-bg rounded-lg"><AlertCircle className="mx-auto text-gray-400 mb-2" size={32} /><p className='text-gray-700 dark:text-dark-text'>Aucun validateur disponible</p></div> : 
-                    <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-200 dark:border-dark-border rounded-lg p-3">
-                        {availableUsers.map((user) => (
-                        <div key={user.id} onClick={() => addValidator(user.id)} className={`p-3 rounded-lg cursor-pointer flex items-center justify-between transition-colors ${selectedValidators.includes(user.id) ? 'bg-blue-100 border-2 border-blue-500 dark:bg-blue-900/30' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 dark:bg-dark-bg dark:hover:bg-gray-700 dark:border-dark-border'}`}>
-                            <div className="flex items-center text-gray-900 dark:text-dark-text"><User size={20} className="mr-3" /><div><div className="font-medium">{user.firstName} {user.lastName}</div><div className="text-xs text-gray-500 dark:text-dark-text-secondary">{user.role}</div></div></div>
-                            {selectedValidators.includes(user.id) && <Check size={20} className="text-blue-600" />}
-                        </div>
-                        ))}
-                    </div>}
+                    {loadingUsers ? <div className="flex justify-center py-8"><Loader className="animate-spin text-blue-600" /></div> : availableUsers.length === 0 && !searchValidatorTerm ? <div className="text-center py-8 bg-gray-50 dark:bg-dark-bg rounded-lg"><AlertCircle className="mx-auto text-gray-400 mb-2" size={32} /><p className='text-gray-700 dark:text-dark-text'>Aucun validateur disponible</p></div> : 
+                    <>
+                      {/* Nouvelle: Champ de recherche des validateurs */}
+                      <div className="relative mb-3">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+                          <input
+                              type="text"
+                              placeholder="Rechercher par nom, rôle ou email..."
+                              value={searchValidatorTerm}
+                              onChange={(e) => setSearchValidatorTerm(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                          />
+                      </div>
+                      
+                      {/* Utilisation de filteredAvailableUsers pour l'affichage */}
+                      <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-200 dark:border-dark-border rounded-lg p-3">
+                          {filteredAvailableUsers.length > 0 ? (
+                              filteredAvailableUsers.map((user) => (
+                                  <div 
+                                      key={user.id} 
+                                      onClick={() => addValidator(user.id)} 
+                                      className={`p-3 rounded-lg cursor-pointer flex items-center justify-between transition-colors ${selectedValidators.includes(user.id) ? 'bg-blue-100 border-2 border-blue-500 dark:bg-blue-900/30' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 dark:bg-dark-bg dark:hover:bg-gray-700 dark:border-dark-border'}`}
+                                  >
+                                      <div className="flex items-center text-gray-900 dark:text-dark-text">
+                                          <User size={20} className="mr-3" />
+                                          <div>
+                                              <div className="font-medium">{user.firstName} {user.lastName}</div>
+                                              <div className="text-xs text-gray-500 dark:text-dark-text-secondary">{user.role}</div>
+                                          </div>
+                                      </div>
+                                      {selectedValidators.includes(user.id) && <Check size={20} className="text-blue-600" />}
+                                  </div>
+                              ))
+                          ) : (
+                              <div className="text-center py-4 text-gray-500 dark:text-dark-text-secondary">
+                                  {searchValidatorTerm 
+                                      ? "Aucun validateur trouvé pour cette recherche." 
+                                      : "Aucun validateur disponible."}
+                              </div>
+                          )}
+                      </div>
+                    </>}
                 </div>
                 {selectedValidators.length > 0 && <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-3">Ordre de validation</label>
