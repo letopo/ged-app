@@ -23,6 +23,8 @@ import calendarRoutes from './routes/calendar.js';
 import healthRouter from './routes/health.js';
 import listsRoutes from './routes/lists.js';
 import holidaysRoutes from './routes/holidays.js';
+// NOUVEAU : Import de la route des employés
+import employeeRoutes from './routes/employees.js';
 import { createDefaultAdmin } from './seeders/createDefaultAdmin.js';
 
 // Configuration
@@ -84,6 +86,8 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api', healthRouter);
 app.use('/api/lists', listsRoutes);
 app.use('/api/holidays', holidaysRoutes);
+// NOUVEAU : Route pour les employés
+app.use('/api/employees', employeeRoutes);
 
 // ============================================
 // GESTION DES ROUTES NON TROUVÉES ET ERREURS

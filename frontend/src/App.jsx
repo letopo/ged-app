@@ -1,4 +1,4 @@
-﻿// frontend/src/App.jsx - VERSION MISE À JOUR
+﻿// frontend/src/App.jsx - VERSION CORRIGÉE
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
@@ -14,9 +14,9 @@ import MyTasks from './components/MyTasks';
 import WorkflowDashboard from './pages/WorkflowDashboard';
 import UserManagement from './pages/UserManagement';
 import CreateFromTemplate from './pages/CreateFromTemplate';
-import CreateWorkRequest from './pages/CreateWorkRequest'; // 👈 1. IMPORTER
+import CreateWorkRequest from './pages/CreateWorkRequest';
 import ServicesManagement from './pages/ServicesManagement';
-
+import EmployeeManagement from './pages/EmployeeManagement.jsx';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -29,6 +29,17 @@ const AdminRoute = ({ children }) => {
   if (loading) return <div>Chargement...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return user?.role === 'admin' ? children : <Navigate to="/dashboard" replace />;
+};
+
+// NOUVEAU : Route pour RH et Admin
+const RHOrAdminRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <div>Chargement...</div>;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  
+  // Permettre l'accès aux admin et au RH (hsjm.rh@gmail.com)
+  const isRHOrAdmin = user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com';
+  return isRHOrAdmin ? children : <Navigate to="/dashboard" replace />;
 };
 
 function App() {
@@ -51,10 +62,15 @@ function App() {
         
         {/* Routes pour la création de documents */}
         <Route path="/create-from-template" element={<ProtectedRoute><CreateFromTemplate /></ProtectedRoute>} />
-        <Route path="/create-work-request" element={<ProtectedRoute><CreateWorkRequest /></ProtectedRoute>} /> {/* 👈 2. AJOUTER LA NOUVELLE ROUTE */}
+        <Route path="/create-work-request" element={<ProtectedRoute><CreateWorkRequest /></ProtectedRoute>} />
+        
+        {/* CORRECTION : Route pour les employés - accessible par RH et Admin */}
+        <Route path="/employees" element={<RHOrAdminRoute><EmployeeManagement /></RHOrAdminRoute>} />
+        
+        {/* CORRECTION : Route pour les services */}
+        <Route path="/services" element={<AdminRoute><ServicesManagement /></AdminRoute>} />
         
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
-        <Route path="/services" element={<ServicesManagement />} />
       </Routes>
     </Router>
   );

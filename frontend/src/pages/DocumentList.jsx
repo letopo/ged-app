@@ -361,6 +361,12 @@ const DocumentList = () => {
                     📦 Bon de sortie
                   </Link>
                 </li>
+                <li>
+                  <Link to="/create-from-template" state={{ templateName: "Demande d'explication" }} 
+                      className="block p-3 bg-gray-50 hover:bg-blue-50 dark:bg-dark-bg dark:text-dark-text dark:hover:bg-blue-900/50 rounded-lg transition">
+                      ❓ Demande d'explication
+                  </Link>
+                </li>
             </ul>
         </div>
       </aside>

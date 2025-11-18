@@ -1,4 +1,4 @@
-﻿// frontend/src/components/Navbar.jsx - AVEC THEME TOGGLE
+﻿// frontend/src/components/Navbar.jsx - VERSION CORRIGÉE
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import ThemeToggle from './ThemeToggle'; // ✅ AJOUT
+import ThemeToggle from './ThemeToggle';
 
 export default function Navbar({ onLogout }) {
   const { user } = useAuth();
@@ -55,6 +55,8 @@ export default function Navbar({ onLogout }) {
     { path: '/workflow-dashboard', icon: BarChart3, label: 'Workflow' },
     { path: '/user-management', icon: Users, label: 'Utilisateurs', adminOnly: true },
     { path: '/services', icon: LayoutGrid, label: 'Services', adminOnly: true },
+    // NOUVEAU : Lien pour la gestion des employés (RH et Admin)
+    { path: '/employees', icon: Users, label: 'Employés', rhOrAdminOnly: true },
   ];
 
   return (
@@ -70,7 +72,12 @@ export default function Navbar({ onLogout }) {
 
           <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
+              // Vérifier les permissions
               if (item.adminOnly && user?.role !== 'admin') return null;
+              if (item.rhOrAdminOnly) {
+                const isRHOrAdmin = user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com';
+                if (!isRHOrAdmin) return null;
+              }
               const Icon = item.icon;
               return (
                 <Link
@@ -91,7 +98,7 @@ export default function Navbar({ onLogout }) {
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
-            <ThemeToggle /> {/* ✅ AJOUT DU TOGGLE */}
+            <ThemeToggle />
             
             {pendingCount > 0 && (
               <Link
@@ -118,7 +125,7 @@ export default function Navbar({ onLogout }) {
           </div>
           
           <div className="md:hidden flex items-center space-x-2">
-            <ThemeToggle /> {/* ✅ AJOUT DU TOGGLE MOBILE */}
+            <ThemeToggle />
             <button onClick={() => setIsOpen(!isOpen)} className="text-white hover:text-blue-200 p-2">
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -129,7 +136,12 @@ export default function Navbar({ onLogout }) {
           <div className="md:hidden pb-4">
             <div className="space-y-1">
               {navItems.map((item) => {
-                 if (item.adminOnly && user?.role !== 'admin') return null;
+                // Vérifier les permissions (version mobile)
+                if (item.adminOnly && user?.role !== 'admin') return null;
+                if (item.rhOrAdminOnly) {
+                  const isRHOrAdmin = user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com';
+                  if (!isRHOrAdmin) return null;
+                }
                 const Icon = item.icon;
                 return (
                   <Link

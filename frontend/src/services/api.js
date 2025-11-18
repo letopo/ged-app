@@ -138,6 +138,28 @@ export const calendarAPI = {
   },
 };
 
+// ============================================
+// API pour les Employés (RH)
+// ============================================
+export const employeesAPI = {
+  getAll: (params = {}) => api.get('/employees', { params }),
+  getById: (employeeId) => api.get(`/employees/${employeeId}`),
+  create: (employeeData) => api.post('/employees', employeeData),
+  update: (employeeId, data) => api.put(`/employees/${employeeId}`, data),
+  delete: (employeeId) => api.delete(`/employees/${employeeId}`),
+  getByService: (serviceId) => api.get(`/employees/service/${serviceId}`),
+  getServicesWithEmployees: () => api.get('/employees/services/with-employees'),
+  // NOUVEAU : Export CSV
+  exportCSV: () => api.get('/employees/export/csv', {
+    responseType: 'blob' // Important pour les fichiers
+  }),
+  
+  // NOUVEAU : Import CSV
+  importCSV: (formData) => api.post('/employees/import/csv', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+};
+
 // ✅ NOUVEAU : API Jours fériés
 export const holidaysAPI = {
   getHolidays: (year) => api.get('/holidays', { params: { year } }),

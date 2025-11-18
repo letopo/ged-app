@@ -9,6 +9,7 @@ import Workflow from './Workflow.js';
 import Service from './Service.js';
 import Motif from './Motif.js';
 import ServiceMember from './ServiceMember.js';
+import Employee from './Employee.js'; // NOUVEAU MODÈLE
 
 const db = {
   User,
@@ -17,6 +18,7 @@ const db = {
   Service,
   Motif,
   ServiceMember,
+  Employee, // AJOUT
 };
 
 // 2. Parcourir tous les modèles et appeler leur méthode 'associate' si elle existe.
@@ -31,5 +33,5 @@ Object.keys(db).forEach(modelName => {
 db.sequelize = sequelize;
 
 // 3. Exporter les modèles pour le reste de l'application
-export { User, Document, Workflow, Service, Motif, ServiceMember, sequelize };
+export { User, Document, Workflow, Service, Motif, ServiceMember, Employee, sequelize }; // AJOUT Employee
 export default db;
