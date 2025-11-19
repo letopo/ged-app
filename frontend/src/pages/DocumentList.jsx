@@ -66,7 +66,8 @@ const DocumentList = () => {
       // Filtrer l'utilisateur courant et les non-validateurs/directeurs/admins
       const currentUser = JSON.parse(localStorage.getItem('user'));
       const validators = usersList.filter(user => 
-        ['validator', 'director', 'admin'].includes(user.role) && user.id !== currentUser?.id
+        ['validator', 'director', 'admin'].includes(user.role)
+        // ✅ Ne plus filtrer l'utilisateur courant - il doit pouvoir se voir
       );
       setAvailableUsers(validators);
     } catch (err) {
