@@ -57,17 +57,7 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
-        if (name === 'permute_id') {
-            const permute = usersList.find(u => u.id === value);
-            setFormData(prev => ({
-                ...prev,
-                permute_id: value,
-                permute_noms_prenoms: permute ? `${permute.firstName} ${permute.lastName}` : ''
-            }));
-        } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
-        }
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const formatDate = (dateStr) => {
@@ -86,33 +76,6 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
         color: '#000000',
         lineHeight: '1.5'
     };
-    
-    const PermuteSelect = ({ name, value, onChange, label, className }) => (
-        <div className={className}>
-            <label className="font-semibold block mb-2 text-gray-700" style={{ fontSize: '15px' }}>
-                {label}
-            </label>
-            <select
-                name={name}
-                value={value || ''}
-                onChange={onChange}
-                className="not-printable w-full border-b-2 border-gray-400 bg-transparent focus:outline-none focus:border-blue-500"
-                style={{ borderStyle: 'dotted', fontSize: '16px', fontWeight: '600', padding: '8px 4px', minHeight: '40px', lineHeight: '1.5', appearance: 'none' }}
-            >
-                <option value="">-- Sélectionner la personne --</option>
-                {usersList.map((user) => (
-                    <option key={user.id} value={user.id}>
-                        {user.firstName} {user.lastName} ({user.username})
-                    </option>
-                ))}
-            </select>
-            {/* Texte statique pour PDF */}
-            <div className="print-only" style={{ ...staticFieldStyle, display: 'none' }}>
-                {formData.permute_noms_prenoms || '\u00A0'}
-            </div>
-        </div>
-    );
-    
 
     if (loadingData) {
         return <div className="p-8 text-center text-gray-500">Chargement des données...</div>;
@@ -212,13 +175,27 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
                 
                 <div style={{ fontSize: '15px', lineHeight: '2.0' }}>
                     
-                    <PermuteSelect 
-                        name="permute_id" 
-                        value={formData.permute_id} 
-                        onChange={handleChange} 
-                        label="Personne avec qui permuter" 
-                        className="not-printable my-3 p-4 bg-gray-50 border rounded-lg"
-                    />
+                    {/* REMPLACEMENT DU SELECT PAR UN INPUT TEXT */}
+                    <div className="not-printable my-3 p-4 bg-gray-50 border rounded-lg">
+                        <label className="font-semibold block mb-2 text-gray-700" style={{ fontSize: '15px' }}>
+                            Personne avec qui permuter
+                        </label>
+                        <input
+                            name="permute_noms_prenoms"
+                            value={formData.permute_noms_prenoms || ''}
+                            onChange={handleChange}
+                            className="w-full border-b-2 border-gray-400 bg-transparent focus:outline-none focus:border-blue-500"
+                            style={{
+                                borderStyle: 'dotted',
+                                fontSize: '16px',
+                                fontWeight: '600',
+                                padding: '8px 4px',
+                                minHeight: '40px',
+                                lineHeight: '1.5'
+                            }}
+                            placeholder="Saisir le nom et prénom de la personne"
+                        />
+                    </div>
                     
                     <p className="mb-4 text-justify">
                         Je viens par la présente vous solliciter respectueusement pour une permutation entre 
