@@ -1,10 +1,11 @@
-﻿// backend/src/server.js - VERSION COMPLÈTE AVEC ROUTES LISTES ET SEED ADMIN
+﻿// backend/src/server.js - VERSION AVEC SOCKET.IO
 
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createServer } from 'http';
 import sequelize from './config/database.js';
 import { Op } from 'sequelize';
 
@@ -12,6 +13,9 @@ import { Op } from 'sequelize';
 import './models/index.js';
 import { Service, Motif } from './models/index.js';
 import authMiddlewareObject from './middleware/auth.js';
+
+// ✅ NOUVEAU : Import Socket.IO Manager
+import { initializeSocket } from './utils/socketManager.js';
 
 // Import des routes existantes
 import authRoutes from './routes/auth.js';
@@ -23,9 +27,10 @@ import calendarRoutes from './routes/calendar.js';
 import healthRouter from './routes/health.js';
 import listsRoutes from './routes/lists.js';
 import holidaysRoutes from './routes/holidays.js';
-// NOUVEAU : Import de la route des employés
 import employeeRoutes from './routes/employees.js';
 import { createDefaultAdmin } from './seeders/createDefaultAdmin.js';
+import pushRoutes from './routes/push.js';
+
 
 // Configuration
 dotenv.config();
@@ -34,6 +39,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ✅ NOUVEAU : Créer serveur HTTP pour Socket.IO
+const httpServer = createServer(app);
 
 // ============================================
 // MIDDLEWARE CORS
@@ -86,8 +94,9 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api', healthRouter);
 app.use('/api/lists', listsRoutes);
 app.use('/api/holidays', holidaysRoutes);
-// NOUVEAU : Route pour les employés
 app.use('/api/employees', employeeRoutes);
+app.use('/api/push', pushRoutes);
+
 
 // ============================================
 // GESTION DES ROUTES NON TROUVÉES ET ERREURS
@@ -122,13 +131,18 @@ const startServer = async () => {
     await createDefaultAdmin();
     console.log('');
     
-    // 4️⃣ Démarrage du serveur
-    app.listen(PORT, '0.0.0.0', () => {
+    // 4️⃣ ✅ NOUVEAU : Initialiser Socket.IO
+    initializeSocket(httpServer);
+    console.log('');
+    
+    // 5️⃣ Démarrage du serveur HTTP (avec Socket.IO)
+    httpServer.listen(PORT, '0.0.0.0', () => {
       console.log('');
       console.log('╔═══════════════════════════════════════╗');
       console.log('║  🚀 Serveur Backend GED Démarré      ║');
       console.log('╚═══════════════════════════════════════╝');
       console.log(`📡 URL: http://localhost:${PORT}`);
+      console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
       console.log(`🌍 Environnement: ${process.env.NODE_ENV || 'development'}`);
       console.log('╚═══════════════════════════════════════╝');
       console.log('');

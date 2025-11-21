@@ -3,8 +3,8 @@
 export const SIGNATURE_CONFIGS = {
   'Ordre de mission': {
     numberOfSignatures: 4,
-    signatureY: 190,        // Position Y des signatures
-    stampY: 230,           // Position Y des cachets
+    signatureY: 170,        // Position Y des signatures
+    stampY: 210,           // Position Y des cachets
     signatureWidth: 110,   // Largeur de l'image de signature
     signatureHeight: 55,   // Hauteur de l'image de signature
     stampWidth: 70,        // Largeur du cachet

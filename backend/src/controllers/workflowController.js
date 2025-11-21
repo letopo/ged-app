@@ -1,4 +1,4 @@
-// backend/src/controllers/workflowController.js - VERSION COMPLÈTE AVEC WORKFLOW COMPTABLE
+// backend/src/controllers/workflowController.js - VERSION COMPLÈTE AVEC SOCKET.IO
 
 import { Workflow, Document, User } from '../models/index.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
@@ -9,12 +9,65 @@ import path from 'path';
 import { Op } from 'sequelize';
 import { sequelize } from '../models/index.js';
 import { getSignatureConfig } from '../config/documentSignatureConfig.js';
+// ✅ NOUVEAU : Import du Socket Manager
+import { emitNewTaskNotification, emitTaskUpdateNotification, isUserConnected } from '../utils/socketManager.js';
+import { sendNewTaskPushNotification } from '../services/pushNotificationService.js';
+
 
 // ✅ NOUVEAU : Email du comptable
 const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com';
 
 // ✅ NOUVEAU : Email du DG qui peut signer + cacheter en une seule fois
 const DG_EMAIL = 'hopitalcameroun@ordredemaltefrance.org';
+
+// ============================================
+// FONCTION HELPER : Notifier un validateur
+// ============================================
+const notifyValidator = async (validator, document, isFirstValidator = false) => {
+  if (!validator?.email) return;
+
+  const subject = isFirstValidator 
+    ? 'Nouvelle tâche de validation' 
+    : 'Nouvelle tâche de validation';
+  
+  const body = `Vous avez une nouvelle tâche de validation pour le document "${document.title}".`;
+
+  try {
+    const isConnected = isUserConnected(validator.id);
+    
+    if (isConnected) {
+      console.log(`🔌 User ${validator.id} connecté - WebSocket`);
+      emitNewTaskNotification(validator.id, {
+        taskId: document.id,
+        documentId: document.id,
+        documentTitle: document.title,
+        documentCategory: document.category,
+        submittedBy: document.uploadedBy?.firstName 
+          ? `${document.uploadedBy.firstName} ${document.uploadedBy.lastName}` 
+          : 'Inconnu'
+      });
+    } else {
+      console.log(`📧 User ${validator.id} hors ligne - Email + Push`);
+      
+      // ✅ NOUVEAU : Envoyer notification push
+      await sendNewTaskPushNotification(validator.id, {
+        taskId: document.id,
+        documentId: document.id,
+        documentTitle: document.title,
+        documentCategory: document.category,
+        submittedBy: document.uploadedBy?.firstName 
+          ? `${document.uploadedBy.firstName} ${document.uploadedBy.lastName}` 
+          : 'Inconnu'
+      });
+    }
+    
+    // Email en backup
+    await sendNotificationEmail(validator.email, subject, body);
+    
+  } catch (emailError) {
+    console.warn('⚠️ Erreur envoi notification:', emailError.message);
+  }
+};
 
 // Créer un workflow avec ajout automatique du comptable pour Ordre de mission
 export const createWorkflow = async (req, res) => {
@@ -24,7 +77,10 @@ export const createWorkflow = async (req, res) => {
       return res.status(400).json({ success: false, message: 'documentId et validatorIds (array) sont requis.' });
     }
     
-    const document = await Document.findByPk(documentId);
+    const document = await Document.findByPk(documentId, {
+      include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }]
+    });
+    
     if (!document) {
       return res.status(404).json({ success: false, message: 'Document introuvable.' });
     }
@@ -65,18 +121,9 @@ export const createWorkflow = async (req, res) => {
     
     await document.update({ status: 'pending_validation' });
     
+    // ✅ NOUVEAU : Notifier le premier validateur avec WebSocket + Email
     const firstValidator = await User.findByPk(finalValidatorIds[0]);
-    if (firstValidator?.email) {
-      try {
-        await sendNotificationEmail(
-          firstValidator.email,
-          'Nouvelle tâche de validation',
-          `Vous avez une nouvelle tâche de validation pour le document "${document.title}".`
-        );
-      } catch (emailError) {
-        console.warn('⚠️ Erreur envoi email:', emailError.message);
-      }
-    }
+    await notifyValidator(firstValidator, document, true);
     
     const workflowsWithValidators = await Workflow.findAll({
       where: { documentId },
@@ -166,6 +213,19 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       
       const nextValidator = await User.findByPk(pausedWorkflow.validatorId, { transaction });
       if (nextValidator?.email) {
+        // ✅ NOUVEAU : WebSocket + Email
+        const isConnected = isUserConnected(nextValidator.id);
+        
+        if (isConnected) {
+          emitNewTaskNotification(nextValidator.id, {
+            taskId: pausedWorkflow.id,
+            documentId: workRequest.id,
+            documentTitle: workRequest.title,
+            documentCategory: workRequest.category,
+            submittedBy: 'Système'
+          });
+        }
+        
         try {
           await sendNotificationEmail(
             nextValidator.email,
@@ -192,7 +252,7 @@ export const validateTask = async (req, res) => {
     const userId = req.user.id;
 
     const task = await Workflow.findByPk(taskId, { 
-      include: [{ model: Document, as: 'document' }], 
+      include: [{ model: Document, as: 'document', include: [{ model: User, as: 'uploadedBy' }] }], 
       transaction: t 
     });
     
@@ -209,21 +269,9 @@ export const validateTask = async (req, res) => {
     const document = task.document;
     const validator = await User.findByPk(userId, { transaction: t });
 
-    // ✅ NOUVEAU : Validation combinée
-if (validationType === 'approve_sign_stamp') {
-  
-  // Ancien code :
-  // if (validator.email !== DG_EMAIL) {
-  //   await t.rollback();
-  //   return res.status(403).json({ 
-  //     success: false, 
-  //     message: 'Cette action est réservée au Directeur Général.' 
-  //   });
-  // }
-  
-  // NOUVEAU CODE : Vérifier si l'utilisateur a un rôle privilégié
+    // ✅ Validation combinée
+    if (validationType === 'approve_sign_stamp') {
       const ROLES_FOR_COMBINED_ACTION = ['admin', 'director', 'validator'];
-
       const isAuthorizedForCombinedAction = validator.role && ROLES_FOR_COMBINED_ACTION.includes(validator.role);
 
       if (!isAuthorizedForCombinedAction) {
@@ -236,7 +284,6 @@ if (validationType === 'approve_sign_stamp') {
 
       console.log(`🎯 Validation combinée (Approuver + Signer + Cacheter) par un utilisateur autorisé.`);
 
-      // Vérifier que c'est un PDF
       if (document.fileType !== 'application/pdf') {
         await t.rollback();
         return res.status(400).json({ 
@@ -245,7 +292,6 @@ if (validationType === 'approve_sign_stamp') {
         });
       }
 
-      // Vérifier que le DG a signature ET cachet
       if (!validator.signaturePath || !validator.stampPath) {
         await t.rollback();
         return res.status(400).json({ 
@@ -254,7 +300,6 @@ if (validationType === 'approve_sign_stamp') {
         });
       }
 
-      // Charger le PDF
       const pdfPath = path.resolve(process.cwd(), document.filePath);
       const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
       pdfDoc.registerFontkit(fontkit);
@@ -263,7 +308,6 @@ if (validationType === 'approve_sign_stamp') {
       const lastPage = pages[pages.length - 1];
       const { width, height } = lastPage.getSize();
 
-      // Récupérer tous les workflows pour calculer la position
       const allWorkflows = await Workflow.findAll({
         where: { documentId: document.id },
         include: [{ model: User, as: 'validator', attributes: ['email'] }],
@@ -276,9 +320,8 @@ if (validationType === 'approve_sign_stamp') {
       const isLastWorkflowComptable = lastWorkflow.validator.email === COMPTABLE_EMAIL;
       const totalStepsWithoutComptable = isLastWorkflowComptable ? totalSteps - 1 : totalSteps;
       
-      const documentsNeeding4Signatures = ['Ordre de mission'];
-      const numberOfSignatures = documentsNeeding4Signatures.includes(document.category) ? 4 : 3;
-      const isInSignatureRange = task.step > (totalStepsWithoutComptable - numberOfSignatures);
+      const signatureConfig = getSignatureConfig(document.category);
+      const isInSignatureRange = task.step > (totalStepsWithoutComptable - signatureConfig.numberOfSignatures);
 
       if (!isInSignatureRange) {
         await t.rollback();
@@ -288,9 +331,7 @@ if (validationType === 'approve_sign_stamp') {
         });
       }
 
-      // ✅ UTILISER LA CONFIGURATION POUR CE TYPE DE DOCUMENT
-      const signatureConfig = getSignatureConfig(document.category);
-      console.log(`📐 Configuration DG pour "${document.category}":`, signatureConfig);
+      console.log(`📝 Configuration DG pour "${document.category}":`, signatureConfig);
 
       // 1️⃣ APPLIQUER LA SIGNATURE
       const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
@@ -300,7 +341,6 @@ if (validationType === 'approve_sign_stamp') {
       const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - signatureConfig.numberOfSignatures);
       let x;
       
-      // Calculer la position X selon la configuration
       if (signatureConfig.numberOfSignatures === 4) {
         const pageUsableWidth = width - (2 * signatureConfig.margin);
         const totalBlocksWidth = 4 * signatureConfig.blockWidth;
@@ -363,7 +403,6 @@ if (validationType === 'approve_sign_stamp') {
       
       console.log(`✅ Cachet DG apposé à x=${stampX.toFixed(2)}, y=${stampY}`);
 
-      // Sauvegarder le PDF modifié
       const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
       const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
       await fs.writeFile(newFilePath, await pdfDoc.save());
@@ -378,14 +417,12 @@ if (validationType === 'approve_sign_stamp') {
         },
       }, { transaction: t });
 
-      // Mettre à jour le statut de la tâche
       await task.update({ 
         status: 'approved', 
         comment: comment || 'Approuvé, signé et cacheté par le DG', 
         validatedAt: new Date() 
       }, { transaction: t });
 
-      // Gérer la suite du workflow
       const nextTask = await Workflow.findOne({
         where: { documentId: document.id, status: 'queued' },
         order: [['step', 'ASC']],
@@ -402,20 +439,32 @@ if (validationType === 'approve_sign_stamp') {
         
         const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
         if (nextValidator?.email) {
+          const emailSubject = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
+            ? '💰 Ordre de mission validé - Créer Pièce de caisse'
+            : 'Nouvelle tâche de validation';
+          
+          const emailBody = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
+            ? `L'Ordre de mission "${document.title}" a été validé par le DG. Vous devez maintenant créer la Pièce de caisse correspondante.`
+            : `Le document "${document.title}" nécessite votre validation.`;
+          
+          // ✅ NOUVEAU : WebSocket + Email
+          const isConnected = isUserConnected(nextValidator.id);
+          
+          if (isConnected) {
+            console.log(`🔌 Prochain validateur ${nextValidator.id} connecté - WebSocket`);
+            emitNewTaskNotification(nextValidator.id, {
+              taskId: nextTask.id,
+              documentId: document.id,
+              documentTitle: document.title,
+              documentCategory: document.category,
+              submittedBy: validator.firstName 
+                ? `${validator.firstName} ${validator.lastName}` 
+                : 'Inconnu'
+            });
+          }
+          
           try {
-            const emailSubject = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
-              ? '💰 Ordre de mission validé - Créer Pièce de caisse'
-              : 'Nouvelle tâche de validation';
-            
-            const emailBody = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
-              ? `L'Ordre de mission "${document.title}" a été validé par le DG. Vous devez maintenant créer la Pièce de caisse correspondante.`
-              : `Le document "${document.title}" nécessite votre validation.`;
-            
-            await sendNotificationEmail(
-              nextValidator.email, 
-              emailSubject, 
-              emailBody
-            );
+            await sendNotificationEmail(nextValidator.email, emailSubject, emailBody);
           } catch(e) { 
             console.warn("Email error:", e.message); 
           }
@@ -464,12 +513,8 @@ if (validationType === 'approve_sign_stamp') {
     });
     
     const totalSteps = allWorkflows.length;
-    
-    // Identifier si le dernier workflow est le comptable
     const lastWorkflow = allWorkflows[allWorkflows.length - 1];
     const isLastWorkflowComptable = lastWorkflow.validator.email === COMPTABLE_EMAIL;
-    
-    // Calculer le nombre d'étapes SANS le comptable
     const totalStepsWithoutComptable = isLastWorkflowComptable ? totalSteps - 1 : totalSteps;
     
     console.log(`📄 Document: ${document.category}`);
@@ -478,12 +523,11 @@ if (validationType === 'approve_sign_stamp') {
     console.log(`📊 Étapes SANS comptable: ${totalStepsWithoutComptable}`);
     console.log(`📍 Étape actuelle: ${task.step}`);
     
-    // ✅ UTILISER LA CONFIGURATION POUR CE TYPE DE DOCUMENT
     const signatureConfig = getSignatureConfig(document.category);
     const numberOfSignatures = signatureConfig.numberOfSignatures;
     
     console.log(`✏️ Nombre de signatures requises: ${numberOfSignatures}`);
-    console.log(`📐 Configuration pour "${document.category}":`, signatureConfig);
+    console.log(`📝 Configuration pour "${document.category}":`, signatureConfig);
 
     if (validationType === 'pause') {
       await task.update({ 
@@ -506,15 +550,12 @@ if (validationType === 'approve_sign_stamp') {
       });
     }
 
-    // ✅ MODIFIÉ : Le comptable NE PEUT PAS signer/cacheter UNIQUEMENT pour les Ordres de mission
     const isComptableTask = validator.email === COMPTABLE_EMAIL;
     const isOrderMission = document.category === 'Ordre de mission';
     
-    // ✅ NOUVELLE LOGIQUE : Le comptable peut valider normalement les Pièces de caisse
     if (isComptableTask && isOrderMission) {
       console.log(`💰 Tâche du comptable sur Ordre de mission - Pas de signature/cachet autorisé`);
       
-      // Le comptable peut seulement valider simplement les OM, pas de signature/cachet
       if (['signature', 'stamp', 'dater'].includes(validationType)) {
         await t.rollback();
         return res.status(400).json({ 
@@ -524,10 +565,9 @@ if (validationType === 'approve_sign_stamp') {
       }
     }
 
-    // ✅ Le comptable PEUT signer/cacheter les Pièces de caisse et autres documents
     if (['signature', 'stamp', 'dater'].includes(validationType) && 
         document.fileType === 'application/pdf' &&
-        !(isComptableTask && isOrderMission)) { // ✅ Exclu seulement si comptable + OM
+        !(isComptableTask && isOrderMission)) {
       
       console.log(`🔧 Application de ${validationType} sur le PDF...`);
       
@@ -539,7 +579,6 @@ if (validationType === 'approve_sign_stamp') {
       const lastPage = pages[pages.length - 1];
       const { width, height } = lastPage.getSize();
       
-      // Calculer la plage de signature en utilisant totalStepsWithoutComptable
       const isInSignatureRange = task.step > (totalStepsWithoutComptable - numberOfSignatures);
 
       console.log(`🎯 Dans la plage de signature? ${isInSignatureRange}`);
@@ -579,9 +618,8 @@ if (validationType === 'approve_sign_stamp') {
         let x;
         const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
         
-        console.log(`📍 Position dans le groupe de ${numberOfSignatures} signatures: ${positionInSignatureGroup}/${numberOfSignatures}`);
+        console.log(`📝 Position dans le groupe de ${numberOfSignatures} signatures: ${positionInSignatureGroup}/${numberOfSignatures}`);
         
-        // ✅ UTILISER LA CONFIGURATION
         if (numberOfSignatures === 4) {
           const pageUsableWidth = width - (2 * signatureConfig.margin);
           const totalBlocksWidth = 4 * signatureConfig.blockWidth;
@@ -641,7 +679,6 @@ if (validationType === 'approve_sign_stamp') {
         const positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
         let stampBaseX;
         
-        // ✅ UTILISER LA CONFIGURATION
         if (numberOfSignatures === 4) {
           const pageUsableWidth = width - (2 * signatureConfig.margin);
           const totalBlocksWidth = 4 * signatureConfig.blockWidth;
@@ -729,20 +766,32 @@ if (validationType === 'approve_sign_stamp') {
           
           const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
           if (nextValidator?.email) {
+            const emailSubject = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
+              ? '💰 Ordre de mission validé - Créer Pièce de caisse'
+              : 'Nouvelle tâche de validation';
+            
+            const emailBody = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
+              ? `L'Ordre de mission "${document.title}" a été validé par tous les responsables. Vous devez maintenant créer la Pièce de caisse correspondante.`
+              : `Le document "${document.title}" nécessite votre validation.`;
+            
+            // ✅ NOUVEAU : WebSocket + Email
+            const isConnected = isUserConnected(nextValidator.id);
+            
+            if (isConnected) {
+              console.log(`🔌 Prochain validateur ${nextValidator.id} connecté - WebSocket`);
+              emitNewTaskNotification(nextValidator.id, {
+                taskId: nextTask.id,
+                documentId: document.id,
+                documentTitle: document.title,
+                documentCategory: document.category,
+                submittedBy: validator.firstName 
+                  ? `${validator.firstName} ${validator.lastName}` 
+                  : 'Inconnu'
+              });
+            }
+            
             try {
-              const emailSubject = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
-                ? '💰 Ordre de mission validé - Créer Pièce de caisse'
-                : 'Nouvelle tâche de validation';
-              
-              const emailBody = nextValidator.email === COMPTABLE_EMAIL && document.category === 'Ordre de mission'
-                ? `L'Ordre de mission "${document.title}" a été validé par tous les responsables. Vous devez maintenant créer la Pièce de caisse correspondante.`
-                : `Le document "${document.title}" nécessite votre validation.`;
-              
-              await sendNotificationEmail(
-                nextValidator.email, 
-                emailSubject, 
-                emailBody
-              );
+              await sendNotificationEmail(nextValidator.email, emailSubject, emailBody);
             } catch(e) { 
               console.warn("Email error:", e.message); 
             }
@@ -1002,20 +1051,29 @@ export const bulkValidateTask = async (req, res) => {
             
             const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
             if (nextValidator?.email) {
+              const emailSubject = nextValidator.email === COMPTABLE_EMAIL 
+                ? '💰 Ordre de mission validé - Créer Pièce de caisse'
+                : 'Nouvelle tâche de validation';
+              
+              const emailBody = nextValidator.email === COMPTABLE_EMAIL
+                ? `L'Ordre de mission "${document.title}" a été validé. Vous devez créer la Pièce de caisse.`
+                : `Le document "${document.title}" nécessite votre validation.`;
+              
+              // ✅ NOUVEAU : WebSocket + Email
+              const isConnected = isUserConnected(nextValidator.id);
+              
+              if (isConnected) {
+                emitNewTaskNotification(nextValidator.id, {
+                  taskId: nextTask.id,
+                  documentId: document.id,
+                  documentTitle: document.title,
+                  documentCategory: document.category,
+                  submittedBy: 'Validation en masse'
+                });
+              }
+              
               try {
-                const emailSubject = nextValidator.email === COMPTABLE_EMAIL 
-                  ? '💰 Ordre de mission validé - Créer Pièce de caisse'
-                  : 'Nouvelle tâche de validation';
-                
-                const emailBody = nextValidator.email === COMPTABLE_EMAIL
-                  ? `L'Ordre de mission "${document.title}" a été validé. Vous devez créer la Pièce de caisse.`
-                  : `Le document "${document.title}" nécessite votre validation.`;
-                
-                await sendNotificationEmail(
-                  nextValidator.email, 
-                  emailSubject, 
-                  emailBody
-                );
+                await sendNotificationEmail(nextValidator.email, emailSubject, emailBody);
               } catch (e) { 
                 console.warn("Email error:", e.message); 
               }
@@ -1068,7 +1126,7 @@ export const bulkValidateTask = async (req, res) => {
       success: false, 
       message: 'Erreur serveur lors de la validation en masse.' 
     });
-     }
+  }
 };
 
 export default {

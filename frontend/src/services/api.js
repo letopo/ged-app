@@ -1,6 +1,7 @@
-﻿// frontend/src/services/api.js - VERSION COMPLÈTE MISE À JOUR
+﻿// frontend/src/services/api.js - VERSION CORRIGÉE AVEC DÉTECTION DEV/PROD
 
 import axios from 'axios';
+import { io } from 'socket.io-client';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
@@ -21,6 +22,128 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+// ============================================
+// ✅ GESTION SOCKET.IO AVEC DÉTECTION DEV/PROD
+// ============================================
+let socket = null;
+
+/**
+ * Détermine l'URL Socket.IO selon l'environnement
+ */
+const getSocketUrl = () => {
+  // En production (via Docker/Nginx), utiliser l'origine actuelle
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  
+  // En développement, utiliser l'URL du backend explicitement
+  return import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+};
+
+/**
+ * Initialise la connexion Socket.IO
+ */
+export const initializeSocket = () => {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.warn('⚠️ Impossible d\'initialiser Socket.IO - Pas de token');
+    return null;
+  }
+
+  if (socket && socket.connected) {
+    console.log('✅ Socket.IO déjà connecté');
+    return socket;
+  }
+
+  const socketUrl = getSocketUrl();
+  
+  console.log('🔌 Connexion Socket.IO vers:', socketUrl);
+  console.log('🌍 Environnement:', import.meta.env.MODE);
+  
+  socket = io(socketUrl, {
+    auth: {
+      token: token
+    },
+    path: '/socket.io',
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: 5,
+    upgrade: true,
+    rememberUpgrade: true,
+    // ✅ En dev, permettre les connexions cross-origin
+    withCredentials: import.meta.env.DEV
+  });
+
+  socket.on('connect', () => {
+    console.log('✅ Socket.IO connecté:', socket.id);
+    console.log('📡 Transport utilisé:', socket.io.engine.transport.name);
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log('🔌 Socket.IO déconnecté:', reason);
+  });
+
+  socket.on('connect_error', (error) => {
+    console.error('❌ Erreur connexion Socket.IO:', error.message);
+    console.error('📍 URL tentée:', socketUrl);
+  });
+
+  socket.io.engine.on('upgrade', (transport) => {
+    console.log('⬆️ Upgrade vers:', transport.name);
+  });
+
+  return socket;
+};
+
+/**
+ * Déconnecte Socket.IO
+ */
+export const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+    console.log('🔌 Socket.IO déconnecté manuellement');
+  }
+};
+
+/**
+ * Récupère l'instance Socket.IO
+ */
+export const getSocket = () => socket;
+
+/**
+ * Écoute les notifications de nouvelles tâches
+ */
+export const onNewTask = (callback) => {
+  if (!socket) {
+    console.warn('⚠️ Socket.IO non initialisé');
+    return;
+  }
+  socket.on('task_assigned', callback);
+};
+
+/**
+ * Écoute les mises à jour de tâches
+ */
+export const onTaskUpdate = (callback) => {
+  if (!socket) {
+    console.warn('⚠️ Socket.IO non initialisé');
+    return;
+  }
+  socket.on('task_updated', callback);
+};
+
+/**
+ * Arrête d'écouter les événements
+ */
+export const offSocketEvent = (eventName, callback) => {
+  if (!socket) return;
+  socket.off(eventName, callback);
+};
 
 // ============================================
 // API pour l'Authentification
@@ -51,15 +174,13 @@ export const documentsAPI = {
 // API pour les Listes (Services & Motifs)
 // ============================================
 export const listsAPI = {
-  // Services
   getServices: () => api.get('/lists/services'),
   getServicesWithMembers: () => api.get('/lists/services/with-members'),
   createService: (data) => api.post('/lists/services', data),
   updateService: (serviceId, data) => api.put(`/lists/services/${serviceId}`, data),
   deleteService: (serviceId) => api.delete(`/lists/services/${serviceId}`),
   
-  // Motifs
-  getMotifs: (type) => api.get(`/lists/motifs?type=${type}`), // type = 'MG' ou 'Biomedical'
+  getMotifs: (type) => api.get(`/lists/motifs?type=${type}`),
   createMotif: (data) => api.post('/lists/motifs', data),
   updateMotif: (motifId, data) => api.put(`/lists/motifs/${motifId}`, data),
   deleteMotif: (motifId) => api.delete(`/lists/motifs/${motifId}`),
@@ -76,13 +197,11 @@ export const servicesAPI = {
   updateService: (serviceId, data) => api.put(`/lists/services/${serviceId}`, data),
   deleteService: (serviceId) => api.delete(`/lists/services/${serviceId}`),
   
-  // Membres du service
   getServiceMembers: (serviceId) => api.get(`/lists/services/${serviceId}/members`),
   addMember: (serviceId, data) => api.post(`/lists/services/${serviceId}/members`, data),
   updateMember: (serviceId, memberId, data) => api.put(`/lists/services/${serviceId}/members/${memberId}`, data),
   removeMember: (serviceId, memberId) => api.delete(`/lists/services/${serviceId}/members/${memberId}`),
   
-  // Chef de Service
   getChefDeService: (serviceId) => api.get(`/lists/services/${serviceId}/chef`),
 };
 
@@ -115,7 +234,6 @@ export const workflowAPI = {
   validateTask: (taskId, data) => api.put(`/workflows/${taskId}/validate`, data),
   getDocumentWorkflow: (documentId) => api.get(`/workflows/document/${documentId}`),
   getValidators: () => api.get('/workflows/validators'),
-  // ✅ NOUVEAU : Validation en masse
   bulkValidate: (data) => api.post('/workflows/bulk-validate', data),
 };
 
@@ -149,18 +267,15 @@ export const employeesAPI = {
   delete: (employeeId) => api.delete(`/employees/${employeeId}`),
   getByService: (serviceId) => api.get(`/employees/service/${serviceId}`),
   getServicesWithEmployees: () => api.get('/employees/services/with-employees'),
-  // NOUVEAU : Export CSV
   exportCSV: () => api.get('/employees/export/csv', {
-    responseType: 'blob' // Important pour les fichiers
+    responseType: 'blob'
   }),
-  
-  // NOUVEAU : Import CSV
   importCSV: (formData) => api.post('/employees/import/csv', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
 };
 
-// ✅ NOUVEAU : API Jours fériés
+// ✅ API Jours fériés
 export const holidaysAPI = {
   getHolidays: (year) => api.get('/holidays', { params: { year } }),
   checkHoliday: (date) => api.get('/holidays/check', { params: { date } })

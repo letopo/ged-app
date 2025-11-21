@@ -40,6 +40,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-D@minguez123}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRE: ${JWT_EXPIRE:-7d}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:aureleyankeu@gmail.com}
       UPLOAD_DIR: /app/uploads
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-52428800}
       TESSERACT_PATH: /usr/bin/tesseract

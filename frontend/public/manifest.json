@@ -1,0 +1,17 @@
+{
+  "name": "GED Workflow",
+  "short_name": "GED",
+  "description": "Système de gestion électronique de documents avec workflow",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "gcm_sender_id": "103953800507"
+}
