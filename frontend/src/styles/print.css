@@ -1,0 +1,46 @@
+/* frontend/src/styles/print.css */
+
+@media print {
+  /* Masquer les éléments non imprimables */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Forcer les couleurs d'impression */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Optimiser les marges de page */
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  /* Éviter les sauts de page dans les tableaux */
+  table {
+    page-break-inside: avoid;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* Assurer que les bordures sont visibles */
+  table, th, td {
+    border-color: #000 !important;
+  }
+
+  /* Taille de police optimale pour l'impression */
+  body {
+    font-size: 10pt;
+  }
+
+  /* Masquer les ombres et effets visuels */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}

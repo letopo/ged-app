@@ -1,0 +1,52 @@
+# Claude worktrees (répertoires temporaires créés par Claude Code)
+.claude/worktrees/
+
+# Dépendances
+node_modules/
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Fichiers d'environnement
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Fichiers de build
+dist/
+build/
+*.log
+npm-debug.log*
+
+# Fichiers de build Electron (binaires trop lourds pour GitHub)
+electron-app/dist-electron/
+electron-app/node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Uploads (temporaires)
+backend/uploads/*
+!backend/uploads/.gitkeep
+temp/
+
+# Base de données locale
+*.db
+*.sqlite
+
+# --- SÉCURITÉ LICENCE ---
+*.pem
+backend/private_key.pem
+generate_license.js
+test_keys.js

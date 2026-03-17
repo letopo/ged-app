@@ -1,0 +1,145 @@
+{
+  "name": "Demande d'explication",
+  "category": "Demande d'explication", 
+  "layout": {
+    "width": "210mm",
+    "minHeight": "297mm",
+    "orientation": "portrait"
+  },
+  "fields": [
+    {
+      "name": "noms_prenoms",
+      "type": "text",
+      "label": "NOMS et prénom(s)",
+      "required": true,
+      "placeholder": "Ex: Jean DUPONT",
+      "position": { "section": "header", "width": "50%" }
+    },
+    {
+      "name": "service",
+      "type": "select", 
+      "label": "Service",
+      "dataSource": "services",
+      "required": true,
+      "position": { "section": "header", "width": "50%" }
+    },
+    {
+      "name": "date_lieu",
+      "type": "text",
+      "label": "Lieu et date",
+      "defaultValue": "Njombé, le {{currentDate}}",
+      "position": { "section": "header", "width": "35%", "align": "right" }
+    },
+    {
+      "name": "date_incident",
+      "type": "date",
+      "label": "Date de l'incident",
+      "required": true
+    },
+    {
+      "name": "heure_incident",
+      "type": "time", 
+      "label": "Heure de l'incident",
+      "required": true
+    },
+    {
+      "name": "lieu_incident",
+      "type": "text",
+      "label": "Lieu de l'incident",
+      "required": true,
+      "placeholder": "Ex: Bureau, Couloir, Salle de réunion..."
+    },
+    {
+      "name": "type_incident",
+      "type": "select",
+      "label": "Type d'incident",
+      "options": [
+        { "value": "retard", "label": "Retard" },
+        { "value": "absence", "label": "Absence non justifiée" },
+        { "value": "comportement", "label": "Comportement inapproprié" },
+        { "value": "negligence", "label": "Négligence professionnelle" },
+        { "value": "autre", "label": "Autre" }
+      ],
+      "required": true
+    },
+    {
+      "name": "description_incident",
+      "type": "textarea",
+      "label": "Description détaillée des faits",
+      "required": true,
+      "rows": 4,
+      "placeholder": "Décrivez précisément ce qui s'est passé..."
+    },
+    {
+      "name": "motifs_explication",
+      "type": "textarea", 
+      "label": "Motifs demandant une explication",
+      "required": true,
+      "rows": 3,
+      "placeholder": "Expliquez pourquoi une explication est nécessaire..."
+    },
+    {
+      "name": "delai_reponse",
+      "type": "number",
+      "label": "Délai de réponse souhaité (jours)",
+      "min": 1,
+      "max": 30,
+      "defaultValue": 7
+    }
+  ],
+  "template": {
+    "header": {
+      "logo": true,
+      "title": "ORDRE DE MALTE",
+      "subtitle": "HÔPITAL SAINT JEAN DE MALTE"
+    },
+    "content": [
+      {
+        "type": "text",
+        "content": "A Monsieur le Directeur Général\nDe l'Hôpital Saint Jean de Malte de Njombé",
+        "align": "right"
+      },
+      {
+        "type": "section", 
+        "title": "Objet : Demande d'explication",
+        "field": "objet"
+      },
+      {
+        "type": "text",
+        "content": "Monsieur,"
+      },
+      {
+        "type": "dynamic",
+        "content": "Je me permets par la présente de solliciter de votre part une explication concernant un incident survenu le {{formatDate date_incident}} à {{heure_incident}}, au {{lieu_incident}}."
+      },
+      {
+        "type": "dynamic", 
+        "content": "Il s'agit d'un incident de type « {{type_incident}} » dont voici la description détaillée :"
+      },
+      {
+        "type": "field",
+        "field": "description_incident",
+        "style": "italic"
+      },
+      {
+        "type": "dynamic",
+        "content": "Les motifs qui me poussent à demander une explication écrite sont les suivants :"
+      },
+      {
+        "type": "field", 
+        "field": "motifs_explication"
+      },
+      {
+        "type": "dynamic",
+        "content": "Dans l'attente de votre retour sous un délai de {{delai_reponse}} jours, je vous prie d'agréer, Monsieur, l'expression de mes salutations distinguées."
+      }
+    ],
+    "footer": {
+      "signatures": [
+        { "label": "Signature du demandeur" },
+        { "label": "Visa Chef de Service" },
+        { "label": "Réponse de la Direction" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,502 @@
+// frontend/src/pages/CreateDemandeAchat.jsx - VERSION FINALISÉE
+import React, { useState, useEffect, useMemo } from 'react';
+import { demandeAchatAPI, usersAPI, documentsAPI, servicesAPI } from '../services/api';
+import { Loader, Send, Save, Trash2, Calendar, FileText, User, Mail, Phone, ExternalLink, Briefcase, Eye, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+
+// ✅ IMPORT DU COMPOSANT DOCUMENT VIEWER
+import DocumentViewer from '../components/DocumentViewer';
+
+const initialFormData = {
+    // En-tête de la demande
+    daNumber: 'Auto generated',
+    daDate: new Date().toISOString().split('T')[0],
+    // Nouveau champ pour le Demandeur modifiable
+    requesterName: '', 
+    domain: '',
+    domainDescription: '',
+    deliveryDate: '',
+    purchaseType: 'Non-Référencé',
+    articleNature: '',
+    requestDescription: '',
+    // Informations bénéficiaire
+    beneficiaryName: '',
+    beneficiaryEmail: '',
+    beneficiaryPhone: '',
+    isMagasinOutput: false,
+    linkedDocNumber: '', // Numéro DI/DT
+    isForWorks: false,
+    // Articles
+    nonRefArticles: [{ designation: '', quantity: 1, unitPrice: 0, total: 0 }],
+    totalRefValue: 0,
+    totalNonRefValue: 0,
+    attachedFiles: [], 
+    // Sélection du fournisseur
+    supplierId: null,
+};
+
+const CreateDemandeAchat = () => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const [formData, setFormData] = useState(initialFormData);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [myUser, setMyUser] = useState(null);
+    
+    // Nouveaux États
+    const [services, setServices] = useState([]);
+    const [demandesTravaux, setDemandesTravaux] = useState([]);
+    const [showDTModal, setShowDTModal] = useState(false);
+    const [isViewingDocument, setIsViewingDocument] = useState(null);
+
+    // Chargement des données initiales
+    useEffect(() => {
+        const loadInitialData = async () => {
+            try {
+                // 1. Profil Utilisateur
+                const userRes = await usersAPI.getProfile();
+                setMyUser(userRes.data.user);
+                
+                const fullName = `${userRes.data.user.firstName} ${userRes.data.user.lastName}`;
+                
+                setFormData(prev => ({
+                    ...prev,
+                    requesterName: fullName,
+                    beneficiaryName: fullName,
+                    beneficiaryEmail: userRes.data.user.email,
+                    beneficiaryPhone: userRes.data.user.phone || ''
+                }));
+                
+                // 2. Liste des Services pour le sélecteur Domaine/Direction
+                const servicesRes = await servicesAPI.getAll();
+                setServices(servicesRes.data.data || servicesRes.data || []);
+                
+                // 3. Liste des Demandes de Travaux Validées (simulées par l'API)
+                // ⚠️ Cet endpoint doit être implémenté dans le backend (documentController)
+                const dtRes = await documentsAPI.getValidatedDemandesTravaux();
+                setDemandesTravaux(dtRes.data.data || []); 
+
+            } catch (err) {
+                console.error("Erreur chargement données initiales", err);
+                setError("Erreur de chargement des données initiales (profil, services ou DT).");
+            }
+        };
+        loadInitialData();
+    }, []);
+
+    // Calcul du total Non Référencé
+    const totalNonRefValue = useMemo(() => {
+        return formData.nonRefArticles.reduce((acc, article) => acc + (article.total || 0), 0);
+    }, [formData.nonRefArticles]);
+
+    useEffect(() => {
+        setFormData(prev => ({ ...prev, totalNonRefValue: totalNonRefValue }));
+    }, [totalNonRefValue]);
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        
+        // Logique conditionnelle pour le modal DT
+        if (name === 'isForWorks' && checked === true) {
+            setShowDTModal(true);
+        } else if (name === 'isForWorks' && checked === false) {
+            setFormData(prev => ({ ...prev, linkedDocNumber: '' }));
+        }
+    };
+
+    const handleArticleChange = (index, field, value) => {
+        const newArticles = [...formData.nonRefArticles];
+        const article = newArticles[index];
+
+        if (field === 'quantity' || field === 'unitPrice') {
+            const numValue = parseFloat(value) || 0;
+            article[field] = numValue;
+            article.total = article.quantity * article.unitPrice;
+        } else {
+            article[field] = value;
+        }
+
+        setFormData(prev => ({ ...prev, nonRefArticles: newArticles }));
+    };
+
+    const addArticle = () => {
+        setFormData(prev => ({
+            ...prev,
+            nonRefArticles: [...prev.nonRefArticles, { designation: '', quantity: 1, unitPrice: 0, total: 0 }]
+        }));
+    };
+
+    const removeArticle = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            nonRefArticles: prev.nonRefArticles.filter((_, i) => i !== index)
+        }));
+    };
+    
+    // Fonction pour sélectionner une Demande de Travaux
+    const handleSelectDT = (dt) => {
+        setFormData(prev => ({ 
+            ...prev, 
+            linkedDocNumber: dt.title, // Utiliser le titre de la DT comme référence
+            domain: dt.metadata.service || '', // Définir le service de la DA
+        }));
+        setShowDTModal(false);
+    };
+
+    const handleSubmit = async (isDraft = false) => {
+        setError('');
+        setSuccess('');
+        setLoading(true);
+
+        const dataToSend = { ...formData };
+        delete dataToSend.daNumber; 
+        delete dataToSend.requesterName; // Supprimer le champ d'affichage côté client
+        
+        if (!isDraft) {
+            dataToSend.status = 'pending_approval';
+        } else {
+            dataToSend.status = 'draft';
+        }
+
+        try {
+            const res = await demandeAchatAPI.create(dataToSend);
+            setSuccess(`Demande d'Achat créée avec succès. Numéro: ${res.data.data.daNumber}`);
+            
+            setTimeout(() => navigate('/demandes-achat'), 1500); // Redirection vers le tableau des DA (à créer)
+
+        } catch (err) {
+            setError(err.response?.data?.message || 'Erreur lors de la création de la Demande d\'Achat.');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const inputStyle = "w-full p-2 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-md focus:ring-blue-500 focus:border-blue-500";
+    const labelStyle = "block text-sm font-medium text-gray-700 dark:text-dark-text mb-1";
+    const sectionTitleStyle = "text-xl font-bold text-blue-800 dark:text-blue-400 border-b pb-2 mb-4 border-blue-200 dark:border-blue-700/50 flex items-center gap-2";
+
+    return (
+        <div className="max-w-6xl mx-auto p-8 bg-white dark:bg-dark-surface rounded-lg shadow-xl my-8">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-dark-text mb-2 flex items-center gap-3">
+                <FileText className="w-8 h-8 text-blue-600"/> Nouvelle Demande d'Achat
+            </h1>
+            <p className="text-gray-600 dark:text-dark-text-secondary mb-8">
+                Remplissez les informations nécessaires pour initier un processus d'achat.
+            </p>
+
+            {error && <div className="p-3 mb-4 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 rounded-lg">{error}</div>}
+            {success && <div className="p-3 mb-4 bg-green-100 dark:bg-green-900/20 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-400 rounded-lg">{success}</div>}
+
+            {/* EN-TÊTE DE LA DEMANDE */}
+            <div className="space-y-6 mb-8 p-6 bg-gray-50 dark:bg-dark-bg rounded-lg">
+                <h2 className={sectionTitleStyle}>En-tête de la demande</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className={labelStyle}>Numéro de DA</label>
+                        <input type="text" value={formData.daNumber} disabled className={`${inputStyle} bg-gray-200 dark:bg-gray-700/50 cursor-not-allowed text-gray-500 dark:text-gray-400`} />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto generated (DA-HSJM-XXXXX)</p>
+                    </div>
+                    <div>
+                        <label className={labelStyle}>Date de la DA</label>
+                        <input type="date" value={formData.daDate} disabled className={`${inputStyle} bg-gray-200 dark:bg-gray-700/50 cursor-not-allowed text-gray-500 dark:text-gray-400`} />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto generated</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className={labelStyle}>Demandeur*</label>
+                        <input 
+                            type="text" 
+                            name="requesterName" 
+                            value={formData.requesterName} 
+                            onChange={handleChange} 
+                            className={inputStyle} 
+                            placeholder="Entrez le nom du demandeur réel"
+                            required 
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Par défaut: Vous (modifiable)</p>
+                    </div>
+                    <div>
+                        <label className={labelStyle}>Domaine ou Direction*</label>
+                        <select name="domain" value={formData.domain} onChange={handleChange} className={inputStyle} required>
+                            <option value="">-- Sélectionner un Service --</option>
+                            {services.map(s => (
+                                <option key={s.id} value={s.name}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className={labelStyle}>Description du Domaine</label>
+                        <input type="text" name="domainDescription" value={formData.domainDescription} onChange={handleChange} className={inputStyle} />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className={labelStyle}>Date de livraison souhaitée</label>
+                        <input type="date" name="deliveryDate" value={formData.deliveryDate} onChange={handleChange} className={inputStyle} />
+                    </div>
+                    <div>
+                        <label className={labelStyle}>Type d'achat*</label>
+                        <select name="purchaseType" value={formData.purchaseType} onChange={handleChange} className={inputStyle} required>
+                            <option value="Non-Référencé">Non-Référencé</option>
+                            <option value="Référencé">Référencé</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className={labelStyle}>Nature article*</label>
+                        <input type="text" name="articleNature" value={formData.articleNature} onChange={handleChange} className={inputStyle} required />
+                    </div>
+                    <div>
+                        <label className={labelStyle}>Description de la demande*</label>
+                        <textarea name="requestDescription" value={formData.requestDescription} onChange={handleChange} className={inputStyle} rows="2" required></textarea>
+                    </div>
+                </div>
+            </div>
+
+            {/* INFORMATIONS BÉNÉFICIAIRE & LIEN DT */}
+            <div className="space-y-6 mb-8 p-6 bg-gray-50 dark:bg-dark-bg rounded-lg">
+                <h2 className={sectionTitleStyle}><User /> Informations bénéficiaire</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className={labelStyle}>Nom</label>
+                        <input type="text" name="beneficiaryName" value={formData.beneficiaryName} onChange={handleChange} className={inputStyle} />
+                    </div>
+                    <div>
+                        <label className={labelStyle}>Adresse mail*</label>
+                        <input type="email" name="beneficiaryEmail" value={formData.beneficiaryEmail} onChange={handleChange} className={inputStyle} required />
+                    </div>
+                    <div>
+                        <label className={labelStyle}>Téléphone*</label>
+                        <input type="tel" name="beneficiaryPhone" value={formData.beneficiaryPhone} onChange={handleChange} className={inputStyle} required />
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-8">
+                    <div className="flex items-center gap-4">
+                        <span className={labelStyle}>S'agit-il d'une sortie Magasin</span>
+                        <div className="flex gap-2">
+                            <button 
+                                type="button" 
+                                onClick={() => setFormData(prev => ({ ...prev, isMagasinOutput: true }))} 
+                                className={`px-4 py-1 rounded-md text-sm font-semibold transition ${formData.isMagasinOutput ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                            >Oui</button>
+                            <button 
+                                type="button" 
+                                onClick={() => setFormData(prev => ({ ...prev, isMagasinOutput: false }))} 
+                                className={`px-4 py-1 rounded-md text-sm font-semibold transition ${!formData.isMagasinOutput ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                            >Non</button>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                        <span className={labelStyle}>S'agit-il d'un DA pour des travaux?</span>
+                        <div className="flex gap-2">
+                            <button 
+                                type="button" 
+                                onClick={() => handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: true } })}
+                                className={`px-4 py-1 rounded-md text-sm font-semibold transition ${formData.isForWorks ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                            >Oui</button>
+                            <button 
+                                type="button" 
+                                onClick={() => handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: false } })}
+                                className={`px-4 py-1 rounded-md text-sm font-semibold transition ${!formData.isForWorks ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                            >Non</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className={labelStyle}>Numéro DI / DT (Référence DT)</label>
+                        <div className="flex items-center gap-2">
+                           <input 
+                                type="text" 
+                                name="linkedDocNumber" 
+                                value={formData.linkedDocNumber} 
+                                onChange={handleChange} 
+                                placeholder="Sélectionner une DT"
+                                disabled={!formData.isForWorks}
+                                className={`${inputStyle} ${!formData.isForWorks ? 'bg-gray-200 dark:bg-gray-700/50 cursor-not-allowed' : ''}`} 
+                            />
+                            {formData.isForWorks && (
+                                <button type="button" onClick={() => setShowDTModal(true)} className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" title="Sélectionner une DT">
+                                    <ExternalLink size={20} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ARTICLES NON RÉFÉRENCÉS (inchangé) */}
+            <div className="space-y-4 mb-8 p-6 bg-gray-50 dark:bg-dark-bg rounded-lg">
+                <h2 className={sectionTitleStyle}>Articles non référencés</h2>
+                <p className="text-sm text-gray-600 dark:text-dark-text-secondary">Liste des articles non référencés à acheter.</p>
+
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-100 dark:bg-gray-800">
+                            <tr>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Désignation</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-20">Qté</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-32">P.U. (XAF)</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-32">Total (XAF)</th>
+                                <th className="px-3 py-2 w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-gray-700">
+                            {formData.nonRefArticles.map((article, index) => (
+                                <tr key={index}>
+                                    <td className="p-1 whitespace-nowrap">
+                                        <input type="text" value={article.designation} onChange={(e) => handleArticleChange(index, 'designation', e.target.value)} className={inputStyle} placeholder="Désignation de l'article" />
+                                    </td>
+                                    <td className="p-1 whitespace-nowrap">
+                                        <input type="number" min="1" value={article.quantity} onChange={(e) => handleArticleChange(index, 'quantity', e.target.value)} className={inputStyle} />
+                                    </td>
+                                    <td className="p-1 whitespace-nowrap">
+                                        <input type="number" min="0" step="0.01" value={article.unitPrice} onChange={(e) => handleArticleChange(index, 'unitPrice', e.target.value)} className={inputStyle} />
+                                    </td>
+                                    <td className="p-1 whitespace-nowrap">
+                                        <input type="text" value={article.total.toFixed(2)} disabled className={`${inputStyle} bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 font-medium`} />
+                                    </td>
+                                    <td className="p-1 whitespace-nowrap text-center">
+                                        <button type="button" onClick={() => removeArticle(index)} className="text-red-500 hover:text-red-700 p-1 rounded"><Trash2 size={18} /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" onClick={addArticle} className="mt-2 flex items-center gap-1 px-3 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition">
+                    + Ajouter un article
+                </button>
+            </div>
+
+            {/* SYNTHÈSE ET PIÈCES JOINTES (inchangé) */}
+            <div className="space-y-6 mb-8 p-6 bg-gray-50 dark:bg-dark-bg rounded-lg">
+                <h2 className={sectionTitleStyle}>Synthèse et Pièces Jointes</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className={labelStyle}>Total articles référencés</label>
+                        <input type="text" value={formData.totalRefValue.toFixed(2)} disabled className={`${inputStyle} bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300`} />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto generated (Non implémenté)</p>
+                    </div>
+                    <div>
+                        <label className={labelStyle}>Total articles non référencés</label>
+                        <input type="text" value={totalNonRefValue.toFixed(2)} disabled className={`${inputStyle} bg-gray-100 dark:bg-gray-700/50 text-blue-700 dark:text-blue-300 font-bold`} />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto generated</p>
+                    </div>
+                </div>
+
+                {/* ... (Pièces jointes) */}
+            </div>
+
+            {/* SÉLECTION DU FOURNISSEUR (inchangé) */}
+            <div className="space-y-4 mb-8 p-6 bg-gray-50 dark:bg-dark-bg rounded-lg">
+                <h2 className={sectionTitleStyle}>Sélection du fournisseur</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className={labelStyle}>Fournisseur sélectionné (Optionnel)</label>
+                        <input type="text" placeholder="Entrer le nom du fournisseur (temporaire)" className={inputStyle} />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Ce champ sera lié à la table "Fournisseurs" (futur)</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* ACTIONS (inchangé) */}
+            <div className="flex justify-end gap-4 pt-6 border-t border-gray-200 dark:border-dark-border">
+                <button 
+                    onClick={() => handleSubmit(true)} 
+                    disabled={loading} 
+                    className="px-6 py-3 bg-gray-200 dark:bg-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition font-semibold flex items-center gap-2 disabled:opacity-50"
+                >
+                    {loading && <Loader className="animate-spin w-5 h-5" />} 
+                    <Save size={18} /> Enregistrer en Brouillon
+                </button>
+                <button 
+                    onClick={() => handleSubmit(false)} 
+                    disabled={loading || !formData.domain || !formData.requestDescription} 
+                    className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md"
+                >
+                    {loading ? (
+                        <>
+                            <Loader className="animate-spin w-5 h-5" /> Soumission...
+                        </>
+                    ) : (
+                        <>
+                            <Send size={18} /> Soumettre pour Approbation
+                        </>
+                    )}
+                </button>
+            </div>
+            
+            {/* MODAL DE SÉLECTION DE DEMANDE DE TRAVAUX */}
+            {showDTModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-dark-surface rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text">Sélectionner une Demande de Travaux Validée</h2>
+                            <button onClick={() => setShowDTModal(false)} className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"><X size={24} /></button>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-6">
+                            {demandesTravaux.length === 0 ? (
+                                <p className="text-center text-gray-500">Aucune Demande de Travaux validée trouvée.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {demandesTravaux.map(dt => (
+                                        <div key={dt.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors">
+                                            <div>
+                                                <p className="font-semibold text-gray-900 dark:text-dark-text">{dt.title}</p>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                    Service: {dt.metadata?.service || 'N/A'} - Créée le: {new Date(dt.createdAt).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setIsViewingDocument(dt)}
+                                                    className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                                                    title="Visualiser la DT"
+                                                >
+                                                    <Eye size={20} />
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => handleSelectDT(dt)} 
+                                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
+                                                >
+                                                    Sélectionner
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* MODAL DE VISUALISATION DT (Utilise DocumentViewer) */}
+            {isViewingDocument && (
+                <DocumentViewer 
+                    document={isViewingDocument} 
+                    onClose={() => setIsViewingDocument(null)} 
+                    showActions={false}
+                />
+            )}
+        </div>
+    );
+};
+
+export default CreateDemandeAchat;

@@ -1,0 +1,19 @@
+### Créer un ticket
+POST http://localhost:3000/api/tickets
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "visitType": "consultation",
+  "patientType": "php",
+  "patientName": "Jean KAMDEM",
+  "patientPhone": "+237690000000"
+}
+
+### Obtenir la file d'attente PHP
+GET http://localhost:3000/api/tickets/queue/accueil_php
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Obtenir les positions
+GET http://localhost:3000/api/tickets/positions/accueil_php
+Authorization: Bearer YOUR_TOKEN_HERE
