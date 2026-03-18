@@ -3,8 +3,11 @@
 import React from 'react';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import logo from '../../assets/logo-ordre-malte.png';
+import { useAuth } from '../../contexts/AuthContext';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const BonDeSortie = ({ formData, setFormData, pdfContainerRef }) => {
+  const { user } = useAuth();
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -199,19 +202,10 @@ const BonDeSortie = ({ formData, setFormData, pdfContainerRef }) => {
       </div>
 
       {/* Signatures */}
-      <div className="grid grid-cols-3 gap-4 text-center text-sm mt-12">
-        <div>
-          <p className="font-semibold mb-4">Visa du demandeur</p>
-          <div data-sig-zone={1} className="border-t-2 border-dotted border-black pt-1 h-28"></div>
-        </div>
-        <div>
-          <p className="font-semibold mb-4">Visa MG (si besoin)</p>
-          <div data-sig-zone={2} className="border-t-2 border-dotted border-black pt-1 h-28"></div>
-        </div>
-        <div>
-          <p className="font-semibold mb-4">Visa Responsable</p>
-          <div data-sig-zone={3} className="border-t-2 border-dotted border-black pt-1 h-28"></div>
-        </div>
+      <div className="grid grid-cols-3 gap-4 mt-12">
+        <SignatureFrame label="Visa du demandeur" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+        <SignatureFrame label="Visa MG (si besoin)" signatureUrl={null} stampUrl={null} zoneIndex={2} />
+        <SignatureFrame label="Visa Responsable" signatureUrl={null} stampUrl={null} zoneIndex={3} />
       </div>
     </div>
   );

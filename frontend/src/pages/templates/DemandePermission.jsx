@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usersAPI, servicesAPI } from '../../services/api';
 import logo from '../../assets/logo-ordre-malte.png';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
+import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Trash2, Calendar } from 'lucide-react';
 
 // Fonction utilitaire pour exclure les week-ends
@@ -30,6 +32,7 @@ const calculateBusinessDays = (startDate, endDate) => {
 };
 
 const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
+    const { user } = useAuth();
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
     
@@ -316,19 +319,10 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
             </div>
 
             {/* PIED DE PAGE SIGNATURES */}
-            <div className="absolute bottom-24 left-12 right-12 grid grid-cols-3 gap-8 text-center pt-8 border-t border-gray-300">
-                <div>
-                    <p className="font-bold mb-2">Le Demandeur</p>
-                    <div data-sig-zone={1} className="h-28"></div>
-                </div>
-                <div>
-                    <p className="font-bold mb-2">Chef de Service / RH</p>
-                    <div data-sig-zone={2} className="h-28"></div>
-                </div>
-                <div>
-                    <p className="font-bold mb-2">Le Directeur Général</p>
-                    <div data-sig-zone={3} className="h-28"></div>
-                </div>
+            <div className="absolute bottom-24 left-12 right-12 grid grid-cols-3 gap-8 pt-8 border-t border-gray-300">
+                <SignatureFrame label="Le Demandeur" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+                <SignatureFrame label="Chef de Service / RH" signatureUrl={null} stampUrl={null} zoneIndex={2} />
+                <SignatureFrame label="Le Directeur Général" signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>
         </div>
     );

@@ -26,7 +26,8 @@ import {
   Grid,
   Receipt,
   ShoppingCart,
-  Activity
+  Activity,
+  Archive
 } from 'lucide-react';
 import { workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -129,6 +130,7 @@ export default function Navbar({ onLogout }) {
   const mainNavItems = [
     { path: '/dashboard', icon: Home, label: 'Tableau de bord' },
     { path: '/documents', icon: FileText, label: 'Documents' },
+    { path: '/archives', icon: Archive, label: 'Archives' },
     { path: '/workflow-dashboard', icon: BarChart3, label: 'Workflow' },
   ];
 
@@ -257,8 +259,8 @@ export default function Navbar({ onLogout }) {
 
               {/* Menu Gestion */}
               {hasGestionAccess && (
-                <div 
-                  className="relative gestion-menu-container"
+                <div
+                  className="relative gestion-menu-container pb-2"
                   onMouseEnter={() => setShowGestionMenu(true)}
                   onMouseLeave={() => setShowGestionMenu(false)}
                 >
@@ -267,9 +269,9 @@ export default function Navbar({ onLogout }) {
                     <span>Gestion</span>
                     <ChevronDown className={`w-4 h-4 transition-transform ${showGestionMenu ? 'rotate-180' : ''}`} />
                   </button>
-                  
+
                   {showGestionMenu && (
-                    <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-50 animate-fadeIn">
+                    <div className="absolute top-full left-0 mt-0 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-50 animate-fadeIn">
                       {gestionItems.map((item) => {
                         if (!canAccessItem(item)) return null;
                         const Icon = item.icon;
@@ -292,8 +294,8 @@ export default function Navbar({ onLogout }) {
 
               {/* Menu Applications */}
               {hasAppsAccess && (
-                <div 
-                  className="relative apps-menu-container"
+                <div
+                  className="relative apps-menu-container pb-2"
                   onMouseEnter={() => setShowAppsMenu(true)}
                   onMouseLeave={() => setShowAppsMenu(false)}
                 >
@@ -302,9 +304,9 @@ export default function Navbar({ onLogout }) {
                     <span>Applications</span>
                     <ChevronDown className={`w-4 h-4 transition-transform ${showAppsMenu ? 'rotate-180' : ''}`} />
                   </button>
-                  
+
                   {showAppsMenu && (
-                    <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-50 animate-fadeIn">
+                    <div className="absolute top-full left-0 mt-0 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-50 animate-fadeIn">
                       {appsItems.map((item) => {
                         if (!canAccessItem(item)) return null;
                         const Icon = item.icon;

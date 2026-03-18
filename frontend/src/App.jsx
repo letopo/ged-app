@@ -34,6 +34,7 @@ import TrelloBoard from './pages/TrelloBoard';
 import Settings from './pages/Settings';
 import InvoiceDashboard from './pages/InvoiceDashboard';
 import DemandeAchatDashboard from './pages/DemandeAchatDashboard';
+import ArchivesPage from './pages/ArchivesPage';
 
 
 
@@ -150,6 +151,7 @@ function App() {
         <Route path="/kanban/:serviceType" element={<ProtectedRoute><TrelloBoard /></ProtectedRoute>} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/invoices" element={<ProtectedRoute><InvoiceDashboard /></ProtectedRoute>} />
+        <Route path="/archives" element={<ProtectedRoute><ArchivesPage /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
       </Routes>

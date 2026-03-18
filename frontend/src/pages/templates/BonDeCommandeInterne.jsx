@@ -5,79 +5,12 @@ import { PlusCircle, Trash2, Users } from 'lucide-react';
 import logo from '../../assets/logo-ordre-malte.png';
 import { usersAPI, servicesAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
-// URL de base pour les images stockées
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const getImageUrl = (filePath) => filePath ? `${API_BASE}/${filePath}` : null;
-
-// ─────────────────────────────────────────────────
-// Composant : cadre de signature translucide
-// Layout : cachet en haut / signature en bas
-// ─────────────────────────────────────────────────
-const SignatureFrame = ({ label, signatureUrl, stampUrl, active, zoneIndex }) => {
+// Wrapper pour gérer la prop `active` (non supportée par le composant partagé)
+const ConditionalSignatureFrame = ({ active, ...props }) => {
   if (!active) return null;
-  return (
-    <div className="flex flex-col items-center">
-      <span className="font-bold text-sm mb-2">{label}</span>
-
-      {/* Cadre translucide — data-sig-zone sert d'ancre pour le calcul PDF */}
-      <div
-        data-sig-zone={zoneIndex}
-        className="w-full rounded flex flex-col"
-        style={{
-          minHeight: '160px',
-          border: '1px dashed rgba(100, 100, 200, 0.18)',
-          background: 'rgba(59, 130, 246, 0.015)',
-        }}
-      >
-        {/* ── Moitié HAUTE : Cachet ── */}
-        <div
-          className="flex-1 flex items-center justify-center p-2"
-          style={{ borderBottom: '1px dashed rgba(100,100,200,0.10)' }}
-        >
-          {stampUrl ? (
-            <img
-              src={stampUrl}
-              alt="Cachet"
-              crossOrigin="anonymous"
-              style={{
-                maxHeight: '76px',
-                maxWidth: '90%',
-                objectFit: 'contain',
-                mixBlendMode: 'multiply',
-              }}
-            />
-          ) : (
-            <span className="text-gray-300 text-xs italic select-none">Cachet</span>
-          )}
-        </div>
-
-        {/* ── Moitié BASSE : Signature ── */}
-        <div className="flex-1 flex items-center justify-center p-2">
-          {signatureUrl ? (
-            <img
-              src={signatureUrl}
-              alt="Signature"
-              crossOrigin="anonymous"
-              style={{
-                maxHeight: '76px',
-                maxWidth: '92%',
-                objectFit: 'contain',
-                mixBlendMode: 'multiply',
-              }}
-            />
-          ) : (
-            <span className="text-gray-300 text-xs italic select-none">Signature</span>
-          )}
-        </div>
-      </div>
-
-      {/* Ligne de signature */}
-      <div className="border-t border-black w-full mt-2 pt-1 text-xs italic text-gray-500 text-center">
-        Signature
-      </div>
-    </div>
-  );
+  return <SignatureFrame {...props} />;
 };
 
 // ─────────────────────────────────────────────────
@@ -275,7 +208,7 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
           style={{ gridTemplateColumns: `repeat(${nbSignataires}, 1fr)` }}
         >
           {/* Demandeur — toujours présent, signature pré-chargée, zone 1 */}
-          <SignatureFrame
+          <ConditionalSignatureFrame
             label="Demandeur"
             signatureUrl={demandeurSignatureUrl}
             stampUrl={demandeurStampUrl}
@@ -284,7 +217,7 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
           />
 
           {/* Acheteur — si >= 2 signataires, zone 2 */}
-          <SignatureFrame
+          <ConditionalSignatureFrame
             label="Acheteur"
             signatureUrl={null}
             stampUrl={null}
@@ -293,7 +226,7 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
           />
 
           {/* DS — si 3 signataires, zone 3 */}
-          <SignatureFrame
+          <ConditionalSignatureFrame
             label="DS"
             signatureUrl={null}
             stampUrl={null}

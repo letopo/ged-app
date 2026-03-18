@@ -3,8 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import logo from '../../assets/logo-ordre-malte.png'; // Assurez-vous que le logo existe
+import { useAuth } from '../../contexts/AuthContext';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
+  const { user } = useAuth();
   
   // Initialisation des données
   useEffect(() => {
@@ -262,15 +265,9 @@ const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
           <span className="print-only">{formData.livraison?.datePrevue ? new Date(formData.livraison.datePrevue).toLocaleDateString('fr-FR') : '__________________'}</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 h-40">
-          <div data-sig-zone={1} className="border border-black p-2 relative">
-            <span className="font-bold underline">VALIDATION SERVICE ACHAT / DG</span>
-            <div className="absolute bottom-2 left-2" style={{ fontSize: '10px', color: '#bbb', fontStyle: 'italic' }}>Signature et Cachet</div>
-          </div>
-          <div data-sig-zone={2} className="border border-black p-2 relative">
-            <span className="font-bold underline">ACCEPTATION FOURNISSEUR</span>
-            <div className="absolute bottom-2 left-2" style={{ fontSize: '10px', color: '#bbb', fontStyle: 'italic' }}>Bon pour accord (Date + Signature + Cachet)</div>
-          </div>
+        <div className="grid grid-cols-2 gap-8">
+          <SignatureFrame label="VALIDATION SERVICE ACHAT / DG" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+          <SignatureFrame label="ACCEPTATION FOURNISSEUR" signatureUrl={null} stampUrl={null} zoneIndex={2} />
         </div>
       </div>
 

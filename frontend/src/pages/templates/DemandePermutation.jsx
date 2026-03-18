@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usersAPI, servicesAPI } from '../../services/api';
 import logo from '../../assets/logo-ordre-malte.png';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
     const { user } = useAuth();
@@ -351,16 +352,10 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
             </div>
             
             {/* SIGNATURES ADMINISTRATIVES EN BAS */}
-            <div className="absolute bottom-16 left-12 right-12 grid grid-cols-3 gap-8 text-center" style={{ fontSize: '15px' }}>
-                <div>
-                    <p className="font-bold">Signature du Major</p>
-                </div>
-                <div>
-                    <p className="font-bold">Signature du Chef de service</p>
-                </div>
-                <div>
-                    <p className="font-bold">La Directrice Des Soins</p>
-                </div>
+            <div className="absolute bottom-16 left-12 right-12 grid grid-cols-3 gap-8">
+                <SignatureFrame label="Signature du Major" signatureUrl={null} stampUrl={null} zoneIndex={1} />
+                <SignatureFrame label="Chef de service" signatureUrl={null} stampUrl={null} zoneIndex={2} />
+                <SignatureFrame label="La Directrice Des Soins" signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>
         </div>
     );

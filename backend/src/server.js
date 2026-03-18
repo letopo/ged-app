@@ -150,8 +150,19 @@ const startServer = async () => {
     // 2️⃣ ❌ DÉSACTIVER SYNC ALTER - Utiliser uniquement les migrations
     // await sequelize.sync({ alter: true });
     // console.log('✅ Modèles synchronisés avec succès.');
-    
+
     console.log('✅ Utilisation des migrations pour la structure de la base');
+
+    // 2b. Migration : ajout de la colonne archived si elle n'existe pas
+    try {
+      await sequelize.query(`
+        ALTER TABLE documents
+        ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE;
+      `);
+      console.log('✅ Colonne archived vérifiée/ajoutée dans documents.');
+    } catch (migErr) {
+      console.warn('⚠️ Migration archived (ignoré si déjà existante):', migErr.message);
+    }
     
     // 3️⃣ Créer l'utilisateur admin par défaut
     console.log('');

@@ -1,8 +1,11 @@
 // frontend/src/pages/templates/DemandeTravaux.jsx - TEMPLATE COMPLET
 import React from 'react';
 import logo from '../../assets/logo-ordre-malte.png';
+import { useAuth } from '../../contexts/AuthContext';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const DemandeTravaux = ({ formData, setFormData, pdfContainerRef }) => {
+    const { user } = useAuth();
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormData(prev => ({
@@ -66,10 +69,10 @@ const DemandeTravaux = ({ formData, setFormData, pdfContainerRef }) => {
                     <div className="print-only border border-gray-400 p-4 min-h-[200px] text-sm whitespace-pre-wrap">{formData.description_travaux || 'Aucune description fournie'}</div>
                 </div>
             </div>
-            <div className="mt-16 grid grid-cols-3 gap-8 text-center text-sm">
-                <div><div data-sig-zone={1} className="h-28 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">Demandeur</p></div></div>
-                <div><div data-sig-zone={2} className="h-28 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">Technicien</p></div></div>
-                <div><div data-sig-zone={3} className="h-28 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">Validation Finale</p></div></div>
+            <div className="mt-16 grid grid-cols-3 gap-8">
+                <SignatureFrame label="Demandeur" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+                <SignatureFrame label="Technicien" signatureUrl={null} stampUrl={null} zoneIndex={2} />
+                <SignatureFrame label="Validation Finale" signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>
             <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-600 text-center not-printable">Document généré le {new Date().toLocaleDateString('fr-FR')}</div>
         </div>

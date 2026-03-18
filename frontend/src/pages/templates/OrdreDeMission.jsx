@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { documentsAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
+  const { user } = useAuth();
 
   // Générer automatiquement le numéro d'ordre au premier chargement
   useEffect(() => {
@@ -299,23 +302,11 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
         </div>
 
         {/* Signatures */}
-        <div className="mt-8 grid grid-cols-4 gap-4 text-center text-xs">
-          <div>
-            <div data-sig-zone={1} className="border-b-2 border-gray-400 pb-24 mb-2"></div>
-            <p className="font-bold uppercase">Signature<br/>Service Demandeur</p>
-          </div>
-          <div>
-            <div data-sig-zone={2} className="border-b-2 border-gray-400 pb-24 mb-2"></div>
-            <p className="font-bold uppercase">Signature D.D.S<br/>(pour VHL Sanitaire)</p>
-          </div>
-          <div>
-            <div data-sig-zone={3} className="border-b-2 border-gray-400 pb-24 mb-2"></div>
-            <p className="font-bold uppercase">Signature D.S</p>
-          </div>
-          <div>
-            <div data-sig-zone={4} className="border-b-2 border-gray-400 pb-24 mb-2"></div>
-            <p className="font-bold uppercase">Directeur Général</p>
-          </div>
+        <div className="mt-8 grid grid-cols-4 gap-4">
+          <SignatureFrame label="Service Demandeur" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+          <SignatureFrame label="D.D.S" signatureUrl={null} stampUrl={null} zoneIndex={2} />
+          <SignatureFrame label="D.S" signatureUrl={null} stampUrl={null} zoneIndex={3} />
+          <SignatureFrame label="Directeur Général" signatureUrl={null} stampUrl={null} zoneIndex={4} />
         </div>
       </div>
     </div>

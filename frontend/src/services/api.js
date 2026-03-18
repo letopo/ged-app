@@ -210,6 +210,9 @@ export const documentsAPI = {
   getValidatedForPC: () => api.get('/documents/valides-pour-pc'),
   getValidatedDemandesTravaux: () => api.get('/documents/demandes-travaux/valides'),
   getNextNumero: (category) => api.get(`/documents/next-numero?category=${encodeURIComponent(category)}`),
+  getArchives: () => api.get('/documents/archives'),
+  archive: (id) => api.patch(`/documents/${id}/archive`),
+  unarchive: (id) => api.patch(`/documents/${id}/unarchive`),
 };
 
 // ============================================

@@ -12,7 +12,10 @@ import {
   downloadDocument,
   searchDocuments,
   addPageToDocument,
-  getValidatedDemandesTravaux // ✅ AJOUT DE LA NOUVELLE FONCTION
+  getValidatedDemandesTravaux,
+  archiveDocument,
+  unarchiveDocument,
+  getArchivedDocuments,
 } from '../controllers/documentController.js';
 import { Document, User, Workflow } from '../models/index.js';
 import { Op } from 'sequelize'; // ✅ AJOUT IMPORTANT
@@ -168,6 +171,11 @@ router.get('/next-numero', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/documents/archives
+// @desc    Récupérer les documents archivés (groupés par catégorie)
+// @access  Private
+router.get('/archives', protect, getArchivedDocuments);
+
 // Appliquer la protection par token JWT à toutes les routes de ce fichier
 router.use(protect);
 
@@ -199,5 +207,15 @@ router.route('/:id')
 // @desc    Télécharger un document
 // @access  Private
 router.get('/:id/download', downloadDocument);
+
+// @route   PATCH /api/documents/:id/archive
+// @desc    Archiver un document
+// @access  Private
+router.patch('/:id/archive', protect, archiveDocument);
+
+// @route   PATCH /api/documents/:id/unarchive
+// @desc    Désarchiver un document
+// @access  Private
+router.patch('/:id/unarchive', protect, unarchiveDocument);
 
 export default router;

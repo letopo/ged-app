@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { documentsAPI, workflowAPI, usersAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import WorkflowProgress from '../components/WorkflowProgress';
-import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus } from 'lucide-react';
+import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive } from 'lucide-react';
 
 const DocumentList = () => {
   const { user } = useAuth();
@@ -138,6 +138,17 @@ const DocumentList = () => {
     }
   };
 
+  const handleArchive = async (doc) => {
+    if (!window.confirm(`Archiver "${doc.title}" ? Il sera déplacé dans les archives.`)) return;
+    try {
+      await documentsAPI.archive(doc.id);
+      loadDocuments();
+    } catch (err) {
+      console.error('Erreur archivage:', err);
+      alert('❌ Erreur lors de l\'archivage.');
+    }
+  };
+
   const handleDelete = async (docId) => {
     if (!docId) {
       alert('❌ Erreur : ID du document manquant.');
@@ -264,6 +275,13 @@ const DocumentList = () => {
                     <div className="p-4 border-t border-gray-200 dark:border-dark-border flex gap-2">
                         <button onClick={() => setViewingDocument(doc)} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"><Eye size={16} /><span>Voir</span></button>
                         <button onClick={() => handleOpenSubmitModal(doc)} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50" title={doc.status !== 'draft' ? "Ce document ne peut plus être soumis" : "Soumettre"} disabled={doc.status !== 'draft'}><Send size={16} /></button>
+                        <button
+                          onClick={() => handleArchive(doc)}
+                          className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition"
+                          title="Archiver"
+                        >
+                          <Archive size={16} />
+                        </button>
                         <button onClick={() => handleDelete(doc.id)} className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700" title="Supprimer"><Trash2 size={16} /></button>
                     </div>
                   </div>
@@ -304,6 +322,13 @@ const DocumentList = () => {
                             <div className="flex justify-end gap-2">
                               <button onClick={() => setViewingDocument(doc)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300" title="Visualiser"><Eye size={18} /></button>
                               <button onClick={() => handleOpenSubmitModal(doc)} className="text-green-600 hover:text-green-900 disabled:opacity-50 dark:text-green-400 dark:hover:text-green-300" title={doc.status !== 'draft' ? "Ce document ne peut plus être soumis" : "Soumettre"} disabled={doc.status !== 'draft'}><Send size={18} /></button>
+                              <button
+                                onClick={() => handleArchive(doc)}
+                                className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition"
+                                title="Archiver"
+                              >
+                                <Archive size={16} />
+                              </button>
                               <button onClick={() => handleDelete(doc.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300" title="Supprimer"><Trash2 size={18} /></button>
                             </div>
                           </td>

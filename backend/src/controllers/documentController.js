@@ -194,7 +194,7 @@ export const uploadDocument = async (req, res) => {
 
 export const getDocuments = async (req, res) => {
   try {
-    const whereClause = {};
+    const whereClause = { archived: false };
     const userRole = req.user.role;
     const userId = req.user.id;
     if (userRole !== 'admin' && userRole !== 'director') {
@@ -381,6 +381,84 @@ export const addPageToDocument = async (req, res) => {
       try { await fs.unlink(req.file.path); } catch (e) {}
     }
     res.status(500).json({ success: false, message: 'Erreur lors de la fusion.' });
+  }
+};
+
+// ============================================================
+// ARCHIVE
+// ============================================================
+
+export const archiveDocument = async (req, res) => {
+  try {
+    const document = await Document.findByPk(req.params.id);
+    if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
+    // Vérifier que l'utilisateur a le droit (propriétaire ou admin/director)
+    if (document.userId !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'director') {
+      return res.status(403).json({ success: false, message: 'Accès refusé.' });
+    }
+    await document.update({ archived: true });
+    res.json({ success: true, message: 'Document archivé avec succès.' });
+  } catch (error) {
+    console.error('Erreur archivage:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+export const unarchiveDocument = async (req, res) => {
+  try {
+    const document = await Document.findByPk(req.params.id);
+    if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
+    if (document.userId !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'director') {
+      return res.status(403).json({ success: false, message: 'Accès refusé.' });
+    }
+    await document.update({ archived: false });
+    res.json({ success: true, message: 'Document désarchivé avec succès.' });
+  } catch (error) {
+    console.error('Erreur désarchivage:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+export const getArchivedDocuments = async (req, res) => {
+  try {
+    const whereClause = { archived: true };
+    const userRole = req.user.role;
+    const userId = req.user.id;
+
+    if (userRole !== 'admin' && userRole !== 'director') {
+      whereClause.userId = userId;
+    } else if (!canViewHRDocuments(req.user)) {
+      const hrUserId = await getHRUserId(User);
+      if (hrUserId) {
+        whereClause.userId = { [Op.ne]: hrUserId };
+      }
+    }
+
+    const documents = await Document.findAll({
+      where: whereClause,
+      include: [
+        { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
+        {
+          model: Workflow,
+          as: 'workflows',
+          include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }]
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+
+    // Grouper par catégorie
+    const grouped = documents.reduce((acc, doc) => {
+      const cat = doc.category || 'Autres';
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(doc);
+      return acc;
+    }, {});
+
+    res.json({ success: true, data: grouped, total: documents.length });
+  } catch (error) {
+    console.error('Erreur récupération archives:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
 

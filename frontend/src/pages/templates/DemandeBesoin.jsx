@@ -2,8 +2,11 @@
 import React from 'react';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import logo from '../../assets/logo-ordre-malte.png';
+import { useAuth } from '../../contexts/AuthContext';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const DemandeBesoin = ({ formData, setFormData, pdfContainerRef }) => {
+    const { user } = useAuth();
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -75,10 +78,10 @@ const DemandeBesoin = ({ formData, setFormData, pdfContainerRef }) => {
                 <div className="print-only static-field min-h-[100px]">{formData.justification || '\u00A0'}</div>
             </div>
 
-            <div className="mt-16 grid grid-cols-3 gap-8 text-center text-sm">
-                <div><div data-sig-zone={1} className="h-28 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">Demandeur</p></div></div>
-                <div><div data-sig-zone={2} className="h-28 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">Responsable achats</p></div></div>
-                <div><div data-sig-zone={3} className="h-28 mb-2"></div><div className="border-t-2 border-dotted border-gray-400 pt-2"><p className="font-semibold">Directeur du Soutient</p></div></div>
+            <div className="mt-16 grid grid-cols-3 gap-8">
+                <SignatureFrame label="Demandeur" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+                <SignatureFrame label="Responsable achats" signatureUrl={null} stampUrl={null} zoneIndex={2} />
+                <SignatureFrame label="Directeur du Soutient" signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>
             <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-600 text-center not-printable">Document généré le {new Date().toLocaleDateString('fr-FR')}</div>
         </div>

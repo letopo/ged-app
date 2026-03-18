@@ -79,6 +79,11 @@ const Document = sequelize.define('Document', {
     allowNull: true,
     field: 'invoice_folder_id',
   },
+  archived: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false,
+  },
 }, {
   tableName: 'documents',
   timestamps: true,

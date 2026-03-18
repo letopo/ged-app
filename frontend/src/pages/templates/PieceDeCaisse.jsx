@@ -1,11 +1,14 @@
 // frontend/src/pages/templates/PieceDeCaisse.jsx - VERSION AVEC APERÇU DOCUMENT
 
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Trash2, Link as LinkIcon, Eye } from 'lucide-react'; // Ajout de Eye
+import { PlusCircle, Trash2, Link as LinkIcon, Eye } from 'lucide-react';
 import { documentsAPI } from '../../services/api';
-import DocumentViewer from '../../components/DocumentViewer'; // Import du Viewer
+import DocumentViewer from '../../components/DocumentViewer';
+import { useAuth } from '../../contexts/AuthContext';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissionSelector = true }) => {
+    const { user } = useAuth();
     const [ordresMission, setOrdresMission] = useState([]);
     const [loadingOM, setLoadingOM] = useState(false);
 
@@ -227,16 +230,25 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-8 text-center text-sm mt-auto">
-                    <div>
-                        <div data-sig-zone={1} className="h-28 pt-2 border-t-2 border-dotted">Visa Bénéficiaire</div>
-                    </div>
-                    <div>
-                        <div data-sig-zone={2} className="h-28 pt-2 border-t-2 border-dotted">Comptabilité</div>
-                    </div>
-                    <div>
-                        <div data-sig-zone={3} className="h-28 pt-2 border-t-2 border-dotted">Visa Directeur</div>
-                    </div>
+                <div className="grid grid-cols-3 gap-8 text-sm mt-auto border-t-2 border-black pt-4">
+                    <SignatureFrame
+                        label="Visa Bénéficiaire"
+                        signatureUrl={getImageUrl(user?.signaturePath)}
+                        stampUrl={getImageUrl(user?.stampPath)}
+                        zoneIndex={1}
+                    />
+                    <SignatureFrame
+                        label="Comptabilité"
+                        signatureUrl={null}
+                        stampUrl={null}
+                        zoneIndex={2}
+                    />
+                    <SignatureFrame
+                        label="Visa Directeur"
+                        signatureUrl={null}
+                        stampUrl={null}
+                        zoneIndex={3}
+                    />
                 </div>
             </div>
 

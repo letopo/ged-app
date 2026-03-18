@@ -57,3 +57,44 @@
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-out;
 }
+
+/* ============================================================
+   DOCUMENT TEMPLATES - Forcer le mode clair dans les aperçus
+   Les documents (fond blanc) doivent toujours afficher en mode
+   clair, quelle que soit le thème choisi (jour/nuit).
+   ============================================================ */
+
+/* Le conteneur blanc force tout son contenu en mode clair */
+.dark .bg-white {
+  color: #111827 !important;
+  color-scheme: light;
+}
+
+/* Tous les éléments enfants héritent du noir */
+.dark .bg-white * {
+  color: inherit;
+  border-color: inherit;
+}
+
+/* Exceptions : éléments avec leur propre couleur explicite */
+.dark .bg-white input:not([type="checkbox"]):not([type="radio"]),
+.dark .bg-white textarea,
+.dark .bg-white select {
+  background-color: transparent !important;
+  color: #111827 !important;
+  border-color: #d1d5db !important;
+}
+
+.dark .bg-white input::placeholder,
+.dark .bg-white textarea::placeholder {
+  color: #9ca3af !important;
+  opacity: 1;
+}
+
+/* Tableaux toujours visibles */
+.dark .bg-white table,
+.dark .bg-white th,
+.dark .bg-white td {
+  border-color: #374151 !important;
+  background-color: transparent !important;
+}

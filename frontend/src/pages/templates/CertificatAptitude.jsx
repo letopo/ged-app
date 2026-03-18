@@ -3,8 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { usersAPI, servicesAPI } from '../../services/api';
 import logo from '../../assets/logo-ordre-malte.png';
+import { useAuth } from '../../contexts/AuthContext';
+import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const CertificatAptitude = ({ formData, setFormData, pdfContainerRef }) => {
+    const { user } = useAuth();
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -198,10 +201,8 @@ const CertificatAptitude = ({ formData, setFormData, pdfContainerRef }) => {
 
             {/* ============ ZONE SIGNATURE ============ */}
             <div className="mt-16 flex justify-end" style={{ marginRight: '40px' }}>
-                <div className="text-center" style={{ minWidth: '180px' }}>
-                    <p style={{ fontSize: '14px', fontWeight: '600', marginBottom: '6px' }}>Le Médecin</p>
-                    <div data-sig-zone={1} style={{ height: '112px', border: '1px dashed rgba(100,100,200,0.18)', borderRadius: '4px' }}></div>
-                    <p style={{ fontSize: '10px', color: '#bbb', marginTop: '3px', fontStyle: 'italic' }}>Signature &amp; Cachet</p>
+                <div style={{ minWidth: '200px' }}>
+                    <SignatureFrame label="Le Médecin" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
                 </div>
             </div>
 
