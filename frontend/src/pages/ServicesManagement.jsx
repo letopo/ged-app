@@ -6,6 +6,7 @@ import { servicesAPI } from '../services/api';
 import ServiceDetailsModal from '../components/ServiceDetailsModal';
 import AddMemberModal from '../components/AddMemberModal';
 import AddServiceModal from '../components/AddServiceModal';
+import { useConfirm } from '../components/ConfirmModal';
 
 const FONCTIONS = [
 'Personnel paramédical',
@@ -41,6 +42,7 @@ const FONCTIONS = [
 ];
 
 const ServicesManagement = () => {
+  const { confirm, ConfirmModalRenderer } = useConfirm();
   const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [showAddService, setShowAddService] = useState(false);
@@ -104,9 +106,8 @@ const ServicesManagement = () => {
   };
 
   const handleRemoveMember = async (serviceId, memberId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir retirer ce membre du service ?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Retirer le membre', message: 'Êtes-vous sûr de vouloir retirer ce membre du service ?', confirmLabel: 'Retirer', variant: 'warning' });
+    if (!ok) return;
 
     try {
       await servicesAPI.removeMember(serviceId, memberId);
@@ -119,9 +120,8 @@ const ServicesManagement = () => {
   };
 
   const handleDeleteService = async (serviceId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce service ?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Supprimer le service', message: 'Êtes-vous sûr de vouloir supprimer ce service ? Cette action est irréversible.', confirmLabel: 'Supprimer', variant: 'danger' });
+    if (!ok) return;
 
     try {
       await servicesAPI.deleteService(serviceId);
@@ -334,6 +334,7 @@ const ServicesManagement = () => {
           onDeleteService={handleDeleteService}
         />
       )}
+      {ConfirmModalRenderer}
     </div>
   );
 };

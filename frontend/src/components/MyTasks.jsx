@@ -16,9 +16,11 @@ import {
   AlertTriangle, ListChecks, X, ZoomIn, UserCheck // ✅ AJOUT DE UserCheck
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import EmptyState from './EmptyState';
 import jsPDF from 'jspdf';
 import { pdf } from '@react-pdf/renderer';
 import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf';
+import toast from 'react-hot-toast';
 
 const MAX_SELECTION = 20;
 const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com';
@@ -91,24 +93,35 @@ const MyTasks = () => {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [taskForPreview, setTaskForPreview] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 });
 
-  useEffect(() => { 
-    loadTasks(); 
+  useEffect(() => {
+    loadTasks(1);
     loadServices();
   }, []);
 
-  const loadTasks = async () => {
+  const loadTasks = async (page = currentPage) => {
     try {
       setLoading(true);
       setError('');
-      const response = await workflowAPI.getMyTasks('all');
+      const response = await workflowAPI.getMyTasks('all', { page, limit: 20 });
       setTasks(response.data.tasks || []);
+      if (response.data.pagination) {
+        setPagination(response.data.pagination);
+        setCurrentPage(response.data.pagination.page);
+      }
     } catch (err) {
       setError('Erreur lors du chargement des tâches.');
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const goToPage = (page) => {
+    if (page < 1 || page > pagination.totalPages) return;
+    loadTasks(page);
   };
 
   const loadServices = async () => {
@@ -121,11 +134,20 @@ const MyTasks = () => {
   };
 
   const isTaskOverdue = (task) => {
-    if (!task.assignedAt || task.status !== 'pending') return false;
+    if (task.status !== 'pending') return false;
     const now = new Date();
-    const assigned = new Date(task.assignedAt);
-    const hoursDiff = (now - assigned) / (1000 * 60 * 60);
+    if (task.deadlineAt) return now > new Date(task.deadlineAt);
+    if (!task.assignedAt) return false;
+    const hoursDiff = (now - new Date(task.assignedAt)) / (1000 * 60 * 60);
     return hoursDiff > 8;
+  };
+
+  const getDaysOverdue = (task) => {
+    if (task.daysOverdue != null) return task.daysOverdue;
+    if (!task.deadlineAt || task.status !== 'pending') return 0;
+    const now = new Date();
+    const diff = (now - new Date(task.deadlineAt)) / (1000 * 60 * 60 * 24);
+    return Math.max(0, Math.ceil(diff));
   };
 
   const getHoursOverdue = (task) => {
@@ -162,7 +184,7 @@ const MyTasks = () => {
       if (prev.length < MAX_SELECTION) {
         return [...prev, taskId];
       }
-      alert(`Vous ne pouvez pas sélectionner plus de ${MAX_SELECTION} documents à la fois.`);
+      toast(`Vous ne pouvez pas sélectionner plus de ${MAX_SELECTION} documents à la fois.`);
       return prev;
     });
   };
@@ -182,7 +204,7 @@ const MyTasks = () => {
 
     const comment = prompt("Ajoutez un commentaire global (optionnel, mais requis si rejet) :", "");
     if (action === 'reject' && (!comment || comment.trim() === '')) {
-      alert("Un commentaire est requis pour rejeter en masse.");
+      toast("Un commentaire est requis pour rejeter en masse.");
       return;
     }
 
@@ -204,16 +226,16 @@ const MyTasks = () => {
         resultMessage += `\n${summary.failed} échec(s). Détails dans la console.`;
         console.error("Erreurs de validation en masse :", errors);
       }
-      alert(resultMessage);
+      toast(resultMessage);
       
       setSelectedTaskIds([]);
       setIsInSelectionMode(false);
-      loadTasks();
+      loadTasks(1);
 
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Une erreur serveur est survenue.';
       setError(`Erreur lors de la validation en masse : ${errorMessage}`);
-      alert(`Erreur lors de la validation en masse : ${errorMessage}`);
+      toast(`Erreur lors de la validation en masse : ${errorMessage}`);
     } finally {
       setBulkActionLoading(false);
     }
@@ -316,13 +338,13 @@ const MyTasks = () => {
     setShowPieceDeCaisseFromOM(false);
     setSelectedDbValidators([]);
     setCreatedDBDocumentId(null);
-    loadTasks();
+    loadTasks(1);
   };
 
   const handleAction = async (action) => {
     if (!taskToProcess) return;
     if (action === 'reject' && !comment.trim()) {
-      alert('Un commentaire est requis pour rejeter.');
+      toast('Un commentaire est requis pour rejeter.');
       return;
     }
 
@@ -332,7 +354,7 @@ const MyTasks = () => {
       ['approve', 'simple_approve', 'approve_sign_stamp'].includes(action) &&
       !remplacantName.trim()
     ) {
-      alert("Veuillez saisir le nom de la personne assurant l'intérim avant de valider.");
+      toast("Veuillez saisir le nom de la personne assurant l'intérim avant de valider.");
       return;
     }
     */
@@ -388,22 +410,22 @@ const MyTasks = () => {
       setTaskToProcess(response.data.data);
       
       if (action === 'stamp') {
-        alert('Cachet apposé avec succès !');
+        toast('Cachet apposé avec succès !');
         closeProcessingModal();
       } else if (action === 'approve_sign_stamp') {
-        alert('✅ Document approuvé, signé et cacheté avec succès !');
+        toast.success('Document approuvé, signé et cacheté avec succès !');
         closeProcessingModal();
       } else if (['reject', 'simple_approve'].includes(action) || action === 'dater') {
-        alert('Tâche traitée avec succès !');
+        toast('Tâche traitée avec succès !');
         closeProcessingModal();
       } else if (action === 'approve') {
-        alert('Document signé avec succès !');
+        toast('Document signé avec succès !');
       }
 
     } catch (err) {
       const errorMessage = err.response?.data?.message || `Erreur lors de l'action '${action}'.`;
       setError(errorMessage);
-      alert(errorMessage);
+      toast(errorMessage);
       console.error(`Erreur lors de l'action '${action}':`, err);
     } finally {
       setActionLoading(null);
@@ -455,17 +477,15 @@ const MyTasks = () => {
         validationType: 'simple_approve'
       });
       
-      alert(
-        uploadResponse.data.data.metadata?.fusionné
+      toast(uploadResponse.data.data.metadata?.fusionné
           ? `✅ Pièce de caisse créée et fusionnée avec ${taskToProcess.document.category}!\n\nLe document final contient les deux documents.`
-          : `✅ Pièce de caisse créée avec succès!\n\nLe processus est maintenant complet.`
-      );
+          : `✅ Pièce de caisse créée avec succès!\n\nLe processus est maintenant complet.`);
       closeProcessingModal();
       
     } catch (err) {
       setError(err.response?.data?.message || 'Erreur lors de la création de la Pièce de caisse.');
       console.error('❌ Erreur Pièce de caisse:', err);
-      alert(`Erreur: ${err.response?.data?.message || 'Impossible de créer la Pièce de caisse'}`);
+      toast(`Erreur: ${err.response?.data?.message || 'Impossible de créer la Pièce de caisse'}`);
     } finally {
       setSubmittingDB(false);
     }
@@ -532,7 +552,7 @@ const MyTasks = () => {
         documentId: createdDBDocumentId,
         validatorIds: selectedDbValidators
       });
-      alert('✅ Demande de Besoin créée et soumise avec succès !');
+      toast.success('Demande de Besoin créée et soumise avec succès !');
       closeProcessingModal();
     } catch (err) {
       setError(err.response?.data?.message || 'Erreur lors de la soumission.');
@@ -579,7 +599,7 @@ const MyTasks = () => {
         comment: `Fiche de suivi créée. En attente de résolution.`,
         validationType: 'pause'
       });
-      alert('✅ Fiche de Suivi créée !');
+      toast.success('Fiche de Suivi créée !');
       if (ficheSuiviData.pieces.some(p => p.designation)) {
         if (window.confirm('Des pièces sont nécessaires. Créer une Demande de Besoin ?')) {
           setShowDBFromFS(true);
@@ -613,27 +633,30 @@ const MyTasks = () => {
   
   const getStatusBadge = (status) => {
     // Badges de statut - Support Dark Mode
-    const styles = { 
-      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200', 
-      approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200', 
-      rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200', 
+    const styles = {
+      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200',
+      approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
+      rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
       en_pause: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200',
-      queued: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+      queued: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+      expired: 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
     };
-    const icons = { 
-      pending: Clock, 
-      approved: CheckCircle, 
-      rejected: XCircle, 
+    const icons = {
+      pending: Clock,
+      approved: CheckCircle,
+      rejected: XCircle,
       en_pause: AlertCircle,
-      queued: Clock
+      queued: Clock,
+      expired: XCircle,
     };
     const Icon = icons[status] || Clock;
-    const labels = { 
-      pending: 'En attente', 
-      approved: 'Approuvé', 
-      rejected: 'Rejeté', 
+    const labels = {
+      pending: 'En attente',
+      approved: 'Approuvé',
+      rejected: 'Rejeté',
       en_pause: 'En pause',
-      queued: 'File d\'attente'
+      queued: 'File d\'attente',
+      expired: 'Expiré',
     };
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
@@ -645,12 +668,13 @@ const MyTasks = () => {
 
   const getOverdueBadge = (task) => {
     if (!isTaskOverdue(task)) return null;
-    const hoursOverdue = getHoursOverdue(task);
+    const days = getDaysOverdue(task);
+    const label = days > 0 ? `⏰ Retard +${days}j` : `⏰ Retard +${getHoursOverdue(task)}h`;
     return (
       // Badge Retard - Support Dark Mode
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700 animate-pulse">
         <AlertTriangle className="w-3 h-3 mr-1" />
-        ⚠️ Retard +{hoursOverdue}h
+        {label}
       </span>
     );
   };
@@ -690,9 +714,10 @@ const MyTasks = () => {
       <div className="mb-6 p-4 bg-gray-50 dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-2 flex-wrap">
           {/* Boutons de filtre - Support Dark Mode */}
-          {['pending', 'approved','rejected', 'all'].map(status => (
+          {['pending', 'approved', 'rejected', 'expired', 'all'].map(status => (
             <button key={status} onClick={() => setFilter(status)} className={`px-4 py-2 text-sm font-medium rounded-md transition ${filter === status ? 'bg-blue-600 text-white shadow dark:bg-blue-700' : 'text-gray-600 dark:text-dark-text-secondary hover:bg-gray-200 dark:hover:bg-gray-700 dark:bg-dark-bg'}`}>
-              {{pending: 'En attente', approved: 'Approuvées', rejected: 'Rejetées', all: 'Toutes'}[status]} ({tasks.filter(t => status === 'all' || t.status === status).length})
+              {{ pending: 'En attente', approved: 'Approuvées', rejected: 'Rejetées', expired: 'Expirées', all: 'Toutes' }[status]}
+              {' '}({tasks.filter(t => status === 'all' || t.status === status).length})
             </button>
           ))}
         </div>
@@ -734,9 +759,12 @@ const MyTasks = () => {
       
       <div className="space-y-6">
         {filteredAndSortedTasks.length === 0 ? (
-          // Message aucune tâche - Support Dark Mode
-          <div className="text-center py-16 bg-gray-50 dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border">
-            <p className="text-gray-500 dark:text-dark-text-secondary">Aucune tâche dans cette catégorie.</p>
+          <div className="bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border">
+            <EmptyState
+              icon={CheckCircle}
+              title="Aucune tâche dans cette catégorie"
+              description={filter === 'pending' ? "Vous êtes à jour ! Aucune tâche en attente de validation." : "Aucune tâche ne correspond à ce filtre."}
+            />
           </div>
         ) : (
           filteredAndSortedTasks.map((task) => {
@@ -786,9 +814,17 @@ const MyTasks = () => {
                         <p className="flex items-center gap-2"><Calendar size={14} /> Le: <strong>{formatDate(task.createdAt)}</strong></p>
                         {task.assignedAt && task.status === 'pending' && (
                           <p className="flex items-center gap-2">
-                            <Clock size={14} className={isOverdue ? 'text-red-600 dark:text-red-400' : ''} /> 
+                            <Clock size={14} className={isOverdue ? 'text-red-600 dark:text-red-400' : ''} />
                             Assigné depuis: <strong className={isOverdue ? 'text-red-600 dark:text-red-400 font-bold' : ''}>
                               {Math.floor((new Date() - new Date(task.assignedAt)) / (1000 * 60 * 60))}h
+                            </strong>
+                          </p>
+                        )}
+                        {task.deadlineAt && task.status === 'pending' && (
+                          <p className="flex items-center gap-2">
+                            <Calendar size={14} className={isOverdue ? 'text-red-600 dark:text-red-400' : 'text-gray-400'} />
+                            Échéance: <strong className={isOverdue ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-dark-text'}>
+                              {new Date(task.deadlineAt).toLocaleDateString('fr-FR')}
                             </strong>
                           </p>
                         )}
@@ -826,6 +862,15 @@ const MyTasks = () => {
                           </div>
                         </div>
                       )}
+                      {task.status === 'expired' && (
+                        <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-sm text-gray-600 dark:text-gray-300">
+                            <p className="font-semibold">Tâche expirée — délai de validation dépassé</p>
+                            <p className="text-xs mt-1">Ce document a été remis en brouillon. Le créateur peut le soumettre à nouveau.</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     {/* Boutons d'action - Support Dark Mode */}
                     <div className="flex items-center gap-3 flex-shrink-0 mt-4 md:mt-0">
@@ -854,13 +899,43 @@ const MyTasks = () => {
         )}
       </div>
 
-      <BulkValidationBar 
-        selectedCount={selectedTaskIds.length} 
-        maxSelection={MAX_SELECTION} 
-        onApprove={() => handleBulkAction('approve')} 
-        onReject={() => handleBulkAction('reject')} 
-        onCancel={handleToggleSelectionMode} 
-        disabled={bulkActionLoading} 
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between">
+          <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
+            Page {pagination.page} / {pagination.totalPages} — {pagination.total} tâche(s) au total
+          </p>
+          <div className="flex items-center gap-1">
+            <button onClick={() => goToPage(1)} disabled={currentPage === 1} className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-dark-border disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700">«</button>
+            <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-dark-border disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700">‹</button>
+            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce((acc, p, idx, arr) => {
+                if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, idx) =>
+                p === '…' ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 py-1 text-sm text-gray-400">…</span>
+                ) : (
+                  <button key={p} onClick={() => goToPage(p)} className={`px-3 py-1 text-sm rounded border transition ${p === currentPage ? 'bg-blue-600 text-white border-blue-600 dark:bg-blue-700 dark:border-blue-700' : 'border-gray-300 dark:border-dark-border hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-dark-text'}`}>{p}</button>
+                )
+              )
+            }
+            <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === pagination.totalPages} className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-dark-border disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700">›</button>
+            <button onClick={() => goToPage(pagination.totalPages)} disabled={currentPage === pagination.totalPages} className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-dark-border disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700">»</button>
+          </div>
+        </div>
+      )}
+
+      <BulkValidationBar
+        selectedCount={selectedTaskIds.length}
+        maxSelection={MAX_SELECTION}
+        onApprove={() => handleBulkAction('approve')}
+        onReject={() => handleBulkAction('reject')}
+        onCancel={handleToggleSelectionMode}
+        disabled={bulkActionLoading}
       />
       
       {/* QuickPreviewModal (doit être mis à jour séparément si nécessaire) */}
@@ -868,16 +943,21 @@ const MyTasks = () => {
         <QuickPreviewModal task={taskForPreview} onClose={() => setTaskForPreview(null)} />
       )}
       
-      {/* Modal de traitement principal - Support Dark Mode */}
+      {/* Modal de traitement principal */}
       {taskToProcess && !showDemandeBesoins && !showFicheSuivi && !showDBFromFS && !showValidatorsSelection && !showPieceDeCaisseFromOM && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-dark-surface rounded-lg shadow-xl w-full max-w-2xl flex max-h-[90vh] overflow-hidden">
-            {/* Colonne Gauche (Actions) - Support Dark Mode */}
-            <div className="w-1/2 p-6 border-r border-gray-200 dark:border-dark-border flex flex-col overflow-y-auto">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-4">Traiter le document</h2>
-              <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-1 mb-4">
-                Document: <strong>{taskToProcess.document.title}</strong>
-              </p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-2xl w-full max-w-2xl flex max-h-[90vh] overflow-hidden animate-fadeIn">
+            {/* Colonne Gauche (Actions) */}
+            <div className="w-1/2 flex flex-col overflow-y-auto">
+              <div className="sticky top-0 bg-white dark:bg-dark-surface z-10 px-6 pt-6 pb-4 border-b border-gray-100 dark:border-dark-border">
+                <div className="flex items-start justify-between mb-1">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-dark-text">Traiter le document</h2>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-dark-text-secondary truncate" title={taskToProcess.document.title}>
+                  {taskToProcess.document.title}
+                </p>
+              </div>
+              <div className="px-6 py-4 flex-1 flex flex-col">
               
               {/* Message Pièce de caisse - Support Dark Mode */}
               {needsPieceDeCaisse(taskToProcess) && (
@@ -918,126 +998,122 @@ const MyTasks = () => {
                 </div>
               )}
               
-              {/* ✅ AJOUT DE CE BLOC COMPLET : CHAMP REMPLAÇANT */}
+              {/* Champ Remplaçant */}
               {taskToProcess.document.category === 'Demande de permission' && (
-                <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/10 border-2 border-yellow-300 dark:border-yellow-700 rounded-lg animate-fade-in">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-yellow-900 dark:text-yellow-300 flex items-center gap-2">
-                        <UserCheck size={16} /> Intérim assuré par (Remplaçant)
-                    </label>
-                    <input 
-                        type="text"
-                        value={remplacantName}
-                        onChange={(e) => setRemplacantName(e.target.value)}
-                        placeholder="Saisir le nom du remplaçant..."
-                        className="w-full p-2 border border-yellow-300 dark:border-yellow-700 rounded-md focus:ring-2 focus:ring-yellow-500 bg-white dark:bg-dark-bg dark:text-white"
-                        autoFocus
-                    />
-                    <p className="text-xs text-yellow-700 dark:text-yellow-400">
-                        Ce nom sera inscrit automatiquement sur le PDF.
-                    </p>
-                  </div>
+                <div className="mb-4 p-3.5 bg-amber-50/80 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/50 rounded-xl">
+                  <label className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5 mb-2">
+                    <UserCheck size={14} /> Intérim assuré par
+                  </label>
+                  <input
+                    type="text"
+                    value={remplacantName}
+                    onChange={(e) => setRemplacantName(e.target.value)}
+                    placeholder="Nom du remplaçant..."
+                    className="w-full px-3 py-2 text-sm border border-amber-200 dark:border-amber-700 rounded-lg focus:ring-2 focus:ring-amber-400 bg-white dark:bg-dark-bg dark:text-white"
+                    autoFocus
+                  />
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5">Inscrit automatiquement sur le PDF</p>
                 </div>
               )}
 
-              {/* Commentaire - Support Dark Mode */}
-              <textarea 
-                value={comment} 
-                onChange={(e) => setComment(e.target.value)} 
-                placeholder="Ajouter un commentaire (requis si rejet)..." 
-                className="w-full p-3 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-lg mb-4 focus:ring-2 focus:ring-blue-500" 
-                rows="3" 
-              />
-              
-              <div className="space-y-3 flex-grow">
-                <h3 className="font-semibold text-gray-700 dark:text-dark-text">Actions disponibles :</h3>
+              {/* Commentaire */}
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 block">Commentaire</label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Ajouter un commentaire (requis si rejet)..."
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-xl focus:ring-2 focus:ring-blue-500 resize-none"
+                  rows="2"
+                />
+              </div>
+
+              <div className="space-y-2 flex-grow">
+                <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Actions</h3>
                 
-                {/* Action combinée DG - Support Dark Mode */}
+                {/* Action combinée DG */}
                 {canUseCombinedAction() && taskToProcess.document.fileType === 'application/pdf' && (
                 <>
-                  <button 
-                    onClick={() => handleAction('approve_sign_stamp')} 
-                    disabled={!!actionLoading} 
-                    className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 rounded-lg border-2 border-purple-400 text-left transition shadow-md dark:from-dark-bg dark:to-gray-800 dark:hover:from-purple-900/50 dark:hover:to-blue-900/50 dark:border-purple-700"
+                  <button
+                    onClick={() => handleAction('approve_sign_stamp')}
+                    disabled={!!actionLoading}
+                    className="w-full flex items-center gap-3 p-3.5 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 rounded-xl border border-purple-200 dark:border-purple-700 text-left transition-all hover:shadow-md dark:from-purple-900/20 dark:to-blue-900/20 dark:hover:from-purple-900/40 dark:hover:to-blue-900/40"
                   >
-                    {actionLoading === 'approve_sign_stamp' ? (
-                      <Loader className="animate-spin w-6 h-6 text-purple-600 dark:text-purple-400"/>
-                    ) : (
-                      <ShieldCheck className="text-purple-600 dark:text-purple-400 w-6 h-6"/>
-                    )}
-                    <div className="flex-1">
-                      <p className="font-bold text-purple-900 dark:text-purple-300">Approuver, Signer et Apposer le cachet</p>
-                      <p className="text-xs text-purple-700 dark:text-purple-400 mt-0.5">Action rapide (Nécessite Signature et Cachet)</p> 
+                    <div className="p-2 bg-purple-100 dark:bg-purple-800/50 rounded-xl shrink-0">
+                      {actionLoading === 'approve_sign_stamp' ? (
+                        <Loader className="animate-spin w-5 h-5 text-purple-600 dark:text-purple-400"/>
+                      ) : (
+                        <ShieldCheck className="text-purple-600 dark:text-purple-400 w-5 h-5"/>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-purple-900 dark:text-purple-300">Approuver, Signer et Cacheter</p>
+                      <p className="text-[11px] text-purple-600 dark:text-purple-400">Action rapide — Signature + Cachet</p>
                     </div>
                   </button>
-                  <div className="border-t border-gray-200 dark:border-dark-border my-3"></div>
-                  <p className="text-xs text-gray-500 dark:text-dark-text-secondary italic">Ou choisissez une action individuelle :</p>
+                  <div className="flex items-center gap-2 my-2">
+                    <div className="flex-1 h-px bg-gray-200 dark:bg-dark-border" />
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">ou individuellement</span>
+                    <div className="flex-1 h-px bg-gray-200 dark:bg-dark-border" />
+                  </div>
                 </>
               )}
                 
-                {/* Actions standards - Support Dark Mode */}
+                {/* Actions standards */}
                 {!needsPieceDeCaisse(taskToProcess) && (
                   <>
-                    <button 
-                      onClick={() => handleAction('simple_approve')} 
-                      disabled={!!actionLoading} 
-                      className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 dark:bg-dark-bg dark:hover:bg-gray-700 rounded-lg border border-gray-200 dark:border-dark-border text-left transition"
+                    <button
+                      onClick={() => handleAction('simple_approve')}
+                      disabled={!!actionLoading}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-dark-border text-left transition-all"
                     >
-                      {actionLoading === 'simple_approve' ? (
-                        <Loader className="animate-spin w-5 h-5"/>
-                      ) : (
-                        <CheckCircle className="text-gray-600 dark:text-gray-300"/>
-                      )}
-                      <span className='text-gray-700 dark:text-dark-text'>Validation simple (sans signature)</span>
+                      <div className="p-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg shrink-0">
+                        {actionLoading === 'simple_approve' ? <Loader className="animate-spin w-4 h-4"/> : <CheckCircle className="text-gray-500 dark:text-gray-400 w-4 h-4"/>}
+                      </div>
+                      <span className='text-sm text-gray-700 dark:text-dark-text'>Validation simple</span>
                     </button>
-                    
+
                     {user?.signaturePath && (
-                      <button 
-                        onClick={() => handleAction('approve')} 
-                        disabled={!!actionLoading} 
-                        className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/10 dark:hover:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700 text-left transition"
+                      <button
+                        onClick={() => handleAction('approve')}
+                        disabled={!!actionLoading}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700/50 text-left transition-all"
                       >
-                        {actionLoading === 'approve' ? (
-                          <Loader className="animate-spin w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        ) : (
-                          <Edit className="text-blue-600 dark:text-blue-400"/>
-                        )}
-                        <span className='text-blue-900 dark:text-blue-300'>Approuver et Signer</span>
+                        <div className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg shrink-0">
+                          {actionLoading === 'approve' ? <Loader className="animate-spin w-4 h-4 text-blue-600"/> : <Edit className="text-blue-600 dark:text-blue-400 w-4 h-4"/>}
+                        </div>
+                        <span className='text-sm text-blue-800 dark:text-blue-300'>Approuver et Signer</span>
                       </button>
                     )}
-                    
+
                     {user?.stampPath && (
-                      <button 
-                        onClick={() => handleAction('stamp')} 
-                        disabled={!!actionLoading} 
-                        className="w-full flex items-center gap-3 p-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/10 dark:hover:bg-indigo-900/30 rounded-lg border border-indigo-200 dark:border-indigo-700 text-left transition"
+                      <button
+                        onClick={() => handleAction('stamp')}
+                        disabled={!!actionLoading}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-700/50 text-left transition-all"
                       >
-                        {actionLoading === 'stamp' ? (
-                          <Loader className="animate-spin w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                        ) : (
-                          <ShieldCheck className="text-indigo-600 dark:text-indigo-400"/>
-                        )}
-                        <span className='text-indigo-900 dark:text-indigo-300'>Apposer le cachet</span>
-                        {taskToProcess.document.category === 'Ordre de mission' && (
-                          <span className="text-xs text-indigo-600 dark:text-indigo-400 ml-auto">
-                            (4 cachets possibles)
-                          </span>
-                        )}
+                        <div className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg shrink-0">
+                          {actionLoading === 'stamp' ? <Loader className="animate-spin w-4 h-4 text-indigo-600"/> : <ShieldCheck className="text-indigo-600 dark:text-indigo-400 w-4 h-4"/>}
+                        </div>
+                        <div className="flex-1 flex items-center justify-between">
+                          <span className='text-sm text-indigo-800 dark:text-indigo-300'>Apposer le cachet</span>
+                          {taskToProcess.document.category === 'Ordre de mission' && (
+                            <span className="text-[10px] text-indigo-500 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-full">4 cachets</span>
+                          )}
+                        </div>
                       </button>
                     )}
-                    
+
                     {user?.email === 'hsjm.rh@gmail.com' && (
-                      <button 
-                        onClick={() => handleAction('dater')} 
-                        disabled={!!actionLoading} 
-                        className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 dark:bg-teal-900/10 dark:hover:bg-teal-900/30 rounded-lg border border-teal-200 dark:border-teal-700 text-left transition"
+                      <button
+                        onClick={() => handleAction('dater')}
+                        disabled={!!actionLoading}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-xl border border-teal-200 dark:border-teal-700/50 text-left transition-all"
                       >
-                        {actionLoading === 'dater' ? (
-                          <Loader className="animate-spin w-5 h-5 text-teal-600 dark:text-teal-400" />
-                        ) : (
-                          <CalendarPlus className="text-teal-600 dark:text-teal-400"/>
-                        )}
-                        <span className='text-teal-900 dark:text-teal-300'>Apposer le Dateur</span>
+                        <div className="p-1.5 bg-teal-50 dark:bg-teal-900/30 rounded-lg shrink-0">
+                          {actionLoading === 'dater' ? <Loader className="animate-spin w-4 h-4 text-teal-600"/> : <CalendarPlus className="text-teal-600 dark:text-teal-400 w-4 h-4"/>}
+                        </div>
+                        <span className='text-sm text-teal-800 dark:text-teal-300'>Apposer le Dateur</span>
                       </button>
                     )}
                     
@@ -1095,35 +1171,36 @@ const MyTasks = () => {
               
               {!needsPieceDeCaisse(taskToProcess) && (
                 <>
-                  <div className="border-t border-gray-200 dark:border-dark-border my-5"></div>
-                  <button 
-                    onClick={() => handleAction('reject')} 
-                    disabled={!!actionLoading} 
-                    className="w-full flex items-center gap-3 p-3 bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-700 text-left transition"
+                  <div className="flex items-center gap-2 mt-3 mb-2">
+                    <div className="flex-1 h-px bg-gray-200 dark:bg-dark-border" />
+                  </div>
+                  <button
+                    onClick={() => handleAction('reject')}
+                    disabled={!!actionLoading}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl border border-red-200/70 dark:border-red-700/50 text-left transition-all"
                   >
-                    {actionLoading === 'reject' ? (
-                      <Loader className="animate-spin w-5 h-5 text-red-600 dark:text-red-400"/>
-                    ) : (
-                      <XCircle className="text-red-600 dark:text-red-400"/>
-                    )}
-                    <span className='text-red-900 dark:text-red-300'>Rejeter le document</span>
+                    <div className="p-1.5 bg-red-50 dark:bg-red-900/30 rounded-lg shrink-0">
+                      {actionLoading === 'reject' ? <Loader className="animate-spin w-4 h-4 text-red-600"/> : <XCircle className="text-red-500 dark:text-red-400 w-4 h-4"/>}
+                    </div>
+                    <span className='text-sm text-red-700 dark:text-red-300'>Rejeter le document</span>
                   </button>
                 </>
               )}
-              
-              <div className="mt-6 text-right">
-                <button 
-                  onClick={closeProcessingModal} 
-                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 ml-auto transition dark:bg-blue-700 dark:hover:bg-blue-600"
+              </div>
+
+              <div className="sticky bottom-0 bg-white dark:bg-dark-surface px-6 py-4 border-t border-gray-100 dark:border-dark-border">
+                <button
+                  onClick={closeProcessingModal}
+                  className="w-full px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium flex items-center justify-center gap-2 transition-all dark:bg-blue-700 dark:hover:bg-blue-600 text-sm"
                 >
-                  <ThumbsUp size={16} /> Terminer
+                  <ThumbsUp size={15} /> Fermer
                 </button>
               </div>
             </div>
-            
-            {/* Colonne Droite (Progression) - Support Dark Mode */}
-            <div className="w-1/2 p-6 bg-gray-50 dark:bg-dark-bg overflow-y-auto">
-              <h3 className="font-bold text-lg text-gray-900 dark:text-dark-text mb-4">Suivi de Validation</h3>
+
+            {/* Colonne Droite (Progression) */}
+            <div className="w-1/2 p-6 bg-gray-50/80 dark:bg-dark-bg border-l border-gray-200 dark:border-dark-border overflow-y-auto">
+              <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">Suivi de Validation</h3>
               <WorkflowProgress 
                 workflows={taskToProcess.document.workflows} 
                 documentStatus={taskToProcess.document.status} 

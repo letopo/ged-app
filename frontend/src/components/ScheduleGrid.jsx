@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import scheduleService from '../services/scheduleService';
+import toast from 'react-hot-toast';
 
 const ScheduleGrid = ({ schedule, employees, onSave }) => {
   const [assignments, setAssignments] = useState({});
@@ -57,7 +58,7 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
   // 🆕 Gestion du début du drag
   const handleMouseDown = (employeeId, date) => {
     if (!selectedShift) {
-      alert('Veuillez d\'abord sélectionner un shift');
+      toast('Veuillez d\'abord sélectionner un shift');
       return;
     }
     
@@ -146,7 +147,7 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
   // 🆕 Double-clic sur le nom pour remplir toute la ligne
   const handleEmployeeDoubleClick = (employeeId) => {
     if (!selectedShift) {
-      alert('Veuillez d\'abord sélectionner un shift');
+      toast('Veuillez d\'abord sélectionner un shift');
       return;
     }
 
@@ -195,14 +196,14 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
       await scheduleService.updateScheduleAssignments(schedule.id, assignmentsArray);
       
       setHasChanges(false);
-      alert('Affectations enregistrées avec succès !');
+      toast('Affectations enregistrées avec succès !');
       
       if (onSave) {
         onSave();
       }
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
-      alert('Erreur lors de la sauvegarde des affectations');
+      toast('Erreur lors de la sauvegarde des affectations');
     } finally {
       setSaving(false);
     }

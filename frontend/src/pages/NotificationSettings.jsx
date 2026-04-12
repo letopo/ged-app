@@ -9,6 +9,7 @@ import {
   checkPushSubscription 
 } from '../utils/pushNotificationHelper';
 import { getSocket } from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function NotificationSettings() {
   const { 
@@ -55,7 +56,7 @@ export default function NotificationSettings() {
       }
     } catch (error) {
       console.error('Erreur activation notifications:', error);
-      alert('❌ Erreur lors de l\'activation des notifications');
+      toast.error('Erreur lors de l\'activation des notifications');
     } finally {
       setLoading(false);
     }
@@ -67,15 +68,15 @@ export default function NotificationSettings() {
     try {
       if (pushSubscribed) {
         await unsubscribeFromPush();
-        alert('✅ Notifications Push désactivées');
+        toast.success('Notifications Push désactivées');
       } else {
         await subscribeToPush();
-        alert('✅ Notifications Push activées !');
+        toast.success('Notifications Push activées !');
       }
       await checkStatus();
     } catch (error) {
       console.error('Erreur Push:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,7 @@ export default function NotificationSettings() {
         tag: 'test-notification'
       });
     } else {
-      alert('⚠️ Veuillez d\'abord activer les notifications');
+      toast('Veuillez d\'abord activer les notifications', { icon: '⚠️' });
     }
   };
 

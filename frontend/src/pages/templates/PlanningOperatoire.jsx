@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import SignatureFrame from '../../components/SignatureFrame';
 
 const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
   
@@ -326,19 +327,10 @@ const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
         </table>
 
         {/* Signatures */}
-        <div className="mt-12 grid grid-cols-3 gap-8 text-center text-sm">
-          <div>
-            <div data-sig-zone={1} className="border-b-2 border-gray-400 pb-28 mb-2"></div>
-            <p className="font-bold uppercase">Chef de Service<br/>Chirurgie</p>
-          </div>
-          <div>
-            <div data-sig-zone={2} className="border-b-2 border-gray-400 pb-28 mb-2"></div>
-            <p className="font-bold uppercase">Directeur des<br/>Soins Infirmiers</p>
-          </div>
-          <div>
-            <div data-sig-zone={3} className="border-b-2 border-gray-400 pb-28 mb-2"></div>
-            <p className="font-bold uppercase">Directeur Général</p>
-          </div>
+        <div className="mt-12 grid grid-cols-3 gap-8 text-sm">
+          <SignatureFrame label="Chef de Service Chirurgie" zoneIndex={1} height="112px" />
+          <SignatureFrame label="Directeur des Soins Infirmiers" zoneIndex={2} height="112px" />
+          <SignatureFrame label="Directeur Général" zoneIndex={3} height="112px" />
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import scheduleService from '../services/scheduleService';
+import toast from 'react-hot-toast';
 
 const ScheduleCreate = () => {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ const ScheduleCreate = () => {
     
     // Validation
     if (!formData.scheduleType) {
-      alert('Veuillez sélectionner un type de planning');
+      toast('Veuillez sélectionner un type de planning');
       return;
     }
 
@@ -99,7 +100,7 @@ const ScheduleCreate = () => {
       const errorMessage = error.response?.data?.message || 
                           error.message || 
                           'Erreur lors de la création du planning';
-      alert(errorMessage);
+      toast(errorMessage);
     } finally {
       setLoading(false);
     }

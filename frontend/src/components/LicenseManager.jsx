@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api'; // Assure-toi d'avoir configuré axios ou api
 import { ShieldCheck, ShieldAlert, Key } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const LicenseManager = () => {
     const [licenseKey, setLicenseKey] = useState('');
@@ -28,7 +29,7 @@ const LicenseManager = () => {
         try {
             const res = await api.post('/license/activate', { licenseKey });
             if (res.data.success) {
-                alert("✅ Licence activée avec succès !");
+                toast.success("Licence activée avec succès !");
                 setStatus({ 
                     active: true, 
                     client: res.data.info.clientName, 
@@ -37,7 +38,7 @@ const LicenseManager = () => {
                 setLicenseKey('');
             }
         } catch (error) {
-            alert("❌ Erreur : " + (error.response?.data?.message || "Clé invalide"));
+            toast.error("Erreur : " + (error.response?.data?.message || "Clé invalide"));
         } finally {
             setLoading(false);
         }

@@ -2,6 +2,7 @@
 import React from 'react';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import logo from '../../assets/logo-ordre-malte.png';
+import SignatureFrame from '../../components/SignatureFrame';
 
 const FicheSuiviEquipements = ({ formData, setFormData, pdfContainerRef }) => {
     const motifs = [
@@ -333,14 +334,8 @@ const FicheSuiviEquipements = ({ formData, setFormData, pdfContainerRef }) => {
 
             {/* Signatures */}
             <div className="grid grid-cols-2 gap-8 text-xs mt-6">
-                <div className="text-center">
-                    <div data-sig-zone={1} className="h-28 mb-2"></div>
-                    <p className="border-t border-black pt-1">Cellule de Maintenance Biomédicale</p>
-                </div>
-                <div className="text-center">
-                    <div data-sig-zone={2} className="h-28 mb-2"></div>
-                    <p className="border-t border-black pt-1">Service Utilisateur</p>
-                </div>
+                <SignatureFrame label="Cellule de Maintenance Biomédicale" zoneIndex={1} height="112px" />
+                <SignatureFrame label="Service Utilisateur" zoneIndex={2} height="112px" />
             </div>
 
             {/* Footer */}

@@ -2,8 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { usersAPI } from '../services/api';
 import { Users, Edit, KeyRound, Trash2, PlusCircle, CheckCircle, XCircle, Loader, UploadCloud, Stamp } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { PageSkeleton } from '../components/SkeletonLoader';
+import { useConfirm } from '../components/ConfirmModal';
 
 const UserManagement = () => {
+  const { confirm, ConfirmModalRenderer } = useConfirm();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -65,7 +69,7 @@ const UserManagement = () => {
     try {
       if (isCreating) {
         await usersAPI.create(modalData); 
-        alert('Utilisateur créé avec succès !');
+        toast('Utilisateur créé avec succès !');
       } else {
         const dataToUpdate = {
           firstName: modalData.firstName,
@@ -75,12 +79,12 @@ const UserManagement = () => {
           role: modalData.role,
         };
         await usersAPI.update(editingUser.id, dataToUpdate);
-        alert('Utilisateur mis à jour avec succès !');
+        toast('Utilisateur mis à jour avec succès !');
       }
       handleCloseModal();
       loadUsers();
     } catch (err) {
-      alert(`Erreur: ${err.response?.data?.error || 'Une erreur est survenue'}`);
+      toast(`Erreur: ${err.response?.data?.error || 'Une erreur est survenue'}`);
     }
   };
 
@@ -100,19 +104,20 @@ const UserManagement = () => {
         setResetModalOpen(false);
         setUserToReset(null);
     } catch (err) {
-        alert('Erreur lors de la réinitialisation.');
+        toast('Erreur lors de la réinitialisation.');
         setResetModalOpen(false);
     }
   };
 
   const handleDelete = async (user) => {
-      if (window.confirm(`Supprimer l'utilisateur ${user.username} ? Cette action est irréversible.`)) {
+      const ok = await confirm({ title: 'Supprimer l\'utilisateur', message: `Supprimer ${user.username} ? Cette action est irréversible.`, confirmLabel: 'Supprimer', variant: 'danger' });
+      if (ok) {
           try {
               await usersAPI.delete(user.id);
-              alert('Utilisateur supprimé.');
+              toast('Utilisateur supprimé.');
               loadUsers();
           } catch(err) {
-              alert(`Erreur: ${err.response?.data?.error || "Impossible de supprimer l'utilisateur"}`);
+              toast(`Erreur: ${err.response?.data?.error || "Impossible de supprimer l'utilisateur"}`);
           }
       }
   };
@@ -150,17 +155,17 @@ const UserManagement = () => {
       } else {
         await usersAPI.uploadStamp(userToUploadFor.id, formData);
       }
-      alert(`${uploadType === 'signature' ? 'Signature' : 'Cachet'} uploadé avec succès.`);
+      toast(`${uploadType === 'signature' ? 'Signature' : 'Cachet'} uploadé avec succès.`);
       handleCloseUploadModal();
       loadUsers();
     } catch (err) {
-      alert(`Erreur: ${err.response?.data?.message || 'Une erreur est survenue lors de l\'upload'}`);
+      toast(`Erreur: ${err.response?.data?.message || 'Une erreur est survenue lors de l\'upload'}`);
     } finally {
       setUploading(false);
     }
   };
 
-  if (loading) return <div className="flex justify-center p-8"><Loader className="animate-spin text-blue-600" /></div>;
+  if (loading) return <PageSkeleton rows={6} title />;
   if (error) return <div className="text-red-500 dark:text-red-400 p-4">{error}</div>;
 
   return (
@@ -385,6 +390,7 @@ const UserManagement = () => {
           </tbody>
         </table>
       </div>
+      {ConfirmModalRenderer}
     </div>
   );
 };

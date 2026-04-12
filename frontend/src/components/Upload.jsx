@@ -5,6 +5,17 @@ import { documentsAPI } from '../services/api';
 import { Upload as UploadIcon, FileText, CheckCircle, XCircle, Loader } from 'lucide-react';
 
 // Le composant est défini comme une constante
+const ACCEPTED_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+  'image/jpeg',
+  'image/png',
+];
+
 const Upload = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState(null);
@@ -14,16 +25,39 @@ const Upload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [dragActive, setDragActive] = useState(false);
+
+  const acceptFile = (f) => {
+    if (!f) return;
+    if (f.size > 10 * 1024 * 1024) {
+      setError('Le fichier dépasse 10 MB.');
+      return;
+    }
+    setFile(f);
+    setError('');
+    if (!title) {
+      setTitle(f.name.replace(/\.[^/.]+$/, ''));
+    }
+  };
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      // Remplir le titre par défaut avec le nom du fichier (sans extension)
-      if (!title) {
-        setTitle(selectedFile.name.replace(/\.[^/.]+$/, ''));
-      }
-    }
+    acceptFile(e.target.files[0]);
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (uploading) return;
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) acceptFile(droppedFile);
   };
 
   const handleInputChange = (e) => {
@@ -90,30 +124,50 @@ const Upload = () => {
       <form onSubmit={handleSubmit} className="bg-white dark:bg-dark-surface rounded-lg shadow-md dark:shadow-none border border-gray-200 dark:border-dark-border p-8">
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">Fichier *</label>
-          {/* Zone de Drag and Drop - Support Dark Mode */}
-          <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
-            <input 
-              type="file" 
-              onChange={handleFileChange} 
-              className="hidden" 
-              id="file-upload" 
-              disabled={uploading} 
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png" 
+          <div
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 ${
+              dragActive
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-[1.02]'
+                : file
+                  ? 'border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10'
+                  : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500'
+            }`}
+          >
+            <input
+              type="file"
+              onChange={handleFileChange}
+              className="hidden"
+              id="file-upload"
+              disabled={uploading}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
             />
             <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
-              {file ? (
-                <>{/* Fichier sélectionné - Support Dark Mode pour le texte */}
-                  <FileText className="w-16 h-16 text-green-600 dark:text-green-400 mb-4" />
-                  <p className="text-lg font-medium text-gray-900 dark:text-dark-text mb-2">{file.name}</p>
-                  <p className="text-sm text-gray-600 dark:text-dark-text-secondary">{formatFileSize(file.size)}</p>
-                  {!uploading && <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">Cliquer pour changer de fichier</p>}
+              {dragActive ? (
+                <>
+                  <UploadIcon className="w-16 h-16 text-blue-500 mb-4 animate-bounce" />
+                  <p className="text-lg font-medium text-blue-600 dark:text-blue-400">Déposez le fichier ici</p>
+                </>
+              ) : file ? (
+                <>
+                  <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-2xl mb-4">
+                    <FileText className="w-10 h-10 text-green-600 dark:text-green-400" />
+                  </div>
+                  <p className="text-lg font-medium text-gray-900 dark:text-dark-text mb-1">{file.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-dark-text-secondary">{formatFileSize(file.size)}</p>
+                  {!uploading && <p className="text-xs text-blue-600 dark:text-blue-400 mt-3">Cliquer ou glisser pour changer de fichier</p>}
                 </>
               ) : (
-                <>{/* Pas de fichier sélectionné - Support Dark Mode pour le texte */}
-                  <UploadIcon className="w-16 h-16 text-gray-400 dark:text-gray-600 mb-4" />
-                  <p className="text-lg font-medium text-gray-900 dark:text-dark-text mb-2">Cliquez pour sélectionner un fichier</p>
-                  <p className="text-sm text-gray-600 dark:text-dark-text-secondary">ou glissez-déposez le fichier ici</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">PDF, Word, Excel, Images (Max 10MB)</p>
+                <>
+                  <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-2xl mb-4">
+                    <UploadIcon className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <p className="text-lg font-medium text-gray-900 dark:text-dark-text mb-1">Glissez-déposez votre fichier ici</p>
+                  <p className="text-sm text-gray-500 dark:text-dark-text-secondary">ou <span className="text-blue-600 dark:text-blue-400 font-medium">cliquez pour parcourir</span></p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">PDF, Word, Excel, Images — Max 10 MB</p>
                 </>
               )}
             </label>

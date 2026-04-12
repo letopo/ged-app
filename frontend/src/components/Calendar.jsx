@@ -1,14 +1,44 @@
-// frontend/src/components/Calendar.jsx - VERSION AVEC JOURS FÉRIÉS CAMEROUNAIS ET DARK MODE
+// frontend/src/components/Calendar.jsx - VERSION AVEC NAVIGATION MOIS & JOURS FÉRIÉS CAMEROUNAIS
 import React, { useState, useEffect } from 'react';
 import { calendarAPI } from '../services/api';
-import { Calendar as CalendarIcon, Flag } from 'lucide-react';
-// Assurez-vous que les fonctions suivantes sont mises à jour pour le Dark Mode si elles retournent des classes de couleur de fond/texte
+import { Calendar as CalendarIcon, Flag, ChevronLeft, ChevronRight } from 'lucide-react';
 import { isHoliday, getHolidayColor } from '../utils/cameroonHolidays';
 
-const Calendar = ({ month, year }) => {
+const Calendar = ({ month: initialMonth, year: initialYear }) => {
+  const [currentMonth, setCurrentMonth] = useState(initialMonth);
+  const [currentYear, setCurrentYear] = useState(initialYear);
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Navigation mois
+  const goToPrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(prev => prev - 1);
+    } else {
+      setCurrentMonth(prev => prev - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(prev => prev + 1);
+    } else {
+      setCurrentMonth(prev => prev + 1);
+    }
+  };
+
+  const goToToday = () => {
+    const now = new Date();
+    setCurrentMonth(now.getMonth());
+    setCurrentYear(now.getFullYear());
+  };
+
+  // Alias pour compatibilité avec le code existant
+  const month = currentMonth;
+  const year = currentYear;
 
   useEffect(() => {
     loadPermissions();
@@ -214,11 +244,19 @@ const Calendar = ({ month, year }) => {
     // Support Dark Mode pour le conteneur principal
     <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm dark:shadow-none border border-gray-200 dark:border-dark-border p-4">
       <div className="flex items-center justify-between mb-4">
-        {/* Support Dark Mode pour le titre */}
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text capitalize flex items-center gap-2">
+        <button onClick={goToPrevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition">
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-2">
           <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          {getMonthName()}
-        </h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text capitalize">{getMonthName()}</h3>
+          <button onClick={goToToday} className="ml-1 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition">
+            Aujourd'hui
+          </button>
+        </div>
+        <button onClick={goToNextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition">
+          <ChevronRight className="w-5 h-5" />
+        </button>
       </div>
 
       {loading ? (

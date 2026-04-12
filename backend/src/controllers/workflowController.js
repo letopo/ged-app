@@ -14,6 +14,7 @@ import { emitNewTaskNotification, emitTaskUpdateNotification, isUserConnected } 
 import { sendNewTaskPushNotification } from '../services/pushNotificationService.js';
 import { mergePDFs } from '../utils/pdfMerger.js';
 import { PDFExtract } from 'pdf.js-extract';
+import { computeDeadline } from '../utils/workflowAutoExpire.js';
 
 
 // ✅ NOUVEAU : Email du comptable
@@ -154,6 +155,7 @@ export const createWorkflow = async (req, res) => {
       }
     }
     
+    const now = new Date();
     const workflows = await Promise.all(
       finalValidatorIds.map((validatorId, index) =>
         Workflow.create({
@@ -161,7 +163,8 @@ export const createWorkflow = async (req, res) => {
           validatorId,
           step: index + 1,
           status: index === 0 ? 'pending' : 'queued',
-          assignedAt: index === 0 ? new Date() : null,
+          assignedAt: index === 0 ? now : null,
+          deadlineAt: index === 0 ? computeDeadline(now) : null,
         })
       )
     );
@@ -191,16 +194,19 @@ export const createWorkflow = async (req, res) => {
   }
 };
 
-// Récupérer les tâches d'un utilisateur
+// Récupérer les tâches d'un utilisateur (avec pagination)
 export const getMyTasks = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, page = 1, limit = 20 } = req.query;
     const userId = req.user.id;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
     const whereClause = { validatorId: userId };
     if (status && status !== 'all') {
       whereClause.status = status;
     }
-    const tasks = await Workflow.findAll({
+
+    const { count, rows } = await Workflow.findAndCountAll({
       where: whereClause,
       include: [
         {
@@ -217,8 +223,29 @@ export const getMyTasks = async (req, res) => {
         },
       ],
       order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      offset,
     });
-    res.json({ success: true, tasks });
+
+    // Tâches en retard (deadline dépassée) en premier, puis par date décroissante
+    const now = new Date();
+    const tasks = [...rows].sort((a, b) => {
+      const aOverdue = a.status === 'pending' && a.deadlineAt && now > new Date(a.deadlineAt) ? 0 : 1;
+      const bOverdue = b.status === 'pending' && b.deadlineAt && now > new Date(b.deadlineAt) ? 0 : 1;
+      if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    res.json({
+      success: true,
+      tasks,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / parseInt(limit)),
+      },
+    });
   } catch (error) {
     console.error('❌ Erreur récupération tâches:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
@@ -296,10 +323,11 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
     if (pausedWorkflow) {
       const reason = `${originDocument.category} validée`;
       
-      await pausedWorkflow.update({ 
-        status: 'pending', 
+      await pausedWorkflow.update({
+        status: 'pending',
         comment: `${reason}. Document joint automatiquement. Reprise du processus.`,
-        assignedAt: new Date()
+        assignedAt: new Date(),
+        deadlineAt: computeDeadline(),
       }, { transaction });
       
       await workRequest.update({ status: 'in_progress' }, { transaction });
@@ -582,9 +610,9 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
           
           if (nextTask) {
             // ACTIVATION TÂCHE SUIVANTE
-            await nextTask.update({ status: 'pending', assignedAt: new Date() }, { transaction: t });
+            await nextTask.update({ status: 'pending', assignedAt: new Date(), deadlineAt: computeDeadline() }, { transaction: t });
             await document.update({ status: 'in_progress' }, { transaction: t });
-            
+
             const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
             if (nextValidator) notifyValidator(nextValidator, document);
             
@@ -814,9 +842,10 @@ export const bulkValidateTask = async (req, res) => {
           });
           
           if (nextTask) {
-            await nextTask.update({ 
+            await nextTask.update({
               status: 'pending',
-              assignedAt: new Date()
+              assignedAt: new Date(),
+              deadlineAt: computeDeadline(),
             }, { transaction: t });
             await document.update({ status: 'in_progress' }, { transaction: t });
             

@@ -18,12 +18,14 @@ import PlanningOperatoire from './templates/PlanningOperatoire'; // ✅ NOUVEAU
 import BonDeCommande from './templates/BonDeCommande';
 import BonDeCommandeInterne from './templates/BonDeCommandeInterne';
 import CertificatAptitude from './templates/CertificatAptitude';
+import AttestationConge from './templates/AttestationConge';
 
 // Importer le TemplateEngine DYNAMIQUE
 import TemplateEngine from '../templates/TemplateEngine';
 import demandeExplicationConfig from '../templates/configs/demande-explication.json';
 
 import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf'; 
+import toast from 'react-hot-toast';
 
 // Définir les modèles disponibles (SYSTÈME HYBRIDE)
 const templates = {
@@ -163,6 +165,22 @@ const templates = {
                     numeroSalle: '' 
                 }
             ]
+        }
+    },
+    "Attestation de départ en congé annuel": {
+        type: "manual",
+        component: AttestationConge,
+        initialState: {
+            civilite: 'Monsieur',
+            nom_prenom: '',
+            fonction: '',
+            service: '',
+            matricule: '',
+            nb_jours: '',
+            date_debut: '',
+            date_fin: '',
+            date_reprise: '',
+            date_document: new Date().toISOString().split('T')[0],
         }
     },
     // ============================================
@@ -425,11 +443,11 @@ const CreateFromTemplate = () => {
         
         // Affichage des messages de succès/erreur de fusion
         if (response.data.data?.metadata?.fusionné) {
-            alert('✅ Fusion avec l\'Ordre de Mission réussie !');
+            toast.success('Fusion avec l\'Ordre de Mission réussie !');
         } else if (response.data.data?.metadata?.fusionError) {
-            alert('⚠️ Document créé, mais la fusion a échoué:\n' + response.data.data.metadata.fusionError);
+            toast('Document créé, mais la fusion a échoué:\n' + response.data.data.metadata.fusionError, { icon: '⚠️' });
         } else {
-            alert('Document généré et sauvegardé avec succès !');
+            toast('Document généré et sauvegardé avec succès !');
         }
         
         navigate('/documents');

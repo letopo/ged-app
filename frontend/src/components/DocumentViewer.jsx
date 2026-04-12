@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { X, Check, AlertTriangle, MessageSquare, FilePlus, ArrowUp, ArrowDown, Loader } from 'lucide-react';
 import { documentsAPI, getFileBaseUrl } from '../services/api';
+import toast from 'react-hot-toast';
 
 
 const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActions = false }) => {
@@ -79,7 +80,7 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
 
     const handleReject = () => {
         if (!rejectComment.trim()) {
-            alert('Le commentaire est obligatoire pour un rejet.');
+            toast('Le commentaire est obligatoire pour un rejet.');
             return;
         }
         onReject({ comment: rejectComment });
@@ -89,7 +90,7 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             if (file.type !== 'application/pdf') {
-                alert('Veuillez sélectionner un fichier PDF uniquement.');
+                toast('Veuillez sélectionner un fichier PDF uniquement.');
                 return;
             }
             setSelectedMergeFile(file);
@@ -119,7 +120,7 @@ const DocumentViewer = ({ document: doc, onClose, onValidate, onReject, showActi
 
         } catch (error) {
             console.error("Erreur fusion:", error);
-            alert("Erreur lors de l'ajout de la page.");
+            toast("Erreur lors de l'ajout de la page.");
         } finally {
             setIsMerging(false);
         }

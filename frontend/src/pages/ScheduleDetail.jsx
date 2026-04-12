@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import scheduleService from '../services/scheduleService';
+import toast from 'react-hot-toast';
 
 const ScheduleDetail = () => {
   const { id } = useParams();
@@ -43,7 +44,7 @@ const ScheduleDetail = () => {
       organizeAssignments(data.assignments, monthDates);
     } catch (error) {
       console.error('Erreur chargement planning:', error);
-      alert('Erreur lors du chargement du planning');
+      toast('Erreur lors du chargement du planning');
       navigate('/schedules');
     } finally {
       setLoading(false);
@@ -146,7 +147,7 @@ const ScheduleDetail = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Barre d'actions (non imprimée) */}
       <div className="no-print bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="w-full px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => navigate('/schedules')}
             className="flex items-center text-gray-600 hover:text-gray-800"
@@ -525,7 +526,7 @@ const ScheduleDetail = () => {
       </div>
 
       {/* Statistiques (non imprimées) */}
-      <div className="no-print max-w-7xl mx-auto px-4 py-6">
+      <div className="no-print w-full px-4 py-6">
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistiques du planning</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

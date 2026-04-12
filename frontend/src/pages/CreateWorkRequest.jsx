@@ -8,6 +8,7 @@ import DemandeTravaux from './templates/DemandeTravaux';
 import { Loader, Send, ArrowRight, CheckCircle, Info, Users } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import toast from 'react-hot-toast';
 
 const CreateWorkRequest = () => {
     const { user } = useAuth();
@@ -319,7 +320,7 @@ const CreateWorkRequest = () => {
                 validatorIds: orderedValidators
             });
 
-            alert('✅ Demande de travaux créée et soumise avec succès !');
+            toast.success('Demande de travaux créée et soumise avec succès !');
             navigate('/documents');
 
         } catch (err) {

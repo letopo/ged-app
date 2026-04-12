@@ -10,6 +10,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { ticketAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function PortailDashboard() {
   const [showModal, setShowModal] = useState(false);
@@ -75,7 +76,7 @@ export default function PortailDashboard() {
 
     } catch (error) {
       console.error('Erreur création ticket:', error);
-      alert('Erreur lors de la création du ticket');
+      toast('Erreur lors de la création du ticket');
     } finally {
       setLoading(false);
     }

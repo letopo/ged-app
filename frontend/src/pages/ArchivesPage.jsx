@@ -4,8 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { documentsAPI, getFileBaseUrl } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import { Archive, ChevronDown, ChevronRight, FileText, RotateCcw, Loader, FolderOpen } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../components/ConfirmModal';
 
 const ArchivesPage = () => {
+  const { confirm, ConfirmModalRenderer } = useConfirm();
   const { user } = useAuth();
   const [grouped, setGrouped] = useState({});
   const [loading, setLoading] = useState(true);
@@ -42,12 +45,13 @@ const ArchivesPage = () => {
   };
 
   const handleUnarchive = async (doc) => {
-    if (!window.confirm(`Désarchiver "${doc.title}" ? Il sera remis dans vos documents.`)) return;
+    const ok = await confirm({ title: 'Désarchiver le document', message: `"${doc.title}" sera remis dans vos documents actifs.`, confirmLabel: 'Désarchiver', variant: 'info' });
+    if (!ok) return;
     try {
       await documentsAPI.unarchive(doc.id);
       loadArchives();
     } catch (err) {
-      alert('❌ Erreur lors du désarchivage.');
+      toast.error('Erreur lors du désarchivage.');
     }
   };
 
@@ -180,6 +184,7 @@ const ArchivesPage = () => {
           onClose={() => setViewingDocument(null)}
         />
       )}
+      {ConfirmModalRenderer}
     </div>
   );
 };

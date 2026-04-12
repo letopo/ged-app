@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { employeesAPI } from '../services/api';
 import { Download, Upload, FileText, CheckCircle, XCircle, Loader } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const ImportExportEmployees = ({ onImportComplete }) => {
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -26,10 +27,10 @@ const ImportExportEmployees = ({ onImportComplete }) => {
       link.remove();
       window.URL.revokeObjectURL(url);
       
-      alert('Export CSV réussi !');
+      toast('Export CSV réussi !');
     } catch (err) {
       console.error('Erreur export:', err);
-      alert('Erreur lors de l\'export CSV');
+      toast('Erreur lors de l\'export CSV');
     } finally {
       setLoading(false);
     }
@@ -38,7 +39,7 @@ const ImportExportEmployees = ({ onImportComplete }) => {
   // Import CSV
   const handleImport = async () => {
     if (!selectedFile) {
-      alert('Veuillez sélectionner un fichier CSV');
+      toast('Veuillez sélectionner un fichier CSV');
       return;
     }
 
@@ -51,7 +52,7 @@ const ImportExportEmployees = ({ onImportComplete }) => {
       setImportResults(response.data);
       
       if (response.data.success) {
-        alert(response.data.message);
+        toast(response.data.message);
         setImportModalOpen(false);
         setSelectedFile(null);
         if (onImportComplete) {
@@ -60,7 +61,7 @@ const ImportExportEmployees = ({ onImportComplete }) => {
       }
     } catch (err) {
       console.error('Erreur import:', err);
-      alert(err.response?.data?.error || 'Erreur lors de l\'import CSV');
+      toast(err.response?.data?.error || 'Erreur lors de l\'import CSV');
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,7 @@ const ImportExportEmployees = ({ onImportComplete }) => {
         setSelectedFile(file);
         setImportResults(null);
       } else {
-        alert('Veuillez sélectionner un fichier CSV valide');
+        toast('Veuillez sélectionner un fichier CSV valide');
         e.target.value = '';
       }
     }

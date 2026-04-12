@@ -7,6 +7,7 @@ import ScheduleGrid from '../components/ScheduleGrid';
 import api from '../services/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import toast from 'react-hot-toast';
 
 const ScheduleEdit = () => {
   const { id } = useParams();
@@ -56,7 +57,7 @@ const ScheduleEdit = () => {
       }
     } catch (error) {
       console.error('Erreur chargement planning:', error);
-      alert('Erreur lors du chargement du planning');
+      toast('Erreur lors du chargement du planning');
       navigate('/schedules');
     }
   };
@@ -155,7 +156,7 @@ const ScheduleEdit = () => {
 
   const handleContinue = () => {
     if (selectedEmployees.length === 0) {
-      alert('Veuillez sélectionner au moins un employé');
+      toast('Veuillez sélectionner au moins un employé');
       return;
     }
     setShowEmployeeSelector(false);
@@ -254,7 +255,7 @@ const ScheduleEdit = () => {
       // 7. Marquer comme soumis
       await scheduleService.submitForValidation(schedule.id);
 
-      alert('PDF généré et uploadé avec succès !');
+      toast('PDF généré et uploadé avec succès !');
       
       if (response.data.document?.id) {
         navigate(`/documents/${response.data.document.id}`);
@@ -264,7 +265,7 @@ const ScheduleEdit = () => {
 
     } catch (error) {
       console.error('❌ Erreur:', error);
-      alert('Erreur lors de la génération du PDF');
+      toast('Erreur lors de la génération du PDF');
     } finally {
       setLoading(false);
     }

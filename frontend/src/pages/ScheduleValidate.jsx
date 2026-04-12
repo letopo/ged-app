@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import scheduleService from '../services/scheduleService';
+import toast from 'react-hot-toast';
 
 const ScheduleValidate = () => {
   const { id } = useParams();
@@ -25,7 +26,7 @@ const ScheduleValidate = () => {
       setSchedule(data);
     } catch (error) {
       console.error('Erreur chargement planning:', error);
-      alert('Erreur lors du chargement du planning');
+      toast('Erreur lors du chargement du planning');
       navigate('/schedules');
     } finally {
       setLoading(false);
@@ -34,7 +35,7 @@ const ScheduleValidate = () => {
 
   const handleValidate = async (validateAction) => {
     if (validateAction === 'reject' && !rejectionReason.trim()) {
-      alert('Veuillez indiquer la raison du rejet');
+      toast('Veuillez indiquer la raison du rejet');
       return;
     }
 
@@ -59,11 +60,11 @@ const ScheduleValidate = () => {
         ? 'Planning approuvé avec succès!'
         : 'Planning rejeté';
 
-      alert(successMessage);
+      toast(successMessage);
       navigate('/schedules');
     } catch (error) {
       console.error('Erreur validation:', error);
-      alert(error.response?.data?.message || 'Erreur lors de la validation');
+      toast(error.response?.data?.message || 'Erreur lors de la validation');
     } finally {
       setSubmitting(false);
     }

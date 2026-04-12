@@ -27,11 +27,15 @@ import {
   Receipt,
   ShoppingCart,
   Activity,
-  Archive
+  Archive,
+  Wrench,
+  Stethoscope
 } from 'lucide-react';
 import { workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
+import GlobalSearch from './GlobalSearch';
+import { useNavbarTheme } from '../hooks/useNavbarTheme';
 
 const getRoleLabel = (role) => {
   const roleLabels = {
@@ -40,7 +44,7 @@ const getRoleLabel = (role) => {
     'director': 'Directeur',
     'admin': 'Administrateur',
     'gardien': 'Gardien',
-    'agent_accueil_php': 'Agent Accueil PHP',
+    'agent_accueil_php': 'Point Focal PHP',
     'agent_accueil_normal': 'Agent Accueil Normal',
     'caissier': 'Caissier',
     'chef_de_service': 'Chef de Service',
@@ -56,11 +60,11 @@ export default function Navbar({ onLogout }) {
   
   const [isOpen, setIsOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showGestionMenu, setShowGestionMenu] = useState(false);
-  const [showAppsMenu, setShowAppsMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   
   const [pendingCount, setPendingCount] = useState(0);
   const [hasNewTask, setHasNewTask] = useState(false);
+  const { themeName, setThemeName, theme, themes } = useNavbarTheme();
 
   const loadPendingTasks = async () => {
     try {
@@ -102,17 +106,14 @@ export default function Navbar({ onLogout }) {
       if (showUserMenu && !event.target.closest('.user-menu-container')) {
         setShowUserMenu(false);
       }
-      if (showGestionMenu && !event.target.closest('.gestion-menu-container')) {
-        setShowGestionMenu(false);
-      }
-      if (showAppsMenu && !event.target.closest('.apps-menu-container')) {
-        setShowAppsMenu(false);
+      if (showMoreMenu && !event.target.closest('.more-menu-container')) {
+        setShowMoreMenu(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showUserMenu, showGestionMenu, showAppsMenu]);
+  }, [showUserMenu, showMoreMenu]);
 
   const isActive = (path) => {
     if (path.startsWith('/kanban') && location.pathname.startsWith('/kanban')) {
@@ -127,42 +128,43 @@ export default function Navbar({ onLogout }) {
   // CONFIGURATION DES MENUS
   // ==========================================
 
-  const mainNavItems = [
+  // Items visibles directement sur la navbar
+  const visibleItems = [
     { path: '/dashboard', icon: Home, label: 'Tableau de bord' },
     { path: '/documents', icon: FileText, label: 'Documents' },
-    { path: '/archives', icon: Archive, label: 'Archives' },
-    { path: '/workflow-dashboard', icon: BarChart3, label: 'Workflow' },
-  ];
-
-  const gestionItems = [
-    { path: '/schedules', icon: Calendar, label: 'Plannings', managementOnly: true },
-    { path: '/employees', icon: Users, label: 'Employés', rhOrAdminOnly: true },
-    { path: '/user-management', icon: Users, label: 'Utilisateurs', adminOnly: true },
-    { path: '/services', icon: LayoutGrid, label: 'Services', adminOnly: true },
-  ];
-
-  const appsItems = [
-    { path: '/portail', icon: UserPlus, label: 'Portail', gardienOnly: true },
-    { path: '/accueil', icon: DoorOpen, label: 'Accueil', accueilOnly: true },
-    { path: '/caisse', icon: DollarSign, label: 'Caisse', caisseOnly: true },
-    { 
-      path: '/demandes-achat',
-      icon: ShoppingCart,
-      label: 'Demandes d\'Achat', 
-      demandeAchatOnly: true 
-    },
-  ];
-
-  const toolsItems = [
-    { 
-      path: '/kanban/MG',
-      icon: Kanban, 
-      label: 'Suivi Technique', 
-      kanbanOnly: true 
-    },
-    { path: '/invoices', icon: Receipt, label: 'Factures', managementOnly: true },
     { path: '/upload', icon: Upload, label: 'Upload' },
   ];
+
+  // Items dans le menu « Plus » — regroupés par sections
+  const moreItems = {
+    navigation: [
+      { path: '/archives', icon: Archive, label: 'Archives', desc: 'Documents archivés' },
+      { path: '/workflow-dashboard', icon: BarChart3, label: 'Workflow', desc: 'Tableau de bord workflow' },
+    ],
+    gestion: [
+      { path: '/schedules', icon: Calendar, label: 'Plannings', desc: 'Gérer les plannings', managementOnly: true },
+      { path: '/employees', icon: Users, label: 'Employés', desc: 'Fiches des employés', rhOrAdminOnly: true },
+      { path: '/user-management', icon: Users, label: 'Utilisateurs', desc: 'Comptes & rôles', adminOnly: true },
+      { path: '/services', icon: LayoutGrid, label: 'Services', desc: 'Structure de l\'hôpital', adminOnly: true },
+    ],
+    apps: [
+      { path: '/portail', icon: UserPlus, label: 'Portail', desc: 'Gestion des entrées', gardienOnly: true },
+      { path: '/accueil', icon: DoorOpen, label: 'Accueil', desc: 'Enregistrement patients', accueilOnly: true },
+      { path: '/caisse', icon: DollarSign, label: 'Caisse', desc: 'Paiements & reçus', caisseOnly: true },
+      { path: '/demandes-achat', icon: ShoppingCart, label: 'Demandes d\'Achat', desc: 'Commandes & achats', demandeAchatOnly: true },
+      { path: '/php', icon: Stethoscope, label: 'Module PHP', desc: 'Gestion clinique', phpOnly: true },
+    ],
+    outils: [
+      { path: '/kanban/MG', icon: Kanban, label: 'Suivi Technique', desc: 'Tickets techniques', kanbanOnly: true },
+      { path: '/invoices', icon: Receipt, label: 'Factures', desc: 'Facturation', managementOnly: true },
+      { path: '/gmao', icon: Wrench, label: 'GMAO', desc: 'Maintenance équipements', gmaoOnly: true },
+    ],
+  };
+
+  // Compat — ancien format pour certains checks
+  const gestionItems = moreItems.gestion;
+  const appsItems = moreItems.apps;
+  const toolsItems = moreItems.outils;
 
   // ==========================================
   // LOGIQUE DE PERMISSIONS
@@ -211,7 +213,21 @@ export default function Navbar({ onLogout }) {
     if (item.demandeAchatOnly) {
       return user?.role === 'admin' || user?.role === 'achat' || user?.role === 'user';
     }
-    
+
+    if (item.gmaoOnly) {
+      const GMAO_EMAILS = [
+        'hsjm.cellulebiomedicale@gmail.com',
+        'hsjm.pharma@gmail.com',
+        'hopitalcameroun@ordredemaltefrance.org',
+      ];
+      return user?.role === 'admin' || GMAO_EMAILS.includes(user?.email);
+    }
+
+    // ── Module PHP : accessible aux agents PHP et admins ─────────────────────
+    if (item.phpOnly) {
+      return user?.role === 'admin' || user?.role === 'agent_accueil_php';
+    }
+
     return true;
   };
 
@@ -219,319 +235,279 @@ export default function Navbar({ onLogout }) {
   const hasAppsAccess = appsItems.some(item => canAccessItem(item));
   const hasToolsAccess = toolsItems.some(item => canAccessItem(item));
 
-  return (
-    <nav className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-gray-800 dark:to-gray-900 shadow-lg transition-all duration-200">
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          
-          {/* ==================== LOGO + NOM (GAUCHE) ==================== */}
-          <div className="flex items-center flex-shrink-0">
-            <Link to="/dashboard" className="flex items-center space-x-3 group">
-              <div className="bg-white/10 dark:bg-white/5 p-2 rounded-lg group-hover:bg-white/20 transition-all duration-200">
-                <Activity className="w-6 h-6 text-white" />
+  // Le menu « Plus » contient au moins les items navigation (Archives, Workflow) visibles par tous
+  const moreNavItems = moreItems.navigation.filter(i => canAccessItem(i));
+  const moreGestionItems = moreItems.gestion.filter(i => canAccessItem(i));
+  const moreAppsItems = moreItems.apps.filter(i => canAccessItem(i));
+  const moreToolsItems = moreItems.outils.filter(i => canAccessItem(i));
+  const hasMoreItems = moreNavItems.length + moreGestionItems.length + moreAppsItems.length + moreToolsItems.length > 0;
+
+  // Initiales utilisateur pour l'avatar
+  const userInitials = user
+    ? ((user.firstName?.[0] || user.username?.[0] || '?') + (user.lastName?.[0] || '')).toUpperCase()
+    : '?';
+  const avatarColors = ['bg-violet-500','bg-blue-500','bg-emerald-500','bg-rose-500','bg-amber-500','bg-cyan-500','bg-pink-500'];
+  const avatarColor = avatarColors[(user?.username?.charCodeAt(0) || 0) % avatarColors.length];
+
+  // Helper pour rendre une section du menu « Plus »
+  const renderMoreSection = (label, items, closeMenu) => {
+    if (items.length === 0) return null;
+    return (
+      <div>
+        <div className="px-4 py-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{label}</div>
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+          return (
+            <Link key={item.path} to={item.path} onClick={closeMenu}
+              className={`flex items-center gap-3 px-4 py-2 transition-all mx-1 rounded-xl ${active ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
+            >
+              <div className={`p-1.5 rounded-lg ${active ? 'bg-blue-100 dark:bg-blue-800' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                <Icon className={`w-4 h-4 ${active ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
               </div>
-              <div className="hidden sm:block">
-                <span className="text-white text-lg font-bold tracking-tight">GED</span>
-                <span className="text-blue-200 dark:text-gray-400 text-xs block -mt-1">HSJM Workflow</span>
+              <div className="min-w-0">
+                <div className={`text-sm font-medium ${active ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'}`}>{item.label}</div>
+                {item.desc && <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{item.desc}</div>}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <nav className={`sticky top-0 z-40 ${theme.bg} backdrop-blur-xl border-b border-white/10 dark:border-white/5 shadow-sm transition-all duration-300`}>
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-14">
+
+          {/* ========== LOGO ========== */}
+          <div className="flex items-center flex-shrink-0">
+            <Link to="/dashboard" className="flex items-center gap-2.5 group">
+              <div className="bg-white/15 group-hover:bg-white/25 p-1.5 rounded-xl transition-all duration-200">
+                <Activity className="w-5 h-5 text-white" />
+              </div>
+              <div className="hidden sm:block leading-none">
+                <span className="text-white text-base font-semibold tracking-tight">GED</span>
+                <span className="text-blue-200/70 dark:text-gray-500 text-[10px] block mt-0.5">HSJM Workflow</span>
               </div>
             </Link>
           </div>
 
-          {/* ==================== NAVIGATION PRINCIPALE (CENTRE) ==================== */}
-          <div className="hidden lg:flex items-center justify-center flex-1 px-8">
-            <div className="flex items-center space-x-1">
-              
-              {/* Navigation Principale */}
-              {mainNavItems.map((item) => {
-                if (!canAccessItem(item)) return null;
+          {/* ========== CENTRE : 3 items + « Plus » ========== */}
+          <div className="hidden lg:flex items-center justify-center flex-1 px-4">
+            <div className={`flex items-center gap-1 ${theme.pill} rounded-full p-1`}>
+              {visibleItems.map((item) => {
                 const Icon = item.icon;
+                const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
                 return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`${isActive(item.path)} text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-all duration-200`}
+                  <Link key={item.path} to={item.path}
+                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200
+                      ${active
+                        ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-white shadow-sm'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                      }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span>{item.label}</span>
                   </Link>
                 );
               })}
 
-              {/* Menu Gestion */}
-              {hasGestionAccess && (
-                <div
-                  className="relative gestion-menu-container pb-2"
-                  onMouseEnter={() => setShowGestionMenu(true)}
-                  onMouseLeave={() => setShowGestionMenu(false)}
+              {/* Menu « Plus » — tout le reste */}
+              {hasMoreItems && (
+                <div className="relative more-menu-container pb-3 -mb-3"
+                  onMouseEnter={() => setShowMoreMenu(true)}
+                  onMouseLeave={() => setShowMoreMenu(false)}
                 >
-                  <button className="text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-all duration-200">
-                    <Briefcase className="w-4 h-4" />
-                    <span>Gestion</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showGestionMenu ? 'rotate-180' : ''}`} />
+                  <button className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 text-white/80 hover:text-white hover:bg-white/10">
+                    <Grid className="w-3.5 h-3.5" />
+                    <span>Plus</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showMoreMenu ? 'rotate-180' : ''}`} />
                   </button>
 
-                  {showGestionMenu && (
-                    <div className="absolute top-full left-0 mt-0 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-50 animate-fadeIn">
-                      {gestionItems.map((item) => {
-                        if (!canAccessItem(item)) return null;
-                        const Icon = item.icon;
-                        return (
-                          <Link
-                            key={item.path}
-                            to={item.path}
-                            onClick={() => setShowGestionMenu(false)}
-                            className={`flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-all ${location.pathname.startsWith(item.path) ? 'bg-blue-50 dark:bg-gray-700 text-blue-600 dark:text-blue-400 border-l-4 border-blue-600' : ''}`}
-                          >
-                            <Icon className="w-5 h-5" />
-                            <span className="font-medium">{item.label}</span>
-                          </Link>
-                        );
-                      })}
+                  {showMoreMenu && (
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-0 pt-2 w-80 z-50">
+                      <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2 animate-fadeIn max-h-[75vh] overflow-y-auto">
+                      {renderMoreSection('Navigation', moreNavItems, () => setShowMoreMenu(false))}
+                      {moreGestionItems.length > 0 && moreNavItems.length > 0 && <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-4" />}
+                      {renderMoreSection('Gestion', moreGestionItems, () => setShowMoreMenu(false))}
+                      {moreAppsItems.length > 0 && <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-4" />}
+                      {renderMoreSection('Applications', moreAppsItems, () => setShowMoreMenu(false))}
+                      {moreToolsItems.length > 0 && <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-4" />}
+                      {renderMoreSection('Outils', moreToolsItems, () => setShowMoreMenu(false))}
+                      </div>
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Menu Applications */}
-              {hasAppsAccess && (
-                <div
-                  className="relative apps-menu-container pb-2"
-                  onMouseEnter={() => setShowAppsMenu(true)}
-                  onMouseLeave={() => setShowAppsMenu(false)}
-                >
-                  <button className="text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-all duration-200">
-                    <Grid className="w-4 h-4" />
-                    <span>Applications</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showAppsMenu ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {showAppsMenu && (
-                    <div className="absolute top-full left-0 mt-0 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-50 animate-fadeIn">
-                      {appsItems.map((item) => {
-                        if (!canAccessItem(item)) return null;
-                        const Icon = item.icon;
-                        return (
-                          <Link
-                            key={item.path}
-                            to={item.path}
-                            onClick={() => setShowAppsMenu(false)}
-                            className={`flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-all ${location.pathname.startsWith(item.path) ? 'bg-blue-50 dark:bg-gray-700 text-blue-600 dark:text-blue-400 border-l-4 border-blue-600' : ''}`}
-                          >
-                            <Icon className="w-5 h-5" />
-                            <span className="font-medium">{item.label}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Menu Outils */}
-              {hasToolsAccess && toolsItems.some(item => canAccessItem(item)) && (
-                <div className="flex items-center space-x-1 ml-2 pl-2 border-l border-blue-500/30">
-                  {toolsItems.map((item) => {
-                    if (!canAccessItem(item)) return null;
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        className={`${isActive(item.path)} text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 p-2 rounded-lg transition-all duration-200`}
-                        title={item.label}
-                      >
-                        <Icon className="w-5 h-5" />
-                      </Link>
-                    );
-                  })}
                 </div>
               )}
             </div>
           </div>
 
-          {/* ==================== ACTIONS UTILISATEUR (DROITE) ==================== */}
-          <div className="hidden lg:flex items-center space-x-3">
-            
-            {/* Mes Tâches avec Badge */}
-            <Link 
-              to="/my-tasks" 
-              className="relative text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 p-2 rounded-lg transition-all duration-200"
-              title="Mes tâches"
+          {/* ========== DROITE : icônes ========== */}
+          <div className="hidden lg:flex items-center gap-1">
+            {/* Recherche Spotlight */}
+            <GlobalSearch />
+
+            {/* Mes Tâches */}
+            <Link to="/my-tasks" title="Mes tâches"
+              className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200"
             >
-              <CheckSquare className={`w-5 h-5 ${hasNewTask ? 'animate-bounce' : ''}`} />
+              <CheckSquare className={hasNewTask ? 'animate-bounce' : ''} style={{ width: 18, height: 18 }} />
               {pendingCount > 0 && (
-                <span className={`absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center ${hasNewTask ? 'animate-pulse' : ''}`}>
+                <span className={`absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ${hasNewTask ? 'animate-pulse' : ''}`}>
                   {pendingCount}
                 </span>
               )}
             </Link>
 
             {/* Notifications */}
-            <button className="text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 p-2 rounded-lg transition-all duration-200">
-              <Bell className="w-5 h-5" />
+            <button title="Notifications" className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200">
+              <Bell style={{ width: 18, height: 18 }} />
             </button>
 
-            {/* Theme Toggle */}
             <ThemeToggle />
 
-            {/* Séparateur */}
-            <div className="h-8 w-px bg-blue-500/30"></div>
+            <div className="w-px h-5 bg-white/20 mx-1" />
 
-            {/* Menu Utilisateur */}
+            {/* Avatar utilisateur */}
             <div className="relative user-menu-container">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center space-x-3 text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 px-3 py-2 rounded-lg transition-all duration-200"
+              <button onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-white/10 transition-all duration-200"
               >
-                <div className="flex items-center space-x-2">
-                  <div className="bg-white/20 p-1.5 rounded-full">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div className="text-left hidden xl:block">
-                    <p className="text-sm font-medium">{user?.firstName || user?.username}</p>
-                    <p className="text-xs text-blue-200">{getRoleLabel(user?.role)}</p>
-                  </div>
+                <div className={`${avatarColor} w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm`}>
+                  {userInitials}
                 </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 text-white/50 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
 
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-fadeIn">
-                  <div className="p-4 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-gray-700 dark:to-gray-800">
-                    <p className="font-semibold text-white">{user?.username}</p>
-                    <p className="text-sm text-blue-100 dark:text-gray-300">{user?.email}</p>
-                    <p className="text-xs text-blue-200 dark:text-gray-400 mt-1 bg-white/10 inline-block px-2 py-1 rounded">
-                      {getRoleLabel(user?.role)}
-                    </p>
+                <div className="absolute right-0 mt-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 z-50 overflow-hidden animate-fadeIn">
+                  <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-100 dark:border-gray-700">
+                    <div className={`${avatarColor} w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm`}>
+                      {userInitials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{user?.username}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                      <span className="inline-block mt-0.5 text-[10px] font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">{getRoleLabel(user?.role)}</span>
+                    </div>
                   </div>
-
                   <div className="p-2">
-                    <Link 
-                      to="/parametres/notifications" 
-                      onClick={() => setShowUserMenu(false)} 
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-700 dark:text-gray-300 transition-all"
-                    >
-                      <Bell className="w-5 h-5" />
-                      <div>
-                        <div className="font-medium">Notifications</div>
-                        <div className="text-xs text-gray-500">Gérer vos alertes</div>
-                      </div>
+                    <Link to="/parametres/notifications" onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl text-gray-700 dark:text-gray-300 transition-all">
+                      <div className="p-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg"><Bell className="w-4 h-4 text-gray-500 dark:text-gray-400" /></div>
+                      <div><div className="text-sm font-medium">Notifications</div><div className="text-xs text-gray-400">Gérer vos alertes</div></div>
                     </Link>
-
-                    <Link 
-                      to="/settings" 
-                      onClick={() => setShowUserMenu(false)} 
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-700 dark:text-gray-300 transition-all"
-                    >
-                      <Settings className="w-5 h-5" />
-                      <div>
-                        <div className="font-medium">Paramètres</div>
-                        <div className="text-xs text-gray-500">Configuration</div>
-                      </div>
+                    <Link to="/settings" onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl text-gray-700 dark:text-gray-300 transition-all">
+                      <div className="p-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg"><Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" /></div>
+                      <div><div className="text-sm font-medium">Paramètres</div><div className="text-xs text-gray-400">Configuration</div></div>
                     </Link>
-
-                    <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-
-                    <button 
-                      onClick={() => { setShowUserMenu(false); onLogout(); }} 
-                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-red-600 dark:text-red-400 transition-all"
-                    >
-                      <LogOut className="w-5 h-5" />
-                      <div className="text-left">
-                        <div className="font-medium">Déconnexion</div>
-                        <div className="text-xs opacity-75">Se déconnecter</div>
+                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1.5 mx-3" />
+                    <div className="px-3 py-2">
+                      <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Couleur de la barre</p>
+                      <div className="flex gap-1.5">
+                        {Object.entries(themes).map(([key, t]) => (
+                          <button key={key} onClick={() => setThemeName(key)} title={t.label}
+                            className={`w-6 h-6 rounded-full ${t.dot} transition-all ${themeName === key ? 'ring-2 ring-offset-2 ring-blue-400 dark:ring-offset-gray-800 scale-110' : 'hover:scale-110'}`}
+                          />
+                        ))}
                       </div>
+                    </div>
+                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1.5 mx-3" />
+                    <button onClick={() => { setShowUserMenu(false); onLogout(); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-red-600 dark:text-red-400 transition-all">
+                      <div className="p-1.5 bg-red-50 dark:bg-red-900/30 rounded-lg"><LogOut className="w-4 h-4" /></div>
+                      <div className="text-left"><div className="text-sm font-medium">Déconnexion</div><div className="text-xs opacity-60">Se déconnecter</div></div>
                     </button>
                   </div>
                 </div>
               )}
             </div>
           </div>
-          
-          {/* ==================== MOBILE MENU BUTTON ==================== */}
-          <div className="lg:hidden flex items-center space-x-2">
+
+          {/* ========== MOBILE BUTTON ========== */}
+          <div className="lg:hidden flex items-center gap-1.5">
             {pendingCount > 0 && (
-              <Link to="/my-tasks" className="relative" onClick={() => setIsOpen(false)}>
-                <Bell className={`w-6 h-6 text-white ${hasNewTask ? 'animate-bounce' : ''}`} />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">{pendingCount}</span>
+              <Link to="/my-tasks" className="relative p-2" onClick={() => setIsOpen(false)}>
+                <Bell className="w-5 h-5 text-white" />
+                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">{pendingCount}</span>
               </Link>
             )}
             <ThemeToggle />
-            <button onClick={() => setIsOpen(!isOpen)} className="text-white hover:text-blue-200 p-2">
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            <button onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-xl text-white hover:bg-white/10 transition-all">
+              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* ==================== MOBILE MENU ==================== */}
+        {/* ========== MOBILE MENU ========== */}
         {isOpen && (
-          <div className="lg:hidden pb-4 border-t border-blue-500/30 mt-2">
-            <div className="space-y-1 pt-4">
-              {mainNavItems.map((item) => {
-                if (!canAccessItem(item)) return null;
+          <div className="lg:hidden pb-4 border-t border-white/10 mt-1">
+            <div className="space-y-0.5 pt-3">
+              {/* Items principaux + navigation */}
+              {[...visibleItems, ...moreNavItems].map((item) => {
                 const Icon = item.icon;
+                const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
                 return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setIsOpen(false)}
-                    className={`${isActive(item.path)} text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 block px-3 py-2.5 rounded-lg text-base font-medium flex items-center space-x-3 transition-all`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                    {item.badge > 0 && <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{item.badge}</span>}
+                  <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
+                      ${active ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                    <Icon className="w-4 h-4" /><span>{item.label}</span>
                   </Link>
                 );
               })}
 
-              {hasGestionAccess && (
-                <div className="border-t border-blue-500/30 pt-2 mt-2">
-                  <div className="px-3 py-2 text-blue-200 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider">Gestion</div>
-                  {gestionItems.map((item) => {
-                    if (!canAccessItem(item)) return null;
+              {moreGestionItems.length > 0 && (
+                <div className="pt-2 mt-1">
+                  <div className="px-3 py-1.5 text-white/40 text-[10px] font-semibold uppercase tracking-widest">Gestion</div>
+                  {moreGestionItems.map((item) => {
                     const Icon = item.icon;
                     return (
-                      <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)} className={`${isActive(item.path)} text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 block px-3 py-2.5 rounded-lg text-base font-medium flex items-center space-x-3 transition-all`}>
-                        <Icon className="w-5 h-5" /><span>{item.label}</span>
+                      <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive(item.path) ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                        <Icon className="w-4 h-4" /><span>{item.label}</span>
                       </Link>
                     );
                   })}
                 </div>
               )}
 
-              {hasAppsAccess && (
-                <div className="border-t border-blue-500/30 pt-2 mt-2">
-                  <div className="px-3 py-2 text-blue-200 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider">Applications</div>
-                  {appsItems.map((item) => {
-                    if (!canAccessItem(item)) return null;
+              {moreAppsItems.length > 0 && (
+                <div className="pt-2 mt-1">
+                  <div className="px-3 py-1.5 text-white/40 text-[10px] font-semibold uppercase tracking-widest">Applications</div>
+                  {moreAppsItems.map((item) => {
                     const Icon = item.icon;
                     return (
-                      <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)} className={`${isActive(item.path)} text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 block px-3 py-2.5 rounded-lg text-base font-medium flex items-center space-x-3 transition-all`}>
-                        <Icon className="w-5 h-5" /><span>{item.label}</span>
+                      <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive(item.path) ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                        <Icon className="w-4 h-4" /><span>{item.label}</span>
                       </Link>
                     );
                   })}
                 </div>
               )}
 
-              {hasToolsAccess && (
-                <div className="border-t border-blue-500/30 pt-2 mt-2">
-                  <div className="px-3 py-2 text-blue-200 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider">Outils</div>
-                  {toolsItems.map((item) => {
-                    if (!canAccessItem(item)) return null;
+              {moreToolsItems.length > 0 && (
+                <div className="pt-2 mt-1">
+                  <div className="px-3 py-1.5 text-white/40 text-[10px] font-semibold uppercase tracking-widest">Outils</div>
+                  {moreToolsItems.map((item) => {
                     const Icon = item.icon;
                     return (
-                      <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)} className={`${isActive(item.path)} text-blue-100 hover:bg-blue-700 dark:hover:bg-gray-700 block px-3 py-2.5 rounded-lg text-base font-medium flex items-center space-x-3 transition-all`}>
-                        <Icon className="w-5 h-5" /><span>{item.label}</span>
+                      <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive(item.path) ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                        <Icon className="w-4 h-4" /><span>{item.label}</span>
                       </Link>
                     );
                   })}
                 </div>
               )}
 
-              <div className="border-t border-blue-500/30 pt-2 mt-2">
-                <button onClick={() => { setIsOpen(false); onLogout(); }} className="w-full text-left px-3 py-2.5 text-blue-100 hover:bg-red-600/80 rounded-lg text-base font-medium flex items-center space-x-3 transition-all">
-                  <LogOut className="w-5 h-5" /><span>Déconnexion</span>
+              <div className="pt-2 mt-1 border-t border-white/10">
+                <button onClick={() => { setIsOpen(false); onLogout(); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-red-300 hover:bg-red-500/20 rounded-xl text-sm font-medium transition-all">
+                  <LogOut className="w-4 h-4" /><span>Déconnexion</span>
                 </button>
               </div>
             </div>

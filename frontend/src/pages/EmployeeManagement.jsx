@@ -4,8 +4,12 @@ import { employeesAPI, servicesAPI } from '../services/api';
 import { Users, Edit, Trash2, PlusCircle, Search, Filter, Loader, Eye } from 'lucide-react';
 import AddEmployeeModal from '../components/AddEmployeeModal.jsx';
 import ImportExportEmployees from '../components/ImportExportEmployees.jsx';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../components/ConfirmModal';
 
 const EmployeeManagement = () => {
+  const { confirm, ConfirmModalRenderer } = useConfirm();
+  const [sortConfig, setSortConfig] = useState({ key: 'lastName', dir: 'asc' });
   const [employees, setEmployees] = useState([]);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -98,16 +102,31 @@ const EmployeeManagement = () => {
   };
 
   const handleDelete = async (employee) => {
-    if (window.confirm(`Êtes-vous sûr de vouloir désactiver l'employé ${employee.firstName} ${employee.lastName} ?`)) {
+    const ok = await confirm({ title: 'Désactiver l\'employé', message: `Êtes-vous sûr de vouloir désactiver ${employee.firstName} ${employee.lastName} ?`, confirmLabel: 'Désactiver', variant: 'warning' });
+    if (ok) {
       try {
         await employeesAPI.delete(employee.id);
-        alert('Employé désactivé avec succès');
+        toast('Employé désactivé avec succès');
         loadEmployees();
       } catch (err) {
-        alert(`Erreur: ${err.response?.data?.error || "Impossible de désactiver l'employé"}`);
+        toast(`Erreur: ${err.response?.data?.error || "Impossible de désactiver l'employé"}`);
       }
     }
   };
+
+  const handleSort = (key) => {
+    setSortConfig(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
+  };
+
+  const sortedEmployees = [...employees].sort((a, b) => {
+    const { key, dir } = sortConfig;
+    let aVal = key === 'service' ? (a.Service?.name ?? '') : (a[key] ?? '');
+    let bVal = key === 'service' ? (b.Service?.name ?? '') : (b[key] ?? '');
+    aVal = String(aVal).toLowerCase(); bVal = String(bVal).toLowerCase();
+    if (aVal < bVal) return dir === 'asc' ? -1 : 1;
+    if (aVal > bVal) return dir === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -193,21 +212,22 @@ const EmployeeManagement = () => {
         <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
           <thead className="bg-gray-50 dark:bg-dark-bg">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase">
-                Matricule
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase">
-                Nom & Prénom
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase">
-                Service
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase">
-                Date Naissance
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase">
-                Sexe
-              </th>
+              {[
+                { key: 'matricule', label: 'Matricule' },
+                { key: 'lastName', label: 'Nom & Prénom' },
+                { key: 'service', label: 'Service' },
+                { key: 'dateNaissance', label: 'Date Naissance' },
+                { key: 'sexe', label: 'Sexe' },
+              ].map(col => (
+                <th key={col.key} onClick={() => handleSort(col.key)} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 select-none group">
+                  <span className="flex items-center gap-1">
+                    {col.label}
+                    <span className="text-gray-300 dark:text-gray-600 group-hover:text-blue-400 transition-colors">
+                      {sortConfig.key === col.key ? (sortConfig.dir === 'asc' ? '↑' : '↓') : '↕'}
+                    </span>
+                  </span>
+                </th>
+              ))}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase">
                 Enfants
               </th>
@@ -217,7 +237,7 @@ const EmployeeManagement = () => {
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-dark-border">
-            {employees.map(employee => (
+            {sortedEmployees.map(employee => (
               <tr key={employee.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-mono text-sm text-gray-900 dark:text-dark-text">
@@ -339,6 +359,7 @@ const EmployeeManagement = () => {
           onSave={handleSaveSuccess}
         />
       )}
+      {ConfirmModalRenderer}
     </div>
   );
 };

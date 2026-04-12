@@ -5,10 +5,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { workflowAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import Calendar from '../components/Calendar';
-import { 
-  CheckCircle, XCircle, Clock, Eye, FileText, Calendar as CalendarIcon, User, 
+import CircularProgress from '../components/CircularProgress';
+import {
+  CheckCircle, XCircle, Clock, Eye, FileText, Calendar as CalendarIcon, User,
   MessageSquare, AlertCircle, TrendingUp, BarChart3, Loader
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const WorkflowDashboard = () => {
   const { user } = useAuth();
@@ -18,12 +20,9 @@ const WorkflowDashboard = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [filter, setFilter] = useState('pending');
 
-  // Dates pour les calendriers
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
-  const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
-  const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
 
   const loadAllTasks = async () => {
     try {
@@ -59,7 +58,7 @@ const WorkflowDashboard = () => {
 
   const handleViewDocument = (task) => {
     if (!task.document) {
-      alert('Les informations du document sont manquantes pour cette tâche.');
+      toast('Les informations du document sont manquantes pour cette tâche.');
       return;
     }
     setSelectedTask(task);
@@ -71,17 +70,17 @@ const WorkflowDashboard = () => {
       await workflowAPI.validateTask(selectedTask.id, { status: 'approved', comment, realisePar });
       setSelectedTask(null);
       loadAllTasks(); // Recharger la liste des tâches
-      alert('Document approuvé avec succès !');
+      toast('Document approuvé avec succès !');
     } catch (error) {
       console.error('❌ Erreur validation:', error);
       const errorMessage = error.response?.data?.message || 'Erreur lors de la validation du document';
-      alert(`❌ ${errorMessage}`);
+      toast.error(`${errorMessage}`);
     }
   };
 
   const handleReject = async ({ comment }) => {
     if (!comment || comment.trim() === '') {
-      alert('Un commentaire est obligatoire pour rejeter un document');
+      toast('Un commentaire est obligatoire pour rejeter un document');
       return;
     }
     if (!selectedTask) return;
@@ -89,11 +88,11 @@ const WorkflowDashboard = () => {
       await workflowAPI.validateTask(selectedTask.id, { status: 'rejected', comment });
       setSelectedTask(null);
       loadAllTasks(); // Recharger la liste des tâches
-      alert('Document rejeté');
+      toast('Document rejeté');
     } catch (error) {
       console.error('❌ Erreur rejet:', error);
       const errorMessage = error.response?.data?.message || 'Erreur lors du rejet du document';
-      alert(`❌ ${errorMessage}`);
+      toast.error(`${errorMessage}`);
     }
   };
 
@@ -206,40 +205,14 @@ const WorkflowDashboard = () => {
             </div>
           </div>
           <div className="space-y-4">
-            {/* Carte Taux de complétion - Support Dark Mode */}
-            <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm dark:shadow-none border border-gray-200 dark:border-dark-border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text">Taux de complétion</h3>
-                </div>
-                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{completionRate}%</span>
-              </div>
-              {/* Barre de progression - Support Dark Mode */}
-              <div className="w-full bg-gray-200 dark:bg-dark-bg rounded-full h-3">
-                <div className="bg-blue-600 h-3 rounded-full transition-all duration-500" style={{ width: `${completionRate}%` }}></div>
-              </div>
-            </div>
-            {/* Carte Taux d'approbation - Support Dark Mode */}
-            <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm dark:shadow-none border border-gray-200 dark:border-dark-border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text">Taux d'approbation</h3>
-                </div>
-                <span className="text-2xl font-bold text-green-600 dark:text-green-400">{approvalRate}%</span>
-              </div>
-              {/* Barre de progression - Support Dark Mode */}
-              <div className="w-full bg-gray-200 dark:bg-dark-bg rounded-full h-3">
-                <div className="bg-green-600 h-3 rounded-full transition-all duration-500" style={{ width: `${approvalRate}%` }}></div>
-              </div>
+            <div className="bg-white dark:bg-dark-surface rounded-xl shadow-sm dark:shadow-none border border-gray-200 dark:border-dark-border p-6 flex items-center gap-6">
+              <CircularProgress value={completionRate} color="text-blue-600 dark:text-blue-400" label="Complétion" />
+              <CircularProgress value={approvalRate} color="text-green-600 dark:text-green-400" label="Approbation" />
             </div>
           </div>
         </div>
-        {/* Calendriers (déjà corrigés dans Calendar.jsx) */}
-        <div className="space-y-4">
+        <div>
           <Calendar month={currentMonth} year={currentYear} />
-          <Calendar month={nextMonth} year={nextYear} />
         </div>
       </div>
 

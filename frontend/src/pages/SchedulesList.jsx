@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import scheduleService from '../services/scheduleService';
 import { useAuth } from '../contexts/AuthContext'; // ✅ Ajouter cet import
+import toast from 'react-hot-toast';
 
 const SchedulesList = () => {
   const navigate = useNavigate();
@@ -68,11 +69,11 @@ const SchedulesList = () => {
 
     try {
       await scheduleService.deleteSchedule(schedule.id);
-      alert('Planning supprimé avec succès');
+      toast('Planning supprimé avec succès');
       loadSchedules();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert(error.response?.data?.message || 'Erreur lors de la suppression du planning');
+      toast(error.response?.data?.message || 'Erreur lors de la suppression du planning');
     }
   };
 

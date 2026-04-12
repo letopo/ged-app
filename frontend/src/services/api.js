@@ -280,7 +280,8 @@ export const workflowAPI = {
   // ✅ AJOUT IMPORTANT : La fonction qui manquait
   submitForValidation: (documentId, validatorIds) => api.post('/workflows', { documentId, validatorIds }),
 
-  getMyTasks: (status = 'all') => api.get(`/workflows/my-tasks?status=${status}`),
+  getMyTasks: (status = 'all', { page = 1, limit = 20 } = {}) =>
+    api.get(`/workflows/my-tasks?status=${status}&page=${page}&limit=${limit}`),
   validateTask: (taskId, data) => api.put(`/workflows/${taskId}/validate`, data),
   getDocumentWorkflow: (documentId) => api.get(`/workflows/document/${documentId}`),
   getValidators: () => api.get('/workflows/validators'),
@@ -438,6 +439,72 @@ export const demandeAchatAPI = {
   }),
   updateStatus: (id, newStatus) => api.patch(`/demande-achat/${id}/status`, { newStatus }),
   delete: (id) => api.delete(`/demande-achat/${id}`),
+};
+
+// ============================================
+// API pour le GMAO (Maintenance Préventive)
+// ============================================
+export const gmaoAPI = {
+  // Équipements
+  getEquipements: (params) => api.get('/gmao/equipements', { params }),
+  createEquipement: (data) => api.post('/gmao/equipements', data),
+  updateEquipement: (id, data) => api.put(`/gmao/equipements/${id}`, data),
+  deleteEquipement: (id) => api.delete(`/gmao/equipements/${id}`),
+  // Plans
+  getPlans: (params) => api.get('/gmao/plans', { params }),
+  createPlan: (data) => api.post('/gmao/plans', data),
+  updatePlan: (id, data) => api.put(`/gmao/plans/${id}`, data),
+  deletePlan: (id) => api.delete(`/gmao/plans/${id}`),
+  // Calendar
+  getCalendar: (year) => api.get(`/gmao/calendar/${year}`),
+  // Stats
+  getStats: () => api.get('/gmao/stats'),
+  // Interventions
+  getInterventions: (params) => api.get('/gmao/interventions', { params }),
+  getTodayInterventions: () => api.get('/gmao/interventions/today'),
+  createIntervention: (data) => api.post('/gmao/interventions', data),
+  updateIntervention: (id, data) => api.put(`/gmao/interventions/${id}`, data),
+  deleteIntervention: (id) => api.delete(`/gmao/interventions/${id}`),
+  completeIntervention: (id, data) => api.patch(`/gmao/interventions/${id}/complete`, data),
+  generatePreventiveInterventions: (data) => api.post('/gmao/interventions/generate', data),
+  getAnalytics: () => api.get('/gmao/analytics'),
+  getRapportEquipement: (equipementId) => api.get(`/gmao/rapport/${equipementId}`),
+  // Phase 4 — Contrats
+  getContrats: (params) => api.get('/gmao/contrats', { params }),
+  createContrat: (data) => api.post('/gmao/contrats', data),
+  updateContrat: (id, data) => api.put(`/gmao/contrats/${id}`, data),
+  deleteContrat: (id) => api.delete(`/gmao/contrats/${id}`),
+  // Phase 4 — Pièces
+  getPieces: (params) => api.get('/gmao/pieces', { params }),
+  createPiece: (data) => api.post('/gmao/pieces', data),
+  updatePiece: (id, data) => api.put(`/gmao/pieces/${id}`, data),
+  deletePiece: (id) => api.delete(`/gmao/pieces/${id}`),
+  getMouvements: (params) => api.get('/gmao/pieces/mouvements', { params }),
+  createMouvement: (data) => api.post('/gmao/pieces/mouvements', data),
+  // Phase 4 — Acquisitions
+  getAcquisitions: (params) => api.get('/gmao/acquisitions', { params }),
+  createAcquisition: (data) => api.post('/gmao/acquisitions', data),
+  updateAcquisition: (id, data) => api.put(`/gmao/acquisitions/${id}`, data),
+  deleteAcquisition: (id) => api.delete(`/gmao/acquisitions/${id}`),
+  // Phase 4 — Budget
+  getBudget: (annee) => api.get('/gmao/budget', { params: { annee } }),
+  createBudgetLigne: (data) => api.post('/gmao/budget/lignes', data),
+  deleteBudgetLigne: (id) => api.delete(`/gmao/budget/lignes/${id}`),
+  createBudgetDepense: (data) => api.post('/gmao/budget/depenses', data),
+  deleteBudgetDepense: (id) => api.delete(`/gmao/budget/depenses/${id}`),
+  migrateBudget: (data) => api.post('/gmao/budget/migrate', data),
+};
+
+// ============================================
+// API pour les Permissions de Templates
+// ============================================
+export const templatePermissionsAPI = {
+  getAll: () => api.get('/template-permissions'),
+  getMyTemplates: () => api.get('/template-permissions/my-templates'),
+  upsert: (data) => api.post('/template-permissions', data),
+  update: (id, data) => api.put(`/template-permissions/${id}`, data),
+  seed: () => api.post('/template-permissions/seed'),
+  getUsers: () => api.get('/template-permissions/users'),
 };
 
 export default api;

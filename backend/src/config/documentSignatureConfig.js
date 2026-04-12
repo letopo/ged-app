@@ -68,14 +68,14 @@ export const SIGNATURE_CONFIGS = {
   
   'Fiche de suivi d\'équipements': {
     numberOfSignatures: 2,
-    signatureY: 210,
-    stampY: 250,
-    signatureWidth: 195,
-    signatureHeight: 77,
-    stampWidth: 70,
-    stampHeight: 70,
-    blockWidth: 180,
-    margin: 60,
+    signatureY: 115,
+    stampY: 160,
+    signatureWidth: 180,
+    signatureHeight: 65,
+    stampWidth: 110,
+    stampHeight: 110,
+    blockWidth: 200,
+    margin: 55,
     layout: 'horizontal'
   },
   
@@ -133,6 +133,21 @@ export const SIGNATURE_CONFIGS = {
     stampHeight: 65,
     blockWidth: 160,       // Calibré pour aligner sur la grille 3 colonnes du template
     margin: 29,            // margin + blockWidth/2 = 109pt = centre col 1 du grid
+    layout: 'horizontal'
+  },
+
+  // ✅ CONFIGURATION ATTESTATION DE DÉPART EN CONGÉ ANNUEL
+  // 1 seule zone de signature (Le Directeur Général), en bas à droite
+  'Attestation de départ en congé annuel': {
+    numberOfSignatures: 1,
+    signatureY: 165,       // Y statique fallback (bas de page)
+    stampY: 200,
+    signatureWidth: 140,
+    signatureHeight: 55,
+    stampWidth: 80,
+    stampHeight: 80,
+    blockWidth: 150,
+    margin: 390,           // Droite de la page : 595 - 150 - marges ≈ 390pt
     layout: 'horizontal'
   },
 

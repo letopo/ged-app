@@ -8,6 +8,10 @@ const AUTHORIZED_HR_VIEWER_EMAIL = 'hopitalcameroun@ordredemaltefrance.org';
 
 const canViewHRDocuments = (user) => user.role === 'admin';
 
+// Catégories réservées RH : visibles uniquement par RH + admins, peu importe le créateur
+const HR_ONLY_CATEGORIES = ['Attestation de départ en congé annuel'];
+const canViewHRCategory = (user) => user.role === 'admin' || user.email === HR_EMAIL;
+
 // Retourne le userId du compte RH (mis en cache après le premier appel)
 let _hrUserId = null;
 const getHRUserId = async (UserModel) => {
@@ -194,30 +198,88 @@ export const uploadDocument = async (req, res) => {
 
 export const getDocuments = async (req, res) => {
   try {
+    const { page, limit, search, status, category, dateFrom, dateTo } = req.query;
     const whereClause = { archived: false };
     const userRole = req.user.role;
     const userId = req.user.id;
     if (userRole !== 'admin' && userRole !== 'director') {
       whereClause.userId = userId;
     } else if (!canViewHRDocuments(req.user)) {
-      // Director ou admin non autorisé : exclure les documents du compte RH
       const hrUserId = await getHRUserId(User);
       if (hrUserId) {
         whereClause.userId = { [Op.ne]: hrUserId };
       }
     }
-    const documents = await Document.findAll({ 
-        where: whereClause, 
-        include: [
-            { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
-            { 
-              model: Workflow, 
-              as: 'workflows', 
-              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }] 
-            }
-        ], 
-        order: [['createdAt', 'DESC']], 
-    });
+    if (!canViewHRCategory(req.user)) {
+      whereClause.category = { [Op.notIn]: HR_ONLY_CATEGORIES };
+    }
+
+    // Filtres optionnels
+    if (search) {
+      whereClause[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { originalName: { [Op.iLike]: `%${search}%` } },
+      ];
+    }
+    if (status && status !== 'all') {
+      whereClause.status = status;
+    }
+    if (category && category !== 'all') {
+      // Fusionner avec le filtre HR existant si présent
+      if (whereClause.category && whereClause.category[Op.notIn]) {
+        whereClause[Op.and] = [
+          { category },
+          { category: { [Op.notIn]: HR_ONLY_CATEGORIES } },
+        ];
+        delete whereClause.category;
+      } else {
+        whereClause.category = category;
+      }
+    }
+    if (dateFrom) {
+      whereClause.createdAt = { ...(whereClause.createdAt || {}), [Op.gte]: new Date(dateFrom) };
+    }
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      whereClause.createdAt = { ...(whereClause.createdAt || {}), [Op.lte]: endDate };
+    }
+
+    // Pagination (optionnelle — si pas de page/limit, retourne tout)
+    const queryOptions = {
+      where: whereClause,
+      include: [
+        { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
+        {
+          model: Workflow,
+          as: 'workflows',
+          include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }]
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+    };
+
+    if (page && limit) {
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      queryOptions.limit = limitNum;
+      queryOptions.offset = (pageNum - 1) * limitNum;
+
+      const { count, rows } = await Document.findAndCountAll(queryOptions);
+      return res.json({
+        success: true,
+        data: rows,
+        pagination: {
+          total: count,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(count / limitNum),
+        },
+      });
+    }
+
+    // Sans pagination : retourne tout (compatibilité)
+    const documents = await Document.findAll(queryOptions);
     res.json({ success: true, data: documents });
   } catch (error) {
     console.error('❌ Erreur récupération documents:', error);
@@ -244,6 +306,10 @@ export const getDocument = async (req, res) => {
     // Bloquer l'accès aux documents RH pour les non-autorisés
     const hrUserId = await getHRUserId(User);
     if (hrUserId && document.userId === hrUserId && !canViewHRDocuments(req.user) && document.userId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
+    }
+    // Bloquer l'accès aux catégories RH-only pour les non-autorisés
+    if (HR_ONLY_CATEGORIES.includes(document.category) && !canViewHRCategory(req.user)) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
     res.json({ success: true, data: document });
@@ -296,6 +362,9 @@ export const searchDocuments = async (req, res) => {
         } else if (!canViewHRDocuments(req.user)) {
           const hrUserId = await getHRUserId(User);
           if (hrUserId) where.userId = { [Op.ne]: hrUserId };
+        }
+        if (!canViewHRCategory(req.user)) {
+          where.category = { [Op.notIn]: HR_ONLY_CATEGORIES };
         }
         const documents = await Document.findAll({ where, limit: 50, include: [{ model: User, as: 'uploadedBy' }], });
         res.json({ success: true, data: documents });
@@ -432,6 +501,10 @@ export const getArchivedDocuments = async (req, res) => {
       if (hrUserId) {
         whereClause.userId = { [Op.ne]: hrUserId };
       }
+    }
+    // Exclure les catégories RH pour les utilisateurs non-autorisés
+    if (!canViewHRCategory(req.user)) {
+      whereClause.category = { [Op.notIn]: HR_ONLY_CATEGORIES };
     }
 
     const documents = await Document.findAll({

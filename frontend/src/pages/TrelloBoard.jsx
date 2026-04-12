@@ -7,10 +7,9 @@ import { trelloAPI, getSocket } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import TrelloList from '../components/TrelloList';
 import TrelloCardModal from '../components/TrelloCardModal';
-import { 
-  Loader, AlertTriangle, Monitor, Wrench, HeartPulse, 
-  User, RefreshCw, Lock 
-} from 'lucide-react';
+import { Loader, AlertTriangle, Monitor, Wrench, HeartPulse, User, RefreshCw, Lock } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { PageSkeleton } from '../components/SkeletonLoader';
 
 const TrelloBoard = () => {
   const { serviceType } = useParams();
@@ -119,10 +118,10 @@ const TrelloBoard = () => {
     try {
       setSyncing(true);
       const response = await trelloAPI.syncLegacyDocs();
-      alert(response.data.message);
+      toast(response.data.message);
       fetchBoard();
     } catch (err) {
-      alert("Erreur lors de la synchronisation");
+      toast("Erreur lors de la synchronisation");
     } finally {
       setSyncing(false);
     }
@@ -176,7 +175,7 @@ const TrelloBoard = () => {
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen"><Loader className="animate-spin w-10 h-10 text-blue-600"/></div>;
+  if (loading) return <PageSkeleton rows={6} title />;
   if (error) return <div className="flex justify-center items-center h-screen text-red-600"><AlertTriangle className="mr-2"/> {error}</div>;
 
   const displayLists = boardData?.lists.map(list => ({

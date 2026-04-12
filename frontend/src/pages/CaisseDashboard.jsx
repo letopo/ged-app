@@ -15,15 +15,16 @@ import {
 } from 'lucide-react';
 import { ticketAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  getSocket, 
-  joinQueue, 
+import {
+  getSocket,
+  joinQueue,
   joinPosition,
   leavePosition,
   onTicketCreated,
   onQueueUpdate,
-  offSocketEvent 
+  offSocketEvent
 } from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function CaisseDashboard() {
   const { user } = useAuth();
@@ -119,9 +120,9 @@ export default function CaisseDashboard() {
       joinPosition(queueType, 1);
       
       loadPosition();
-      alert('✅ Vous êtes maintenant en ligne');
+      toast.success('Vous êtes maintenant en ligne');
     } catch (error) {
-      alert('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
+      toast('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
     }
   };
 
@@ -138,16 +139,16 @@ export default function CaisseDashboard() {
       setCurrentTicket(null);
       
       loadPosition();
-      alert('✅ Vous êtes maintenant hors ligne');
+      toast.success('Vous êtes maintenant hors ligne');
     } catch (error) {
-      alert('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
+      toast('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
     }
   };
 
   // Appeler le prochain
   const handleCallNext = async () => {
     if (!isOnline) {
-      alert('⚠️ Veuillez d\'abord vous connecter');
+      toast('Veuillez d\'abord vous connecter', { icon: '⚠️' });
       return;
     }
 
@@ -163,9 +164,9 @@ export default function CaisseDashboard() {
       setAmount('');
       
       loadQueueData();
-      alert(`📢 Ticket ${ticket.ticketNumber} appelé !`);
+      toast(`📢 Ticket ${ticket.ticketNumber} appelé !`);
     } catch (error) {
-      alert('Erreur: ' + (error.response?.data?.error || 'Aucun ticket en attente'));
+      toast('Erreur: ' + (error.response?.data?.error || 'Aucun ticket en attente'));
     } finally {
       setLoading(false);
     }
@@ -175,7 +176,7 @@ export default function CaisseDashboard() {
   const handleCompletePayment = async () => {
     if (!currentTicket) return;
     if (!amount || parseFloat(amount) <= 0) {
-      alert('⚠️ Veuillez saisir un montant valide');
+      toast('Veuillez saisir un montant valide', { icon: '⚠️' });
       return;
     }
 
@@ -189,9 +190,9 @@ export default function CaisseDashboard() {
       setAmount('');
       
       loadQueueData();
-      alert('✅ Paiement enregistré avec succès');
+      toast.success('Paiement enregistré avec succès');
     } catch (error) {
-      alert('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
+      toast('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
     }
   };
 
@@ -209,9 +210,9 @@ export default function CaisseDashboard() {
       setAmount('');
       
       loadQueueData();
-      alert('✅ Ticket annulé');
+      toast.success('Ticket annulé');
     } catch (error) {
-      alert('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
+      toast('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
     }
   };
 

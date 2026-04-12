@@ -4,7 +4,7 @@ FROM node:20-alpine AS development
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 COPY . .
 
@@ -18,7 +18,10 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+# --ignore-scripts évite ETXTBSY sur esbuild, puis on rebuild esbuild seul
+RUN npm install --no-audit --no-fund --ignore-scripts && \
+    node node_modules/esbuild/install.js 2>/dev/null || \
+    npm install --no-audit --no-fund
 
 COPY . .
 
@@ -42,7 +45,8 @@ COPY --from=builder /app/public/sw.js /usr/share/nginx/html/sw.js
 COPY --from=builder /app/public/manifest.json /usr/share/nginx/html/manifest.json
 
 # Créer un utilisateur non-root et définir les permissions
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
+RUN apk add --no-cache curl && \
+    chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
     chmod -R 755 /usr/share/nginx/html && \
@@ -52,7 +56,7 @@ RUN chown -R nginx:nginx /usr/share/nginx/html && \
 EXPOSE 80
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -sf http://localhost/ -o /dev/null -w '%{http_code}' | grep -q '200' || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

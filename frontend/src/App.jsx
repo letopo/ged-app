@@ -1,8 +1,9 @@
 ﻿// frontend/src/App.jsx - VERSION AVEC TOUS LES RÔLES
 
-import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 // Electron charge via file:// → HashRouter requis. Navigateur → BrowserRouter.
 const Router = window.electronAPI?.isElectron ? HashRouter : BrowserRouter;
+import { Toaster } from 'react-hot-toast';
 import { useAuth } from './contexts/AuthContext';
 import useNotifications from './hooks/useNotifications';
 
@@ -35,8 +36,13 @@ import Settings from './pages/Settings';
 import InvoiceDashboard from './pages/InvoiceDashboard';
 import DemandeAchatDashboard from './pages/DemandeAchatDashboard';
 import ArchivesPage from './pages/ArchivesPage';
-
-
+import GMAOPage from './pages/GMAOPage';
+// ── MODULE PHP ─────────────────────────────────────────────────────────────────
+import PHPModule from './pages/PHPModule';
+import PHPPatients from './pages/PHPPatients';
+import PHPStatistiques from './pages/PHPStatistiques';
+import PHPConsultations from './pages/PHPConsultations';
+import PHPReposHospit from './pages/PHPReposHospit';
 
 
 
@@ -45,42 +51,75 @@ import PortailDashboard from './pages/PortailDashboard';
 // import AccueilDashboard from './pages/AccueilDashboard'; // À créer
 // import CaisseDashboard from './pages/CaisseDashboard'; // À créer
 
+const RouteLoader = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 gap-4">
+    <div className="relative">
+      <div className="w-12 h-12 rounded-full border-4 border-blue-100 dark:border-blue-900" />
+      <div className="w-12 h-12 rounded-full border-4 border-t-blue-600 dark:border-t-blue-400 animate-spin absolute inset-0" />
+    </div>
+    <p className="text-sm text-gray-400 dark:text-gray-500 font-medium tracking-wide">Chargement…</p>
+  </div>
+);
+
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return <RouteLoader />;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
 const AdminRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return user?.role === 'admin' ? children : <Navigate to="/dashboard" replace />;
 };
 
 const RHOrAdminRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   
   const isRHOrAdmin = user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com';
   return isRHOrAdmin ? children : <Navigate to="/dashboard" replace />;
 };
 
+// ✅ Route GMAO (Cellule Biomedicale + Pharma + Admin)
+const GMAO_EMAILS = [
+  'hsjm.cellulebiomedicale@gmail.com',
+  'hsjm.pharma@gmail.com',
+  'hopitalcameroun@ordredemaltefrance.org',
+];
+const GMAORoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <RouteLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const canAccess = user?.role === 'admin' || GMAO_EMAILS.includes(user?.email);
+  return canAccess ? children : <Navigate to="/dashboard" replace />;
+};
+
 // ✅ NOUVEAU : Route pour le Portail (Gardien)
 const PortailRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   
   const canAccess = user?.role === 'admin' || user?.role === 'gardien';
   return canAccess ? children : <Navigate to="/dashboard" replace />;
 };
 
+// ✅ Route pour le Module PHP (Agent accueil PHP + Admin)
+const PHPRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <RouteLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const canAccess = user?.role === 'admin' || user?.role === 'agent_accueil_php';
+  return canAccess ? children : <Navigate to="/dashboard" replace />;
+};
+
 // ✅ NOUVEAU : Route pour l'Accueil (Agents d'accueil)
 const AccueilRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   
   const canAccess = 
@@ -93,11 +132,24 @@ const AccueilRoute = ({ children }) => {
 // ✅ NOUVEAU : Route pour la Caisse (Caissier)
 const CaisseRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   
   const canAccess = user?.role === 'admin' || user?.role === 'caissier';
   return canAccess ? children : <Navigate to="/dashboard" replace />;
+};
+
+import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
+
+// Wrapper qui déclenche animate-fadeIn à chaque changement de route
+const PageWrapper = ({ children }) => {
+  const location = useLocation();
+  useKeyboardShortcuts();
+  return (
+    <div key={location.pathname} className="animate-fadeIn">
+      {children}
+    </div>
+  );
 };
 
 function App() {
@@ -106,11 +158,38 @@ function App() {
 
   return (
     <Router>
+      <Toaster
+        position="top-right"
+        gutter={8}
+        toastOptions={{
+          duration: 4000,
+          style: {
+            borderRadius: '16px',
+            fontFamily: 'inherit',
+            fontSize: '13px',
+            padding: '12px 16px',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+            background: '#fff',
+            color: '#1f2937',
+            maxWidth: '380px',
+          },
+          success: {
+            iconTheme: { primary: '#16a34a', secondary: '#fff' },
+            style: { borderLeft: '4px solid #16a34a' },
+          },
+          error: {
+            iconTheme: { primary: '#dc2626', secondary: '#fff' },
+            style: { borderLeft: '4px solid #dc2626' },
+            duration: 5000,
+          },
+        }}
+      />
       {isAuthenticated && <Navbar user={user} onLogout={logout} />}
-      
+
       {/* Afficher debug seulement en développement */}
       {isAuthenticated && import.meta.env.DEV && <NotificationDebug />}
-      
+
+      <PageWrapper>
       <Routes>
         <Route path="/login" element={<Login onLogin={login} />} />
         <Route path="/register" element={<Register />} />
@@ -152,9 +231,18 @@ function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/invoices" element={<ProtectedRoute><InvoiceDashboard /></ProtectedRoute>} />
         <Route path="/archives" element={<ProtectedRoute><ArchivesPage /></ProtectedRoute>} />
+        <Route path="/gmao" element={<GMAORoute><GMAOPage /></GMAORoute>} />
+
+        {/* ── MODULE PHP ───────────────────────────────────────────────────── */}
+        <Route path="/php" element={<PHPRoute><PHPModule /></PHPRoute>} />
+        <Route path="/php/patients" element={<PHPRoute><PHPPatients /></PHPRoute>} />
+        <Route path="/php/consultations" element={<PHPRoute><PHPConsultations /></PHPRoute>} />
+        <Route path="/php/statistiques" element={<PHPRoute><PHPStatistiques /></PHPRoute>} />
+        <Route path="/php/repos" element={<PHPRoute><PHPReposHospit /></PHPRoute>} />
 
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
       </Routes>
+      </PageWrapper>
     </Router>
   );
 }

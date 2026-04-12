@@ -6,6 +6,8 @@ import { invoiceAPI, documentsAPI, usersAPI, workflowAPI } from '../services/api
 import { Eye, Upload as UploadIcon, FileText, Send, X, Filter, CheckSquare, Square, FolderOpen, FolderInput, ChevronRight, Plus, Trash2 } from 'lucide-react'; // ✅ Trash2 ajouté
 import DocumentViewer from '../components/DocumentViewer';
 import WorkflowSubmission from '../components/WorkflowSubmission';
+import toast from 'react-hot-toast';
+import { PageSkeleton } from '../components/SkeletonLoader';
 
 const InvoiceDashboard = () => {
   const [boardData, setBoardData] = useState([]);
@@ -71,7 +73,7 @@ const InvoiceDashboard = () => {
       await invoiceAPI.moveDocument(draggableId, destination.droppableId);
       fetchBoard();
     } catch (error) {
-      alert("Erreur lors du déplacement");
+      toast("Erreur lors du déplacement");
     }
   };
 
@@ -85,7 +87,7 @@ const InvoiceDashboard = () => {
         fetchBoard();
     } catch (error) {
         console.error(error);
-        alert("Erreur lors de la suppression : " + (error.response?.data?.message || "Erreur serveur"));
+        toast("Erreur lors de la suppression : " + (error.response?.data?.message || "Erreur serveur"));
     }
   };
 
@@ -98,7 +100,7 @@ const InvoiceDashboard = () => {
       setShowNewFolderModal(false);
       fetchBoard();
     } catch (error) {
-      alert("Erreur lors de la création du dossier");
+      toast("Erreur lors de la création du dossier");
     }
   };
 
@@ -121,20 +123,20 @@ const InvoiceDashboard = () => {
         setSelectedFile(null);
         setUploadTitle('');
         fetchBoard();
-    } catch (error) { alert("Erreur upload"); }
+    } catch (error) { toast("Erreur upload"); }
   };
 
   const handleBulkSubmit = async () => {
-    if (selectedValidators.length === 0) return alert("Sélectionnez un validateur.");
+    if (selectedValidators.length === 0) return toast("Sélectionnez un validateur.");
     setIsBulkSubmitting(true);
     try {
         await Promise.all(selectedDocs.map(docId => workflowAPI.submitForValidation(docId, selectedValidators)));
-        alert(`${selectedDocs.length} documents soumis !`);
+        toast(`${selectedDocs.length} documents soumis !`);
         setSelectedDocs([]);
         setSelectedValidators([]);
         setShowBulkSubmitModal(false);
         fetchBoard();
-    } catch (error) { alert("Erreur soumission"); } finally { setIsBulkSubmitting(false); }
+    } catch (error) { toast("Erreur soumission"); } finally { setIsBulkSubmitting(false); }
   };
 
   const handleManualMove = async (targetFolderId) => {
@@ -145,7 +147,7 @@ const InvoiceDashboard = () => {
         setDocToMove(null);
         fetchBoard();
     } catch (error) {
-        alert("Erreur lors du déplacement");
+        toast("Erreur lors du déplacement");
     }
   };
 
@@ -232,7 +234,7 @@ const InvoiceDashboard = () => {
   const simpleFolders = boardData.filter(f => f.type === 'custom' && !f.parentId && f.id !== inbox?.id);
   const containerFolders = boardData.filter(f => f.type === 'container');
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Chargement...</div>;
+  if (loading) return <PageSkeleton rows={5} title />;
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 pb-20"> 

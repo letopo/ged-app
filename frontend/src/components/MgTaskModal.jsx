@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { workflowAPI } from '../services/api';
 import { Loader, Check, X, FilePlus, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const MgTaskModal = ({ task, onClose, onUpdate }) => {
     const [action, setAction] = useState(null); // 'validate' ou 'create_db'
@@ -17,7 +18,7 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
         try {
             // Utiliser 'simple_approve' ou 'approved' selon la logique attendue pour cette étape
             await workflowAPI.validateTask(task.id, { status: 'approved', comment });
-            alert('✅ Tâche validée avec succès.');
+            toast.success('Tâche validée avec succès.');
             onUpdate();
             onClose();
         } catch (err) {
@@ -42,7 +43,7 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
             // Ceci mettra en pause la tâche parent et créera le document enfant
             await workflowAPI.initiateLinkedDocument(formData);
             
-            alert('✅ Demande de Besoin initiée. La Demande de Travaux est en pause.');
+            toast.success('Demande de Besoin initiée. La Demande de Travaux est en pause.');
             onUpdate();
             onClose();
         } catch (err) {

@@ -17,17 +17,18 @@ import {
 } from 'lucide-react';
 import { ticketAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  getSocket, 
-  joinQueue, 
+import {
+  getSocket,
+  joinQueue,
   joinPosition,
   leavePosition,
   onTicketCreated,
   onTicketCalled,
   onQueueUpdate,
   onPositionUpdate,
-  offSocketEvent 
+  offSocketEvent
 } from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function AccueilDashboard() {
   const { user } = useAuth();
@@ -136,9 +137,9 @@ export default function AccueilDashboard() {
       joinPosition(queueType, positionNumber);
       
       loadPositions();
-      alert(`✅ Vous êtes maintenant en Position ${positionNumber}`);
+      toast.success(`Vous êtes maintenant en Position ${positionNumber}`);
     } catch (error) {
-      alert('Erreur lors de l\'assignation: ' + (error.response?.data?.error || 'Erreur inconnue'));
+      toast('Erreur lors de l\'assignation: ' + (error.response?.data?.error || 'Erreur inconnue'));
     }
   };
 
@@ -160,16 +161,16 @@ export default function AccueilDashboard() {
       setCurrentTicket(null);
       
       loadPositions();
-      alert('✅ Vous êtes maintenant hors ligne');
+      toast.success('Vous êtes maintenant hors ligne');
     } catch (error) {
-      alert('Erreur lors de la déconnexion: ' + (error.response?.data?.error || 'Erreur inconnue'));
+      toast('Erreur lors de la déconnexion: ' + (error.response?.data?.error || 'Erreur inconnue'));
     }
   };
 
   // Appeler le prochain patient
   const handleCallNext = async () => {
     if (!selectedPosition) {
-      alert('⚠️ Veuillez d\'abord vous assigner à une position');
+      toast('Veuillez d\'abord vous assigner à une position', { icon: '⚠️' });
       return;
     }
 
@@ -185,9 +186,9 @@ export default function AccueilDashboard() {
       setPositionStatus('busy');
       
       loadQueueData();
-      alert(`📢 Ticket ${ticket.ticketNumber} appelé !`);
+      toast(`📢 Ticket ${ticket.ticketNumber} appelé !`);
     } catch (error) {
-      alert('Erreur: ' + (error.response?.data?.error || 'Aucun ticket en attente'));
+      toast('Erreur: ' + (error.response?.data?.error || 'Aucun ticket en attente'));
     } finally {
       setLoading(false);
     }
@@ -200,9 +201,9 @@ export default function AccueilDashboard() {
     try {
       await ticketAPI.startTreatment(currentTicket.id);
       loadQueueData();
-      alert('✅ Traitement démarré');
+      toast.success('Traitement démarré');
     } catch (error) {
-      alert('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
+      toast('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
     }
   };
 
@@ -219,9 +220,9 @@ export default function AccueilDashboard() {
       setPositionStatus('available');
       
       loadQueueData();
-      alert('✅ Patient transféré à la caisse');
+      toast.success('Patient transféré à la caisse');
     } catch (error) {
-      alert('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
+      toast('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
     }
   };
 
@@ -239,9 +240,9 @@ export default function AccueilDashboard() {
       setPositionStatus('available');
       
       loadQueueData();
-      alert('✅ Ticket annulé');
+      toast.success('Ticket annulé');
     } catch (error) {
-      alert('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
+      toast('Erreur: ' + (error.response?.data?.error || 'Erreur inconnue'));
     }
   };
 

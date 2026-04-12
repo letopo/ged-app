@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Backend API (nodemon)",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "PATH=/Users/test/.nvm/versions/node/v24.11.1/bin:$PATH npm run dev"],
+      "cwd": "./backend",
+      "port": 3000
+    },
+    {
+      "name": "Frontend (Vite)",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "PATH=/Users/test/.nvm/versions/node/v24.11.1/bin:$PATH npx vite --port 3001 --force"],
+      "cwd": "./frontend",
+      "port": 3001
+    }
+  ]
+}
