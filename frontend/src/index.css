@@ -1,82 +1,275 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Styles de base pour le dark mode */
-@layer base {
-  :root {
-    --color-primary: #3b82f6;
-    --color-primary-dark: #2563eb;
-  }
+/* ============================================================
+   GED DESIGN SYSTEM — CSS Custom Properties
+   Light (défaut) + Dark ([data-theme="dark"] ou .dark)
+   ============================================================ */
 
-  /* Mode clair */
-  body {
-    @apply bg-gray-50 text-gray-900 transition-colors duration-200;
-  }
+:root {
+  /* ── Brand ──────────────────────────────────────────── */
+  --brand:           #1B3A6B;
+  --brand-hover:     #152E55;
+  --brand-active:    #0F2340;
+  --brand-soft:      #E8EEF7;
+  --brand-soft-2:    #DCE5F2;
+  --brand-soft-hover:#D9E5F2;
+  --brand-muted:     #5B89D6;
+  --brand-fg:        #1B3A6B;
 
-  /* Mode sombre */
-  .dark body {
-    @apply bg-dark-bg text-dark-text;
-  }
+  /* ── Foreground ─────────────────────────────────────── */
+  --fg:              #0F1B2D;
+  --fg-muted:        #5A6478;
+  --fg-subtle:       #8C95A8;
+
+  /* ── Background & surfaces ──────────────────────────── */
+  --bg:              #FBFBFC;
+  --surface:         #FFFFFF;
+  --surface-2:       #F5F6F8;
+  --surface-3:       #ECEEF2;
+
+  /* ── Borders ────────────────────────────────────────── */
+  --border:          #E5E7EC;
+  --border-strong:   #CFD3DB;
+
+  /* ── Semantic colors ────────────────────────────────── */
+  --success:         #1A7A4A;
+  --success-soft:    #E6F4ED;
+  --warning:         #8A5C00;
+  --warning-soft:    #FEF3CD;
+  --danger:          #C0392B;
+  --danger-soft:     #FDECEA;
+  --info:            #1557A0;
+  --info-soft:       #E5EEFA;
+
+  /* ── Shadows ────────────────────────────────────────── */
+  --shadow-1: 0 1px 2px rgba(15,27,45,0.04);
+  --shadow-2: 0 4px 12px rgba(15,27,45,0.08), 0 1px 3px rgba(15,27,45,0.04);
+  --shadow-3: 0 8px 24px rgba(15,27,45,0.12), 0 2px 6px rgba(15,27,45,0.06);
+
+  /* ── Radius ─────────────────────────────────────────── */
+  --radius-1: 4px;
+  --radius-2: 6px;
+  --radius-3: 8px;
+  --radius-4: 10px;
+  --radius-5: 12px;
+  --radius-full: 9999px;
+
+  /* ── Typography ─────────────────────────────────────── */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
+
+  /* ── Animation ──────────────────────────────────────── */
+  --dur-fast:  120ms;
+  --dur-med:   220ms;
+  --ease:      cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Transitions douces pour le changement de thème */
-* {
-  @apply transition-colors duration-200;
-}
+/* ── Dark mode ──────────────────────────────────────────── */
+[data-theme="dark"], .dark {
+  --brand:           #5B89D6;
+  --brand-hover:     #6E99DE;
+  --brand-soft:      #1A2845;
+  --brand-soft-hover:#1E3050;
+  --brand-active:    #98BCEE;
+  --brand-soft-2:    #223964;
+  --brand-muted:     #4A7AC4;
+  --brand-fg:        #9BC0FF;
 
-/* Styles pour les scrollbars en dark mode */
-.dark ::-webkit-scrollbar {
-  width: 10px;
-}
+  --fg:              #E8ECF0;
+  --fg-muted:        #8C95A8;
+  --fg-subtle:       #5A6478;
 
-.dark ::-webkit-scrollbar-track {
-  @apply bg-dark-surface;
-}
+  --bg:              #111318;
+  --surface:         #1A1D23;
+  --surface-2:       #22262E;
+  --surface-3:       #2A2F3A;
 
-.dark ::-webkit-scrollbar-thumb {
-  @apply bg-dark-border rounded-lg;
-}
+  --border:          #2E3340;
+  --border-strong:   #3D4452;
 
-.dark ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-600;
-}
+  --success:         #3DBE7A;
+  --success-soft:    #0F2D1E;
+  --warning:         #F0B429;
+  --warning-soft:    #2D2000;
+  --danger:          #E05252;
+  --danger-soft:     #2D0F0F;
+  --info:            #5B89D6;
+  --info-soft:       #0F1C35;
 
-/* Animations pour la navbar */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.2s ease-out;
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-2: 0 4px 12px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-3: 0 8px 24px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.25);
 }
 
 /* ============================================================
-   DOCUMENT TEMPLATES - Forcer le mode clair dans les aperçus
-   Les documents (fond blanc) doivent toujours afficher en mode
-   clair, quelle que soit le thème choisi (jour/nuit).
+   BASE STYLES
    ============================================================ */
 
-/* Le conteneur blanc force tout son contenu en mode clair */
-.dark .bg-white {
-  color: #111827 !important;
-  color-scheme: light;
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--radius-full); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--fg-subtle); }
 }
 
-/* Tous les éléments enfants héritent du noir */
+/* ============================================================
+   GED DESIGN TOKENS — Utility classes
+   ============================================================ */
+
+/* Surfaces */
+.ged-surface   { background: var(--surface); }
+.ged-surface-2 { background: var(--surface-2); }
+
+/* Brand text */
+.ged-text-brand { color: var(--brand); }
+
+/* Cards */
+.ged-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-1);
+}
+.ged-card-elevated {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-2);
+}
+
+/* Badges */
+.ged-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.ged-badge-brand   { background: var(--brand-soft);   color: var(--brand);   }
+.ged-badge-success { background: var(--success-soft); color: var(--success); }
+.ged-badge-warning { background: var(--warning-soft); color: var(--warning); }
+.ged-badge-danger  { background: var(--danger-soft);  color: var(--danger);  }
+.ged-badge-info    { background: var(--info-soft);    color: var(--info);    }
+.ged-badge-neutral { background: var(--surface-2);    color: var(--fg-muted); border: 1px solid var(--border); }
+
+/* Stat card */
+.ged-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-3);
+  padding: 18px 20px;
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pageFade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes ocrBar {
+  from { width: 4%; }
+  to   { width: 100%; }
+}
+
+@keyframes pulseOnce {
+  0%   { box-shadow: 0 0 0 0 rgba(31, 122, 77, 0.4); }
+  100% { box-shadow: 0 0 0 8px rgba(31, 122, 77, 0); }
+}
+
+@keyframes rowLeave {
+  to { opacity: 0; transform: translateX(12px); }
+}
+
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* Sans `both` : ces keyframes animent `transform` et finissent sur translate(0)
+   (= matrice identité ≠ none) ; figé par `both`, ça crée un bloc englobant qui
+   casse le `position: fixed` des modals enfants. Sans `both`, l'élément revient
+   à `transform: none` après l'animation (l'état final reste identique visuellement). */
+.animate-fadeIn     { animation: fadeIn     var(--dur-med) var(--ease); }
+.animate-slideLeft  { animation: slideInLeft var(--dur-med) var(--ease); }
+.animate-cardReveal { animation: cardReveal 0.2s var(--ease); }
+/* Pas de fill-mode `both`: un keyframe finissant sur `transform: none` figé par
+   `both` est calculé en `matrix(1,0,0,1,0,0)` (≠ none) et crée un bloc englobant
+   qui casse le `position: fixed` des modals enfants. Sans `both`, <main> revient
+   à `transform: none` après l'animation. */
+.animate-pageFade   { animation: pageFade 250ms cubic-bezier(0.4,0,0.2,1); }
+.animate-confirming { animation: pulseOnce 500ms ease-out; }
+.animate-rowLeave   { animation: rowLeave 280ms ease forwards; }
+.animate-ocrBar     { animation: ocrBar 1.4s ease forwards; }
+
+/* ============================================================
+   LEGACY COMPAT — Tailwind dark mode couleurs existantes
+   ============================================================ */
+
+.dark body { color-scheme: dark; }
+
+/* Documents / aperçus — toujours mode clair */
+.ged-doc-preview,
+.dark .bg-white {
+  color: #111827;
+  color-scheme: light;
+}
 .dark .bg-white * {
   color: inherit;
   border-color: inherit;
 }
-
-/* Exceptions : éléments avec leur propre couleur explicite */
 .dark .bg-white input:not([type="checkbox"]):not([type="radio"]),
 .dark .bg-white textarea,
 .dark .bg-white select {
@@ -84,17 +277,26 @@
   color: #111827 !important;
   border-color: #d1d5db !important;
 }
-
 .dark .bg-white input::placeholder,
 .dark .bg-white textarea::placeholder {
   color: #9ca3af !important;
   opacity: 1;
 }
-
-/* Tableaux toujours visibles */
 .dark .bg-white table,
 .dark .bg-white th,
 .dark .bg-white td {
   border-color: #374151 !important;
   background-color: transparent !important;
+}
+
+/* Navbar responsive helpers */
+.desktop-nav { display: none !important; }
+.mobile-nav  { display: flex !important; }
+.sm-show     { display: none !important; }
+@media (min-width: 640px) {
+  .sm-show   { display: block !important; }
+}
+@media (min-width: 1024px) {
+  .desktop-nav { display: flex !important; }
+  .mobile-nav  { display: none !important; }
 }
