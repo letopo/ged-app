@@ -1,11 +1,12 @@
 // frontend/src/pages/CreateFromTemplate.jsx - VERSION HYBRIDE AVEC TEMPLATE ENGINE
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { documentsAPI } from '../services/api';
-import { Loader, Send } from 'lucide-react';
+import { documentsAPI, postesAPI } from '../services/api';
+import { Loader, Send, Save, RotateCcw, X } from 'lucide-react';
+import useDraftAutoSave from '../hooks/useDraftAutoSave';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { pdf } from '@react-pdf/renderer'; 
+import { pdf } from '@react-pdf/renderer';
 
 // Importer les composants de modèle MANUELS
 import DemandePermission from './templates/DemandePermission';
@@ -19,12 +20,13 @@ import BonDeCommande from './templates/BonDeCommande';
 import BonDeCommandeInterne from './templates/BonDeCommandeInterne';
 import CertificatAptitude from './templates/CertificatAptitude';
 import AttestationConge from './templates/AttestationConge';
+import DemandeBesoin from './templates/DemandeBesoin';
 
 // Importer le TemplateEngine DYNAMIQUE
 import TemplateEngine from '../templates/TemplateEngine';
 import demandeExplicationConfig from '../templates/configs/demande-explication.json';
 
-import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf'; 
+import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
 
 // Définir les modèles disponibles (SYSTÈME HYBRIDE)
@@ -36,14 +38,26 @@ const templates = {
         type: "manual",
         component: DemandePermission,
         initialState: {
-            noms_prenoms: '', 
+            noms_prenoms: '',
             service: '',
-            date_debut: '', 
+            date_debut: '',
             date_fin: '',
             motif: 'Personnel',
             motif_exceptionnel: '',
             objet: 'Demande de permission d\'absence',
             date_lieu: 'Njombé le ' + new Date().toLocaleDateString('fr-FR'),
+        }
+    },
+    "Demande de besoin": {
+        type: "manual",
+        component: DemandeBesoin,
+        initialState: {
+            date_demande: new Date().toISOString().split('T')[0],
+            service_demandeur: '',
+            justification: '',
+            lines: [
+                { designation: '', quantite: '', prixUnitaire: '', montantTotal: '' }
+            ]
         }
     },
     "Pièce de caisse": {
@@ -156,13 +170,13 @@ const templates = {
             periode: '',
             service: 'Chirurgie',
             lignes: [
-                { 
-                    jour: '', 
-                    nomPatient: '', 
-                    age: '', 
-                    natureIntervention: '', 
-                    intervenant: '', 
-                    numeroSalle: '' 
+                {
+                    jour: '',
+                    nomPatient: '',
+                    age: '',
+                    natureIntervention: '',
+                    intervenant: '',
+                    numeroSalle: ''
                 }
             ]
         }
@@ -227,14 +241,30 @@ const CreateFromTemplate = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const templateName = location.state?.templateName || "Demande de permission";
-    
+
     const template = templates[templateName] || templates["Demande de permission"];
     const [formData, setFormData] = useState(template.initialState);
     const [templateConfig, setTemplateConfig] = useState(null);
     const [loadingConfig, setLoadingConfig] = useState(template.type === "dynamic");
     const pdfContainerRef = useRef(null);
     const [loading, setLoading] = useState(false);
+    const [genStep, setGenStep] = useState(''); // étape lisible pendant la génération
     const [error, setError] = useState('');
+
+    // Étape « choix du type » pour les ordres de mission (3 circuits différents)
+    const isOrdreMission = templateName === 'Ordre de mission';
+    const [omTypes, setOmTypes] = useState([]);
+    React.useEffect(() => {
+        if (!isOrdreMission) return;
+        postesAPI.getOrdreMissionTypes()
+            .then(res => setOmTypes(res.data.data || []))
+            .catch(() => setOmTypes([]));
+    }, [isOrdreMission]);
+
+    // Auto-save brouillon
+    const { draftStatus, hasDraft, restoreDraft, dismissDraft, clearDraft, getDraftAge } = useDraftAutoSave(
+        templateName, formData, setFormData, template.initialState
+    );
 
     // Charger la configuration pour les templates dynamiques
     React.useEffect(() => {
@@ -244,7 +274,7 @@ const CreateFromTemplate = () => {
                     setLoadingConfig(true);
                     const config = await loadDynamicTemplate(template.configFile);
                     setTemplateConfig(config);
-                    
+
                     // Appliquer les valeurs par défaut du template
                     if (config.fields) {
                         const defaults = {};
@@ -274,33 +304,36 @@ const CreateFromTemplate = () => {
 
     const handleSubmit = async () => {
     setLoading(true);
+    setGenStep('Préparation…');
     setError('');
-    
+
     console.log('📋 === DÉBUT GÉNÉRATION DOCUMENT ===');
     console.log('📝 Template Name:', templateName);
     console.log('📝 Template Type:', template.type);
     console.log('📝 FormData complet:', formData);
-    
+
     let pdfBlob;
     let finalTitle = `${templateName}`;
     let signatureZones = null; // Zones d'ancrage de signature (calculées dynamiquement)
-    
+
     // ====================================================================
     // ✅ NOUVELLE LOGIQUE HYBRIDE (PRIORITÉ AU PDF NATIF)
     // ====================================================================
     if (templateName === 'Demande de permission') {
         // 1. Génération PDF Natif (@react-pdf/renderer)
         try {
+            setGenStep('Génération PDF…');
             const doc = <PermissionPdfDocument formData={formData} />;
             pdfBlob = await pdf(doc).toBlob();
-            
+
             finalTitle = `Demande de permission - ${formData.noms_prenoms || 'Inconnu'}`;
             console.log('✅ Document généré en PDF NATIF');
-            
+
         } catch (pdfError) {
             console.error('❌ Erreur de génération PDF Natif:', pdfError);
             setError("Erreur critique lors de la génération PDF natif. Veuillez vérifier la console.");
             setLoading(false);
+            setGenStep('');
             return;
         }
 
@@ -308,7 +341,7 @@ const CreateFromTemplate = () => {
         // 2. Fallback (Génération HTML2CANVAS pour les autres templates)
         const notPrintable = pdfContainerRef.current?.querySelectorAll('.not-printable');
         const printOnly = pdfContainerRef.current?.querySelectorAll('.print-only');
-        
+
         notPrintable?.forEach(el => el.style.display = 'none');
         printOnly?.forEach(el => el.style.display = 'block');
 
@@ -347,33 +380,43 @@ const CreateFromTemplate = () => {
         // ────────────────────────────────────────────────────────────────────
 
         try {
+            // scale: 2 = qualité A4 suffisante (300 DPI effectif) sans exploser la mémoire
+            // scale: 3 produisait un canvas de ~55 MB bloquant le thread 5-8s sur tablette
+            setGenStep('Capture du document…');
+            // Laisser le navigateur afficher le message avant de bloquer le thread
+            await new Promise(r => setTimeout(r, 50));
+
+            const isLandscape = templateName === 'Planning Opératoire';
             const canvas = await html2canvas(pdfContainerRef.current, {
-                scale: 3,
+                scale: 2,
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
-                windowWidth: templateName === 'Planning Opératoire' ? 1697 : 1200,
-                windowHeight: templateName === 'Planning Opératoire' ? 1200 : 1697
+                windowWidth: isLandscape ? 1697 : 1200,
+                windowHeight: isLandscape ? 1200 : 1697,
+                imageTimeout: 0,
             });
-            
+
             notPrintable?.forEach(el => el.style.display = 'block');
             printOnly?.forEach(el => el.style.display = 'none');
 
-            const imgData = canvas.toDataURL('image/png', 1.0);
-            
-            const isLandscape = templateName === 'Planning Opératoire';
-            
-            const pdfGenerator = new jsPDF({ 
+            setGenStep('Compression PDF…');
+            await new Promise(r => setTimeout(r, 30));
+
+            // JPEG au lieu de PNG : 5-10× plus léger, imperceptible sur A4 imprimé
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
+
+            const pdfGenerator = new jsPDF({
                 orientation: isLandscape ? 'landscape' : 'portrait',
-                unit: 'pt', 
+                unit: 'pt',
                 format: 'a4',
-                compress: false
+                compress: true,   // était false → active la compression zlib
             });
-            
+
             const pdfWidth = pdfGenerator.internal.pageSize.getWidth();
             const pdfHeight = pdfGenerator.internal.pageSize.getHeight();
-            
-            pdfGenerator.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, '', 'FAST');
+
+            pdfGenerator.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, '', 'FAST');
             pdfBlob = pdfGenerator.output('blob');
 
             // Mise à jour du titre pour les autres documents
@@ -390,26 +433,28 @@ const CreateFromTemplate = () => {
             } else if (formData.periode) {
                 finalTitle += ` - ${formData.periode}`;
             }
-            
+
         } catch (err) {
             setError("Erreur lors de la génération HTML2CANVAS.");
             console.error('❌ Erreur détaillée HTML2CANVAS:', err);
             notPrintable?.forEach(el => el.style.display = 'block');
             printOnly?.forEach(el => el.style.display = 'none');
             setLoading(false);
+            setGenStep('');
             return;
         }
     }
     // ====================================================================
 
     // 3. PRÉPARATION DE L'UPLOAD
+    setGenStep('Envoi vers le serveur…');
     try {
         const uploadData = new FormData();
         const fileName = `${templateName.replace(/\s/g, '_')}_${Date.now()}.pdf`;
         uploadData.append('file', pdfBlob, fileName);
         uploadData.append('title', finalTitle);
         uploadData.append('category', templateName);
-        
+
         // Gérer les métadonnées spécifiques pour la fusion de PC/OM
         const metadataToSend = { ...formData };
 
@@ -421,7 +466,7 @@ const CreateFromTemplate = () => {
              uploadData.append('linkedOrdreMissionId', metadataToSend.linkedOrdreMissionId);
              delete metadataToSend.linkedOrdreMissionId;
         }
-        
+
         // AJOUTER LES DATES pour les Demandes de Permission (car elles ne sont plus dans la 'view')
         if (templateName === 'Demande de permission') {
              uploadData.append('dateDebut', metadataToSend.date_debut);
@@ -438,9 +483,9 @@ const CreateFromTemplate = () => {
         }
 
         const response = await documentsAPI.upload(uploadData);
-        
+
         console.log('✅ Réponse backend:', response.data);
-        
+
         // Affichage des messages de succès/erreur de fusion
         if (response.data.data?.metadata?.fusionné) {
             toast.success('Fusion avec l\'Ordre de Mission réussie !');
@@ -449,7 +494,8 @@ const CreateFromTemplate = () => {
         } else {
             toast('Document généré et sauvegardé avec succès !');
         }
-        
+
+        clearDraft();
         navigate('/documents');
 
     } catch (err) {
@@ -457,27 +503,64 @@ const CreateFromTemplate = () => {
         console.error('❌ Erreur détaillée d\'Upload:', err);
     } finally {
         setLoading(false);
+        setGenStep('');
     }
 };
 
     // Rendu conditionnel du template
     const renderTemplate = () => {
+        // Étape 1 (ordre de mission) : choisir le type avant le formulaire.
+        // Le circuit de validation en dépend (paramédical / administratif / stratégie).
+        if (isOrdreMission && !formData.type_mission) {
+            return (
+                <div style={{ background: 'var(--surface)', padding: 40, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', margin: '0 auto', maxWidth: 720, borderRadius: 12 }}>
+                    <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', marginBottom: 6 }}>Type d'ordre de mission</h2>
+                    <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 24 }}>
+                        Choisissez le type — il détermine le circuit de validation.
+                    </p>
+                    <div style={{ display: 'grid', gap: 12 }}>
+                        {omTypes.map(t => (
+                            <button
+                                key={t.code}
+                                onClick={() => setFormData(prev => ({ ...prev, type_mission: t.code }))}
+                                style={{
+                                    textAlign: 'left', padding: '16px 18px', borderRadius: 10,
+                                    border: '1px solid var(--border)', background: 'var(--surface-2)',
+                                    cursor: 'pointer', transition: 'border-color .15s, background .15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--brand)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                            >
+                                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{t.label}</div>
+                                <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 4 }}>
+                                    Circuit : service demandeur → {(t.posteChain || []).join(' → ')}
+                                </div>
+                            </button>
+                        ))}
+                        {omTypes.length === 0 && (
+                            <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Chargement des types…</div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
         if (template.type === "dynamic") {
             if (loadingConfig) {
                 return (
-                    <div className="bg-white p-12 shadow-lg mx-auto flex items-center justify-center" style={{ width: '210mm', minHeight: '297mm' }}>
+                    <div className="flex items-center justify-center" style={{ background: 'var(--surface)', padding: 48, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', margin: '0 auto', width: '210mm', minHeight: '297mm' }}>
                         <div className="text-center">
-                            <Loader className="animate-spin w-8 h-8 mx-auto mb-4 text-blue-600" />
-                            <p className="text-gray-600">Chargement du template...</p>
+                            <Loader className="animate-spin w-8 h-8 mx-auto mb-4" style={{ color: 'var(--brand)' }} />
+                            <p style={{ color: 'var(--fg-muted)' }}>Chargement du template...</p>
                         </div>
                     </div>
                 );
             }
-            
+
             if (!templateConfig) {
                 return (
-                    <div className="bg-white p-12 shadow-lg mx-auto flex items-center justify-center" style={{ width: '210mm', minHeight: '297mm' }}>
-                        <div className="text-center text-red-600">
+                    <div className="flex items-center justify-center" style={{ background: 'var(--surface)', padding: 48, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', margin: '0 auto', width: '210mm', minHeight: '297mm' }}>
+                        <div className="text-center" style={{ color: 'var(--danger)' }}>
                             <p>Erreur: Configuration du template introuvable</p>
                         </div>
                     </div>
@@ -485,7 +568,7 @@ const CreateFromTemplate = () => {
             }
 
             return (
-                <TemplateEngine 
+                <TemplateEngine
                     templateConfig={templateConfig}
                     formData={formData}
                     setFormData={setFormData}
@@ -496,7 +579,7 @@ const CreateFromTemplate = () => {
             // Template manuel classique
             const TemplateComponent = template.component;
             return (
-                <TemplateComponent 
+                <TemplateComponent
                     formData={formData}
                     setFormData={setFormData}
                     pdfContainerRef={pdfContainerRef}
@@ -506,60 +589,130 @@ const CreateFromTemplate = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-8 bg-gray-100 dark:bg-dark-bg">
-            <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-dark-text">
+        <div className="max-w-4xl mx-auto p-8" style={{ background: 'var(--surface-2)' }}>
+            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--fg)' }}>
                 Créer : {templateName}
                 {template.type === "dynamic" && (
-                    <span className="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                    <span className="ml-2 text-sm px-2 py-1 rounded-full" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
                         Dynamique
                     </span>
                 )}
             </h1>
-            <p className="text-gray-600 dark:text-dark-text-secondary mb-8">
+            <p className="mb-4" style={{ color: 'var(--fg-muted)' }}>
                 Remplissez les champs pour générer le document PDF.
             </p>
-            
+            {isOrdreMission && formData.type_mission && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'var(--brand-soft, var(--surface))', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
+                    <span style={{ color: 'var(--fg-muted)' }}>Type :</span>
+                    <strong style={{ color: 'var(--fg)' }}>{omTypes.find(t => t.code === formData.type_mission)?.label || formData.type_mission}</strong>
+                    <button
+                        onClick={() => setFormData(prev => ({ ...prev, type_mission: '' }))}
+                        style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                    >
+                        Changer le type
+                    </button>
+                </div>
+            )}
+
+            {/* Bannière de restauration de brouillon */}
+            {hasDraft && (
+                <div className="mb-4 p-4 rounded-xl flex items-center justify-between gap-4 animate-fadeIn" style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning)' }}>
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--warning-soft)' }}>
+                            <Save className="w-5 h-5" style={{ color: 'var(--warning)' }} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium" style={{ color: 'var(--warning)' }}>
+                                Brouillon trouve
+                            </p>
+                            <p className="text-xs" style={{ color: 'var(--warning)' }}>
+                                {getDraftAge()} — Voulez-vous le restaurer ?
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={dismissDraft}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg transition flex items-center gap-1"
+                            style={{ color: 'var(--warning)', background: 'var(--warning-soft)', border: '1px solid var(--warning)' }}
+                        >
+                            <X className="w-3.5 h-3.5" />
+                            Ignorer
+                        </button>
+                        <button
+                            onClick={restoreDraft}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg transition flex items-center gap-1"
+                            style={{ color: '#fff', background: 'var(--warning)', border: 'none' }}
+                        >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Restaurer
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Rendu du template (manuel ou dynamique) */}
             {renderTemplate()}
 
             {error && (
-                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/10 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg text-center">
+                <div className="mt-4 p-4 rounded-lg text-center" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
                     {error}
                 </div>
             )}
-            
-            <div className="text-center mt-8">
-                <button 
-                    onClick={handleSubmit} 
+
+            <div className="text-center mt-8" style={{ display: (isOrdreMission && !formData.type_mission) ? 'none' : undefined }}>
+                <button
+                    onClick={handleSubmit}
                     disabled={loading || (template.type === "dynamic" && loadingConfig)}
-                    className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto transition-all shadow-lg hover:shadow-xl dark:bg-blue-700 dark:hover:bg-blue-600"
+                    className="px-8 py-3 font-semibold rounded-lg flex items-center justify-center gap-2 mx-auto transition-all"
+                    style={{
+                        background: (loading || (template.type === "dynamic" && loadingConfig)) ? 'var(--fg-subtle)' : 'var(--brand)',
+                        color: '#fff',
+                        border: 'none',
+                        boxShadow: 'var(--shadow-2)',
+                        cursor: (loading || (template.type === "dynamic" && loadingConfig)) ? 'not-allowed' : 'pointer',
+                        opacity: (loading || (template.type === "dynamic" && loadingConfig)) ? 0.6 : 1,
+                    }}
                 >
                     {loading ? (
                         <>
-                            <Loader className="animate-spin w-5 h-5" /> 
-                            Génération en cours...
+                            <Loader className="animate-spin w-5 h-5" />
+                            {genStep || 'Génération en cours…'}
                         </>
                     ) : (
                         <>
-                            <Send size={18}/> 
+                            <Send size={18}/>
                             Générer et Sauvegarder
                         </>
                     )}
                 </button>
+                {/* Indicateur de sauvegarde automatique */}
+                {draftStatus === 'saved' && (
+                    <p className="mt-2 text-xs flex items-center justify-center gap-1 animate-fadeIn" style={{ color: 'var(--success)' }}>
+                        <Save className="w-3.5 h-3.5" />
+                        Brouillon sauvegarde
+                    </p>
+                )}
+                {draftStatus === 'restored' && (
+                    <p className="mt-2 text-xs flex items-center justify-center gap-1 animate-fadeIn" style={{ color: 'var(--brand)' }}>
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Brouillon restaure
+                    </p>
+                )}
             </div>
 
             {process.env.NODE_ENV === 'development' && (
-                <div className="mt-8 p-4 bg-gray-50 dark:bg-dark-surface border border-gray-300 dark:border-dark-border rounded-lg">
-                    <h3 className="font-semibold mb-2 text-gray-900 dark:text-dark-text">🔧 Debug Info</h3>
-                    <p className="text-sm text-gray-600 dark:text-dark-text-secondary">
+                <div className="mt-8 p-4 rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                    <h3 className="font-semibold mb-2" style={{ color: 'var(--fg)' }}>🔧 Debug Info</h3>
+                    <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>
                         Template: {templateName} ({template.type})
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-2">
+                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>
                         Config: {template.type === "dynamic" ? template.configFile : "Manuel"}
                     </p>
-                    <details className="mt-2 text-gray-900 dark:text-dark-text">
+                    <details className="mt-2" style={{ color: 'var(--fg)' }}>
                         <summary className="text-sm font-medium cursor-pointer">Voir FormData complet</summary>
-                        <pre className="text-xs bg-white dark:bg-dark-bg p-2 rounded mt-2 overflow-auto max-h-40 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-dark-text">
+                        <pre className="text-xs p-2 rounded mt-2 overflow-auto max-h-40" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}>
                             {JSON.stringify(formData, null, 2)}
                         </pre>
                     </details>
