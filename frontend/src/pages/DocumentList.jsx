@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
@@ -20,6 +20,7 @@ const DocumentList = () => {
   const { user } = useAuth();
   const { id: routeDocId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { confirm, ConfirmModalRenderer } = useConfirm();
   const { toggle: toggleFav, isFav } = useFavorites();
   const [documents, setDocuments] = useState([]);
@@ -172,6 +173,13 @@ const DocumentList = () => {
     sessionStorage.removeItem('ged-template-permissions');
     loadTemplatePermissions();
   }, []);
+
+  // Pré-remplit la recherche depuis l'URL (?q=...) : la barre de recherche du
+  // header (AppShell) redirige vers /documents?q=... ; sans ça la liste l'ignore.
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) setSearchInput(q);
+  }, [searchParams]);
 
   // Debounce recherche : attendre 400ms apres la derniere frappe
   useEffect(() => {
