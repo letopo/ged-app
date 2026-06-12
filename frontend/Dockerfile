@@ -18,10 +18,14 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-# --ignore-scripts évite ETXTBSY sur esbuild, puis on rebuild esbuild seul
-RUN npm install --no-audit --no-fund --ignore-scripts && \
-    node node_modules/esbuild/install.js 2>/dev/null || \
-    npm install --no-audit --no-fund
+# Install dependencies
+# Fallback avec --ignore-scripts + rebuild si erreur ETXTBSY (esbuild sur certains systèmes)
+RUN npm install --no-audit --no-fund || \
+    ( npm install --no-audit --no-fund --ignore-scripts && \
+      npm rebuild esbuild 2>/dev/null; \
+      npm rebuild rollup 2>/dev/null; \
+      npm rebuild @rollup/rollup-linux-x64-musl 2>/dev/null; \
+      true )
 
 COPY . .
 
@@ -37,12 +41,10 @@ FROM nginx:alpine AS production
 # Copier la configuration Nginx
 COPY /nginx.conf /etc/nginx/nginx.conf
 
-# Copier les fichiers buildés depuis dist
+# Copier les fichiers buildés depuis dist (inclut déjà sw.js et manifest.json via
+# copyPublicDir ; sw.js y est versionné par le plugin Vite — ne pas le réécraser
+# avec la version source qui contient le placeholder __SW_VERSION__).
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-# ✅ Copier explicitement le Service Worker et le Manifest
-COPY --from=builder /app/public/sw.js /usr/share/nginx/html/sw.js
-COPY --from=builder /app/public/manifest.json /usr/share/nginx/html/manifest.json
 
 # Créer un utilisateur non-root et définir les permissions
 RUN apk add --no-cache curl && \
