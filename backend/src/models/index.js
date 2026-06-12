@@ -54,8 +54,22 @@ import TrelloComment from './TrelloComment.js';
 import TrelloAttachment from './TrelloAttachment.js';
 import TrelloActivityLog from './TrelloActivityLog.js';
 import TemplatePermission from './TemplatePermission.js';
+// ── MODULE FORM BUILDER ───────────────────────────────────────────────────────
+import Form from './Form.js';
+import FormPermission from './FormPermission.js';
+import FormResponse from './FormResponse.js';
+import NotificationPreference from './NotificationPreference.js';
+import AuditLog from './AuditLog.js';
+import WorkflowTemplate from './WorkflowTemplate.js';
+import WorkflowComment from './WorkflowComment.js';
+import Poste from './Poste.js';
+import UserPoste from './UserPoste.js';
+import OrdreMissionType from './OrdreMissionType.js';
 
 const db = {
+  Poste,
+  UserPoste,
+  OrdreMissionType,
   User,
   Document,
   Workflow,
@@ -100,6 +114,7 @@ const db = {
   DecesTransfertPHP,
   RendezVousPHP,
   TemplatePermission,
+  WorkflowComment,
 };
 
 // Associations automatiques
@@ -198,6 +213,14 @@ BudgetDepense.belongsTo(User, { as: 'createur', foreignKey: 'created_by' });
 // ─── MODULE PHP - ASSOCIATIONS COMPLÉMENTAIRES ──────────────────────────────
 // Uniquement les associations depuis User/Ticket qui n'ont pas de associate()
 // NE PAS redéfinir ici ce qui est déjà dans les associate() des modèles PHP
+// ─── WORKFLOW COMMENTS ───────────────────────────────────────────────────────
+// belongsTo déjà déclarés dans WorkflowComment.associate() — on ajoute seulement le côté hasMany
+Document.hasMany(WorkflowComment, { as: 'workflowComments', foreignKey: 'documentId', onDelete: 'CASCADE' });
+User.hasMany(WorkflowComment, { as: 'workflowComments', foreignKey: 'userId' });
+
+User.hasOne(NotificationPreference, { as: 'notificationPreference', foreignKey: 'user_id' });
+NotificationPreference.belongsTo(User, { as: 'user', foreignKey: 'user_id' });
+
 User.hasMany(PatientPHP, { as: 'patientsCreated', foreignKey: 'created_by_user_id' });
 User.hasMany(BonPriseEnCharge, { as: 'bonsEmis', foreignKey: 'agent_emetteur_id' });
 Ticket.hasMany(BonPriseEnCharge, { as: 'ticketBons', foreignKey: 'ticket_id' });
@@ -210,6 +233,9 @@ User.hasMany(DecesTransfertPHP, { as: 'decesEnregistres', foreignKey: 'enregistr
 db.sequelize = sequelize;
 
 export {
+  Poste,
+  UserPoste,
+  OrdreMissionType,
   User,
   Document,
   Workflow,
@@ -254,7 +280,35 @@ export {
   ReposPHP,
   OperationPHP,
   DecesTransfertPHP,
-  TemplatePermission
+  TemplatePermission,
+  NotificationPreference,
+  AuditLog,
+  WorkflowTemplate,
+  WorkflowComment,
+  // Form Builder
+  Form,
+  FormPermission,
+  FormResponse,
 };
+
+// ── Associations Form Builder ─────────────────────────────────────────────────
+Form.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+User.hasMany(Form,   { foreignKey: 'created_by', as: 'forms' });
+
+Form.hasMany(FormPermission, { foreignKey: 'form_id', as: 'permissions', onDelete: 'CASCADE' });
+FormPermission.belongsTo(Form, { foreignKey: 'form_id' });
+
+Form.hasMany(FormResponse, { foreignKey: 'form_id', as: 'responses', onDelete: 'CASCADE' });
+FormResponse.belongsTo(Form, { foreignKey: 'form_id', as: 'form' });
+
+FormResponse.belongsTo(User, { foreignKey: 'submitted_by', as: 'submitter' });
+User.hasMany(FormResponse, { foreignKey: 'submitted_by', as: 'formResponses' });
+
+// ── Associations Postes organisationnels ───────────────────────────────────────
+Poste.belongsToMany(User, { through: UserPoste, foreignKey: 'poste_id', otherKey: 'user_id', as: 'holders' });
+User.belongsToMany(Poste, { through: UserPoste, foreignKey: 'user_id', otherKey: 'poste_id', as: 'postes' });
+UserPoste.belongsTo(Poste, { foreignKey: 'poste_id', as: 'poste' });
+UserPoste.belongsTo(User,  { foreignKey: 'user_id',  as: 'user' });
+UserPoste.belongsTo(User,  { foreignKey: 'assigned_by', as: 'assignedByUser' });
 
 export default db;

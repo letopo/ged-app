@@ -9,7 +9,7 @@ import {
   Settings, ChevronDown, Calendar, Kanban, Receipt,
   ShoppingCart, Wrench, Stethoscope, Shield, Archive,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
-  Activity, X, ChevronRight, ClipboardList,
+  Activity, X, ChevronRight, ClipboardList, Briefcase,
 } from 'lucide-react';
 import { workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -144,6 +144,7 @@ const Sidebar = ({ user, onLogout, pendingCount }) => {
     { path: '/schedules',          icon: Calendar,    label: 'Plannings',        managementOnly: true },
     { path: '/employees',          icon: Users,       label: 'Employés',         rhOrAdminOnly: true },
     { path: '/user-management',    icon: Users,       label: 'Utilisateurs',     adminOnly: true },
+    { path: '/postes',             icon: Briefcase,   label: 'Postes & Fonctions', adminOnly: true },
     { path: '/services',           icon: LayoutGrid,  label: 'Services',         adminOnly: true },
     { path: '/audit-log',          icon: Shield,      label: "Journal d'audit",  adminOnly: true },
     { path: '/statistiques',       icon: BarChart3,   label: 'Statistiques',     adminOnly: true },

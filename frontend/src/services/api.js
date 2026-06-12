@@ -569,4 +569,12 @@ export const formsAPI = {
   updateResponseStatus: (id, rid, status) => api.patch(`/forms/${id}/responses/${rid}/status`, { status }),
 };
 
+// Postes organisationnels assignables (comptable, DG, DDS…)
+export const postesAPI = {
+  getAll:              ()              => api.get('/postes'),
+  getOrdreMissionTypes:()              => api.get('/postes/ordre-mission-types'),
+  assignHolder:        (code, userId)  => api.post(`/postes/${code}/holders`, { userId }),
+  removeHolder:        (code, userId)  => api.delete(`/postes/${code}/holders/${userId}`),
+};
+
 export default api;

@@ -16,6 +16,7 @@ import Upload from './components/Upload';
 import MyTasks from './components/MyTasks';
 import WorkflowDashboard from './pages/WorkflowDashboard';
 import UserManagement from './pages/UserManagement';
+import PostesManagement from './pages/PostesManagement';
 import CreateFromTemplate from './pages/CreateFromTemplate';
 import CreateWorkRequest from './pages/CreateWorkRequest';
 import ServicesManagement from './pages/ServicesManagement';
@@ -243,6 +244,7 @@ function App() {
 
           {/* Routes avec permission spéciale */}
           <Route path="/user-management" element={<AdminRoute><PageWrapper><UserManagement /></PageWrapper></AdminRoute>} />
+          <Route path="/postes"          element={<AdminRoute><PageWrapper><PostesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/services"        element={<AdminRoute><PageWrapper><ServicesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/audit-log"       element={<AdminRoute><PageWrapper><AuditLogPage /></PageWrapper></AdminRoute>} />
           <Route path="/statistiques"    element={<AdminRoute><PageWrapper><StatistiquesPage /></PageWrapper></AdminRoute>} />

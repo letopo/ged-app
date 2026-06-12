@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
+import os from 'os';
 import sequelize from './config/database.js';
 import { Op } from 'sequelize';
 
@@ -47,6 +48,13 @@ import phpConsultationsRoutes from './routes/phpConsultations.js';
 import phpStatsRoutes from './routes/phpStats.js';
 import phpRendezVousRoutes from './routes/phpRendezVous.js';
 import templatePermissionRoutes from './routes/templatePermissionRoutes.js';
+import notificationPreferenceRoutes from './routes/notificationPreferenceRoutes.js';
+import auditLogRoutes from './routes/auditLogRoutes.js';
+import workflowTemplateRoutes from './routes/workflowTemplateRoutes.js';
+import verificationRoutes from './routes/verificationRoutes.js';
+import onlyofficeRoutes from './routes/onlyoffice.js';
+import formRoutes from './routes/forms.js'; // ✅ Form Builder
+import postesRoutes from './routes/postes.js'; // ✅ Postes organisationnels
 import { startPHPAutoCloseScheduler, cloturerConsultationsPassees } from './utils/phpAutoClose.js';
 import { startWorkflowExpireScheduler, expireOverdueWorkflows } from './utils/workflowAutoExpire.js';
 
@@ -65,31 +73,67 @@ const httpServer = createServer(app);
 // ============================================
 // MIDDLEWARE CORS
 // ============================================
-const allowedOrigins = [
+// Détecte dynamiquement toutes les IPs réseau de la machine hôte
+// → plus besoin d'ajouter chaque IP manuellement quand le réseau change
+const getLocalNetworkOrigins = () => {
+  const origins = new Set();
+  const ifaces = os.networkInterfaces();
+  for (const iface of Object.values(ifaces)) {
+    for (const addr of iface) {
+      if (addr.family === 'IPv4') {
+        origins.add(`http://${addr.address}`);
+        origins.add(`https://${addr.address}`);
+        origins.add(`http://${addr.address}:80`);
+        origins.add(`http://${addr.address}:3000`);
+        origins.add(`http://${addr.address}:5173`);
+      }
+    }
+  }
+  return origins;
+};
+
+// Origines fixes (domaines, localhost, outils)
+const fixedOrigins = new Set([
   'http://localhost',
   'https://localhost',
-  'https://192.168.1.186',
   'http://localhost:80',
-  'https://localhost:80',
+  'http://localhost:3000',
   'http://localhost:3001',
-  'https://localhost:3001',
   'http://localhost:5173',
   'https://localhost:5173',
-  'http://192.168.1.186',
+  'http://localhost:8080',
+  'https://localhost:8080',
   'https://ged.hsjm.net',
   'http://ged.hsjm.net',
-  'https://192.168.1.179',
-  'http://192.168.1.179',
-  process.env.CORS_ORIGIN
-].filter(Boolean);
+  'null', // blob: URLs envoient Origin: null
+  process.env.CORS_ORIGIN,
+  process.env.ONLYOFFICE_URL,
+].filter(Boolean));
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    // Pas d'origin = requête same-origin, Electron, Postman, curl → toujours OK
+    if (!origin) return callback(null, true);
+
+    // Vérifier les origines fixes
+    if (fixedOrigins.has(origin)) return callback(null, true);
+
+    // Vérifier dynamiquement les IPs réseau actuelles de la machine
+    if (getLocalNetworkOrigins().has(origin)) return callback(null, true);
+
+    // Autoriser n'importe quelle IP privée (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    try {
+      const host = new URL(origin).hostname;
+      const isPrivateIP = (
+        /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host) ||
+        /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) ||
+        /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host) ||
+        host === '127.0.0.1'
+      );
+      if (isPrivateIP) return callback(null, true);
+    } catch (_) {}
+
+    callback(new Error(`CORS: origine non autorisée → ${origin}`));
   },
   credentials: true
 }));
@@ -106,8 +150,18 @@ app.use((req, res, next) => {
 
 // ============================================
 // GESTION DES FICHIERS STATIQUES
+// Les uploads doivent être accessibles par OnlyOffice (Origin: localhost:8080)
+// → on ajoute CORS: * explicitement avant le middleware global
 // ============================================
-app.use('/api/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/api/uploads', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
+
 app.use('/api/signatures', express.static(path.join(__dirname, '../signatures')));
 
 // ============================================
@@ -130,7 +184,6 @@ app.use('/api/schedules', schedulesRoutes);
 app.use('/api/departments', departmentsRoutes);
 app.use('/api/shift-types', shiftTypesRoutes);
 app.use('/api/trello', trelloRoutes);
-app.use('/api/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/api/license', licenseRoutes); // <--- AJOUTER
 app.use('/api/invoices', invoiceRoutes); // ✅ NOUVELLE ROUTE POUR LES FACTURES
 app.use('/api/demande-achat', demandeAchatRoutes); // ✅ NOUVELLE ROUTE POUR LES DEMANDES D'ACHAT
@@ -142,6 +195,13 @@ app.use('/api/php/consultations', phpConsultationsRoutes);
 app.use('/api/php/stats', phpStatsRoutes);
 app.use('/api/php/rendez-vous', phpRendezVousRoutes);
 app.use('/api/template-permissions', templatePermissionRoutes);
+app.use('/api/notification-preferences', notificationPreferenceRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/workflow-templates', workflowTemplateRoutes);
+app.use('/api/verify', verificationRoutes);
+app.use('/api/forms', formRoutes); // ✅ Form Builder
+app.use('/api/onlyoffice', onlyofficeRoutes);
+app.use('/api/postes', postesRoutes); // ✅ Postes organisationnels
 
 
 // ============================================
@@ -517,6 +577,149 @@ const startServer = async () => {
       `);
       console.log('✅ Table template_permissions vérifiée/créée.');
     } catch (e) { console.warn('⚠️ template_permissions:', e.message); }
+
+    // 2aa. Migration : créer la table notification_preferences
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS notification_preferences (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          email_on_new_task BOOLEAN DEFAULT TRUE,
+          email_on_approval BOOLEAN DEFAULT TRUE,
+          email_on_rejection BOOLEAN DEFAULT TRUE,
+          email_on_comment BOOLEAN DEFAULT TRUE,
+          push_enabled BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+      `);
+      console.log('✅ Table notification_preferences verifiee/creee.');
+    } catch (e) { console.warn('⚠️ notification_preferences:', e.message); }
+
+    // 2ab. Migration : créer la table audit_logs
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID,
+          user_email VARCHAR(255),
+          user_name VARCHAR(255),
+          action VARCHAR(255) NOT NULL,
+          resource VARCHAR(255) NOT NULL,
+          resource_id VARCHAR(255),
+          details JSONB,
+          ip_address VARCHAR(100),
+          user_agent TEXT,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+      `);
+      console.log('✅ Table audit_logs verifiee/creee.');
+    } catch (e) { console.warn('⚠️ audit_logs:', e.message); }
+
+    // Table workflow_templates
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS workflow_templates (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(255) NOT NULL,
+          description VARCHAR(500),
+          categories JSONB,
+          validators JSONB NOT NULL DEFAULT '[]',
+          created_by UUID NOT NULL REFERENCES users(id),
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+      `);
+      console.log('✅ Table workflow_templates verifiee/creee.');
+    } catch (e) { console.warn('⚠️ workflow_templates:', e.message); }
+
+    // Table workflow_comments
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS workflow_comments (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+          user_id UUID NOT NULL REFERENCES users(id),
+          text TEXT NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_workflow_comments_document_id ON workflow_comments(document_id);
+      `);
+      console.log('✅ Table workflow_comments verifiee/creee.');
+    } catch (e) { console.warn('⚠️ workflow_comments:', e.message); }
+
+    // ── Form Builder ──────────────────────────────────────────────────────────
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS forms (
+          id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          title         VARCHAR(255) NOT NULL,
+          description   TEXT,
+          type          VARCHAR(50),
+          status        VARCHAR(20) DEFAULT 'draft',
+          schema        JSONB NOT NULL DEFAULT '{"version":1,"fields":[],"layout":{"columns":12,"rowHeight":40,"gap":8},"logic":{"conditions":[],"calculations":[]}}',
+          settings      JSONB DEFAULT '{}',
+          created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+          published_at  TIMESTAMP,
+          version       INTEGER DEFAULT 1,
+          created_at    TIMESTAMP DEFAULT NOW(),
+          updated_at    TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_forms_status     ON forms(status);
+        CREATE INDEX IF NOT EXISTS idx_forms_type       ON forms(type);
+        CREATE INDEX IF NOT EXISTS idx_forms_created_by ON forms(created_by);
+        CREATE INDEX IF NOT EXISTS idx_forms_created_at ON forms(created_at);
+      `);
+      console.log('✅ Table forms verifiee/creee.');
+    } catch (e) { console.warn('⚠️ forms:', e.message); }
+
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS form_permissions (
+          id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          form_id     UUID NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
+          target_type VARCHAR(20) NOT NULL,
+          target_id   VARCHAR(100) NOT NULL,
+          can_view    BOOLEAN DEFAULT true,
+          can_fill    BOOLEAN DEFAULT true,
+          can_edit    BOOLEAN DEFAULT false,
+          can_delete  BOOLEAN DEFAULT false,
+          created_at  TIMESTAMP DEFAULT NOW(),
+          updated_at  TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_form_permissions_form_id ON form_permissions(form_id);
+        CREATE INDEX IF NOT EXISTS idx_form_permissions_target  ON form_permissions(target_type, target_id);
+      `);
+      console.log('✅ Table form_permissions verifiee/creee.');
+    } catch (e) { console.warn('⚠️ form_permissions:', e.message); }
+
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS form_responses (
+          id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          form_id      UUID NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
+          form_version INTEGER DEFAULT 1,
+          submitted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+          data         JSONB NOT NULL DEFAULT '{}',
+          status       VARCHAR(20) DEFAULT 'submitted',
+          ip_address   VARCHAR(45),
+          submitted_at TIMESTAMP DEFAULT NOW(),
+          created_at   TIMESTAMP DEFAULT NOW(),
+          updated_at   TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_form_responses_form_id      ON form_responses(form_id);
+        CREATE INDEX IF NOT EXISTS idx_form_responses_submitted_by ON form_responses(submitted_by);
+        CREATE INDEX IF NOT EXISTS idx_form_responses_status       ON form_responses(status);
+        CREATE INDEX IF NOT EXISTS idx_form_responses_submitted_at ON form_responses(submitted_at);
+      `);
+      console.log('✅ Table form_responses verifiee/creee.');
+    } catch (e) { console.warn('⚠️ form_responses:', e.message); }
 
     // 3️⃣ Créer l'utilisateur admin par défaut
     console.log('');
