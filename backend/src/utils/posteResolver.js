@@ -15,11 +15,14 @@ export const getPosteHolders = async (code) => {
       model: User,
       as: 'holders',
       attributes: ['id', 'firstName', 'lastName', 'email', 'isActive'],
-      through: { attributes: [] },
+      through: { attributes: ['assignedAt'] },
     }],
   });
   if (!poste || !poste.holders) return [];
-  return poste.holders.filter(u => u.isActive !== false);
+  return poste.holders
+    .filter(u => u.isActive !== false)
+    // Ordre déterministe : le plus ancien titulaire en premier (= titulaire principal)
+    .sort((a, b) => new Date(a.UserPoste?.assignedAt || 0) - new Date(b.UserPoste?.assignedAt || 0));
 };
 
 /**
