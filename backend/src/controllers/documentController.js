@@ -171,12 +171,16 @@ export const uploadDocument = async (req, res) => {
         include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }]
     });
     
-    res.status(201).json({ 
-      success: true, 
-      data: resultWithUser, 
-      message: parsedMetadata.fusionné 
-        ? '✅ Document uploadé et fusionné avec la pièce justificative avec succès.' 
-        : 'Document uploadé avec succès.' 
+    // Audit upload
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'UPLOAD', 'document', newDocument.id, { title: newDocument.title, category: newDocument.category });
+
+    res.status(201).json({
+      success: true,
+      data: resultWithUser,
+      message: parsedMetadata.fusionné
+        ? '✅ Document uploadé et fusionné avec la pièce justificative avec succès.'
+        : 'Document uploadé avec succès.'
     });
 
   } catch (error) {
@@ -248,6 +252,9 @@ export const getDocuments = async (req, res) => {
     // Pagination (optionnelle — si pas de page/limit, retourne tout)
     const queryOptions = {
       where: whereClause,
+      // distinct: indispensable, sinon findAndCountAll compte les lignes jointes
+      // par l'include hasMany 'workflows' (1 par workflow) → total surévalué.
+      distinct: true,
       include: [
         { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
         {
@@ -345,7 +352,11 @@ export const deleteDocument = async (req, res, next) => {
     const fullPath = path.resolve(process.cwd(), document.filePath);
     try { await fs.unlink(fullPath); } catch(err) { console.warn("Fichier physique déjà supprimé ou introuvable:", err.message); }
     await Workflow.destroy({ where: { documentId: id } });
+    const docTitle = document.title;
     await document.destroy();
+    // Audit delete
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'DELETE', 'document', id, { title: docTitle });
     res.json({ success: true, message: 'Document supprimé.' });
   } catch (error) {
     next(error);
@@ -386,7 +397,15 @@ export const downloadDocument = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
         }
         const filePath = path.resolve(process.cwd(), document.filePath);
-        try { await fs.access(filePath); res.download(filePath, document.originalName); }
+        try {
+          await fs.access(filePath);
+          // Utiliser le titre du document comme nom de fichier téléchargé
+          const ext = path.extname(document.fileName || document.originalName || '.pdf') || '.pdf';
+          const safeName = (document.title || document.originalName || 'document')
+            .replace(/[/\\?%*:|"<>]/g, '-') // caractères interdits dans les noms de fichiers
+            .trim();
+          res.download(filePath, `${safeName}${ext}`);
+        }
         catch { res.status(404).send('Fichier introuvable sur le serveur.'); }
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erreur serveur' });

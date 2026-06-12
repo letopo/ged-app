@@ -310,11 +310,48 @@ const ROUTE_CRUMBS = {
   '/php':                 ['Module PHP'],
 };
 
+const timeAgo = (date) => {
+  const s = Math.floor((Date.now() - new Date(date)) / 1000);
+  if (s < 60) return "à l'instant";
+  const m = Math.floor(s / 60); if (m < 60) return `il y a ${m} min`;
+  const h = Math.floor(m / 60); if (h < 24) return `il y a ${h} h`;
+  const d = Math.floor(h / 24); return `il y a ${d} j`;
+};
+
 const Topbar = ({ onToggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
   const [search, setSearch] = useState('');
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifs, setNotifs] = useState([]);
+  const notifRef = useRef(null);
+
+  // Charge les tâches en attente de validation (= notifications actionnables)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await workflowAPI.getMyTasks('pending');
+        setNotifs(res.data.tasks || []);
+      } catch { /* silencieux */ }
+    };
+    load();
+    const onChange = () => load();
+    window.addEventListener('newTask', onChange);
+    window.addEventListener('taskUpdate', onChange);
+    return () => {
+      window.removeEventListener('newTask', onChange);
+      window.removeEventListener('taskUpdate', onChange);
+    };
+  }, []);
+
+  // Fermeture au clic extérieur
+  useEffect(() => {
+    if (!notifOpen) return;
+    const onDocClick = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [notifOpen]);
 
   const crumbs = Object.entries(ROUTE_CRUMBS).find(([path]) =>
     location.pathname === path || location.pathname.startsWith(path + '/')
@@ -405,19 +442,82 @@ const Topbar = ({ onToggleSidebar }) => {
       </button>
 
       {/* Notifications */}
-      <button
-        title="Notifications"
-        style={{ ...iconBtnStyle, position: 'relative' }}
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-      >
-        <Bell size={15} />
-        <span style={{
-          position: 'absolute', top: 7, right: 7,
-          width: 6, height: 6, borderRadius: '9999px',
-          background: 'var(--warning)', border: '1.5px solid var(--surface)',
-        }} />
-      </button>
+      <div ref={notifRef} style={{ position: 'relative' }}>
+        <button
+          title="Notifications"
+          onClick={() => setNotifOpen(o => !o)}
+          style={{ ...iconBtnStyle, position: 'relative' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <Bell size={15} />
+          {notifs.length > 0 && (
+            <span style={{
+              position: 'absolute', top: 2, right: 2,
+              minWidth: 15, height: 15, padding: '0 3px', boxSizing: 'border-box',
+              borderRadius: '9999px', background: 'var(--danger, #e5484d)', color: '#fff',
+              fontSize: 9, fontWeight: 700, lineHeight: '15px', textAlign: 'center',
+              border: '1.5px solid var(--surface)',
+            }}>{notifs.length > 9 ? '9+' : notifs.length}</span>
+          )}
+        </button>
+
+        {notifOpen && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+            width: 320, maxHeight: 420, overflowY: 'auto',
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', zIndex: 50,
+          }}>
+            <div style={{
+              padding: '10px 14px', borderBottom: '1px solid var(--border)',
+              fontSize: 13, fontWeight: 700, color: 'var(--fg)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span>Notifications</span>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)' }}>
+                {notifs.length} en attente
+              </span>
+            </div>
+            {notifs.length === 0 ? (
+              <div style={{ padding: '28px 14px', textAlign: 'center', fontSize: 12.5, color: 'var(--fg-muted)' }}>
+                Aucune tâche en attente de validation.
+              </div>
+            ) : (
+              notifs.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => { setNotifOpen(false); navigate(`/documents/${t.documentId}`); }}
+                  style={{
+                    width: '100%', display: 'block', textAlign: 'left',
+                    padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--border)',
+                    background: 'transparent', cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg)', marginBottom: 2 }}>
+                    {t.document?.title || 'Document'}
+                    {t.isOverdue && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--danger, #e5484d)' }}>· en retard</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
+                    {t.document?.uploadedBy ? `${t.document.uploadedBy.firstName} ${t.document.uploadedBy.lastName} · ` : ''}{timeAgo(t.assignedAt)}
+                  </div>
+                </button>
+              ))
+            )}
+            <button
+              onClick={() => { setNotifOpen(false); navigate('/my-tasks'); }}
+              style={{
+                width: '100%', padding: '10px 14px', border: 'none', background: 'transparent',
+                color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Voir toutes mes tâches
+            </button>
+          </div>
+        )}
+      </div>
     </header>
   );
 };
