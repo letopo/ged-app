@@ -4,10 +4,11 @@ import Service from '../models/Service.js';
 import { Op } from 'sequelize';
 import { Parser } from 'json2csv';
 import { Readable } from 'stream';
+import { userHasPoste } from '../utils/posteResolver.js';
 
-// Vérifier si l'utilisateur est RH ou admin
-const isRHOrAdmin = (user) => {
-  return user.role === 'admin' || user.email === 'hsjm.rh@gmail.com';
+// Vérifier si l'utilisateur est RH ou admin (RH = titulaire du poste 'rh')
+const isRHOrAdmin = async (user) => {
+  return user.role === 'admin' || await userHasPoste(user.id, 'rh');
 };
 
 // @desc    Récupérer tous les employés (avec pagination et filtres)
@@ -15,7 +16,7 @@ const isRHOrAdmin = (user) => {
 // @access  Private (RH/Admin)
 export const getEmployees = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -65,7 +66,7 @@ export const getEmployees = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const getEmployeeById = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -92,7 +93,7 @@ export const getEmployeeById = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const createEmployee = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -161,7 +162,7 @@ export const createEmployee = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const updateEmployee = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -238,7 +239,7 @@ export const updateEmployee = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const deleteEmployee = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -261,7 +262,7 @@ export const deleteEmployee = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const getEmployeesByService = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -289,7 +290,7 @@ export const getEmployeesByService = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const getServicesWithEmployees = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -338,7 +339,7 @@ export const getAllEmployees = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const exportEmployeesToCSV = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -401,7 +402,7 @@ export const exportEmployeesToCSV = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const importEmployeesFromCSV = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 

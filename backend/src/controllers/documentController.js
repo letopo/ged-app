@@ -2,24 +2,17 @@
 
 import { Op } from 'sequelize';
 
-// Documents générés par le RH : visibles uniquement par l'admin autorisé
-const HR_EMAIL = 'hsjm.rh@gmail.com';
-const AUTHORIZED_HR_VIEWER_EMAIL = 'hopitalcameroun@ordredemaltefrance.org';
+import { getPosteHolders, userHasPoste } from '../utils/posteResolver.js';
 
+// Documents générés par le RH : visibles uniquement par l'admin
 const canViewHRDocuments = (user) => user.role === 'admin';
 
-// Catégories réservées RH : visibles uniquement par RH + admins, peu importe le créateur
+// Catégories réservées RH : visibles uniquement par les titulaires du poste RH + admins
 const HR_ONLY_CATEGORIES = ['Attestation de départ en congé annuel'];
-const canViewHRCategory = (user) => user.role === 'admin' || user.email === HR_EMAIL;
+const canViewHRCategory = async (user) => user.role === 'admin' || await userHasPoste(user.id, 'rh');
 
-// Retourne le userId du compte RH (mis en cache après le premier appel)
-let _hrUserId = null;
-const getHRUserId = async (UserModel) => {
-  if (_hrUserId) return _hrUserId;
-  const hrUser = await UserModel.findOne({ where: { email: HR_EMAIL }, attributes: ['id'] });
-  if (hrUser) _hrUserId = hrUser.id;
-  return _hrUserId;
-};
+// Retourne les userId des titulaires du poste RH (documents restreints)
+const getHRUserIds = async () => (await getPosteHolders('rh')).map(u => u.id);
 import { Document, User, Workflow, InvoiceFolder } from '../models/index.js'; // ✅ AJOUT IMPORT InvoiceFolder
 import fs from 'fs/promises';
 import path from 'path';
@@ -209,12 +202,12 @@ export const getDocuments = async (req, res) => {
     if (userRole !== 'admin' && userRole !== 'director') {
       whereClause.userId = userId;
     } else if (!canViewHRDocuments(req.user)) {
-      const hrUserId = await getHRUserId(User);
-      if (hrUserId) {
-        whereClause.userId = { [Op.ne]: hrUserId };
+      const hrUserIds = await getHRUserIds();
+      if (hrUserIds.length) {
+        whereClause.userId = { [Op.notIn]: hrUserIds };
       }
     }
-    if (!canViewHRCategory(req.user)) {
+    if (!(await canViewHRCategory(req.user))) {
       whereClause.category = { [Op.notIn]: HR_ONLY_CATEGORIES };
     }
 
@@ -311,12 +304,12 @@ export const getDocument = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
     // Bloquer l'accès aux documents RH pour les non-autorisés
-    const hrUserId = await getHRUserId(User);
-    if (hrUserId && document.userId === hrUserId && !canViewHRDocuments(req.user) && document.userId !== req.user.id) {
+    const hrUserIds = await getHRUserIds();
+    if (hrUserIds.includes(document.userId) && !canViewHRDocuments(req.user) && document.userId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
     // Bloquer l'accès aux catégories RH-only pour les non-autorisés
-    if (HR_ONLY_CATEGORIES.includes(document.category) && !canViewHRCategory(req.user)) {
+    if (HR_ONLY_CATEGORIES.includes(document.category) && !(await canViewHRCategory(req.user))) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
     res.json({ success: true, data: document });
@@ -371,10 +364,10 @@ export const searchDocuments = async (req, res) => {
         if (req.user.role !== 'admin' && req.user.role !== 'director') {
           where.userId = req.user.id;
         } else if (!canViewHRDocuments(req.user)) {
-          const hrUserId = await getHRUserId(User);
-          if (hrUserId) where.userId = { [Op.ne]: hrUserId };
+          const hrUserIds = await getHRUserIds();
+          if (hrUserIds.length) where.userId = { [Op.notIn]: hrUserIds };
         }
-        if (!canViewHRCategory(req.user)) {
+        if (!(await canViewHRCategory(req.user))) {
           where.category = { [Op.notIn]: HR_ONLY_CATEGORIES };
         }
         const documents = await Document.findAll({ where, limit: 50, include: [{ model: User, as: 'uploadedBy' }], });
@@ -392,8 +385,8 @@ export const downloadDocument = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
         }
         // Bloquer le téléchargement des documents RH pour les non-autorisés
-        const hrUserId = await getHRUserId(User);
-        if (hrUserId && document.userId === hrUserId && !canViewHRDocuments(req.user) && document.userId !== req.user.id) {
+        const hrUserIds = await getHRUserIds();
+        if (hrUserIds.includes(document.userId) && !canViewHRDocuments(req.user) && document.userId !== req.user.id) {
             return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
         }
         const filePath = path.resolve(process.cwd(), document.filePath);
@@ -516,13 +509,13 @@ export const getArchivedDocuments = async (req, res) => {
     if (userRole !== 'admin' && userRole !== 'director') {
       whereClause.userId = userId;
     } else if (!canViewHRDocuments(req.user)) {
-      const hrUserId = await getHRUserId(User);
-      if (hrUserId) {
-        whereClause.userId = { [Op.ne]: hrUserId };
+      const hrUserIds = await getHRUserIds();
+      if (hrUserIds.length) {
+        whereClause.userId = { [Op.notIn]: hrUserIds };
       }
     }
     // Exclure les catégories RH pour les utilisateurs non-autorisés
-    if (!canViewHRCategory(req.user)) {
+    if (!(await canViewHRCategory(req.user))) {
       whereClause.category = { [Op.notIn]: HR_ONLY_CATEGORIES };
     }
 

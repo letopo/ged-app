@@ -28,9 +28,8 @@ async function embedImage(pdfDoc, imageBytes) {
   }
 }
 
-// Le comptable et le DG ne sont plus figés par email : ils sont résolus
+// Le comptable, le RH et le DG ne sont plus figés par email : ils sont résolus
 // dynamiquement via les postes assignables (voir utils/posteResolver.js).
-const DG_EMAIL = 'hopitalcameroun@ordredemaltefrance.org';
 
 // ============================================
 // FONCTION HELPER : Notifier un validateur
@@ -639,8 +638,8 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
             }
         }
 
-        // 1. DATER (RH)
-        if (validationType === 'dater' && validator.email === 'hsjm.rh@gmail.com') {
+        // 1. DATER (RH) — le validateur est-il titulaire du poste RH ?
+        if (validationType === 'dater' && await userHasPoste(validator.id, 'rh')) {
           const dateText = `Reçu le : ${new Date().toLocaleDateString('fr-FR')}`;
           try {
             const specialEliteFontPath = path.resolve(process.cwd(), 'fonts/SpecialElite-Regular.ttf');
