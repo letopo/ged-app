@@ -50,3 +50,9 @@ temp/
 backend/private_key.pem
 generate_license.js
 test_keys.js
+# Playwright CLI artifacts
+.playwright/
+.playwright-cli/
+
+# Backups/scripts correction encodage DB
+.db-encoding-fix/

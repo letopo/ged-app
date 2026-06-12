@@ -1,15 +1,16 @@
-// frontend/src/pages/DocumentList.jsx - VERSION 100% COMPLÈTE AVEC SUPPORT DARK MODE
+// frontend/src/pages/DocumentList.jsx
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI } from '../services/api';
+import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import WorkflowProgress from '../components/WorkflowProgress';
 import { DocumentGridSkeleton, DocumentTableSkeleton } from '../components/SkeletonLoader';
 import { StatusBadge } from '../utils/statusHelpers.jsx';
 import { useConfirm } from '../components/ConfirmModal';
-import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive, Star, Download, Shield, Settings } from 'lucide-react';
+import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive, Star, Download, Shield, Settings, ChevronDown, GitBranch } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
 import { useFavorites } from '../hooks/useFavorites';
@@ -17,16 +18,20 @@ import TemplatePermissionsModal from '../components/TemplatePermissionsModal';
 
 const DocumentList = () => {
   const { user } = useAuth();
+  const { id: routeDocId } = useParams();
+  const navigate = useNavigate();
   const { confirm, ConfirmModalRenderer } = useConfirm();
   const { toggle: toggleFav, isFav } = useFavorites();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
+  const searchTimer = useRef(null);
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -40,9 +45,50 @@ const DocumentList = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [viewingDocument, setViewingDocument] = useState(null);
   const [searchValidatorTerm, setSearchValidatorTerm] = useState('');
+  const [workflowTemplates, setWorkflowTemplates] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', dir: 'desc' });
+  // Réaffectation workflow
+  const [reassignTask, setReassignTask] = useState(null);
+  const [reassignValidators, setReassignValidators] = useState([]);
+  const [reassignSearch, setReassignSearch] = useState('');
+  const [reassignLoading, setReassignLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [allCategories, setAllCategories] = useState([]);
+  const [expandedWorkflows, setExpandedWorkflows] = useState(new Set());
+  const toggleWorkflow = (id, e) => { e.stopPropagation(); setExpandedWorkflows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; }); };
+
+  // Ouverture du document via l'URL /documents/:id (liens du dashboard, partage, rechargement).
+  // Le détail s'affiche en modal ; on récupère le document par id pour ne pas dépendre
+  // de la page de liste courante (paginée).
+  useEffect(() => {
+    if (!routeDocId) return;
+    if (viewingDocument && viewingDocument.id === routeDocId) return;
+    let cancelled = false;
+    documentsAPI.getById(routeDocId)
+      .then(res => { if (!cancelled) setViewingDocument(res.data?.data || res.data); })
+      .catch(() => {
+        if (cancelled) return;
+        toast.error('Document introuvable ou accès refusé');
+        navigate('/documents', { replace: true });
+      });
+    return () => { cancelled = true; };
+  }, [routeDocId]);
+
+  // Ferme le modal : remet l'état à zéro et nettoie l'URL si on était sur /documents/:id
+  const closeViewer = useCallback(() => {
+    setViewingDocument(null);
+    if (routeDocId) navigate('/documents', { replace: true });
+  }, [routeDocId, navigate]);
+
+  // Auto-déplier les documents rejetés pour que le soumetteur puisse commenter / relancer
+  useEffect(() => {
+    setExpandedWorkflows(prev => {
+      const s = new Set(prev);
+      documents.filter(d => d.status === 'rejected').forEach(d => s.add(d.id));
+      return s;
+    });
+  }, [documents]);
 
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleSelectAll = () => setSelectedIds(prev => prev.length === pagedDocuments.length ? [] : pagedDocuments.map(d => d.id));
@@ -77,7 +123,7 @@ const DocumentList = () => {
   const handleSort = (key) => {
     setSortConfig(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
     setCurrentPage(1);
-  }; 
+  };
 
   const [accessibleTemplates, setAccessibleTemplates] = useState([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
@@ -117,19 +163,41 @@ const DocumentList = () => {
     { templateName: 'Attestation de départ en congé annuel', hasAccess: true, isRestricted: false },
   ];
 
-  const sidebarTemplates = permissionsLoaded && accessibleTemplates.length > 0
-    ? accessibleTemplates
-    : DEFAULT_TEMPLATES;
+  // Si les permissions sont chargées (même liste vide), on les utilise.
+  // On ne bascule sur DEFAULT_TEMPLATES que si le chargement a échoué (permissionsLoaded === false).
+  const sidebarTemplates = permissionsLoaded ? accessibleTemplates : DEFAULT_TEMPLATES;
 
   useEffect(() => {
-    loadDocuments();
+    // Nettoyer l'ancien cache sessionStorage si present (migration)
+    sessionStorage.removeItem('ged-template-permissions');
     loadTemplatePermissions();
   }, []);
+
+  // Debounce recherche : attendre 400ms apres la derniere frappe
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(searchTimer.current);
+  }, [searchInput]);
+
+  // Reset page 1 quand un filtre change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, filterCategory, filterDateFrom, filterDateTo]);
+
+  // Recharger les documents quand les filtres ou la page changent
+  useEffect(() => {
+    loadDocuments(currentPage);
+  }, [currentPage, searchTerm, filterStatus, filterCategory, filterDateFrom, filterDateTo]);
 
   const loadTemplatePermissions = async () => {
     try {
       const res = await templatePermissionsAPI.getMyTemplates();
-      setAccessibleTemplates(res.data.data || []);
+      const data = res.data.data || [];
+      setAccessibleTemplates(data);
       setPermissionsLoaded(true);
     } catch (err) {
       console.error('Erreur chargement permissions templates:', err);
@@ -137,15 +205,46 @@ const DocumentList = () => {
     }
   };
 
-  const loadDocuments = async () => {
+  const [totalDocuments, setTotalDocuments] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const categoriesLoaded = useRef(false);
+
+  // Charger les catégories une seule fois via endpoint dédié (léger, pas de chargement de tous les docs)
+  useEffect(() => {
+    if (categoriesLoaded.current) return;
+    categoriesLoaded.current = true;
+    documentsAPI.getCategories()
+      .then(res => {
+        const cats = res.data?.data || [];
+        setAllCategories(cats);
+      })
+      .catch(() => {});
+  }, []);
+
+  const loadDocuments = async (pageNum = currentPage) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await documentsAPI.getAll();
+      const params = {
+        page: pageNum,
+        limit: PAGE_SIZE,
+      };
+      if (searchTerm) params.search = searchTerm;
+      if (filterStatus !== 'all') params.status = filterStatus;
+      if (filterCategory !== 'all') params.category = filterCategory;
+      if (filterDateFrom) params.dateFrom = filterDateFrom;
+      if (filterDateTo) params.dateTo = filterDateTo;
+
+      const response = await documentsAPI.getAll(params);
       if (response.data && Array.isArray(response.data.data)) {
         setDocuments(response.data.data);
+        if (response.data.pagination) {
+          setTotalDocuments(response.data.pagination.total);
+          setServerTotalPages(response.data.pagination.totalPages);
+        }
       } else {
         setDocuments([]);
+        setTotalDocuments(0);
       }
     } catch (err) {
       setError('Erreur lors du chargement des documents');
@@ -156,29 +255,71 @@ const DocumentList = () => {
     }
   };
 
-  const loadAvailableUsers = async () => {
-    try {
-      setLoadingUsers(true);
-      const response = await usersAPI.getAll();
-      const usersList = response.data?.users || [];
-      const validators = usersList.filter(user => 
-        ['validator', 'director', 'admin'].includes(user.role)
-      );
-      setAvailableUsers(validators);
-    } catch (err) {
-      setError('Impossible de charger les utilisateurs pour la validation.');
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
   const handleOpenSubmitModal = async (document) => {
     setDocumentToSubmit(document);
     setShowSubmitModal(true);
     setSelectedValidators([]);
     setSubmitComment('');
     setSearchValidatorTerm('');
-    await loadAvailableUsers();
+
+    // Charger users ET templates en parallèle (au lieu de séquentiel)
+    setLoadingUsers(true);
+    try {
+      const [usersRes, templatesRes] = await Promise.all([
+        usersAPI.getAll(),
+        workflowTemplatesAPI.getAll(),
+      ]);
+
+      const usersList = usersRes.data?.users || [];
+      setAvailableUsers(usersList.filter(u => ['validator', 'director', 'admin'].includes(u.role)));
+
+      const templates = templatesRes.data?.data || [];
+      const filtered = templates.filter(t =>
+        !t.categories || t.categories.length === 0 || t.categories.includes(document.category)
+      );
+      setWorkflowTemplates(filtered);
+    } catch (err) {
+      setError('Impossible de charger les données de validation.');
+      setWorkflowTemplates([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const applyWorkflowTemplate = (template) => {
+    const validatorIds = (template.validators || []).map(v => v.userId);
+    setSelectedValidators(validatorIds);
+    toast.success(`Modele "${template.name}" applique`);
+  };
+
+  const handleOpenReassign = async (task) => {
+    setReassignTask(task);
+    setReassignSearch('');
+    // Charger les validateurs disponibles si pas encore chargé
+    if (reassignValidators.length === 0) {
+      try {
+        const res = await usersAPI.getAll();
+        const users = res.data?.users || [];
+        setReassignValidators(users.filter(u => ['validator', 'director', 'admin'].includes(u.role)));
+      } catch (e) {
+        toast.error('Erreur chargement des validateurs');
+      }
+    }
+  };
+
+  const handleConfirmReassign = async (newValidatorId) => {
+    if (!reassignTask) return;
+    try {
+      setReassignLoading(true);
+      await workflowAPI.reassignTask(reassignTask.id, newValidatorId);
+      toast.success('Tâche réaffectée avec succès');
+      setReassignTask(null);
+      loadDocuments(currentPage);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Erreur lors de la réaffectation');
+    } finally {
+      setReassignLoading(false);
+    }
   };
 
   const handleCloseSubmitModal = () => {
@@ -298,10 +439,7 @@ const DocumentList = () => {
     );
   }, [availableUsers, searchValidatorTerm]);
 
-  const categories = useMemo(() => {
-    const cats = new Set(documents.map(d => d.category).filter(Boolean));
-    return [...cats].sort();
-  }, [documents]);
+  const categories = allCategories;
 
   const setQuickPeriod = (period) => {
     const now = new Date();
@@ -332,6 +470,7 @@ const DocumentList = () => {
   ].filter(Boolean).length;
 
   const resetAllFilters = () => {
+    setSearchInput('');
     setSearchTerm('');
     setFilterStatus('all');
     setFilterCategory('all');
@@ -351,7 +490,7 @@ const DocumentList = () => {
       formatDate(doc.createdAt),
       formatSize(doc.fileSize),
     ]);
-    const bom = '\uFEFF';
+    const bom = '﻿';
     const csv = bom + [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -363,26 +502,8 @@ const DocumentList = () => {
     toast.success('Export CSV téléchargé');
   };
 
-  const filteredDocuments = documents.filter(doc => {
-    const searchTermLower = searchTerm.toLowerCase();
-    const matchSearch = doc.title?.toLowerCase().includes(searchTermLower) ||
-                       doc.originalName?.toLowerCase().includes(searchTermLower);
-    const matchStatus = filterStatus === 'all' || doc.status === filterStatus;
-    const matchCategory = filterCategory === 'all' || doc.category === filterCategory;
-    let matchDate = true;
-    if (filterDateFrom || filterDateTo) {
-      const docDate = new Date(doc.createdAt);
-      if (filterDateFrom) matchDate = matchDate && docDate >= new Date(filterDateFrom);
-      if (filterDateTo) {
-        const to = new Date(filterDateTo); to.setHours(23, 59, 59);
-        matchDate = matchDate && docDate <= to;
-      }
-    }
-    return matchSearch && matchStatus && matchCategory && matchDate;
-  });
-
-  const sortedDocuments = [...filteredDocuments].sort((a, b) => {
-    // Favoris toujours en premier
+  // Tri local (favoris en premier + tri par colonne)
+  const sortedDocuments = [...documents].sort((a, b) => {
     const aFav = isFav(a.id) ? 0 : 1;
     const bFav = isFav(b.id) ? 0 : 1;
     if (aFav !== bFav) return aFav - bFav;
@@ -397,504 +518,595 @@ const DocumentList = () => {
     return 0;
   });
 
-  const totalPages = Math.max(1, Math.ceil(sortedDocuments.length / PAGE_SIZE));
+  // La pagination est gérée côté serveur
+  const totalPages = serverTotalPages;
   const safePage = Math.min(currentPage, totalPages);
-  const pagedDocuments = sortedDocuments.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pagedDocuments = sortedDocuments;
+
+  // Stats pour le header
+  const stats = { pending: documents.filter(d => d.status === 'pending_validation').length };
+
+  // ── Style constants ──
+  const STATUS_CFG = {
+    draft:              { dot: 'var(--fg-subtle)',  label: 'Brouillon',     cls: 'ged-badge-neutral' },
+    pending:            { dot: 'var(--warning)',     label: 'En validation', cls: 'ged-badge-warning' },
+    pending_validation: { dot: 'var(--warning)',     label: 'En validation', cls: 'ged-badge-warning' },
+    approved:           { dot: 'var(--success)',     label: 'Approuvé',      cls: 'ged-badge-success' },
+    rejected:           { dot: 'var(--danger)',      label: 'Rejeté',        cls: 'ged-badge-danger'  },
+    in_progress:        { dot: 'var(--brand)',       label: 'En cours',      cls: 'ged-badge-brand'   },
+  };
+  const btnPrimary = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 'var(--radius-2)', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', textDecoration: 'none' };
+  const btnOutline = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, border: '1px solid var(--border)', cursor: 'pointer' };
+  const btnDanger  = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 'var(--radius-2)', background: 'var(--danger-soft)', color: 'var(--danger)', fontSize: 13, border: '1px solid var(--danger-soft)', cursor: 'pointer' };
+  const btnSmall   = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '5px 10px', borderRadius: 'var(--radius-2)', background: 'var(--brand)', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' };
+  const iconBtn    = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 6, borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--fg-muted)' };
+  const thStyle    = { padding: '10px 14px', fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.4px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' };
+  const tdStyle    = { padding: '10px 14px', verticalAlign: 'middle' };
+  const selectStyle = { height: 34, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', cursor: 'pointer' };
+  const segActive  = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 'var(--radius-2)', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)', fontSize: 13, fontWeight: 500, cursor: 'pointer', boxShadow: 'var(--shadow-1)' };
+  const segIdle    = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 'var(--radius-2)', background: 'transparent', border: '1px solid transparent', color: 'var(--fg-muted)', fontSize: 13, cursor: 'pointer' };
+  const pageBtn    = { width: 30, height: 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 13 };
 
   if (loading) return (
-    <div className="max-w-screen-xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded w-48 h-8 mb-2" />
-        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded w-72 h-4" />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-      <main className="lg:col-span-3 space-y-6">
-        <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm border border-gray-200 dark:border-dark-border p-4">
-          <div className="flex gap-4">
-            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded-lg flex-1 h-10" />
-            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded-lg w-40 h-10" />
-          </div>
-        </div>
-        {viewMode === 'grid' ? <DocumentGridSkeleton count={6} /> : <DocumentTableSkeleton count={8} />}
-      </main>
-      </div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <Loader size={24} color="var(--fg-muted)" className="animate-spin" />
     </div>
   );
 
   return (
-    <div className="max-w-screen-xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-dark-text mb-2">Mes Documents</h1>
-        <p className="text-gray-600 dark:text-dark-text-secondary">Gérez vos documents et leurs validations</p>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 40px' }} className="animate-pageFade">
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20, paddingTop: 4 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>Documents</h1>
+          <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>{totalDocuments} documents · {stats.pending} en validation</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={exportCSV} style={btnOutline}>Exporter CSV</button>
+          <Link to="/upload" style={btnPrimary}>+ Nouveau document</Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-      <main className="lg:col-span-3">
-
-        <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm dark:shadow-none mb-6 border border-gray-200 dark:border-dark-border overflow-hidden">
-          {/* Ligne 1 : Recherche + Statut + Vue */}
-          <div className="flex items-center gap-3 p-4">
-            <div className="flex-1 min-w-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Rechercher par titre ou nom de fichier..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 dark:border-dark-border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text transition-all"
-                />
-              </div>
-            </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-200 dark:border-dark-border rounded-xl focus:ring-2 focus:ring-blue-500 dark:bg-dark-bg dark:text-dark-text"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="draft">Brouillon</option>
-              <option value="pending_validation">En validation</option>
-              <option value="approved">Approuvé</option>
-              <option value="rejected">Rejeté</option>
-            </select>
-            <select
-              value={filterCategory}
-              onChange={e => setFilterCategory(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-200 dark:border-dark-border rounded-xl focus:ring-2 focus:ring-blue-500 dark:bg-dark-bg dark:text-dark-text"
-            >
-              <option value="all">Tous les types</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            <div className="flex gap-1 bg-gray-100 dark:bg-dark-bg rounded-lg p-0.5">
-              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><LayoutGrid size={16} /></button>
-              <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><LayoutList size={16} /></button>
-            </div>
-          </div>
-
-          {/* Ligne 2 : Filtres date + raccourcis */}
-          <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-gray-50/80 dark:bg-dark-bg/50 border-t border-gray-100 dark:border-dark-border">
-            <Calendar size={14} className="text-gray-400 shrink-0" />
-            <span className="text-xs text-gray-400 font-medium mr-1">Période</span>
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={e => setFilterDateFrom(e.target.value)}
-              className="px-2.5 py-1 text-xs border border-gray-200 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-dark-bg dark:text-dark-text"
-              title="Date de début"
-            />
-            <span className="text-gray-300 dark:text-gray-600 text-xs">→</span>
-            <input
-              type="date"
-              value={filterDateTo}
-              min={filterDateFrom || undefined}
-              onChange={e => setFilterDateTo(e.target.value)}
-              className="px-2.5 py-1 text-xs border border-gray-200 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-dark-bg dark:text-dark-text"
-              title="Date de fin"
-            />
-            <div className="flex gap-1 ml-1">
-              <button onClick={() => setQuickPeriod('week')} className="px-2 py-1 text-[11px] font-medium bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border hover:border-blue-400 hover:text-blue-600 dark:text-dark-text-secondary dark:hover:border-blue-500 dark:hover:text-blue-400 rounded-lg transition">Cette sem.</button>
-              <button onClick={() => setQuickPeriod('month')} className="px-2 py-1 text-[11px] font-medium bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border hover:border-blue-400 hover:text-blue-600 dark:text-dark-text-secondary dark:hover:border-blue-500 dark:hover:text-blue-400 rounded-lg transition">Ce mois</button>
-              <button onClick={() => setQuickPeriod('year')} className="px-2 py-1 text-[11px] font-medium bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border hover:border-blue-400 hover:text-blue-600 dark:text-dark-text-secondary dark:hover:border-blue-500 dark:hover:text-blue-400 rounded-lg transition">Cette année</button>
-              {(filterDateFrom || filterDateTo) && (
-                <button onClick={clearDateFilter} className="px-2 py-1 text-[11px] font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700/50 rounded-lg transition flex items-center gap-1"><X size={10} />Effacer</button>
-              )}
-            </div>
-          </div>
+      {/* Barre de filtres (une seule ligne) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {/* Segmented view switcher : Table / Grille */}
+        <div style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', padding: 3, gap: 2 }}>
+          <button onClick={() => setViewMode('list')} style={viewMode === 'list' ? segActive : segIdle}>
+            <LayoutList size={13} /> Table
+          </button>
+          <button onClick={() => setViewMode('grid')} style={viewMode === 'grid' ? segActive : segIdle}>
+            <LayoutGrid size={13} /> Grille
+          </button>
         </div>
-
-        {/* Barre résultats + reset filtres */}
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-            <span className="font-semibold text-gray-700 dark:text-dark-text">{filteredDocuments.length}</span>
-            {' '}document{filteredDocuments.length !== 1 ? 's' : ''} trouvé{filteredDocuments.length !== 1 ? 's' : ''}
-            {documents.length !== filteredDocuments.length && (
-              <span className="ml-1 text-gray-400">sur {documents.length}</span>
-            )}
-          </p>
-          <div className="flex items-center gap-2">
-            {activeFilterCount > 0 && (
-              <button
-                onClick={resetAllFilters}
-                className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 dark:text-red-400 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 px-3 py-1.5 rounded-full transition"
-              >
-                <X size={12} />
-                Effacer les filtres
-                <span className="bg-red-200 dark:bg-red-800 text-red-700 dark:text-red-200 text-[10px] font-bold rounded-full px-1.5 py-0.5 ml-0.5">{activeFilterCount}</span>
-              </button>
-            )}
-            <button
-              onClick={exportCSV}
-              className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 bg-gray-100 hover:bg-blue-50 dark:bg-gray-800 dark:hover:bg-blue-900/20 px-3 py-1.5 rounded-full transition"
-              title="Exporter en CSV"
-            >
-              <Download size={12} />
-              Export CSV
+        {/* Search */}
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            placeholder="Titre, catégorie…"
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            style={{ width: '100%', paddingLeft: 32, paddingRight: 10, height: 34, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+          />
+          {searchInput && (
+            <button onClick={() => setSearchInput('')} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-subtle)' }}>
+              <X size={12} />
             </button>
-          </div>
+          )}
         </div>
-
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4">{error}</div>}
-
-        {/* Barre d'actions en lot */}
-        {selectedIds.length > 0 && (
-          <div className="flex items-center gap-3 mb-3 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg animate-fadeIn">
-            <span className="text-sm font-medium text-blue-800 dark:text-blue-300">{selectedIds.length} sélectionné{selectedIds.length > 1 ? 's' : ''}</span>
-            <div className="flex gap-2 ml-auto">
-              <button onClick={handleBulkArchive} disabled={bulkLoading} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition disabled:opacity-50">
-                <Archive size={13} /> Archiver
-              </button>
-              <button onClick={handleBulkDelete} disabled={bulkLoading} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-50">
-                <Trash2 size={13} /> Supprimer
-              </button>
-              <button onClick={clearSelection} className="px-3 py-1.5 text-xs font-medium bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-gray-700 rounded-lg transition">
-                <X size={13} />
-              </button>
-            </div>
-          </div>
+        {/* Chip statut */}
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
+          <option value="all">Statut : tous</option>
+          <option value="draft">Brouillon</option>
+          <option value="pending_validation">En validation</option>
+          <option value="approved">Approuvé</option>
+          <option value="rejected">Rejeté</option>
+        </select>
+        {/* Chip catégorie */}
+        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={selectStyle}>
+          <option value="all">Type : tous</option>
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        {/* Date from - to (compact) */}
+        <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ ...selectStyle, width: 130 }} />
+        <span style={{ color: 'var(--fg-subtle)', fontSize: 12 }}>→</span>
+        <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ ...selectStyle, width: 130 }} />
+        {activeFilterCount > 0 && (
+          <button onClick={resetAllFilters} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 'var(--radius-full)', background: 'var(--danger-soft)', color: 'var(--danger)', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+            <X size={11} /> Effacer
+          </button>
         )}
+      </div>
 
-        {filteredDocuments.length === 0 ? (
-          <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm border border-gray-200 dark:border-dark-border">
-            <EmptyState
-              icon={FileText}
-              title="Aucun document trouvé"
-              description={activeFilterCount > 0 ? "Aucun document ne correspond à vos filtres. Essayez d'élargir votre recherche." : "Vous n'avez pas encore de documents. Commencez par en uploader un."}
-              action={activeFilterCount > 0
-                ? { label: 'Effacer les filtres', onClick: resetAllFilters }
-                : { label: 'Uploader un document', to: '/upload' }
-              }
-            />
-          </div>
-        ) : (
-          <>
-            {viewMode === 'grid' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {pagedDocuments.map((doc) => (
-                  <div key={doc.id} onClick={() => toggleSelect(doc.id)} className={`group bg-white dark:bg-dark-surface rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 dark:shadow-none border flex flex-col cursor-pointer transition-all duration-200 ${selectedIds.includes(doc.id) ? 'border-blue-500 ring-2 ring-blue-400 dark:ring-blue-600' : 'border-gray-200 dark:border-dark-border'}`}>
-                    <div className="p-4 border-b border-gray-200 dark:border-dark-border">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <input type="checkbox" checked={selectedIds.includes(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={e => e.stopPropagation()} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                          <div className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
-                            <FileText size={20} className="text-blue-600 dark:text-blue-400" />
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); toggleFav(doc.id); }} className="p-1 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition" title={isFav(doc.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}>
-                            <Star size={16} className={isFav(doc.id) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'} />
-                          </button>
-                          <StatusBadge status={doc.status} />
-                        </div>
-                      </div>
-                      <h3 className="font-medium text-gray-900 dark:text-dark-text truncate">{doc.title}</h3>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        {doc.category && <span className="px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">{doc.category}</span>}
-                        {doc.fileSize && <span className="text-[10px] text-gray-400 dark:text-gray-500">{formatSize(doc.fileSize)}</span>}
-                      </div>
-                    </div>
-                    <div className="p-4 space-y-2 flex-grow">
-                      <div className="flex items-center text-sm text-gray-600 dark:text-dark-text-secondary gap-2"><User size={16} /><span>{doc.uploadedBy ? `${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName}` : 'Inconnu'}</span></div>
-                      <div className="flex items-center text-sm text-gray-600 dark:text-dark-text-secondary gap-2"><Calendar size={16} /><span>{formatDate(doc.createdAt)}</span></div>
-                      {doc.originalName && <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate opacity-0 group-hover:opacity-100 transition-opacity">{doc.originalName}</div>}
-                    </div>
-                    {['pending_validation', 'in_progress', 'approved', 'rejected'].includes(doc.status) && (
-                      <div className="p-4 border-t border-gray-200 dark:border-dark-border"><WorkflowProgress workflows={doc.workflows} documentStatus={doc.status} /></div>
-                    )}
-                    <div className="p-4 border-t border-gray-200 dark:border-dark-border flex gap-2">
-                        <button onClick={() => setViewingDocument(doc)} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"><Eye size={16} /><span>Voir</span></button>
-                        <button onClick={() => handleOpenSubmitModal(doc)} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50" title={doc.status !== 'draft' ? "Ce document ne peut plus être soumis" : "Soumettre"} disabled={doc.status !== 'draft'}><Send size={16} /></button>
-                        <button
-                          onClick={() => handleArchive(doc)}
-                          className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition"
-                          title="Archiver"
-                        >
-                          <Archive size={16} />
-                        </button>
-                        <button onClick={() => handleDelete(doc.id)} className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700" title="Supprimer"><Trash2 size={16} /></button>
-                    </div>
-                  </div>
-                ))}
+      {/* Layout 2 colonnes : main (3/4) + sidebar templates (1/4) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20, alignItems: 'start' }}>
+        <div>
+
+          {/* Bulk action bar */}
+          {selectedIds.length > 0 && (
+            <div className="ged-card animate-fadeIn" style={{ padding: '10px 14px', marginBottom: 12, background: 'var(--brand-soft)', borderColor: 'var(--brand-soft-2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: 'var(--brand-fg)', fontWeight: 500 }}>
+                  <b>{selectedIds.length}</b> sélectionné{selectedIds.length > 1 ? 's' : ''}
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={handleBulkArchive} disabled={bulkLoading} style={btnOutline}>Archiver</button>
+                  <button onClick={handleBulkDelete} disabled={bulkLoading} style={btnDanger}>Supprimer</button>
+                  <button onClick={clearSelection} style={btnOutline}><X size={12} /></button>
+                </div>
               </div>
-            )}
-            {viewMode === 'list' && (
-              <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm dark:shadow-none overflow-hidden border border-gray-200 dark:border-dark-border">
-                <table className="min-w-full">
-                  <thead className="bg-gray-50 dark:bg-dark-bg">
-                    <tr>
-                      {[
-                        { key: 'title', label: 'Document' },
-                        { key: 'status', label: 'Statut' },
-                        { key: 'createdAt', label: 'Date' },
-                      ].map(col => (
-                        <th key={col.key} onClick={() => handleSort(col.key)} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 select-none group">
-                          <span className="flex items-center gap-1">
-                            {col.label}
-                            <span className="text-gray-300 dark:text-gray-600 group-hover:text-blue-400 transition-colors">
-                              {sortConfig.key === col.key ? (sortConfig.dir === 'asc' ? '↑' : '↓') : '↕'}
-                            </span>
-                          </span>
-                        </th>
-                      ))}
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase">Actions</th>
-                      <th className="px-3 py-3">
-                        <input type="checkbox" checked={pagedDocuments.length > 0 && selectedIds.length === pagedDocuments.length} onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" title="Tout sélectionner" />
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-dark-border">
-                    {pagedDocuments.map((doc) => (
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div style={{ padding: '10px 14px', marginBottom: 12, background: 'var(--danger-soft)', color: 'var(--danger)', borderRadius: 'var(--radius-3)', fontSize: 13 }}>{error}</div>
+          )}
+
+          {/* TABLE VIEW */}
+          {viewMode === 'list' && totalDocuments > 0 && (
+            <div className="ged-card" style={{ overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--surface-2)' }}>
+                    <th style={thStyle}><input type="checkbox" checked={pagedDocuments.length > 0 && selectedIds.length === pagedDocuments.length} onChange={toggleSelectAll} /></th>
+                    <th style={{ ...thStyle, cursor: 'pointer' }} onClick={() => handleSort('title')}>Document {sortConfig.key === 'title' ? (sortConfig.dir === 'asc' ? '↑' : '↓') : ''}</th>
+                    <th style={thStyle}>Type</th>
+                    <th style={thStyle}>Statut</th>
+                    <th style={thStyle}>Auteur</th>
+                    <th style={{ ...thStyle, cursor: 'pointer' }} onClick={() => handleSort('createdAt')}>Date {sortConfig.key === 'createdAt' ? (sortConfig.dir === 'asc' ? '↑' : '↓') : ''}</th>
+                    <th style={thStyle}>Workflow</th>
+                    <th style={thStyle}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedDocuments.map(doc => {
+                    const st = STATUS_CFG[doc.status] || STATUS_CFG.draft;
+                    const isSelected = selectedIds.includes(doc.id);
+                    const wfApproved = doc.workflows?.filter(w => w.status === 'approved').length ?? 0;
+                    const wfTotal = doc.workflows?.length ?? 0;
+                    const hasWf = ['pending_validation', 'in_progress', 'approved', 'rejected'].includes(doc.status);
+                    return (
                       <React.Fragment key={doc.id}>
-                        <tr className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${selectedIds.includes(doc.id) ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`} onClick={() => toggleSelect(doc.id)}>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center">
-                              <input type="checkbox" checked={selectedIds.includes(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={e => e.stopPropagation()} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer mr-3" />
-                              <button onClick={(e) => { e.stopPropagation(); toggleFav(doc.id); }} className="mr-2 p-0.5" title={isFav(doc.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}>
-                                <Star size={14} className={isFav(doc.id) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400'} />
+                        <tr
+                          style={{ background: isSelected ? 'var(--brand-soft)' : 'var(--surface)', borderBottom: '1px solid var(--surface-3)', cursor: 'pointer', transition: 'background 0.1s' }}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)'; }}
+                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface)'; }}
+                          onClick={() => setViewingDocument(doc)}
+                        >
+                          <td style={tdStyle} onClick={e => e.stopPropagation()}><input type="checkbox" checked={isSelected} onChange={() => toggleSelect(doc.id)} /></td>
+                          <td style={{ ...tdStyle, maxWidth: 300 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <button onClick={e => { e.stopPropagation(); toggleFav(doc.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: isFav(doc.id) ? '#FBBF24' : 'var(--fg-subtle)' }}>
+                                <Star size={13} fill={isFav(doc.id) ? '#FBBF24' : 'none'} />
                               </button>
-                              <FileText className="text-blue-600 mr-3" size={20} />
-                              <div>
-                                <div className="text-sm font-medium text-gray-900 dark:text-dark-text">{doc.title}</div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-gray-500 dark:text-dark-text-secondary">{formatSize(doc.fileSize)}</span>
-                                  {doc.category && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">{doc.category}</span>}
-                                </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
+                                {doc.fileSize ? <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{formatSize(doc.fileSize)}</div> : null}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <StatusBadge status={doc.status} />
+                          <td style={tdStyle}>
+                            {doc.category && <span className="ged-badge ged-badge-neutral" style={{ fontSize: 11 }}>{doc.category}</span>}
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600 dark:text-dark-text-secondary">{formatDate(doc.createdAt)}</td>
-                          <td className="px-6 py-4 text-right text-sm font-medium">
-                            <div className="flex justify-end gap-2">
-                              <button onClick={() => setViewingDocument(doc)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300" title="Visualiser"><Eye size={18} /></button>
-                              <button onClick={() => handleOpenSubmitModal(doc)} className="text-green-600 hover:text-green-900 disabled:opacity-50 dark:text-green-400 dark:hover:text-green-300" title={doc.status !== 'draft' ? "Ce document ne peut plus être soumis" : "Soumettre"} disabled={doc.status !== 'draft'}><Send size={18} /></button>
-                              <button
-                                onClick={() => handleArchive(doc)}
-                                className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition"
-                                title="Archiver"
-                              >
-                                <Archive size={16} />
+                          <td style={tdStyle}>
+                            <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, display: 'inline-block', flexShrink: 0 }} />
+                              {st.label}
+                            </span>
+                          </td>
+                          <td style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)' }}>
+                            {doc.uploadedBy ? `${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName[0]}.` : '—'}
+                          </td>
+                          <td style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)' }}>
+                            {formatDate(doc.createdAt)}
+                          </td>
+                          <td style={tdStyle}>
+                            {hasWf && (
+                              <button onClick={e => toggleWorkflow(doc.id, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-muted)' }}>
+                                {wfApproved}/{wfTotal}
                               </button>
-                              <button onClick={() => handleDelete(doc.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300" title="Supprimer"><Trash2 size={18} /></button>
+                            )}
+                          </td>
+                          <td style={{ ...tdStyle, textAlign: 'right' }}>
+                            <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+                              <button onClick={() => setViewingDocument(doc)} style={iconBtn} title="Voir"><Eye size={14} /></button>
+                              <button onClick={() => handleOpenSubmitModal(doc)} disabled={doc.status !== 'draft'} style={{ ...iconBtn, opacity: doc.status !== 'draft' ? 0.3 : 1 }} title="Soumettre"><Send size={14} /></button>
+                              <button onClick={() => handleArchive(doc)} style={iconBtn} title="Archiver"><Archive size={14} /></button>
+                              <button onClick={() => handleDelete(doc.id)} style={{ ...iconBtn, color: 'var(--danger)' }} title="Supprimer"><Trash2 size={14} /></button>
                             </div>
                           </td>
                         </tr>
-                        {['pending_validation', 'approved', 'rejected'].includes(doc.status) && (
-                          <tr className="bg-gray-50 dark:bg-dark-bg"><td colSpan="4" className="px-6 py-2"><WorkflowProgress workflows={doc.workflows} documentStatus={doc.status} /></td></tr>
+                        {hasWf && expandedWorkflows.has(doc.id) && (
+                          <tr style={{ background: 'var(--surface-2)' }}>
+                            <td colSpan={8} style={{ padding: '12px 18px' }}>
+                              <WorkflowProgress
+                                workflows={doc.workflows}
+                                documentStatus={doc.status}
+                                documentId={doc.id}
+                                submittedBy={doc.userId}
+                                isAdmin={user?.role === 'admin'}
+                                onReassign={user?.role === 'admin' ? handleOpenReassign : null}
+                                onRelanced={() => loadDocuments(currentPage)}
+                                hideDiscussion={doc.status !== 'rejected'}
+                              />
+                            </td>
+                          </tr>
                         )}
                       </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ── Pagination ── */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6">
-            <p className="text-sm text-gray-500 dark:text-dark-text-secondary">
-              Page <span className="font-semibold">{safePage}</span> sur <span className="font-semibold">{totalPages}</span>
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setCurrentPage(1)}
-                disabled={safePage === 1}
-                className="px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >«</button>
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={safePage === 1}
-                className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >‹</button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-                .reduce((acc, p, idx, arr) => {
-                  if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((p, i) =>
-                  p === '…' ? (
-                    <span key={`ellipsis-${i}`} className="px-2 text-gray-400">…</span>
-                  ) : (
-                    <button
-                      key={p}
-                      onClick={() => setCurrentPage(p)}
-                      className={`px-3 py-1.5 text-sm rounded-lg border transition ${
-                        p === safePage
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                    >{p}</button>
-                  )
-                )}
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={safePage === totalPages}
-                className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >›</button>
-              <button
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={safePage === totalPages}
-                className="px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >»</button>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
-        )}
-      </main>
+          )}
 
-      <aside className="lg:col-span-1 self-start">
-        <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm dark:shadow-none border border-gray-200 dark:border-dark-border sticky top-20 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100 dark:border-dark-border flex items-center justify-between">
-              <h3 className="font-semibold text-sm flex items-center gap-2 text-gray-900 dark:text-dark-text"><FilePlus size={16} />Créer un document</h3>
+          {/* GRID VIEW */}
+          {viewMode === 'grid' && totalDocuments > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+              {pagedDocuments.map((doc) => {
+                const st = STATUS_CFG[doc.status] || STATUS_CFG.draft;
+                const isSelected = selectedIds.includes(doc.id);
+                const hasWf = ['pending_validation', 'in_progress', 'approved', 'rejected'].includes(doc.status);
+                const wfApproved = doc.workflows?.filter(w => w.status === 'approved').length ?? 0;
+                const wfTotal = doc.workflows?.length ?? 0;
+                const FILE_TYPES = { 'application/pdf': 'PDF', 'application/msword': 'Word', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word', 'image/jpeg': 'JPEG', 'image/png': 'PNG' };
+                const fileTypeLabel = FILE_TYPES[doc.fileType] || doc.fileType?.split('/')[1]?.toUpperCase() || 'PDF';
+                return (
+                  <div key={doc.id} className="ged-card" style={{ overflow: 'hidden', cursor: 'pointer', borderColor: isSelected ? 'var(--brand)' : 'var(--border)', position: 'relative' }} onClick={() => setViewingDocument(doc)}>
+                    {/* Thumbnail area */}
+                    <div style={{ height: 120, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border)', position: 'relative' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <FileText size={32} color="var(--fg-subtle)" />
+                        <div style={{ fontSize: 10, color: 'var(--fg-subtle)', marginTop: 6, fontWeight: 500 }}>
+                          {fileTypeLabel}{doc.category ? ` · ${doc.category}` : ''}
+                        </div>
+                      </div>
+                      {/* Checkbox overlay */}
+                      <div
+                        onClick={e => { e.stopPropagation(); toggleSelect(doc.id); }}
+                        style={{
+                          position: 'absolute', top: 8, left: 8,
+                          width: 18, height: 18, borderRadius: 4,
+                          border: `2px solid ${isSelected ? 'var(--brand)' : 'rgba(255,255,255,0.5)'}`,
+                          background: isSelected ? 'var(--brand)' : 'rgba(0,0,0,0.3)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', zIndex: 2,
+                        }}
+                      >
+                        {isSelected && <Check size={11} color="#fff" />}
+                      </div>
+                    </div>
+                    <div style={{ padding: '10px 12px' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{doc.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 8 }}>
+                        {doc.category ? `${doc.category} · ` : ''}{formatDate(doc.createdAt)}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.dot, display: 'inline-block' }} />
+                          {st.label}
+                        </span>
+                        <button onClick={e => { e.stopPropagation(); toggleFav(doc.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFav(doc.id) ? '#FBBF24' : 'var(--fg-subtle)', padding: 0 }}>
+                          <Star size={13} fill={isFav(doc.id) ? '#FBBF24' : 'none'} />
+                        </button>
+                      </div>
+                      {hasWf && (
+                        <div style={{ fontSize: 11, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)', marginBottom: 8 }}>Workflow : {wfApproved}/{wfTotal}</div>
+                      )}
+                      {hasWf && expandedWorkflows.has(doc.id) && (
+                        <div style={{ marginBottom: 8 }} onClick={e => e.stopPropagation()}>
+                          <WorkflowProgress
+                            workflows={doc.workflows}
+                            documentStatus={doc.status}
+                            documentId={doc.id}
+                            submittedBy={doc.userId}
+                            isAdmin={user?.role === 'admin'}
+                            onReassign={user?.role === 'admin' ? handleOpenReassign : null}
+                            onRelanced={() => loadDocuments(currentPage)}
+                            hideDiscussion={doc.status !== 'rejected'}
+                          />
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setViewingDocument(doc)} style={{ ...btnSmall, flex: 1 }}>Voir</button>
+                        <button onClick={() => handleOpenSubmitModal(doc)} disabled={doc.status !== 'draft'} style={{ ...iconBtn, opacity: doc.status !== 'draft' ? 0.3 : 1 }}><Send size={13} /></button>
+                        <button onClick={() => handleArchive(doc)} style={iconBtn}><Archive size={13} /></button>
+                        <button onClick={() => handleDelete(doc.id)} style={{ ...iconBtn, color: 'var(--danger)' }}><Trash2 size={13} /></button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {totalDocuments === 0 && !loading && (
+            <div className="ged-card" style={{ padding: 40, textAlign: 'center' }}>
+              <FileText size={32} color="var(--fg-subtle)" style={{ marginBottom: 12 }} />
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>Aucun document trouvé</p>
+              <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
+                {activeFilterCount > 0 ? 'Aucun résultat pour ces filtres.' : 'Commencez par uploader un document.'}
+              </p>
+              {activeFilterCount > 0
+                ? <button onClick={resetAllFilters} style={btnOutline}>Effacer les filtres</button>
+                : <Link to="/upload" style={btnPrimary}>Uploader un document</Link>
+              }
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
+              <span>Page <b style={{ color: 'var(--fg)' }}>{safePage}</b> sur <b style={{ color: 'var(--fg)' }}>{totalPages}</b> · {totalDocuments} documents</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => setCurrentPage(1)} disabled={safePage === 1} style={pageBtn}>«</button>
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1} style={pageBtn}>‹</button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                  .reduce((acc, p, idx, arr) => { if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…'); acc.push(p); return acc; }, [])
+                  .map((p, i) => p === '…'
+                    ? <span key={`e-${i}`} style={{ ...pageBtn, cursor: 'default', border: 'none' }}>…</span>
+                    : <button key={p} onClick={() => setCurrentPage(p)} style={{ ...pageBtn, background: p === safePage ? 'var(--brand)' : 'var(--surface)', color: p === safePage ? '#fff' : 'var(--fg-muted)', borderColor: p === safePage ? 'var(--brand)' : 'var(--border)' }}>{p}</button>
+                  )}
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} style={pageBtn}>›</button>
+                <button onClick={() => setCurrentPage(totalPages)} disabled={safePage === totalPages} style={pageBtn}>»</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* SIDEBAR — Templates */}
+        <div className="ged-card" style={{ padding: 0, overflow: 'hidden', position: 'sticky', top: 72 }}>
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <FilePlus size={14} color="var(--brand)" /> Nouveau document
+              </h3>
               {user?.role === 'admin' && (
-                <button
-                  onClick={() => setShowPermissionsModal(true)}
-                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
-                  title="Gérer les permissions"
-                >
-                  <Settings size={14} />
+                <button onClick={() => setShowPermissionsModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4 }} title="Gérer les permissions">
+                  <Settings size={13} />
                 </button>
               )}
             </div>
-            <ul className="p-2 space-y-0.5 max-h-[calc(100vh-160px)] overflow-y-auto">
-                {sidebarTemplates
-                  .filter(t => t.hasAccess)
-                  .map(t => {
-                    const name = t.templateName;
-                    const icon = TEMPLATE_ICONS[name] || '📄';
-                    // Cas spécial : "Demande de travaux" pointe vers /create-work-request
-                    if (name === 'Demande de travaux') {
-                      return (
-                        <li key={name}>
-                          <Link to="/create-work-request" className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition">
-                            {icon} {name}
-                          </Link>
-                        </li>
-                      );
-                    }
-                    // Template restreint → style spécial (visible car l'utilisateur y a accès)
-                    if (t.isRestricted) {
-                      return (
-                        <li key={name}>
-                          <Link to="/create-from-template" state={{ templateName: name }}
-                            className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-purple-700 dark:text-purple-400 bg-purple-50/50 dark:bg-purple-900/10 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-xl transition border border-purple-200/50 dark:border-purple-700/30">
-                            {icon} {name}
-                          </Link>
-                        </li>
-                      );
-                    }
-                    // Template normal
-                    return (
-                      <li key={name}>
-                        <Link to="/create-from-template" state={{ templateName: name }}
-                          className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 dark:text-dark-text hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition">
-                          {icon} {name}
-                        </Link>
-                      </li>
-                    );
-                  })}
-            </ul>
+            <div style={{ position: 'relative' }}>
+              <Search size={12} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Rechercher un modèle…"
+                value={searchValidatorTerm}
+                onChange={e => setSearchValidatorTerm(e.target.value)}
+                style={{ width: '100%', paddingLeft: 28, height: 32, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+          <ul style={{ listStyle: 'none', margin: 0, padding: '6px 8px', maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+            {sidebarTemplates
+              .filter(t => t.hasAccess && (!searchValidatorTerm || t.templateName.toLowerCase().includes(searchValidatorTerm.toLowerCase())))
+              .map(t => {
+                const name = t.templateName;
+                const icon = TEMPLATE_ICONS[name] || '📄';
+                const itemStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 'var(--radius-2)', cursor: 'pointer', textDecoration: 'none', fontSize: 12.5, color: 'var(--fg)', width: '100%', border: 'none', background: 'none', textAlign: 'left' };
+                if (name === 'Demande de travaux') return (
+                  <li key={name}>
+                    <Link to="/create-work-request" style={{ ...itemStyle, color: 'var(--brand)', fontWeight: 500 }} onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                      <span>{icon}</span><span>{name}</span>
+                    </Link>
+                  </li>
+                );
+                if (t.isRestricted) return (
+                  <li key={name}>
+                    <Link to="/create-from-template" state={{ templateName: name }} style={{ ...itemStyle, color: 'var(--brand)', fontWeight: 500 }} onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                      <span>{icon}</span>
+                      <span style={{ flex: 1 }}>{name}</span>
+                      <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: 'var(--brand-soft)', color: 'var(--brand)', fontWeight: 700, letterSpacing: '0.5px' }}>PRO</span>
+                    </Link>
+                  </li>
+                );
+                return (
+                  <li key={name}>
+                    <Link to="/create-from-template" state={{ templateName: name }} style={itemStyle} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                      <span>{icon}</span><span>{name}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            {sidebarTemplates.filter(t => t.hasAccess).length === 0 && (
+              <li style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: 'var(--fg-muted)' }}>Aucun modèle disponible</li>
+            )}
+          </ul>
         </div>
-      </aside>
       </div>
 
-      {showSubmitModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-dark-surface rounded-lg shadow-xl dark:shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b border-gray-200 dark:border-dark-border flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text">Soumettre au workflow</h2>
-                <button onClick={handleCloseSubmitModal} className="text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100"><X size={24} /></button>
+      {/* Submit Workflow Modal */}
+      {showSubmitModal && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 9000 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', maxWidth: 640, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Soumettre au workflow</h2>
+              <button onClick={handleCloseSubmitModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)' }}><X size={24} /></button>
             </div>
-            <div className="p-6 space-y-6 overflow-y-auto">
-                <p className="text-sm text-gray-700 dark:text-dark-text">Document : <span className="font-medium">{documentToSubmit?.title}</span></p>
+            <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>Document : <span style={{ fontWeight: 500 }}>{documentToSubmit?.title}</span></p>
+              {/* Modeles de workflow predéfinis */}
+              {workflowTemplates.length > 0 && (
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-3">Sélectionnez les validateurs (dans l'ordre)</label>
-                    {loadingUsers ? <div className="flex justify-center py-8"><Loader className="animate-spin text-blue-600" /></div> : availableUsers.length === 0 && !searchValidatorTerm ? <div className="text-center py-8 bg-gray-50 dark:bg-dark-bg rounded-lg"><AlertCircle className="mx-auto text-gray-400 mb-2" size={32} /><p className='text-gray-700 dark:text-dark-text'>Aucun validateur disponible</p></div> : 
-                    <>
-                      <div className="relative mb-3">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                          <input
-                              type="text"
-                              placeholder="Rechercher par nom, rôle ou email..."
-                              value={searchValidatorTerm}
-                              onChange={(e) => setSearchValidatorTerm(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                          />
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 }}>Utiliser un modele</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {workflowTemplates.map(tpl => (
+                      <button
+                        key={tpl.id}
+                        onClick={() => applyWorkflowTemplate(tpl)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', fontSize: 12, fontWeight: 500, background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand-soft)', borderRadius: 'var(--radius-2)', cursor: 'pointer' }}
+                        title={tpl.description || ''}
+                      >
+                        <LayoutGrid size={14} />
+                        {tpl.name}
+                        <span style={{ color: 'var(--fg-muted)' }}>({(tpl.validators || []).length})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>Sélectionnez les validateurs (dans l'ordre)</label>
+                {loadingUsers
+                  ? <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}><Loader className="animate-spin" style={{ color: 'var(--brand)' }} /></div>
+                  : availableUsers.length === 0 && !searchValidatorTerm
+                    ? <div style={{ textAlign: 'center', padding: '24px 0', background: 'var(--surface-2)', borderRadius: 'var(--radius-3)' }}>
+                        <AlertCircle style={{ margin: '0 auto 8px', color: 'var(--fg-subtle)' }} size={32} />
+                        <p style={{ color: 'var(--fg)', fontSize: 13, margin: 0 }}>Aucun validateur disponible</p>
                       </div>
-                      
-                      <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-200 dark:border-dark-border rounded-lg p-3">
-                          {filteredAvailableUsers.length > 0 ? (
-                              filteredAvailableUsers.map((user) => (
-                                  <div 
-                                      key={user.id} 
-                                      onClick={() => addValidator(user.id)} 
-                                      className={`p-3 rounded-lg cursor-pointer flex items-center justify-between transition-colors ${selectedValidators.includes(user.id) ? 'bg-blue-100 border-2 border-blue-500 dark:bg-blue-900/30' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 dark:bg-dark-bg dark:hover:bg-gray-700 dark:border-dark-border'}`}
-                                  >
-                                      <div className="flex items-center text-gray-900 dark:text-dark-text">
-                                          <User size={20} className="mr-3" />
-                                          <div>
-                                              <div className="font-medium">{user.firstName} {user.lastName}</div>
-                                              <div className="text-xs text-gray-500 dark:text-dark-text-secondary">{user.role}</div>
-                                          </div>
-                                      </div>
-                                      {selectedValidators.includes(user.id) && <Check size={20} className="text-blue-600" />}
-                                  </div>
-                              ))
-                          ) : (
-                              <div className="text-center py-4 text-gray-500 dark:text-dark-text-secondary">
-                                  {searchValidatorTerm 
-                                      ? "Aucun validateur trouvé pour cette recherche." 
-                                      : "Aucun validateur disponible."}
+                    : <>
+                      <div style={{ position: 'relative', marginBottom: 10 }}>
+                        <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} size={16} />
+                        <input
+                          type="text"
+                          placeholder="Rechercher par nom, rôle ou email..."
+                          value={searchValidatorTerm}
+                          onChange={(e) => setSearchValidatorTerm(e.target.value)}
+                          style={{ width: '100%', paddingLeft: 34, paddingRight: 12, height: 36, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', padding: 10 }}>
+                        {filteredAvailableUsers.length > 0
+                          ? filteredAvailableUsers.map((u) => (
+                            <div
+                              key={u.id}
+                              onClick={() => addValidator(u.id)}
+                              style={{ padding: 10, borderRadius: 'var(--radius-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: selectedValidators.includes(u.id) ? 'var(--brand-soft)' : 'var(--surface-2)', border: selectedValidators.includes(u.id) ? '2px solid var(--brand)' : '1px solid var(--border)' }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fg)' }}>
+                                <User size={18} />
+                                <div>
+                                  <div style={{ fontWeight: 500, fontSize: 13 }}>{u.firstName} {u.lastName}</div>
+                                  <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{u.role}</div>
+                                </div>
                               </div>
-                          )}
-                      </div>
-                    </>}
-                </div>
-                {selectedValidators.length > 0 && <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-3">Ordre de validation</label>
-                    <div className="space-y-2">
-                        <div className="text-sm text-gray-600 dark:text-dark-text-secondary mb-2">Le premier validateur est celui qui doit agir en premier.</div>
-                        {selectedValidators.map((userId, index) => (
-                        <div key={userId} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-700">
-                            <div className="flex items-center text-gray-900 dark:text-dark-text"><span className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold mr-3">{index + 1}</span><div><div className="font-medium">{getUserNameById(userId)}</div></div></div>
-                            <div className="flex gap-2">
-                            <button onClick={() => moveValidator(index, 'up')} disabled={index === 0} className="p-1 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded disabled:opacity-30">↑</button>
-                            <button onClick={() => moveValidator(index, 'down')} disabled={index === selectedValidators.length - 1} className="p-1 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded disabled:opacity-30">↓</button>
-                            <button onClick={() => removeValidator(userId)} className="p-1 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded"><X size={16} /></button>
+                              {selectedValidators.includes(u.id) && <Check size={18} style={{ color: 'var(--brand)' }} />}
                             </div>
-                        </div>
-                        ))}
-                    </div>
-                </div>}
+                          ))
+                          : <div style={{ textAlign: 'center', padding: '12px 0', color: 'var(--fg-muted)', fontSize: 13 }}>
+                              {searchValidatorTerm ? "Aucun validateur trouvé pour cette recherche." : "Aucun validateur disponible."}
+                            </div>
+                        }
+                      </div>
+                    </>
+                }
+              </div>
+              {selectedValidators.length > 0 && (
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">Commentaire (optionnel)</label>
-                    <textarea value={submitComment} onChange={(e) => setSubmitComment(e.target.value)} rows="3" placeholder="Ajoutez un message..." className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-dark-bg dark:text-dark-text dark:border-dark-border" />
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>Ordre de validation</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 4 }}>Le premier validateur est celui qui doit agir en premier.</div>
+                    {selectedValidators.map((userId, index) => (
+                      <div key={userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, background: 'var(--brand-soft)', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fg)' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontWeight: 700, fontSize: 13 }}>{index + 1}</span>
+                          <div style={{ fontWeight: 500, fontSize: 13 }}>{getUserNameById(userId)}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button onClick={() => moveValidator(index, 'up')} disabled={index === 0} style={{ padding: '2px 6px', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-2)', opacity: index === 0 ? 0.3 : 1 }}>↑</button>
+                          <button onClick={() => moveValidator(index, 'down')} disabled={index === selectedValidators.length - 1} style={{ padding: '2px 6px', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-2)', opacity: index === selectedValidators.length - 1 ? 0.3 : 1 }}>↓</button>
+                          <button onClick={() => removeValidator(userId)} style={{ padding: '2px 6px', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-2)' }}><X size={14} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              )}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 }}>Commentaire (optionnel)</label>
+                <textarea
+                  value={submitComment}
+                  onChange={(e) => setSubmitComment(e.target.value)}
+                  rows={3}
+                  placeholder="Ajoutez un message..."
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
             </div>
-            <div className="p-6 border-t border-gray-200 dark:border-dark-border flex justify-end gap-3">
-              <button onClick={handleCloseSubmitModal} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600" disabled={submitLoading}>Annuler</button>
-              <button onClick={handleSubmitWorkflow} disabled={selectedValidators.length === 0 || submitLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600">
-                {submitLoading ? <><Loader className="animate-spin w-4 h-4 mr-2" />Soumission...</> : <><Send size={16} />Soumettre</>}
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={handleCloseSubmitModal} disabled={submitLoading} style={{ padding: '7px 16px', background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+              <button onClick={handleSubmitWorkflow} disabled={selectedValidators.length === 0 || submitLoading} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: (selectedValidators.length === 0 || submitLoading) ? 0.5 : 1 }}>
+                {submitLoading ? <><Loader className="animate-spin" size={14} />Soumission...</> : <><Send size={14} />Soumettre</>}
               </button>
             </div>
           </div>
-        </div>
-      )}
-      
-      {viewingDocument && (
-        <DocumentViewer
-          document={viewingDocument}
-          onClose={() => setViewingDocument(null)}
-        />
+        </div>,
+        document.body
       )}
 
       {ConfirmModalRenderer}
+
+      {viewingDocument && (
+        <DocumentViewer
+          document={viewingDocument}
+          onClose={closeViewer}
+          onSelectDocument={setViewingDocument}
+          documents={sortedDocuments}
+          showActions={false}
+        />
+      )}
+
+      {/* Modal réaffectation workflow */}
+      {reassignTask && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 9000 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', maxWidth: 440, width: '100%' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Réaffecter la tâche</h2>
+                <p style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 2 }}>
+                  Actuellement : <span style={{ fontWeight: 500 }}>{reassignTask.validator?.firstName} {reassignTask.validator?.lastName}</span>
+                </p>
+              </div>
+              <button onClick={() => setReassignTask(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <div style={{ position: 'relative', marginBottom: 10 }}>
+                <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} size={14} />
+                <input
+                  type="text"
+                  value={reassignSearch}
+                  onChange={e => setReassignSearch(e.target.value)}
+                  placeholder="Rechercher un validateur..."
+                  style={{ width: '100%', paddingLeft: 30, paddingRight: 10, height: 34, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ maxHeight: 240, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)' }}>
+                {reassignValidators
+                  .filter(u => {
+                    const t = reassignSearch.toLowerCase();
+                    return !t || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(t);
+                  })
+                  .map(u => (
+                    <button
+                      key={u.id}
+                      onClick={() => handleConfirmReassign(u.id)}
+                      disabled={reassignLoading || u.id === reassignTask.validatorId}
+                      style={{ width: '100%', textAlign: 'left', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: u.id === reassignTask.validatorId ? 'default' : 'pointer', opacity: (reassignLoading || u.id === reassignTask.validatorId) ? 0.4 : 1 }}
+                      onMouseEnter={e => { if (u.id !== reassignTask.validatorId) e.currentTarget.style.background = 'var(--brand-soft)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                    >
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)', margin: 0 }}>{u.firstName} {u.lastName}</p>
+                        <p style={{ fontSize: 11, color: 'var(--fg-muted)', margin: 0 }}>{u.role}</p>
+                      </div>
+                      {u.id === reassignTask.validatorId && (
+                        <span style={{ fontSize: 11, color: 'var(--brand)' }}>Actuel</span>
+                      )}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <TemplatePermissionsModal
         isOpen={showPermissionsModal}

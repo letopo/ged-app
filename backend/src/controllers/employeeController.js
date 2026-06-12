@@ -387,7 +387,10 @@ export const exportEmployeesToCSV = async (req, res, next) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=employes_${new Date().toISOString().split('T')[0]}.csv`);
 
-    res.send(csv);
+    // BOM UTF-8 : indispensable pour qu'Excel (Windows) reconnaisse l'UTF-8.
+    // Sans lui, Excel décode en Windows-1252/CP850 → accents en mojibake, puis
+    // corruption gravée si l'utilisateur ré-enregistre et ré-importe.
+    res.send('﻿' + csv);
   } catch (error) {
     next(error);
   }
@@ -406,7 +409,9 @@ export const importEmployeesFromCSV = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Aucun fichier CSV fourni' });
     }
 
-    const csvBuffer = req.file.buffer.toString('utf-8');
+    // Retire un éventuel BOM UTF-8 en tête (ajouté par Excel) qui corromprait
+    // le premier en-tête de colonne (« Matricule » deviendrait « ﻿Matricule »).
+    const csvBuffer = req.file.buffer.toString('utf-8').replace(/^﻿/, '');
     const lines = csvBuffer.split('\n').filter(line => line.trim());
     
     if (lines.length < 2) {

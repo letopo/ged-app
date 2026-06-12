@@ -1,4 +1,4 @@
-﻿// frontend/src/App.jsx - VERSION AVEC TOUS LES RÔLES
+// frontend/src/App.jsx - VERSION AVEC TOUS LES RÔLES
 
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 // Electron charge via file:// → HashRouter requis. Navigateur → BrowserRouter.
@@ -7,7 +7,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuth } from './contexts/AuthContext';
 import useNotifications from './hooks/useNotifications';
 
-import Navbar from './components/Navbar';
+import AppShell from './components/AppShell';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
@@ -36,30 +36,42 @@ import Settings from './pages/Settings';
 import InvoiceDashboard from './pages/InvoiceDashboard';
 import DemandeAchatDashboard from './pages/DemandeAchatDashboard';
 import ArchivesPage from './pages/ArchivesPage';
+import AuditLogPage from './pages/AuditLogPage';
+import StatistiquesPage from './pages/StatistiquesPage';
+import WorkflowTemplatesPage from './pages/WorkflowTemplatesPage';
+import VerifyDocument from './pages/VerifyDocument';
 import GMAOPage from './pages/GMAOPage';
+// ── MODULE FORM BUILDER ────────────────────────────────────────────────────────
+import FormsListPage  from './pages/FormBuilder/index.jsx';
+import FormDesigner   from './pages/FormBuilder/FormDesigner.jsx';
+import FormFill       from './pages/FormBuilder/FormFill.jsx';
+import FormResponses  from './pages/FormBuilder/FormResponses.jsx';
 // ── MODULE PHP ─────────────────────────────────────────────────────────────────
 import PHPModule from './pages/PHPModule';
 import PHPPatients from './pages/PHPPatients';
 import PHPStatistiques from './pages/PHPStatistiques';
 import PHPConsultations from './pages/PHPConsultations';
 import PHPReposHospit from './pages/PHPReposHospit';
-
-
+import OfflineBanner from './components/OfflineBanner';
+import SessionWarning from './components/SessionWarning';
+import useSessionTimeout from './hooks/useSessionTimeout';
+import { SyncProvider } from './contexts/SyncContext';
 
 // ✅ NOUVEAUX DASHBOARDS
 import PortailDashboard from './pages/PortailDashboard';
-// import AccueilDashboard from './pages/AccueilDashboard'; // À créer
-// import CaisseDashboard from './pages/CaisseDashboard'; // À créer
 
 const RouteLoader = () => (
-  <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 gap-4">
-    <div className="relative">
-      <div className="w-12 h-12 rounded-full border-4 border-blue-100 dark:border-blue-900" />
-      <div className="w-12 h-12 rounded-full border-4 border-t-blue-600 dark:border-t-blue-400 animate-spin absolute inset-0" />
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)', gap: 16 }}>
+    <div style={{ position: 'relative', width: 40, height: 40 }}>
+      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid var(--brand-soft)' }} />
+      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid transparent', borderTopColor: 'var(--brand)', animation: 'spin 0.7s linear infinite' }} />
     </div>
-    <p className="text-sm text-gray-400 dark:text-gray-500 font-medium tracking-wide">Chargement…</p>
+    <p style={{ fontSize: 13, color: 'var(--fg-muted)', fontWeight: 500 }}>Chargement…</p>
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
   </div>
 );
+
+/* ── Route guards ─────────────────────────────────────────────── */
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -78,12 +90,10 @@ const RHOrAdminRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  
-  const isRHOrAdmin = user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com';
-  return isRHOrAdmin ? children : <Navigate to="/dashboard" replace />;
+  return (user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com')
+    ? children : <Navigate to="/dashboard" replace />;
 };
 
-// ✅ Route GMAO (Cellule Biomedicale + Pharma + Admin)
 const GMAO_EMAILS = [
   'hsjm.cellulebiomedicale@gmail.com',
   'hsjm.pharma@gmail.com',
@@ -93,55 +103,45 @@ const GMAORoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  const canAccess = user?.role === 'admin' || GMAO_EMAILS.includes(user?.email);
-  return canAccess ? children : <Navigate to="/dashboard" replace />;
+  return (user?.role === 'admin' || GMAO_EMAILS.includes(user?.email))
+    ? children : <Navigate to="/dashboard" replace />;
 };
 
-// ✅ NOUVEAU : Route pour le Portail (Gardien)
 const PortailRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  
-  const canAccess = user?.role === 'admin' || user?.role === 'gardien';
-  return canAccess ? children : <Navigate to="/dashboard" replace />;
+  return (user?.role === 'admin' || user?.role === 'gardien')
+    ? children : <Navigate to="/dashboard" replace />;
 };
 
-// ✅ Route pour le Module PHP (Agent accueil PHP + Admin)
 const PHPRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  const canAccess = user?.role === 'admin' || user?.role === 'agent_accueil_php';
-  return canAccess ? children : <Navigate to="/dashboard" replace />;
+  return (user?.role === 'admin' || user?.role === 'agent_accueil_php')
+    ? children : <Navigate to="/dashboard" replace />;
 };
 
-// ✅ NOUVEAU : Route pour l'Accueil (Agents d'accueil)
 const AccueilRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  
-  const canAccess = 
-    user?.role === 'admin' || 
-    user?.role === 'agent_accueil_php' || 
-    user?.role === 'agent_accueil_normal';
-  return canAccess ? children : <Navigate to="/dashboard" replace />;
+  return (user?.role === 'admin' || ['agent_accueil_php', 'agent_accueil_normal'].includes(user?.role))
+    ? children : <Navigate to="/dashboard" replace />;
 };
 
-// ✅ NOUVEAU : Route pour la Caisse (Caissier)
 const CaisseRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  
-  const canAccess = user?.role === 'admin' || user?.role === 'caissier';
-  return canAccess ? children : <Navigate to="/dashboard" replace />;
+  return (user?.role === 'admin' || user?.role === 'caissier')
+    ? children : <Navigate to="/dashboard" replace />;
 };
 
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 
-// Wrapper qui déclenche animate-fadeIn à chaque changement de route
+// Wrapper animation par route
 const PageWrapper = ({ children }) => {
   const location = useLocation();
   useKeyboardShortcuts();
@@ -155,8 +155,10 @@ const PageWrapper = ({ children }) => {
 function App() {
   const { user, login, logout, isAuthenticated } = useAuth();
   useNotifications();
+  const { showWarning, remainingSeconds, extendSession, handleLogout } = useSessionTimeout(isAuthenticated, logout);
 
   return (
+    <SyncProvider isAuthenticated={isAuthenticated}>
     <Router>
       <Toaster
         position="top-right"
@@ -164,86 +166,108 @@ function App() {
         toastOptions={{
           duration: 4000,
           style: {
-            borderRadius: '16px',
-            fontFamily: 'inherit',
+            borderRadius: '10px',
+            fontFamily: 'var(--font-sans)',
             fontSize: '13px',
             padding: '12px 16px',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-            background: '#fff',
-            color: '#1f2937',
+            boxShadow: 'var(--shadow-3)',
+            background: 'var(--surface)',
+            color: 'var(--fg)',
             maxWidth: '380px',
           },
           success: {
-            iconTheme: { primary: '#16a34a', secondary: '#fff' },
-            style: { borderLeft: '4px solid #16a34a' },
+            iconTheme: { primary: 'var(--success)', secondary: '#fff' },
+            style: { borderLeft: '3px solid var(--success)' },
           },
           error: {
-            iconTheme: { primary: '#dc2626', secondary: '#fff' },
-            style: { borderLeft: '4px solid #dc2626' },
+            iconTheme: { primary: 'var(--danger)', secondary: '#fff' },
+            style: { borderLeft: '3px solid var(--danger)' },
             duration: 5000,
           },
         }}
       />
-      {isAuthenticated && <Navbar user={user} onLogout={logout} />}
 
       {/* Afficher debug seulement en développement */}
       {isAuthenticated && import.meta.env.DEV && <NotificationDebug />}
+      <OfflineBanner />
+      {showWarning && (
+        <SessionWarning
+          remainingSeconds={remainingSeconds}
+          onExtend={extendSession}
+          onLogout={handleLogout}
+        />
+      )}
 
-      <PageWrapper>
       <Routes>
-        <Route path="/login" element={<Login onLogin={login} />} />
-        <Route path="/register" element={<Register />} />
-        
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        {/* ── Routes publiques ──────────────────────────────── */}
+        <Route path="/login"         element={<Login onLogin={login} />} />
+        <Route path="/register"      element={<Register />} />
+        <Route path="/verify/:hash"  element={<VerifyDocument />} />
+        <Route path="/display"       element={<PublicDisplay />} />
 
-        <Route path="/documents" element={<ProtectedRoute><DocumentList /></ProtectedRoute>} />
-        <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
-        
-        <Route path="/parametres/notifications" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
-        
-        <Route path="/my-tasks" element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
-        <Route path="/workflow-dashboard" element={<ProtectedRoute><WorkflowDashboard /></ProtectedRoute>} />
-        <Route path="/user-management" element={<AdminRoute><UserManagement /></AdminRoute>} />
-        
-        <Route path="/create-from-template" element={<ProtectedRoute><CreateFromTemplate /></ProtectedRoute>} />
-        <Route path="/create-work-request" element={<ProtectedRoute><CreateWorkRequest /></ProtectedRoute>} />
-        <Route path="/demandes-achat" element={<ProtectedRoute><DemandeAchatDashboard /></ProtectedRoute>} />
-        
-        <Route path="/employees" element={<RHOrAdminRoute><EmployeeManagement /></RHOrAdminRoute>} />
-        <Route path="/services" element={<AdminRoute><ServicesManagement /></AdminRoute>} />
-        <Route path="/accueil" element={<AccueilRoute><AccueilDashboard /></AccueilRoute>} />
+        {/* ── Form Designer (plein écran, hors AppShell) ───── */}
+        <Route path="/forms/:id/designer" element={
+          <ProtectedRoute>
+            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <FormDesigner />
+            </div>
+          </ProtectedRoute>
+        } />
 
-        
-        {/* ✅ NOUVELLES ROUTES SYSTÈME DE FILES D'ATTENTE */}
-        <Route path="/portail" element={<PortailRoute><PortailDashboard /></PortailRoute>} />
-        {/* <Route path="/accueil" element={<AccueilRoute><AccueilDashboard /></AccueilRoute>} /> */}
-        {/* <Route path="/caisse" element={<CaisseRoute><CaisseDashboard /></CaisseRoute>} /> */}
-        
-        <Route path="/caisse" element={<CaisseRoute><CaisseDashboard /></CaisseRoute>} />
-        <Route path="/display" element={<PublicDisplay />} />
-        <Route path="/schedules" element={<SchedulesList />} />
-        <Route path="/schedules/create" element={<ScheduleCreate />} />
-        <Route path="/schedules/:id/edit" element={<ScheduleEdit />} />
-        <Route path="/schedules/:id/validate" element={<ScheduleValidate />} />
-        <Route path="/schedules/:id" element={<ScheduleValidate />} /> {/* Vue détaillée = validation */}
-        <Route path="/schedules/:id/view" element={<ScheduleDetail />} />
-        <Route path="/kanban/:serviceType" element={<ProtectedRoute><TrelloBoard /></ProtectedRoute>} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/invoices" element={<ProtectedRoute><InvoiceDashboard /></ProtectedRoute>} />
-        <Route path="/archives" element={<ProtectedRoute><ArchivesPage /></ProtectedRoute>} />
-        <Route path="/gmao" element={<GMAORoute><GMAOPage /></GMAORoute>} />
+        {/* ── Form Fill (remplissage) ───────────────────────── */}
+        <Route path="/forms/:id/fill" element={<ProtectedRoute><FormFill /></ProtectedRoute>} />
 
-        {/* ── MODULE PHP ───────────────────────────────────────────────────── */}
-        <Route path="/php" element={<PHPRoute><PHPModule /></PHPRoute>} />
-        <Route path="/php/patients" element={<PHPRoute><PHPPatients /></PHPRoute>} />
-        <Route path="/php/consultations" element={<PHPRoute><PHPConsultations /></PHPRoute>} />
-        <Route path="/php/statistiques" element={<PHPRoute><PHPStatistiques /></PHPRoute>} />
-        <Route path="/php/repos" element={<PHPRoute><PHPReposHospit /></PHPRoute>} />
+        {/* ── Routes protégées (dans AppShell) ─────────────── */}
+        <Route element={<ProtectedRoute><AppShell onLogout={logout} /></ProtectedRoute>}>
+          <Route path="/dashboard"            element={<PageWrapper><Dashboard /></PageWrapper>} />
+          <Route path="/documents"            element={<PageWrapper><DocumentList /></PageWrapper>} />
+          <Route path="/documents/:id"        element={<PageWrapper><DocumentList /></PageWrapper>} />
+          <Route path="/upload"               element={<PageWrapper><Upload /></PageWrapper>} />
+          <Route path="/archives"             element={<PageWrapper><ArchivesPage /></PageWrapper>} />
+          <Route path="/my-tasks"             element={<PageWrapper><MyTasks /></PageWrapper>} />
+          <Route path="/workflow-dashboard"   element={<PageWrapper><WorkflowDashboard /></PageWrapper>} />
+          <Route path="/create-from-template" element={<PageWrapper><CreateFromTemplate /></PageWrapper>} />
+          <Route path="/create-work-request"  element={<PageWrapper><CreateWorkRequest /></PageWrapper>} />
+          <Route path="/demandes-achat"       element={<PageWrapper><DemandeAchatDashboard /></PageWrapper>} />
+          <Route path="/invoices"             element={<PageWrapper><InvoiceDashboard /></PageWrapper>} />
+          <Route path="/kanban/:serviceType"  element={<PageWrapper><TrelloBoard /></PageWrapper>} />
+          <Route path="/settings"             element={<PageWrapper><Settings /></PageWrapper>} />
+          <Route path="/parametres/notifications" element={<PageWrapper><NotificationSettings /></PageWrapper>} />
+
+          <Route path="/schedules"              element={<PageWrapper><SchedulesList /></PageWrapper>} />
+          <Route path="/schedules/create"       element={<PageWrapper><ScheduleCreate /></PageWrapper>} />
+          <Route path="/schedules/:id/edit"     element={<PageWrapper><ScheduleEdit /></PageWrapper>} />
+          <Route path="/schedules/:id/validate" element={<PageWrapper><ScheduleValidate /></PageWrapper>} />
+          <Route path="/schedules/:id"          element={<PageWrapper><ScheduleValidate /></PageWrapper>} />
+          <Route path="/schedules/:id/view"     element={<PageWrapper><ScheduleDetail /></PageWrapper>} />
+
+          {/* Routes avec permission spéciale */}
+          <Route path="/user-management" element={<AdminRoute><PageWrapper><UserManagement /></PageWrapper></AdminRoute>} />
+          <Route path="/services"        element={<AdminRoute><PageWrapper><ServicesManagement /></PageWrapper></AdminRoute>} />
+          <Route path="/audit-log"       element={<AdminRoute><PageWrapper><AuditLogPage /></PageWrapper></AdminRoute>} />
+          <Route path="/statistiques"    element={<AdminRoute><PageWrapper><StatistiquesPage /></PageWrapper></AdminRoute>} />
+          <Route path="/workflow-templates" element={<AdminRoute><PageWrapper><WorkflowTemplatesPage /></PageWrapper></AdminRoute>} />
+          <Route path="/employees"       element={<RHOrAdminRoute><PageWrapper><EmployeeManagement /></PageWrapper></RHOrAdminRoute>} />
+          <Route path="/gmao"            element={<GMAORoute><PageWrapper><GMAOPage /></PageWrapper></GMAORoute>} />
+          {/* ── Form Builder ── */}
+          <Route path="/forms"                element={<PageWrapper><FormsListPage /></PageWrapper>} />
+          <Route path="/forms/:id/responses"  element={<PageWrapper><FormResponses /></PageWrapper>} />
+          <Route path="/portail"         element={<PortailRoute><PageWrapper><PortailDashboard /></PageWrapper></PortailRoute>} />
+          <Route path="/accueil"         element={<AccueilRoute><PageWrapper><AccueilDashboard /></PageWrapper></AccueilRoute>} />
+          <Route path="/caisse"          element={<CaisseRoute><PageWrapper><CaisseDashboard /></PageWrapper></CaisseRoute>} />
+
+          {/* Module PHP */}
+          <Route path="/php"               element={<PHPRoute><PageWrapper><PHPModule /></PageWrapper></PHPRoute>} />
+          <Route path="/php/patients"      element={<PHPRoute><PageWrapper><PHPPatients /></PageWrapper></PHPRoute>} />
+          <Route path="/php/consultations" element={<PHPRoute><PageWrapper><PHPConsultations /></PageWrapper></PHPRoute>} />
+          <Route path="/php/statistiques"  element={<PHPRoute><PageWrapper><PHPStatistiques /></PageWrapper></PHPRoute>} />
+          <Route path="/php/repos"         element={<PHPRoute><PageWrapper><PHPReposHospit /></PageWrapper></PHPRoute>} />
+        </Route>
 
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
       </Routes>
-      </PageWrapper>
     </Router>
+    </SyncProvider>
   );
 }
 

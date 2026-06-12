@@ -13,7 +13,7 @@ const generateToken = (user) => {
 
 export const register = async (req, res, next) => {
   try {
-    const { email, password, firstName, lastName, username, role } = req.body;
+    const { email, password, firstName, lastName, username } = req.body;
 
     if (!email || !password || !username) {
       return res.status(400).json({ success: false, error: 'Email, mot de passe et nom d\'utilisateur sont requis' });
@@ -33,8 +33,9 @@ export const register = async (req, res, next) => {
 
     // Le hachage est maintenant géré par le hook du modèle User.js.
     // Il suffit de passer le mot de passe en clair.
+    // Le rôle est toujours 'user' : seul un admin peut attribuer un rôle via POST /api/users.
     const user = await User.create({
-      email, password, firstName, lastName, username, role: role || 'user'
+      email, password, firstName, lastName, username, role: 'user'
     });
     
     const token = generateToken(user);
@@ -77,6 +78,10 @@ export const login = async (req, res, next) => {
     const token = generateToken(user);
     const userResult = user.toJSON();
     delete userResult.password;
+
+    // Audit login
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'LOGIN', 'auth', user.id, { email: user.email });
 
     res.json({ success: true, message: 'Connexion réussie', token, user: userResult });
   } catch (error) {
