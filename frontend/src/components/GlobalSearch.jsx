@@ -1,12 +1,80 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, FileText, Users, CheckSquare, X, Loader, Command } from 'lucide-react';
+import { Search, FileText, Users, CheckSquare, X, Loader, ArrowRight } from 'lucide-react';
 import { documentsAPI, employeesAPI, workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const DEBOUNCE_MS = 300;
 
-export default function GlobalSearch() {
+const STATUS_LABELS = {
+  approved: 'Approuvé', pending_validation: 'En cours',
+  rejected: 'Rejeté', draft: 'Brouillon',
+};
+const STATUS_BADGE = {
+  approved:           { bg: 'var(--success-soft)', color: 'var(--success)' },
+  pending_validation: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  rejected:           { bg: 'var(--danger-soft)',  color: 'var(--danger)'  },
+  draft:              { bg: 'var(--surface-2)',     color: 'var(--fg-muted)' },
+};
+
+function SectionHeader({ label, route, onGo }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '6px 14px 4px',
+      fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)',
+      textTransform: 'uppercase', letterSpacing: '0.5px',
+    }}>
+      <span>{label}</span>
+      <button
+        onClick={() => onGo(route)}
+        style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontSize: 11 }}
+      >
+        Voir tout <ArrowRight size={10} />
+      </button>
+    </div>
+  );
+}
+
+function ResultRow({ icon: Icon, iconBg, iconColor, primary, secondary, badge, onClick }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+        padding: '8px 14px', border: 'none', cursor: 'pointer', textAlign: 'left',
+        background: hovered ? 'var(--surface-2)' : 'transparent',
+        transition: 'background .1s',
+      }}
+    >
+      <div style={{
+        flexShrink: 0, width: 28, height: 28, borderRadius: 'var(--radius-2)',
+        background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Icon size={14} style={{ color: iconColor }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {primary}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--fg-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {secondary}
+        </div>
+      </div>
+      {badge && (
+        <span style={{
+          flexShrink: 0, fontSize: 10, padding: '2px 6px', borderRadius: 999,
+          background: badge.bg, color: badge.color, fontWeight: 500,
+        }}>{badge.label}</span>
+      )}
+    </button>
+  );
+}
+
+export default function GlobalSearch({ hideTrigger = false }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -16,32 +84,27 @@ export default function GlobalSearch() {
   const inputRef = useRef(null);
   const timerRef = useRef(null);
 
-  // Raccourci clavier "/" ou Cmd+K pour ouvrir
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setOpen(true);
-      }
-      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-        e.preventDefault();
-        setOpen(true);
-      }
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setQuery('');
-      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setOpen(true); }
+      if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) { e.preventDefault(); setOpen(true); }
+      if (e.key === 'Escape') { setOpen(false); setQuery(''); }
     };
+    // Permet à d'autres éléments (ex: la barre "Rechercher…" de la sidebar)
+    // d'ouvrir la palette via window.dispatchEvent(new Event('global-search:open')).
+    const onOpenEvent = () => setOpen(true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('global-search:open', onOpenEvent);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('global-search:open', onOpenEvent);
+    };
   }, []);
 
-  // Focus input quand spotlight s'ouvre
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 50);
   }, [open]);
 
-  // Recherche avec debounce
   useEffect(() => {
     if (!query.trim() || query.length < 2) {
       setResults({ documents: [], employees: [], tasks: [] });
@@ -52,33 +115,22 @@ export default function GlobalSearch() {
     setLoading(true);
     timerRef.current = setTimeout(async () => {
       try {
-        const q = query.toLowerCase();
-        const [docsRes, tasksRes] = await Promise.allSettled([
-          documentsAPI.getAll(),
-          workflowAPI.getMyTasks('all'),
-        ]);
-
-        const docs = docsRes.status === 'fulfilled'
-          ? (docsRes.value.data.data || []).filter(d =>
-              d.title?.toLowerCase().includes(q) || d.originalName?.toLowerCase().includes(q)
-            ).slice(0, 5)
-          : [];
-
-        const tasks = tasksRes.status === 'fulfilled'
-          ? (tasksRes.value.data.tasks || []).filter(t =>
-              t.document?.title?.toLowerCase().includes(q)
-            ).slice(0, 3)
-          : [];
-
-        let employees = [];
         const canSeeEmployees = user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com';
-        if (canSeeEmployees) {
-          try {
-            const empRes = await employeesAPI.getAll({ search: query, limit: 5 });
-            employees = empRes.data.employees || [];
-          } catch {}
-        }
+        const promises = [
+          documentsAPI.getAll({ search: query, page: 1, limit: 5 }),
+          workflowAPI.getMyTasks('all'),
+        ];
+        if (canSeeEmployees) promises.push(employeesAPI.getAll({ search: query, limit: 5 }));
 
+        const settled = await Promise.allSettled(promises);
+        const docs = settled[0].status === 'fulfilled' ? (settled[0].value.data.data || []).slice(0, 5) : [];
+        const q = query.toLowerCase();
+        const tasks = settled[1].status === 'fulfilled'
+          ? (settled[1].value.data.tasks || []).filter(t => t.document?.title?.toLowerCase().includes(q)).slice(0, 3)
+          : [];
+        const employees = (canSeeEmployees && settled[2]?.status === 'fulfilled')
+          ? settled[2].value.data.employees || []
+          : [];
         setResults({ documents: docs, employees, tasks });
       } catch {
         setResults({ documents: [], employees: [], tasks: [] });
@@ -91,112 +143,180 @@ export default function GlobalSearch() {
   const total = results.documents.length + results.employees.length + results.tasks.length;
   const hasQuery = query.trim().length >= 2;
 
-  const go = (path) => {
-    navigate(path);
-    setOpen(false);
-    setQuery('');
+  const go = (path) => { navigate(path); setOpen(false); setQuery(''); };
+  const close = () => { setOpen(false); setQuery(''); };
+
+  const kbdStyle = {
+    display: 'inline-flex', alignItems: 'center',
+    padding: '1px 5px', borderRadius: 4,
+    border: '1px solid var(--border)',
+    background: 'var(--surface-2)',
+    fontSize: 10, fontWeight: 600, color: 'var(--fg-muted)',
+    fontFamily: 'var(--font-mono)',
   };
 
   return (
     <>
-      {/* ---- Bouton déclencheur (icône seule) ---- */}
+      {/* Trigger button (masqué quand un déclencheur externe est utilisé, ex: sidebar) */}
+      {!hideTrigger && (
       <button
         onClick={() => setOpen(true)}
         title="Rechercher (/ ou ⌘K)"
-        className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 30, height: 30, borderRadius: 'var(--radius-2)',
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'rgba(255,255,255,0.7)', transition: 'color .15s, background .15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'none'; }}
       >
-        <Search style={{ width: 18, height: 18 }} />
+        <Search size={17} />
       </button>
+      )}
 
-      {/* ---- Spotlight overlay ---- */}
+      {/* Spotlight overlay */}
       {open && (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh]">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '15vh' }}>
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setOpen(false); setQuery(''); }} />
+          <div
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+            onClick={close}
+          />
 
           {/* Panel */}
-          <div className="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden animate-fadeIn">
-            {/* Input */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-              <Search className="w-5 h-5 text-gray-400 dark:text-gray-500 shrink-0" />
+          <div
+            className="animate-fadeIn"
+            style={{
+              position: 'relative', width: '100%', maxWidth: 520, margin: '0 16px',
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Input row */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+              borderBottom: '1px solid var(--border)',
+            }}>
+              <Search size={16} color="var(--fg-subtle)" style={{ flexShrink: 0 }} />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Rechercher documents, tâches, employés…"
-                className="flex-1 bg-transparent text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none"
+                style={{
+                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                  fontSize: 14, color: 'var(--fg)',
+                }}
               />
               {query ? (
-                <button onClick={() => setQuery('')} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                  <X className="w-4 h-4" />
+                <button
+                  onClick={() => setQuery('')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-subtle)', padding: 0, display: 'flex' }}
+                >
+                  <X size={14} />
                 </button>
               ) : (
-                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-600 rounded-md font-mono">
-                  ESC
-                </kbd>
+                <span style={kbdStyle}>ESC</span>
               )}
             </div>
 
-            {/* Résultats */}
+            {/* Results */}
             {hasQuery && (
-              <div className="max-h-80 overflow-y-auto">
+              <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                 {loading ? (
-                  <div className="flex items-center justify-center py-10 gap-2 text-gray-400">
-                    <Loader className="w-4 h-4 animate-spin" /> Recherche…
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px 0', color: 'var(--fg-subtle)', fontSize: 13 }}>
+                    <Loader size={14} className="animate-spin" /> Recherche…
                   </div>
                 ) : total === 0 ? (
-                  <div className="py-10 text-center text-sm text-gray-400">
+                  <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: 'var(--fg-muted)' }}>
                     Aucun résultat pour « {query} »
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                  <>
                     {results.documents.length > 0 && (
-                      <div>
-                        <div className="px-4 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Documents</div>
-                        {results.documents.map(doc => (
-                          <button key={doc.id} onClick={() => go('/documents')}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-gray-700 transition text-left">
-                            <div className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg"><FileText className="w-4 h-4 text-blue-500" /></div>
-                            <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{doc.title}</span>
-                          </button>
-                        ))}
+                      <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
+                        <SectionHeader label="Documents" route="/documents" onGo={go} />
+                        {results.documents.map(doc => {
+                          const s = STATUS_BADGE[doc.status] || STATUS_BADGE.draft;
+                          return (
+                            <ResultRow
+                              key={doc.id}
+                              icon={FileText} iconBg="var(--brand-soft)" iconColor="var(--brand)"
+                              primary={doc.title}
+                              secondary={`${doc.category || ''} — ${new Date(doc.createdAt).toLocaleDateString('fr-FR')}`}
+                              badge={{ label: STATUS_LABELS[doc.status] || doc.status, ...s }}
+                              onClick={() => go('/documents')}
+                            />
+                          );
+                        })}
                       </div>
                     )}
                     {results.tasks.length > 0 && (
-                      <div>
-                        <div className="px-4 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tâches</div>
+                      <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
+                        <SectionHeader label="Tâches en attente" route="/my-tasks" onGo={go} />
                         {results.tasks.map(task => (
-                          <button key={task.id} onClick={() => go('/my-tasks')}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-gray-700 transition text-left">
-                            <div className="p-1.5 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg"><CheckSquare className="w-4 h-4 text-yellow-500" /></div>
-                            <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{task.document?.title}</span>
-                          </button>
+                          <ResultRow
+                            key={task.id}
+                            icon={CheckSquare} iconBg="var(--warning-soft)" iconColor="var(--warning)"
+                            primary={task.document?.title || ''}
+                            secondary={`Étape ${task.step} — ${task.status}`}
+                            onClick={() => go('/my-tasks')}
+                          />
                         ))}
                       </div>
                     )}
                     {results.employees.length > 0 && (
-                      <div>
-                        <div className="px-4 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Employés</div>
+                      <div style={{ paddingBottom: 4 }}>
+                        <SectionHeader label="Employés" route="/employees" onGo={go} />
                         {results.employees.map(emp => (
-                          <button key={emp.id} onClick={() => go('/employees')}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-gray-700 transition text-left">
-                            <div className="p-1.5 bg-green-50 dark:bg-green-900/30 rounded-lg"><Users className="w-4 h-4 text-green-500" /></div>
-                            <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{emp.firstName} {emp.lastName}</span>
-                          </button>
+                          <ResultRow
+                            key={emp.id}
+                            icon={Users} iconBg="var(--success-soft)" iconColor="var(--success)"
+                            primary={`${emp.firstName} ${emp.lastName}`}
+                            secondary={emp.poste || emp.service || ''}
+                            onClick={() => go('/employees')}
+                          />
                         ))}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
 
-            {/* Footer hints */}
+            {/* Quick shortcuts when empty */}
             {!hasQuery && (
-              <div className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 flex items-center gap-4">
-                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] font-mono">/</kbd> pour ouvrir</span>
-                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] font-mono">ESC</kbd> pour fermer</span>
+              <div>
+                <div style={{ padding: '8px 14px 4px', fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Accès rapide
+                </div>
+                {[
+                  { route: '/documents', icon: FileText, iconBg: 'var(--brand-soft)', iconColor: 'var(--brand)', label: 'Mes documents', sub: 'Voir tous les documents' },
+                  { route: '/my-tasks',  icon: CheckSquare, iconBg: 'var(--warning-soft)', iconColor: 'var(--warning)', label: 'Mes tâches', sub: 'Tâches en attente de validation' },
+                  { route: '/upload',    icon: ArrowRight,  iconBg: 'var(--surface-2)', iconColor: 'var(--fg-muted)', label: 'Uploader un document', sub: 'Ajouter un nouveau fichier' },
+                ].map(item => (
+                  <ResultRow
+                    key={item.route}
+                    icon={item.icon} iconBg={item.iconBg} iconColor={item.iconColor}
+                    primary={item.label} secondary={item.sub}
+                    onClick={() => go(item.route)}
+                  />
+                ))}
+                <div style={{
+                  display: 'flex', gap: 16, padding: '8px 14px',
+                  borderTop: '1px solid var(--border)',
+                  fontSize: 11, color: 'var(--fg-subtle)',
+                }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={kbdStyle}>/</span> ouvrir
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={kbdStyle}>ESC</span> fermer
+                  </span>
+                </div>
               </div>
             )}
           </div>
