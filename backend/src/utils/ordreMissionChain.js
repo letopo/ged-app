@@ -6,7 +6,7 @@
 // Quand un poste a plusieurs titulaires (ex: plusieurs chefs de pôle), le
 // soumetteur choisit le titulaire à la soumission (selections[posteCode]).
 
-import { Service, ServiceMember, OrdreMissionType, Poste, User } from '../models/index.js';
+import { OrdreMissionType, Poste } from '../models/index.js';
 import { getPosteHolders } from './posteResolver.js';
 
 const fullName = (u) => `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
@@ -23,31 +23,12 @@ export async function resolveOrdreMissionChain(document, selections = {}) {
   const meta = document.metadata || {};
   const steps = [];
 
-  // 1) Chef du service demandeur
-  if (meta.service_demandeur) {
-    const service = await Service.findOne({ where: { name: meta.service_demandeur } });
-    if (service) {
-      const chefMember = await ServiceMember.findOne({
-        where: { serviceId: service.id, fonction: 'Chef de Service', isActive: true },
-        include: [{ model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'email'] }],
-      });
-      if (chefMember?.user) {
-        steps.push({
-          key: 'chef',
-          label: `Chef du service demandeur (${meta.service_demandeur})`,
-          holders: [{ id: chefMember.user.id, name: fullName(chefMember.user) }],
-          chosenId: chefMember.user.id,
-          needsSelection: false,
-        });
-      } else {
-        console.warn(`[OM] Pas de chef pour le service "${meta.service_demandeur}" — étape ignorée`);
-      }
-    } else {
-      console.warn(`[OM] Service demandeur "${meta.service_demandeur}" introuvable — étape ignorée`);
-    }
-  }
+  // Le « Service Demandeur » n'est PAS une étape de validation : c'est le
+  // soumetteur, dont la signature est auto-importée dans la 1re zone du PDF et
+  // qui apparaît comme l'étape « Soumission » (déjà approuvée). Les validateurs
+  // sont donc uniquement les postes du type + DG (+ comptable si frais).
 
-  // 2) Chaîne du type
+  // 1) Chaîne du type
   const typeCode = meta.type_mission;
   if (!typeCode) return { error: "Type d'ordre de mission manquant. Choisissez le type avant de soumettre." };
   const type = await OrdreMissionType.findOne({ where: { code: typeCode, isActive: true } });
