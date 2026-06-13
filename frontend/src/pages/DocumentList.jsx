@@ -41,6 +41,9 @@ const DocumentList = () => {
   const [documentToSubmit, setDocumentToSubmit] = useState(null);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedValidators, setSelectedValidators] = useState([]);
+  // Ordre de mission : circuit auto + choix du titulaire pour les postes multi-titulaires
+  const [omPreview, setOmPreview] = useState(null); // { steps: [...] } | null
+  const [omSelections, setOmSelections] = useState({}); // { posteCode: userId }
   const [submitComment, setSubmitComment] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -269,6 +272,31 @@ const DocumentList = () => {
     setSelectedValidators([]);
     setSubmitComment('');
     setSearchValidatorTerm('');
+    setOmPreview(null);
+    setOmSelections({});
+
+    // Ordre de mission : circuit construit côté serveur → on charge l'aperçu
+    // (postes + titulaires) au lieu de la sélection manuelle des validateurs.
+    if (document.category === 'Ordre de mission') {
+      setWorkflowTemplates([]);
+      setAvailableUsers([]);
+      setLoadingUsers(true);
+      try {
+        const res = await workflowAPI.getOrdreMissionPreview(document.id);
+        const steps = res.data?.steps || [];
+        setOmPreview({ steps });
+        // Pré-remplir les postes à 1 titulaire
+        const init = {};
+        steps.forEach(s => { if (s.posteCode && !s.needsSelection && s.chosenId) init[s.posteCode] = s.chosenId; });
+        setOmSelections(init);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Impossible de charger le circuit de validation.');
+        setOmPreview({ steps: [], error: err.response?.data?.message });
+      } finally {
+        setLoadingUsers(false);
+      }
+      return;
+    }
 
     // Charger users ET templates en parallèle (au lieu de séquentiel)
     setLoadingUsers(true);
@@ -355,17 +383,36 @@ const DocumentList = () => {
   };
 
   const handleSubmitWorkflow = async () => {
-    if (selectedValidators.length === 0) {
-      toast('Veuillez sélectionner au moins un validateur.');
-      return;
-    }
-    try {
-      setSubmitLoading(true);
-      const workflowData = {
+    const isOM = documentToSubmit?.category === 'Ordre de mission';
+
+    let workflowData;
+    if (isOM) {
+      // Vérifier que chaque poste multi-titulaires a bien un titulaire choisi
+      const steps = omPreview?.steps || [];
+      const missing = steps.find(s => s.posteCode && !omSelections[s.posteCode]);
+      if (missing) {
+        toast(`Veuillez choisir le titulaire pour « ${missing.label} ».`);
+        return;
+      }
+      workflowData = {
+        documentId: documentToSubmit.id,
+        posteSelections: omSelections,
+        comment: submitComment,
+      };
+    } else {
+      if (selectedValidators.length === 0) {
+        toast('Veuillez sélectionner au moins un validateur.');
+        return;
+      }
+      workflowData = {
         documentId: documentToSubmit.id,
         validatorIds: selectedValidators,
-        comment: submitComment
+        comment: submitComment,
       };
+    }
+
+    try {
+      setSubmitLoading(true);
       await workflowAPI.create(workflowData);
       toast.success('Document soumis au workflow avec succès !');
       handleCloseSubmitModal();
@@ -938,6 +985,42 @@ const DocumentList = () => {
             </div>
             <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
               <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>Document : <span style={{ fontWeight: 500 }}>{documentToSubmit?.title}</span></p>
+
+              {/* Ordre de mission : circuit auto + choix du titulaire si plusieurs */}
+              {documentToSubmit?.category === 'Ordre de mission' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>Circuit de validation</label>
+                  {loadingUsers ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}><Loader className="animate-spin" style={{ color: 'var(--brand)' }} /></div>
+                  ) : omPreview?.error ? (
+                    <div style={{ padding: 14, background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-2)', fontSize: 13, color: 'var(--danger)' }}>{omPreview.error}</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {(omPreview?.steps || []).map((step, index) => (
+                        <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-2)' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>{index + 1}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{step.label}</div>
+                            {step.posteCode && step.needsSelection ? (
+                              <select
+                                value={omSelections[step.posteCode] || ''}
+                                onChange={e => setOmSelections(prev => ({ ...prev, [step.posteCode]: e.target.value }))}
+                                style={{ marginTop: 4, width: '100%', height: 32, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, padding: '0 8px' }}
+                              >
+                                <option value="">— Choisir —</option>
+                                {step.holders.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                              </select>
+                            ) : (
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{step.holders.find(h => h.id === (omSelections[step.posteCode] || step.chosenId))?.name || step.holders[0]?.name}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Modeles de workflow predéfinis */}
               {workflowTemplates.length > 0 && (
                 <div>
@@ -958,7 +1041,7 @@ const DocumentList = () => {
                   </div>
                 </div>
               )}
-              <div>
+              <div style={{ display: documentToSubmit?.category === 'Ordre de mission' ? 'none' : undefined }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>Sélectionnez les validateurs (dans l'ordre)</label>
                 {loadingUsers
                   ? <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}><Loader className="animate-spin" style={{ color: 'var(--brand)' }} /></div>
@@ -1038,9 +1121,15 @@ const DocumentList = () => {
             </div>
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={handleCloseSubmitModal} disabled={submitLoading} style={{ padding: '7px 16px', background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
-              <button onClick={handleSubmitWorkflow} disabled={selectedValidators.length === 0 || submitLoading} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: (selectedValidators.length === 0 || submitLoading) ? 0.5 : 1 }}>
+              {(() => {
+                const isOMSubmit = documentToSubmit?.category === 'Ordre de mission';
+                const submitDisabled = submitLoading || (isOMSubmit ? (!omPreview || !!omPreview.error) : selectedValidators.length === 0);
+                return (
+              <button onClick={handleSubmitWorkflow} disabled={submitDisabled} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: submitDisabled ? 0.5 : 1 }}>
                 {submitLoading ? <><Loader className="animate-spin" size={14} />Soumission...</> : <><Send size={14} />Soumettre</>}
               </button>
+                );
+              })()}
             </div>
           </div>
         </div>,

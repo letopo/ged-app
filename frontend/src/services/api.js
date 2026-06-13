@@ -280,6 +280,8 @@ export const usersAPI = {
 export const workflowAPI = {
   create: (workflowData) => api.post('/workflows', workflowData),
   submitWorkflow: (workflowData) => api.post('/workflows', workflowData),
+  // Aperçu du circuit d'un ordre de mission (postes + titulaires + choix requis)
+  getOrdreMissionPreview: (documentId) => api.get(`/workflows/document/${documentId}/ordre-mission-preview`),
   
   // ✅ AJOUT IMPORTANT : La fonction qui manquait
   submitForValidation: (documentId, validatorIds) => api.post('/workflows', { documentId, validatorIds }),

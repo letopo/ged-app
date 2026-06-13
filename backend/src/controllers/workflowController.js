@@ -11,7 +11,7 @@ import { sequelize } from '../models/index.js';
 import { getSignatureConfig } from '../config/documentSignatureConfig.js';
 // ✅ NOUVEAU : Import du Socket Manager
 import { emitNewTaskNotification, emitTaskUpdateNotification, isUserConnected } from '../utils/socketManager.js';
-import { buildOrdreMissionChain } from '../utils/ordreMissionChain.js';
+import { buildOrdreMissionChain, resolveOrdreMissionChain } from '../utils/ordreMissionChain.js';
 import { getPosteHolders, userHasPoste } from '../utils/posteResolver.js';
 import { sendNewTaskPushNotification } from '../services/pushNotificationService.js';
 import { mergePDFs } from '../utils/pdfMerger.js';
@@ -145,7 +145,7 @@ const notifySubmitter = async (document, status, validatorComment) => {
 // Créer un workflow avec ajout automatique du comptable pour Ordre de mission
 export const createWorkflow = async (req, res) => {
   try {
-    const { documentId, validatorIds } = req.body;
+    const { documentId, validatorIds, posteSelections } = req.body;
     // validatorIds n'est requis que pour les documents hors « Ordre de mission » :
     // pour un OM, le circuit est construit côté serveur depuis le type + les postes.
     if (!documentId) {
@@ -212,7 +212,7 @@ export const createWorkflow = async (req, res) => {
     if (document.category === 'Ordre de mission') {
       // Circuit construit côté serveur : chef du service demandeur → chaîne du
       // type (postes) → comptable si frais. Plus aucun email figé.
-      const built = await buildOrdreMissionChain(document);
+      const built = await buildOrdreMissionChain(document, posteSelections || {});
       if (built.error) {
         return res.status(400).json({ success: false, message: built.error });
       }
@@ -261,6 +261,26 @@ export const createWorkflow = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Erreur création workflow:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// Aperçu du circuit d'un ordre de mission : étapes, titulaires possibles par poste,
+// et postes nécessitant un choix (plusieurs titulaires). Sert à l'écran de soumission.
+export const getOrdreMissionPreview = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const document = await Document.findByPk(documentId);
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document introuvable.' });
+    }
+    const result = await resolveOrdreMissionChain(document, {});
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+    res.json({ success: true, steps: result.steps });
+  } catch (error) {
+    console.error('❌ Erreur aperçu OM:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
