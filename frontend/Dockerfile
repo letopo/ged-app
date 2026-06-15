@@ -18,14 +18,12 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-# Install dependencies
-# Fallback avec --ignore-scripts + rebuild si erreur ETXTBSY (esbuild sur certains systèmes)
-RUN npm install --no-audit --no-fund || \
-    ( npm install --no-audit --no-fund --ignore-scripts && \
-      npm rebuild esbuild 2>/dev/null; \
-      npm rebuild rollup 2>/dev/null; \
-      npm rebuild @rollup/rollup-linux-x64-musl 2>/dev/null; \
-      true )
+# Install déterministe (npm ci, comme le backend), fallback npm install, puis
+# VÉRIFICATION que vite est bien présent : sinon le build échoue franchement
+# au lieu de mettre en cache un node_modules incomplet (cause du "vite: not found").
+RUN (npm ci --no-audit --no-fund || npm install --no-audit --no-fund) && \
+    test -x node_modules/.bin/vite || \
+    ( echo "❌ Dépendances incomplètes (vite absent). Réessayez: docker compose build --no-cache frontend" && exit 1 )
 
 COPY . .
 
