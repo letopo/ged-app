@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
 import User from '../models/User.js';
+import { getUserPosteCodes } from '../utils/posteResolver.js';
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -78,6 +79,7 @@ export const login = async (req, res, next) => {
     const token = generateToken(user);
     const userResult = user.toJSON();
     delete userResult.password;
+    userResult.postes = await getUserPosteCodes(user.id); // ex: ['comptable']
 
     // Audit login
     const { AuditLog } = await import('../models/index.js');
@@ -94,7 +96,9 @@ export const login = async (req, res, next) => {
 
 export const getProfile = async (req, res, next) => {
     try {
-      res.json({ success: true, user: req.user });
+      const userObj = req.user?.toJSON ? req.user.toJSON() : { ...req.user };
+      userObj.postes = await getUserPosteCodes(req.user.id); // ex: ['comptable']
+      res.json({ success: true, user: userObj });
     } catch (error) {
       next(error);
     }

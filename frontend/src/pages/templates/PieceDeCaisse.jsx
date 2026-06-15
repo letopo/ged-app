@@ -1,5 +1,4 @@
-// frontend/src/pages/templates/PieceDeCaisse.jsx - VERSION AVEC APERÇU DOCUMENT
-
+// frontend/src/pages/templates/PieceDeCaisse.jsx
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Trash2, Link as LinkIcon, Eye } from 'lucide-react';
 import { documentsAPI } from '../../services/api';
@@ -9,27 +8,24 @@ import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissionSelector = true }) => {
     const { user } = useAuth();
+    // Si c'est le comptable qui génère la PC, sa signature/cachet va sur la zone
+    // « Comptabilité », pas sur « Visa Bénéficiaire ».
+    const isComptable = (user?.postes || []).includes('comptable');
+    const mySig = getImageUrl(user?.signaturePath);
+    const myStamp = getImageUrl(user?.stampPath);
     const [ordresMission, setOrdresMission] = useState([]);
     const [loadingOM, setLoadingOM] = useState(false);
-
-    // Nouvel état pour gérer la visualisation
     const [viewingDoc, setViewingDoc] = useState(null);
 
-    // Générer automatiquement le numéro de pièce au premier chargement
     useEffect(() => {
-        if (formData.numero) return; // déjà renseigné
+        if (formData.numero) return;
         documentsAPI.getNextNumero('Pièce de caisse')
-            .then(res => {
-                setFormData(prev => ({ ...prev, numero: res.data.numero }));
-            })
+            .then(res => setFormData(prev => ({ ...prev, numero: res.data.numero })))
             .catch(err => console.error('Erreur récupération numéro PC:', err));
     }, []);
 
-    // ✅ Charger les Ordres de Mission validés
     useEffect(() => {
-        if (showOrdreMissionSelector) {
-            loadOrdresMission();
-        }
+        if (showOrdreMissionSelector) loadOrdresMission();
     }, [showOrdreMissionSelector]);
 
     const loadOrdresMission = async () => {
@@ -55,54 +51,51 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
         setFormData({ ...formData, lines: newLines });
     };
 
-    const addLine = () => {
-        setFormData({ ...formData, lines: [...formData.lines, { refCompta: '', libelle: '', refGage: '', entrees: '', sorties: '' }] });
-    };
+    const addLine = () => setFormData({ ...formData, lines: [...formData.lines, { refCompta: '', libelle: '', refGage: '', entrees: '', sorties: '' }] });
 
-    const removeLine = (index) => {
-        const newLines = formData.lines.filter((_, i) => i !== index);
-        setFormData({ ...formData, lines: newLines });
-    };
+    const removeLine = (index) => setFormData({ ...formData, lines: formData.lines.filter((_, i) => i !== index) });
 
-    // Handler pour ouvrir le Viewer
     const handleViewDocument = () => {
         const docId = formData.linkedOrdreMissionId;
         if (!docId) return;
-
         const docToView = ordresMission.find(d => d.id === parseInt(docId) || d.id === docId);
-        if (docToView) {
-            setViewingDoc(docToView);
-        }
+        if (docToView) setViewingDoc(docToView);
     };
 
     const totalEntrees = formData.lines.reduce((acc, line) => acc + (Number(line.entrees) || 0), 0);
     const totalSorties = formData.lines.reduce((acc, line) => acc + (Number(line.sorties) || 0), 0);
 
+    const cellIn = { background: 'none', border: 'none', outline: 'none', width: '100%', padding: 4, height: 32, fontSize: 12 };
+
     return (
         <>
-            {/* ✅ Sélecteur d'Ordre de Mission */}
+            {/* Sélecteur d'Ordre de Mission */}
             {showOrdreMissionSelector && (
-                <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-6 not-printable">
-                    <div className="flex items-center gap-3 mb-4">
-                        <LinkIcon className="text-blue-600" size={24} />
-                        <h3 className="text-lg font-bold text-blue-900">Lier à un document justificatif</h3>
+                <div className="not-printable" style={{
+                    background: 'var(--brand-soft)', border: '2px solid var(--brand)',
+                    borderRadius: 'var(--radius-3)', padding: 24, marginBottom: 24,
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                        <LinkIcon size={22} color="var(--brand)" />
+                        <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Lier à un document justificatif</h3>
                     </div>
-                    
-                    <p className="text-sm text-blue-800 mb-4">
-                        ⚠️ <strong>Important :</strong> En sélectionnant un document, le PDF généré contiendra 
-                        automatiquement le document justificatif en haut et la Pièce de Caisse en bas. Le Directeur Général pourra ainsi 
-                        tout visualiser d'un seul coup.
+                    <p style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 16 }}>
+                        ⚠️ <strong>Important :</strong> En sélectionnant un document, le PDF généré contiendra
+                        automatiquement le document justificatif en haut et la Pièce de Caisse en bas.
                     </p>
-
                     {loadingOM ? (
-                        <div className="text-center py-4 text-blue-600">Chargement des documents...</div>
+                        <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--brand)', fontSize: 13 }}>Chargement des documents...</div>
                     ) : (
-                        <div className="flex items-center gap-2">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <select
                                 name="linkedOrdreMissionId"
                                 value={formData.linkedOrdreMissionId || ''}
                                 onChange={handleChange}
-                                className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                style={{
+                                    flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-2)',
+                                    border: '1.5px solid var(--border)', background: 'var(--surface)',
+                                    color: 'var(--fg)', fontSize: 13, outline: 'none',
+                                }}
                             >
                                 <option value="">-- Aucun document lié --</option>
                                 {ordresMission.map(doc => (
@@ -111,32 +104,29 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                                     </option>
                                 ))}
                             </select>
-
-                            {/* BOUTON DE VISUALISATION */}
                             <button
                                 type="button"
                                 onClick={handleViewDocument}
                                 disabled={!formData.linkedOrdreMissionId}
-                                className={`p-3 rounded-lg border-2 transition-colors ${
-                                    formData.linkedOrdreMissionId 
-                                    ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
-                                    : 'bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed'
-                                }`}
+                                style={{
+                                    padding: 10, borderRadius: 'var(--radius-2)', cursor: formData.linkedOrdreMissionId ? 'pointer' : 'not-allowed',
+                                    background: formData.linkedOrdreMissionId ? 'var(--brand)' : 'var(--surface-2)',
+                                    color: formData.linkedOrdreMissionId ? '#fff' : 'var(--fg-muted)',
+                                    border: 'none', display: 'flex', alignItems: 'center',
+                                }}
                                 title="Voir le document sélectionné"
                             >
-                                <Eye size={24} />
+                                <Eye size={22} />
                             </button>
                         </div>
                     )}
-                    
                     {ordresMission.length === 0 && !loadingOM && (
-                        <p className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+                        <p style={{ marginTop: 12, fontSize: 12, color: 'var(--warning)', background: 'var(--warning-soft)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-2)', padding: 10 }}>
                             ⚠️ Aucun document disponible. Assurez-vous qu'il y a des documents validés.
                         </p>
                     )}
-
                     {formData.linkedOrdreMissionId && (
-                        <div className="mt-3 p-3 bg-green-50 border border-green-300 rounded text-sm text-green-800">
+                        <div style={{ marginTop: 12, padding: 10, background: 'var(--success-soft)', border: '1px solid var(--success)', borderRadius: 'var(--radius-2)', fontSize: 12, color: 'var(--success)' }}>
                             ✅ Le PDF final contiendra le document sélectionné suivi de cette Pièce de Caisse
                         </div>
                     )}
@@ -144,85 +134,84 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
             )}
 
             {/* Template Pièce de Caisse */}
-            <div ref={pdfContainerRef} className="bg-white p-12 shadow-lg mx-auto flex flex-col" style={{ width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
-                
-                <div className="flex-grow">
-                    <h1 className="text-center font-bold text-xl mb-2">HOPITAL SAINT JEAN DE MALTE</h1>
-                    <h2 className="text-center font-bold text-lg mb-8">PIECE DE CAISSE N° {formData.numero || '...'}</h2>
-                    
-                    <div className="flex justify-between mb-4 text-sm">
-                        <div className="w-2/3">
-                            <input name="nom" value={formData.nom || ''} onChange={handleChange} className="not-printable w-full p-1 border-b" placeholder="NOM..." />
-                            <div className="print-only static-field">{formData.nom || '\u00A0'}</div>
+            <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', display: 'flex', flexDirection: 'column', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
+                <div style={{ flex: 1 }}>
+                    <h1 style={{ textAlign: 'center', fontWeight: 700, fontSize: 18, marginBottom: 8 }}>HOPITAL SAINT JEAN DE MALTE</h1>
+                    <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: 15, marginBottom: 32 }}>PIECE DE CAISSE N° {formData.numero || '...'}</h2>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, fontSize: 13 }}>
+                        <div style={{ width: '65%' }}>
+                            <input name="nom" value={formData.nom || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid #999', outline: 'none', fontSize: 13 }} placeholder="NOM..." />
+                            <div className="print-only static-field">{formData.nom || ' '}</div>
                         </div>
-                        <div className="w-1/4">
-                            <input name="date" value={formData.date || ''} onChange={handleChange} className="not-printable w-full p-1 border-b" placeholder="DATE..." />
-                            <div className="print-only static-field">{formData.date || '\u00A0'}</div>
+                        <div style={{ width: '25%' }}>
+                            <input name="date" value={formData.date || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid #999', outline: 'none', fontSize: 13 }} placeholder="DATE..." />
+                            <div className="print-only static-field">{formData.date || ' '}</div>
                         </div>
-                    </div>
-                    
-                    <div>
-                        <input name="concerne" value={formData.concerne || ''} onChange={handleChange} className="not-printable w-full p-1 border-b mb-8 text-sm" placeholder="CONCERNE..." />
-                        <div className="print-only static-field mb-8">{formData.concerne || '\u00A0'}</div>
                     </div>
 
-                    <table className="w-full border-collapse border border-black text-sm">
+                    <div style={{ marginBottom: 32 }}>
+                        <input name="concerne" value={formData.concerne || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid #999', outline: 'none', fontSize: 13 }} placeholder="CONCERNE..." />
+                        <div className="print-only static-field">{formData.concerne || ' '}</div>
+                    </div>
+
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: 12 }}>
                         <thead>
-                            <tr className="bg-gray-100">
-                                <th className="border border-black p-1 w-[15%]">Réf. Comptabilité</th>
-                                <th className="border border-black p-1 w-[40%]">LIBELLES</th>
-                                <th className="border border-black p-1 w-[15%]">Réf. GAGE</th>
-                                <th className="border border-black p-1 w-[15%]">ENTREES</th>
-                                <th className="border border-black p-1 w-[15%]">SORTIES</th>
+                            <tr style={{ background: '#f3f4f6' }}>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>Réf. Comptabilité</th>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '40%' }}>LIBELLES</th>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>Réf. GAGE</th>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>ENTREES</th>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>SORTIES</th>
                             </tr>
                         </thead>
                         <tbody>
                             {formData.lines.map((line, index) => (
                                 <tr key={index}>
-                                    <td className="border border-black">
-                                        <input value={line.refCompta || ''} onChange={(e) => handleLineChange(index, 'refCompta', e.target.value)} className="not-printable w-full p-1 h-8"/>
-                                        <div className="print-only p-1 h-8">{line.refCompta}</div>
+                                    <td style={{ border: '1px solid #000' }}>
+                                        <input value={line.refCompta || ''} onChange={(e) => handleLineChange(index, 'refCompta', e.target.value)} className="not-printable" style={cellIn} />
+                                        <div className="print-only" style={{ padding: 4, height: 32 }}>{line.refCompta}</div>
                                     </td>
-                                    <td className="border border-black">
-                                        <input value={line.libelle || ''} onChange={(e) => handleLineChange(index, 'libelle', e.target.value)} className="not-printable w-full p-1 h-8"/>
-                                        <div className="print-only p-1 h-8">{line.libelle}</div>
+                                    <td style={{ border: '1px solid #000' }}>
+                                        <input value={line.libelle || ''} onChange={(e) => handleLineChange(index, 'libelle', e.target.value)} className="not-printable" style={cellIn} />
+                                        <div className="print-only" style={{ padding: 4, height: 32 }}>{line.libelle}</div>
                                     </td>
-                                    <td className="border border-black">
-                                        <input value={line.refGage || ''} onChange={(e) => handleLineChange(index, 'refGage', e.target.value)} className="not-printable w-full p-1 h-8"/>
-                                        <div className="print-only p-1 h-8">{line.refGage}</div>
+                                    <td style={{ border: '1px solid #000' }}>
+                                        <input value={line.refGage || ''} onChange={(e) => handleLineChange(index, 'refGage', e.target.value)} className="not-printable" style={cellIn} />
+                                        <div className="print-only" style={{ padding: 4, height: 32 }}>{line.refGage}</div>
                                     </td>
-                                    <td className="border border-black">
-                                        <input type="number" value={line.entrees || ''} onChange={(e) => handleLineChange(index, 'entrees', e.target.value)} className="not-printable w-full p-1 h-8 text-right"/>
-                                        <div className="print-only p-1 h-8 text-right">{Number(line.entrees || 0).toLocaleString('fr-FR')}</div>
+                                    <td style={{ border: '1px solid #000' }}>
+                                        <input type="number" value={line.entrees || ''} onChange={(e) => handleLineChange(index, 'entrees', e.target.value)} className="not-printable" style={{ ...cellIn, textAlign: 'right' }} />
+                                        <div className="print-only" style={{ padding: 4, height: 32, textAlign: 'right' }}>{Number(line.entrees || 0).toLocaleString('fr-FR')}</div>
                                     </td>
-                                    <td className="border border-black">
-                                        <div className="flex items-center">
-                                            <input type="number" value={line.sorties || ''} onChange={(e) => handleLineChange(index, 'sorties', e.target.value)} className="not-printable w-full p-1 h-8 text-right"/>
-                                            <div className="print-only p-1 h-8 text-right flex-1">{Number(line.sorties || 0).toLocaleString('fr-FR')}</div>
-                                            <button type="button" onClick={() => removeLine(index)} className="not-printable text-red-500 hover:text-red-700 ml-1"><Trash2 size={16} /></button>
+                                    <td style={{ border: '1px solid #000' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                            <input type="number" value={line.sorties || ''} onChange={(e) => handleLineChange(index, 'sorties', e.target.value)} className="not-printable" style={{ ...cellIn, textAlign: 'right', flex: 1 }} />
+                                            <div className="print-only" style={{ padding: 4, height: 32, textAlign: 'right', flex: 1 }}>{Number(line.sorties || 0).toLocaleString('fr-FR')}</div>
+                                            <button type="button" onClick={() => removeLine(index)} className="not-printable" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', marginLeft: 4 }}><Trash2 size={16} /></button>
                                         </div>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                    <button type="button" onClick={addLine} className="not-printable mt-2 flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm">
+                    <button type="button" onClick={addLine} className="not-printable" style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontSize: 13 }}>
                         <PlusCircle size={16}/> Ajouter une ligne
                     </button>
-                    
-                    <div className="flex justify-end mt-4">
-                        <table className="w-1/2 border-collapse border border-black text-sm">
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                        <table style={{ width: '50%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: 12 }}>
                             <tbody>
                                 <tr>
-                                    <td className="border border-black p-1 font-bold">TOTAL</td>
-                                    <td className="border border-black p-1 text-right font-bold">{totalEntrees.toLocaleString('fr-FR')}</td>
-                                    <td className="border border-black p-1 text-right font-bold">{totalSorties.toLocaleString('fr-FR')}</td>
+                                    <td style={{ border: '1px solid #000', padding: 4, fontWeight: 700 }}>TOTAL</td>
+                                    <td style={{ border: '1px solid #000', padding: 4, textAlign: 'right', fontWeight: 700 }}>{totalEntrees.toLocaleString('fr-FR')}</td>
+                                    <td style={{ border: '1px solid #000', padding: 4, textAlign: 'right', fontWeight: 700 }}>{totalSorties.toLocaleString('fr-FR')}</td>
                                 </tr>
                                 <tr>
-                                    <td className="border border-black p-1 font-bold" colSpan="3">
+                                    <td colSpan={3} style={{ border: '1px solid #000', padding: 4, fontWeight: 700 }}>
                                         En lettres...
-                                        <input name="totalEnLettres" value={formData.totalEnLettres || ''} onChange={handleChange} className="not-printable w-2/3 ml-2 p-1"/>
-                                        <span className="print-only ml-2 font-normal">{formData.totalEnLettres}</span>
+                                        <input name="totalEnLettres" value={formData.totalEnLettres || ''} onChange={handleChange} className="not-printable" style={{ width: '60%', marginLeft: 8, border: 'none', borderBottom: '1px solid #999', outline: 'none', fontSize: 12 }} />
+                                        <span className="print-only" style={{ marginLeft: 8, fontWeight: 400 }}>{formData.totalEnLettres}</span>
                                     </td>
                                 </tr>
                             </tbody>
@@ -230,35 +219,14 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-8 text-sm mt-auto border-t-2 border-black pt-4">
-                    <SignatureFrame
-                        label="Visa Bénéficiaire"
-                        signatureUrl={getImageUrl(user?.signaturePath)}
-                        stampUrl={getImageUrl(user?.stampPath)}
-                        zoneIndex={1}
-                    />
-                    <SignatureFrame
-                        label="Comptabilité"
-                        signatureUrl={null}
-                        stampUrl={null}
-                        zoneIndex={2}
-                    />
-                    <SignatureFrame
-                        label="Visa Directeur"
-                        signatureUrl={null}
-                        stampUrl={null}
-                        zoneIndex={3}
-                    />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32, fontSize: 12, marginTop: 'auto', borderTop: '2px solid #000', paddingTop: 16 }}>
+                    <SignatureFrame label="Visa Bénéficiaire" signatureUrl={isComptable ? null : mySig} stampUrl={isComptable ? null : myStamp} zoneIndex={1} />
+                    <SignatureFrame label="Comptabilité" signatureUrl={isComptable ? mySig : null} stampUrl={isComptable ? myStamp : null} zoneIndex={2} />
+                    <SignatureFrame label="Visa Directeur" signatureUrl={null} stampUrl={null} zoneIndex={3} />
                 </div>
             </div>
 
-            {/* ✅ DOCUMENT VIEWER EN OVERLAY */}
-            {viewingDoc && (
-                <DocumentViewer
-                    document={viewingDoc}
-                    onClose={() => setViewingDoc(null)}
-                />
-            )}
+            {viewingDoc && <DocumentViewer document={viewingDoc} onClose={() => setViewingDoc(null)} />}
         </>
     );
 };

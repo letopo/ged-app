@@ -2,6 +2,12 @@
 import TemplatePermission from '../models/TemplatePermission.js';
 import { User, Document } from '../models/index.js';
 import sequelize from '../config/database.js';
+import { getUserPosteCodes } from '../utils/posteResolver.js';
+
+// Templates liés à un poste : leurs titulaires y ont accès, quel que soit l'individu.
+const TEMPLATE_POSTES = {
+  'Pièce de caisse': 'comptable',
+};
 
 // Liste de TOUS les templates avec leurs permissions
 export const getAll = async (req, res) => {
@@ -20,6 +26,9 @@ export const getMyTemplates = async (req, res) => {
     const user = req.user;
     const permissions = await TemplatePermission.findAll();
 
+    // Postes occupés par l'utilisateur (ex: ['comptable']) — récupérés une fois
+    const userPostes = user.role === 'admin' ? [] : await getUserPosteCodes(user.id);
+
     // Tous les templates définis
     const result = permissions.map(p => {
       const data = p.toJSON();
@@ -33,10 +42,13 @@ export const getMyTemplates = async (req, res) => {
         data.hasAccess = true;
         return data;
       }
-      // Vérifier si l'utilisateur est dans allowedRoles ou allowedUserIds
+      // Accès si : rôle autorisé, OU utilisateur explicitement autorisé,
+      // OU titulaire du poste lié au template (ex: comptable → Pièce de caisse)
       const roleOk = data.allowedRoles?.length > 0 && data.allowedRoles.includes(user.role);
       const userOk = data.allowedUserIds?.length > 0 && data.allowedUserIds.includes(user.id);
-      data.hasAccess = roleOk || userOk;
+      const posteCode = TEMPLATE_POSTES[data.templateName];
+      const posteOk = posteCode ? userPostes.includes(posteCode) : false;
+      data.hasAccess = roleOk || userOk || posteOk;
       return data;
     });
 

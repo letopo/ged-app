@@ -45,3 +45,15 @@ export const userHasPoste = async (userId, code) => {
   const holders = await getPosteHolders(code);
   return holders.some(u => u.id === userId);
 };
+
+/**
+ * Retourne les codes des postes occupés par un utilisateur (ex: ['comptable']).
+ * @param {string} userId
+ * @returns {Promise<string[]>}
+ */
+export const getUserPosteCodes = async (userId) => {
+  const user = await User.findByPk(userId, {
+    include: [{ model: Poste, as: 'postes', attributes: ['code'], through: { attributes: [] } }],
+  });
+  return (user?.postes || []).map(p => p.code);
+};
