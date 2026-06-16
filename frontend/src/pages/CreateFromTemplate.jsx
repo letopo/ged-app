@@ -303,6 +303,17 @@ const CreateFromTemplate = () => {
     }, [templateName, template.type, template.configFile]);
 
     const handleSubmit = async () => {
+    // Validation : une demande de permission doit avoir un nom et au moins une
+    // période datée (sinon elle n'apparaît pas au calendrier des permissions).
+    if (templateName === 'Demande de permission') {
+        const periods = formData.periods || [];
+        const hasDates = periods.some(p => p.startDate && p.endDate);
+        if (!formData.noms_prenoms?.trim() || !hasDates) {
+            setError("Veuillez renseigner le nom du demandeur et au moins une période (dates de début et de fin).");
+            return;
+        }
+    }
+
     setLoading(true);
     setGenStep('Préparation…');
     setError('');
