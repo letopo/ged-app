@@ -17,34 +17,44 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Charger les données d'auth depuis localStorage au démarrage
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    // Charger les données d'auth depuis localStorage au démarrage.
+    // Sur Safari iOS (mode privé, quota de stockage, données partiellement
+    // purgées par l'ITP), la lecture ou le JSON.parse peuvent lever une
+    // exception — sans ce try/catch, ça faisait planter tout le rendu
+    // (page blanche, sans aucune trace exploitable).
+    try {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
 
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (err) {
+      console.error('Session locale corrompue, réinitialisation:', err);
+      try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch { /* ignore */ }
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   }, []);
 
   const login = (newToken, userData) => {
-    localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(userData));
+    try {
+      localStorage.setItem('token', newToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (err) { console.error('Erreur écriture localStorage:', err); }
     setToken(newToken);
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch { /* ignore */ }
     setToken(null);
     setUser(null);
   };
 
   const updateUser = (userData) => {
-    localStorage.setItem('user', JSON.stringify(userData));
+    try { localStorage.setItem('user', JSON.stringify(userData)); } catch (err) { console.error('Erreur écriture localStorage:', err); }
     setUser(userData);
   };
 
