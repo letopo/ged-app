@@ -9,12 +9,14 @@ import {
   Settings, ChevronDown, Calendar, Kanban, Receipt,
   ShoppingCart, Wrench, Stethoscope, Shield, Archive,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
-  Activity, X, ChevronRight, ClipboardList, Briefcase,
+  Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
+  MessageSquare,
 } from 'lucide-react';
-import { workflowAPI } from '../services/api';
+import { workflowAPI, tenantBrandingAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import GlobalSearch from './GlobalSearch';
+import useChatUnread from '../hooks/useChatUnread';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
 
@@ -30,6 +32,7 @@ const getRoleLabel = (role) => ({
   chef_de_service:      'Chef de Service',
   dds:                  'Directrice des Soins',
   medical_chief:        'Médecin Chef',
+  superadmin:           'Super Administrateur',
 }[role] || role);
 
 /* ─── Wordmark mark SVG ────────────────────────────────────────────── */
@@ -111,28 +114,27 @@ const NavSection = ({ title, children }) => (
 
 /* ─── Sidebar ──────────────────────────────────────────────────────── */
 
-const Sidebar = ({ user, onLogout, pendingCount }) => {
+const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
   const location = useLocation();
   const isActive = (path) =>
     location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path + '/'));
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
   const canAccess = (item) => {
     if (!user) return false;
-    if (item.adminOnly && user.role !== 'admin') return false;
-    if (item.kanbanOnly) {
-      const allowed = ['hsjm.directeurdusoutien@gmail.com','hsjm.pharma@gmail.com','hopitalcameroun@ordredemaltefrance.org','aureleyankeu@gmail.com','hsjm.moyengeneraux@gmail.com','hsjm.celluleinformatique2@gmail.com','hsjm.cellulebiomedicale@gmail.com'];
-      if (allowed.includes(user.email)) return true;
-      const svc = user.Service?.name || user.service || '';
-      return ['MG','Moyens Généraux','Informatique','Biomédical','Biomedical'].some(s => svc.includes(s));
-    }
-    if (item.rhOrAdminOnly) return user.role === 'admin' || user.email === 'hsjm.rh@gmail.com';
-    if (item.gardienOnly) return user.role === 'admin' || user.role === 'gardien';
-    if (item.accueilOnly) return user.role === 'admin' || ['agent_accueil_php','agent_accueil_normal'].includes(user.role);
-    if (item.caisseOnly) return user.role === 'admin' || user.role === 'caissier';
-    if (item.managementOnly) return ['admin','director','dds','medical_chief'].includes(user.role);
-    if (item.demandeAchatOnly) return ['admin','achat','user'].includes(user.role);
-    if (item.gmaoOnly) return user.role === 'admin' || ['hsjm.cellulebiomedicale@gmail.com','hsjm.pharma@gmail.com','hopitalcameroun@ordredemaltefrance.org'].includes(user.email);
-    if (item.phpOnly) return user.role === 'admin' || user.role === 'agent_accueil_php';
+    if (item.superAdminOnly) return user.role === 'superadmin';
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.kanbanOnly)      return isAdmin || (user.postes || []).includes('kanban');
+    if (item.rhOrAdminOnly)   return isAdmin || (user.postes || []).includes('rh');
+    if (item.gardienOnly)     return isAdmin || user.role === 'gardien';
+    if (item.accueilOnly)     return isAdmin || ['agent_accueil_php','agent_accueil_normal'].includes(user.role);
+    if (item.caisseOnly)      return isAdmin || user.role === 'caissier';
+    if (item.managementOnly)  return isAdmin || ['director','dds','medical_chief'].includes(user.role);
+    if (item.demandeAchatOnly) return isAdmin || ['achat','user'].includes(user.role);
+    if (item.gmaoOnly)        return isAdmin || (user.postes || []).includes('gmao');
+    if (item.phpOnly)         return isAdmin || user.role === 'agent_accueil_php';
+    if (item.comptaOnly)      return isAdmin || (user.postes || []).includes('comptable');
     return true;
   };
 
@@ -144,6 +146,7 @@ const Sidebar = ({ user, onLogout, pendingCount }) => {
     { path: '/schedules',          icon: Calendar,    label: 'Plannings',        managementOnly: true },
     { path: '/employees',          icon: Users,       label: 'Employés',         rhOrAdminOnly: true },
     { path: '/user-management',    icon: Users,       label: 'Utilisateurs',     adminOnly: true },
+    { path: '/admin/droits-acces', icon: Shield,      label: 'Droits d\'accès',  adminOnly: true },
     { path: '/postes',             icon: Briefcase,   label: 'Postes & Fonctions', adminOnly: true },
     { path: '/services',           icon: LayoutGrid,  label: 'Services',         adminOnly: true },
     { path: '/audit-log',          icon: Shield,      label: "Journal d'audit",  adminOnly: true },
@@ -158,12 +161,18 @@ const Sidebar = ({ user, onLogout, pendingCount }) => {
     { path: '/caisse',          icon: DollarSign,  label: 'Caisse',             caisseOnly: true },
     { path: '/demandes-achat',  icon: ShoppingCart,label: "Demandes d'achat",   demandeAchatOnly: true },
     { path: '/php',             icon: Stethoscope, label: 'Module PHP',         phpOnly: true },
+    { path: '/php/factures',    icon: Receipt,     label: 'Factures PHP',       phpOnly: true },
+    { path: '/compta',          icon: Calculator,  label: 'Comptabilité',       comptaOnly: true },
   ].filter(canAccess);
 
   const toolsItems = [
     { path: '/kanban/MG', icon: Kanban,   label: 'Suivi technique', kanbanOnly: true },
     { path: '/invoices',  icon: Receipt,  label: 'Factures',        managementOnly: true },
     { path: '/gmao',      icon: Wrench,   label: 'GMAO',            gmaoOnly: true },
+  ].filter(canAccess);
+
+  const superAdminItems = [
+    { path: '/super-admin', icon: Shield, label: 'Clients SaaS', superAdminOnly: true },
   ].filter(canAccess);
 
   const initials = ((user?.firstName?.[0] || user?.username?.[0] || '?') + (user?.lastName?.[0] || '')).toUpperCase();
@@ -227,8 +236,9 @@ const Sidebar = ({ user, onLogout, pendingCount }) => {
           <NavItem icon={FileText}    label="Documents"        to="/documents"            active={isActive('/documents')} />
           <NavItem icon={Upload}      label="Upload"           to="/upload"               active={isActive('/upload')} />
           <NavItem icon={Archive}     label="Archives"         to="/archives"             active={isActive('/archives')} />
-          <NavItem icon={CheckSquare} label="Mes tâches"       to="/my-tasks"             active={isActive('/my-tasks')} badge={pendingCount} urgent={pendingCount > 0} />
-          <NavItem icon={GitBranch}   label="Workflow"         to="/workflow-dashboard"   active={isActive('/workflow-dashboard')} />
+          <NavItem icon={CheckSquare}    label="Mes tâches"       to="/my-tasks"             active={isActive('/my-tasks')} badge={pendingCount} urgent={pendingCount > 0} />
+          <NavItem icon={GitBranch}      label="Workflow"         to="/workflow-dashboard"   active={isActive('/workflow-dashboard')} />
+          <NavItem icon={MessageSquare} label="Discussion"      to="/chat"                 active={isActive('/chat')} badge={chatUnread} urgent={chatUnread > 0} />
         </NavSection>
 
         {(gestionItems.length > 0 || appsItems.length > 0 || toolsItems.length > 0) && (
@@ -240,6 +250,14 @@ const Sidebar = ({ user, onLogout, pendingCount }) => {
               <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
             ))}
             {toolsItems.map(item => (
+              <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
+            ))}
+          </NavSection>
+        )}
+
+        {superAdminItems.length > 0 && (
+          <NavSection title="Super Admin">
+            {superAdminItems.map(item => (
               <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
             ))}
           </NavSection>
@@ -300,6 +318,7 @@ const ROUTE_CRUMBS = {
   '/employees':           ['Organisation', 'Employés'],
   '/services':            ['Organisation', 'Services'],
   '/audit-log':           ['Organisation', "Journal d'audit"],
+  '/admin/droits-acces':  ['Administration', "Droits d'accès"],
   '/workflow-templates':  ['Organisation', 'Modèles workflow'],
   '/forms':               ['Organisation', 'Formulaires'],
   '/portail':             ['Applications', 'Portail'],
@@ -309,6 +328,7 @@ const ROUTE_CRUMBS = {
   '/kanban':              ['Outils', 'Suivi technique'],
   '/gmao':                ['Outils', 'GMAO'],
   '/php':                 ['Module PHP'],
+  '/php/factures':        ['Module PHP', 'Factures PHP'],
 };
 
 const timeAgo = (date) => {
@@ -644,12 +664,22 @@ const MoreSheet = ({ onClose }) => {
 
 export default function AppShell({ onLogout }) {
   const { user } = useAuth();
-  const [pendingCount, setPendingCount] = useState(0);
+  const { unreadCount: chatUnread } = useChatUnread();
+  const [pendingCount,    setPendingCount]    = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => { setMobileOpen(false); setSheetOpen(false); }, [location.pathname]);
+
+  // Applique la couleur de marque du tenant (--brand) si configurée
+  useEffect(() => {
+    if (!user) return;
+    tenantBrandingAPI.get().then(res => {
+      const color = res.data?.data?.primaryColor;
+      if (color) document.documentElement.style.setProperty('--brand', color);
+    }).catch(() => {});
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -680,7 +710,7 @@ export default function AppShell({ onLogout }) {
     }}>
       {/* ── Sidebar desktop ── */}
       <div className="hidden lg:flex" style={{ height: '100vh', position: 'sticky', top: 0 }}>
-        <Sidebar user={user} onLogout={onLogout} pendingCount={pendingCount} />
+        <Sidebar user={user} onLogout={onLogout} pendingCount={pendingCount} chatUnread={chatUnread} />
       </div>
 
       {/* ── Overlay sidebar mobile ── */}
@@ -698,7 +728,7 @@ export default function AppShell({ onLogout }) {
         transition: 'transform 0.25s var(--ease)',
         width: 240,
       }}>
-        <Sidebar user={user} onLogout={onLogout} pendingCount={pendingCount} />
+        <Sidebar user={user} onLogout={onLogout} pendingCount={pendingCount} chatUnread={chatUnread} />
       </div>
 
       {/* ── Colonne principale ── */}
@@ -707,7 +737,13 @@ export default function AppShell({ onLogout }) {
         <main
           key={location.pathname}
           className="animate-pageFade"
-          style={{ flex: 1, overflow: 'auto', paddingBottom: 0 }}
+          style={{
+            flex: 1,
+            overflow: location.pathname.startsWith('/chat') ? 'hidden' : 'auto',
+            paddingBottom: 0,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
         >
           <Outlet />
         </main>

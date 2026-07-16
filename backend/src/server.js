@@ -47,6 +47,8 @@ import phpPatientsRoutes from './routes/phpPatients.js';
 import phpConsultationsRoutes from './routes/phpConsultations.js';
 import phpStatsRoutes from './routes/phpStats.js';
 import phpRendezVousRoutes from './routes/phpRendezVous.js';
+import phpFacturesRoutes from './routes/phpFactures.js'; // ✅ Module factures PHP
+import comptaRoutes from './routes/compta.js';           // ✅ Module Comptabilité
 import templatePermissionRoutes from './routes/templatePermissionRoutes.js';
 import notificationPreferenceRoutes from './routes/notificationPreferenceRoutes.js';
 import auditLogRoutes from './routes/auditLogRoutes.js';
@@ -55,8 +57,14 @@ import verificationRoutes from './routes/verificationRoutes.js';
 import onlyofficeRoutes from './routes/onlyoffice.js';
 import formRoutes from './routes/forms.js'; // ✅ Form Builder
 import postesRoutes from './routes/postes.js'; // ✅ Postes organisationnels
+import chatRoutes from './routes/chat.js';     // ✅ Module Discussion
+import tenantBrandingRoutes from './routes/tenantBrandingRoutes.js'; // ✅ Branding tenant
 import { startPHPAutoCloseScheduler, cloturerConsultationsPassees } from './utils/phpAutoClose.js';
 import { startWorkflowExpireScheduler, expireOverdueWorkflows } from './utils/workflowAutoExpire.js';
+import { resolveTenant } from './middleware/tenant.js';
+import superAdminRoutes from './routes/superAdmin.js';
+import { Tenant as TenantModel } from './models/index.js';
+import { globalLimiter } from './middleware/rateLimiter.js';
 
 
 // Configuration
@@ -66,6 +74,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Faire confiance au proxy nginx pour obtenir la vraie IP client (X-Forwarded-For)
+app.set('trust proxy', 1);
 
 // ✅ NOUVEAU : Créer serveur HTTP pour Socket.IO
 const httpServer = createServer(app);
@@ -105,6 +116,8 @@ const fixedOrigins = new Set([
   'https://localhost:8080',
   'https://ged.hsjm.net',
   'http://ged.hsjm.net',
+  'https://ged.hsjmcam.net',
+  'http://ged.hsjmcam.net',
   'null', // blob: URLs envoient Origin: null
   process.env.CORS_ORIGIN,
   process.env.ONLYOFFICE_URL,
@@ -120,6 +133,12 @@ app.use(cors({
 
     // Vérifier dynamiquement les IPs réseau actuelles de la machine
     if (getLocalNetworkOrigins().has(origin)) return callback(null, true);
+
+    // Autoriser tous les sous-domaines *.hsjmcam.net
+    try {
+      const host = new URL(origin).hostname;
+      if (/^[a-z0-9-]+\.hsjmcam\.net$/.test(host)) return callback(null, true);
+    } catch (_) {}
 
     // Autoriser n'importe quelle IP privée (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
     try {
@@ -165,6 +184,16 @@ app.use('/api/uploads', (req, res, next) => {
 app.use('/api/signatures', express.static(path.join(__dirname, '../signatures')));
 
 // ============================================
+// RATE LIMITING
+// ============================================
+app.use('/api', globalLimiter);
+
+// ============================================
+// MIDDLEWARE MULTI-TENANT
+// ============================================
+app.use('/api', resolveTenant);
+
+// ============================================
 // ROUTES API EXISTANTES
 // ============================================
 app.use('/api/auth', authRoutes);
@@ -194,6 +223,8 @@ app.use('/api/php/patients', phpPatientsRoutes);
 app.use('/api/php/consultations', phpConsultationsRoutes);
 app.use('/api/php/stats', phpStatsRoutes);
 app.use('/api/php/rendez-vous', phpRendezVousRoutes);
+app.use('/api/php/factures', phpFacturesRoutes); // ✅ Factures prestataires (OCR)
+app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
 app.use('/api/template-permissions', templatePermissionRoutes);
 app.use('/api/notification-preferences', notificationPreferenceRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
@@ -202,6 +233,9 @@ app.use('/api/verify', verificationRoutes);
 app.use('/api/forms', formRoutes); // ✅ Form Builder
 app.use('/api/onlyoffice', onlyofficeRoutes);
 app.use('/api/postes', postesRoutes); // ✅ Postes organisationnels
+app.use('/api/chat',   chatRoutes);   // ✅ Module Discussion
+app.use('/api/tenant', tenantBrandingRoutes); // ✅ Branding tenant (logo + couleur)
+app.use('/api/super-admin', superAdminRoutes);
 
 
 // ============================================
@@ -221,6 +255,38 @@ app.use((err, req, res, next) => {
 // ============================================
 // DÉMARRAGE DU SERVEUR
 // ============================================
+const autoDeleteExpiredTenants = async () => {
+  try {
+    const expired = await TenantModel.findAll({
+      where: { autoDeleteAt: { [Op.lte]: new Date() }, slug: { [Op.ne]: 'hsjm' } }
+    });
+    for (const tenant of expired) {
+      const { User: U } = await import('./models/index.js');
+      await U.unscoped().destroy({ where: { tenantId: tenant.id } });
+      await tenant.destroy();
+      console.log(`🗑️  Tenant auto-supprimé : ${tenant.name} (${tenant.slug})`);
+    }
+  } catch (err) {
+    console.error('❌ Auto-suppression tenant:', err.message);
+  }
+};
+
+const startTenantAutoDeleteScheduler = () => {
+  // Vérification quotidienne à 3h du matin
+  const msUntilNext3am = () => {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(3, 0, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1);
+    return next - now;
+  };
+  setTimeout(() => {
+    autoDeleteExpiredTenants();
+    setInterval(autoDeleteExpiredTenants, 24 * 60 * 60 * 1000);
+  }, msUntilNext3am());
+  console.log('✅ Planificateur auto-suppression tenants activé.');
+};
+
 const startServer = async () => {
   try {
     // 1️⃣ Connexion à la base de données
@@ -721,6 +787,115 @@ const startServer = async () => {
       console.log('✅ Table form_responses verifiee/creee.');
     } catch (e) { console.warn('⚠️ form_responses:', e.message); }
 
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS compta_docs (
+          id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          numero_ordre     INTEGER,
+          date_reception   DATE,
+          libelle          TEXT,
+          date_piece       DATE,
+          numero_piece     VARCHAR(120),
+          numero_comptable VARCHAR(120),
+          montant          DECIMAL(18,2),
+          devise           VARCHAR(8) NOT NULL DEFAULT 'XAF',
+          type_mouvement   VARCHAR(10) NOT NULL DEFAULT 'inconnu',
+          document_id      UUID REFERENCES documents(id) ON DELETE SET NULL,
+          statut           VARCHAR(20) NOT NULL DEFAULT 'valide',
+          extraction       JSONB,
+          saisi_par        UUID REFERENCES users(id) ON DELETE SET NULL,
+          created_at       TIMESTAMP DEFAULT NOW(),
+          updated_at       TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_compta_docs_numero_ordre  ON compta_docs(numero_ordre);
+        CREATE INDEX IF NOT EXISTS idx_compta_docs_date_reception ON compta_docs(date_reception);
+        CREATE INDEX IF NOT EXISTS idx_compta_docs_saisi_par     ON compta_docs(saisi_par);
+      `);
+      // Ajouter group_id si absent (pièces multi-lignes)
+      await sequelize.query(`
+        ALTER TABLE compta_docs ADD COLUMN IF NOT EXISTS group_id UUID;
+        ALTER TABLE compta_docs ADD COLUMN IF NOT EXISTS ligne_ordre INTEGER DEFAULT 1;
+        CREATE INDEX IF NOT EXISTS idx_compta_docs_group_id ON compta_docs(group_id);
+      `);
+      console.log('✅ Table compta_docs vérifiée/créée.');
+    } catch (e) { console.warn('⚠️ compta_docs:', e.message); }
+
+    // Tables module Discussion (chat)
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS chat_conversations (
+          id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          type          VARCHAR(20) NOT NULL DEFAULT 'channel' CHECK (type IN ('channel','direct','document')),
+          name          VARCHAR(100),
+          description   TEXT,
+          document_id   UUID,
+          created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+          is_archived   BOOLEAN NOT NULL DEFAULT false,
+          last_message_at TIMESTAMP WITH TIME ZONE,
+          created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          conversation_id UUID NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          author_id       UUID REFERENCES users(id) ON DELETE SET NULL,
+          content         TEXT NOT NULL DEFAULT '',
+          attachment_path TEXT,
+          attachment_name VARCHAR(255),
+          is_deleted      BOOLEAN NOT NULL DEFAULT false,
+          edited_at       TIMESTAMP WITH TIME ZONE,
+          created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_messages_conv_id ON chat_messages(conversation_id, created_at);
+        CREATE TABLE IF NOT EXISTS chat_conversation_members (
+          id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          conversation_id UUID NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role            VARCHAR(20) NOT NULL DEFAULT 'member',
+          last_read_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          joined_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          UNIQUE(conversation_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_conversation_members(user_id);
+        CREATE TABLE IF NOT EXISTS chat_reactions (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          message_id UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          emoji VARCHAR(10) NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(message_id, user_id, emoji)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_reactions_msg ON chat_reactions(message_id);
+      `);
+      console.log('✅ Tables chat vérifiées/créées.');
+    } catch (e) { console.warn('⚠️ chat tables:', e.message); }
+
+    // Canal général : créer si absent
+    try {
+      await sequelize.query(`
+        INSERT INTO chat_conversations (id, type, name, description, created_at, updated_at)
+        VALUES (gen_random_uuid(), 'channel', 'général', 'Canal de discussion général', NOW(), NOW())
+        ON CONFLICT DO NOTHING;
+      `);
+    } catch (_) {}
+
+    // Postes système gmao et kanban (migration des accès email hardcodés)
+    try {
+      // Récupérer tous les tenants actifs pour créer les postes système dans chacun
+      const [tenants] = await sequelize.query(`SELECT id FROM tenants WHERE is_active = true`);
+      for (const t of tenants) {
+        await sequelize.query(`
+          INSERT INTO postes (id, code, label, description, tenant_id, created_at, updated_at)
+          VALUES
+            (gen_random_uuid(), 'gmao',   'Responsable GMAO',    'Accès au module de maintenance préventive des équipements', :tenantId, NOW(), NOW()),
+            (gen_random_uuid(), 'kanban', 'Suivi Technique',     'Accès au tableau de suivi technique (MG, Informatique, Biomédical)', :tenantId, NOW(), NOW())
+          ON CONFLICT DO NOTHING;
+        `, { replacements: { tenantId: t.id } });
+      }
+      console.log('✅ Postes gmao/kanban vérifiés.');
+    } catch (e) { console.warn('⚠️ postes gmao/kanban:', e.message); }
+
     // 3️⃣ Créer l'utilisateur admin par défaut
     console.log('');
     console.log('🔐 Vérification de l\'utilisateur admin par défaut...');
@@ -738,6 +913,9 @@ const startServer = async () => {
     // 4c. Workflow : expirer les tâches dépassées au démarrage, puis planifier chaque nuit
     await expireOverdueWorkflows();
     startWorkflowExpireScheduler();
+
+    // 4d. Tenant auto-suppression : vérifier chaque nuit les tenants à supprimer
+    startTenantAutoDeleteScheduler();
     console.log('');
 
     // 5️⃣ Démarrage du serveur HTTP (avec Socket.IO)

@@ -548,6 +548,15 @@ export const statisticsAPI = {
 };
 
 // ============================================
+// API pour le Branding du Tenant
+// ============================================
+export const tenantBrandingAPI = {
+  get: () => api.get('/tenant/branding'),
+  update: (data) => api.put('/tenant/branding', data),
+  uploadLogo: (formData) => api.post('/tenant/branding/logo', formData),
+};
+
+// ============================================
 // API pour les Modeles de Workflow
 // ============================================
 export const workflowTemplatesAPI = {
