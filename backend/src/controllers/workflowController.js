@@ -1,6 +1,6 @@
 // backend/src/controllers/workflowController.js - VERSION COMPLÈTE AVEC SOCKET.IO
 
-import { Workflow, Document, User, InvoiceFolder, NotificationPreference, WorkflowComment } from '../models/index.js';
+import { Workflow, Document, User, InvoiceFolder, NotificationPreference, WorkflowComment, WorkflowTemplate } from '../models/index.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
@@ -218,6 +218,28 @@ export const createWorkflow = async (req, res) => {
       }
       finalValidatorIds = built.validatorIds;
       comptableAdded = built.comptableAdded;
+    } else if (req.body.workflowTemplateId) {
+      // Circuit depuis un modèle de workflow (formulaires Form Builder)
+      const template = await WorkflowTemplate.findByPk(req.body.workflowTemplateId);
+      if (!template) {
+        return res.status(404).json({ success: false, message: 'Modèle de workflow introuvable.' });
+      }
+      const steps = (template.validators || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const resolved = [];
+      for (const step of steps) {
+        if (step.validatorType === 'user' && step.userId) {
+          resolved.push(step.userId);
+        } else if (step.validatorType === 'role' && step.role) {
+          try {
+            const u = await User.findOne({ where: { role: step.role, tenantId: req.tenantId }, attributes: ['id'] });
+            if (u) resolved.push(u.id);
+          } catch { /* rôle invalide ignoré */ }
+        }
+      }
+      if (resolved.length === 0) {
+        return res.status(400).json({ success: false, message: 'Aucun validateur résolu depuis le modèle.' });
+      }
+      finalValidatorIds = resolved;
     } else {
       // Autres documents : validateurs choisis par l'utilisateur
       if (!Array.isArray(validatorIds) || validatorIds.length === 0) {
@@ -232,6 +254,7 @@ export const createWorkflow = async (req, res) => {
         Workflow.create({
           documentId,
           validatorId,
+          tenantId: req.tenantId,
           step: index + 1,
           status: index === 0 ? 'pending' : 'queued',
           assignedAt: index === 0 ? now : null,
@@ -527,7 +550,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       const validator = await User.findByPk(userId, { transaction: t });
 
       // --- LOGIQUE REMPLAÇANT POUR PERMISSION ---
-      if (document.category === 'Demande de permission' && remplacantName && (effectiveStatus === 'approved')) {
+      if (document.category === 'Demande de permission' && remplacantName && (effectiveStatus === 'approved') && document.fileType === 'application/pdf') {
           try {
               const pdfPath = path.resolve(process.cwd(), document.filePath);
               const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
@@ -566,11 +589,16 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       const totalStepsWithoutComptable = isLastWorkflowComptable ? totalSteps - 1 : totalSteps;
       
       let signatureConfig = getSignatureConfig(document.category);
-      // Pour le Bon de commande interne, respecter le nombre de signataires choisi par l'utilisateur
       const metadataNbSig = document.metadata?.nbSignataires ? parseInt(document.metadata.nbSignataires) : null;
-      const numberOfSignatures = (metadataNbSig && metadataNbSig >= 1 && metadataNbSig <= signatureConfig.numberOfSignatures)
-        ? metadataNbSig
-        : signatureConfig.numberOfSignatures;
+      // Quand le document a des signatureZones explicites (Form Builder), leur compte prime sur tout
+      const sigZonesCount = Array.isArray(document.metadata?.signatureZones)
+        ? document.metadata.signatureZones.length
+        : null;
+      const numberOfSignatures = sigZonesCount
+        ? sigZonesCount
+        : (metadataNbSig && metadataNbSig >= 1 && metadataNbSig <= signatureConfig.numberOfSignatures)
+          ? metadataNbSig
+          : signatureConfig.numberOfSignatures;
 
       // Vérification de la zone de signature
       const isInSignatureRange = task.step > (totalStepsWithoutComptable - numberOfSignatures);
@@ -672,45 +700,84 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         }
 
         // 2. SIGNATURE
-        if ((validationType === 'signature' || validationType === 'approve_sign_stamp') && validator.signaturePath) {
-          const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
-          const signatureImageBytes = await fs.readFile(signatureImagePath);
-          const signatureImage = await embedImage(pdfDoc, signatureImageBytes);
-          const signatureDims = signatureImage.scaleToFit(signatureConfig.signatureWidth, signatureConfig.signatureHeight);
+        if (validationType === 'signature' || validationType === 'approve_sign_stamp') {
+          const sigX = baseX + (signatureConfig.blockWidth / 2);
 
-          // Ancrage : signature dans la moitié BASSE (tous les templates)
+          let signatureImage = null;
+          let signatureDims = null;
+          if (validator.signaturePath) {
+            const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
+            const signatureImageBytes = await fs.readFile(signatureImagePath);
+            signatureImage = await embedImage(pdfDoc, signatureImageBytes);
+            signatureDims = signatureImage.scaleToFit(signatureConfig.signatureWidth, signatureConfig.signatureHeight);
+          }
+
           const sigY = activeZone
-            ? activeZone.y + (activeZone.height / 2 - signatureDims.height) / 2
+            ? activeZone.y + (activeZone.height / 2 - (signatureDims ? signatureDims.height : 36)) / 2
             : baseY;
 
-          targetPage.drawImage(signatureImage, {
-            x: baseX + (signatureConfig.blockWidth / 2) - (signatureDims.width / 2),
-            y: sigY,
-            width: signatureDims.width,
-            height: signatureDims.height
-          });
+          if (signatureImage) {
+            targetPage.drawImage(signatureImage, {
+              x: sigX - signatureDims.width / 2,
+              y: sigY,
+              width: signatureDims.width,
+              height: signatureDims.height
+            });
+          } else {
+            // Fallback texte : nom + date quand aucune image configurée
+            const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const regFont  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const name     = `${validator.firstName || ''} ${validator.lastName || ''}`.trim();
+            const dateStr  = new Date().toLocaleDateString('fr-FR');
+            const zoneW    = activeZone ? activeZone.width : signatureConfig.blockWidth;
+            const textX    = activeZone ? activeZone.x + 4 : (baseX + 4);
+
+            targetPage.drawRectangle({ x: textX - 2, y: sigY - 4, width: zoneW - 4, height: 36,
+              color: rgb(0.93, 1, 0.93), borderColor: rgb(0.2, 0.7, 0.2), borderWidth: 0.8 });
+            targetPage.drawText('Lu et approuve', { x: textX + 2, y: sigY + 22, size: 8, font: boldFont, color: rgb(0.05, 0.45, 0.05) });
+            targetPage.drawText(name,    { x: textX + 2, y: sigY + 12, size: 8, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
+            targetPage.drawText(`Le ${dateStr}`, { x: textX + 2, y: sigY + 2, size: 7, font: regFont, color: rgb(0.4, 0.4, 0.4) });
+          }
         }
 
         // 3. CACHET
-        if ((validationType === 'stamp' || validationType === 'approve_sign_stamp') && validator.stampPath) {
-          const stampImagePath = path.resolve(process.cwd(), validator.stampPath);
-          const stampImageBytes = await fs.readFile(stampImagePath);
-          const stampImage = await embedImage(pdfDoc, stampImageBytes);
-          const stampDims = stampImage.scaleToFit(signatureConfig.stampWidth, signatureConfig.stampHeight);
+        if (validationType === 'stamp' || validationType === 'approve_sign_stamp') {
+          let stampImage = null;
+          let stampDims = null;
+          if (validator.stampPath) {
+            const stampImagePath = path.resolve(process.cwd(), validator.stampPath);
+            const stampImageBytes = await fs.readFile(stampImagePath);
+            stampImage = await embedImage(pdfDoc, stampImageBytes);
+            stampDims = stampImage.scaleToFit(signatureConfig.stampWidth, signatureConfig.stampHeight);
+          }
 
-          // Ancrage : cachet dans la moitié HAUTE (tous les templates)
           const stampYAdjusted = activeZone
-            ? activeZone.y + activeZone.height / 2 + (activeZone.height / 2 - stampDims.height) / 2
+            ? activeZone.y + activeZone.height / 2 + (activeZone.height / 2 - (stampDims ? stampDims.height : 36)) / 2
             : (document.category === 'Demande de permutation' && task.step <= 2)
               ? baseY - 10
               : signatureConfig.stampY;
 
-          targetPage.drawImage(stampImage, {
-            x: baseX + (signatureConfig.blockWidth / 2) - (stampDims.width / 2),
-            y: stampYAdjusted,
-            width: stampDims.width,
-            height: stampDims.height
-          });
+          if (stampImage) {
+            targetPage.drawImage(stampImage, {
+              x: baseX + (signatureConfig.blockWidth / 2) - (stampDims.width / 2),
+              y: stampYAdjusted,
+              width: stampDims.width,
+              height: stampDims.height
+            });
+          } else {
+            // Fallback texte cachet
+            const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const regFont  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const name     = `${validator.firstName || ''} ${validator.lastName || ''}`.trim();
+            const zoneW    = activeZone ? activeZone.width : signatureConfig.blockWidth;
+            const textX    = activeZone ? activeZone.x + 4 : (baseX + 4);
+
+            targetPage.drawRectangle({ x: textX - 2, y: stampYAdjusted - 4, width: zoneW - 4, height: 36,
+              color: rgb(0.93, 0.95, 1), borderColor: rgb(0.2, 0.3, 0.8), borderWidth: 0.8 });
+            targetPage.drawText('CACHET', { x: textX + 2, y: stampYAdjusted + 22, size: 8, font: boldFont, color: rgb(0.1, 0.2, 0.7) });
+            targetPage.drawText(name, { x: textX + 2, y: stampYAdjusted + 12, size: 8, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
+            targetPage.drawText('H.S.J.M', { x: textX + 2, y: stampYAdjusted + 2, size: 7, font: regFont, color: rgb(0.4, 0.4, 0.4) });
+          }
         }
 
         // Sauvegarde du fichier modifié
@@ -1195,7 +1262,7 @@ function calculateSignatureX(position, config, pageWidth) {
 // ─── Réaffectation d'une tâche de validation (admin seulement) ───────────────
 export const reassignTask = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!['admin','superadmin'].includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Réservé aux administrateurs.' });
     }
     const { taskId } = req.params;
@@ -1260,7 +1327,7 @@ export const getWorkflowComments = async (req, res) => {
     // Vérifier que l'utilisateur est soumetteur ou validateur du document
     const workflows = await Workflow.findAll({ where: { documentId } });
     const validatorIds = workflows.map(w => w.validatorId);
-    const isParticipant = document.userId === req.user.id || validatorIds.includes(req.user.id) || req.user.role === 'admin';
+    const isParticipant = document.userId === req.user.id || validatorIds.includes(req.user.id) || ['admin','superadmin'].includes(req.user.role);
     if (!isParticipant) return res.status(403).json({ success: false, message: 'Accès refusé.' });
 
     const comments = await WorkflowComment.findAll({
@@ -1287,7 +1354,7 @@ export const addWorkflowComment = async (req, res) => {
     // Vérifier participation au workflow
     const workflows = await Workflow.findAll({ where: { documentId } });
     const validatorIds = workflows.map(w => w.validatorId);
-    const isParticipant = document.userId === req.user.id || validatorIds.includes(req.user.id) || req.user.role === 'admin';
+    const isParticipant = document.userId === req.user.id || validatorIds.includes(req.user.id) || ['admin','superadmin'].includes(req.user.role);
     if (!isParticipant) return res.status(403).json({ success: false, message: 'Seuls les participants du workflow peuvent commenter.' });
 
     const comment = await WorkflowComment.create({ documentId, userId: req.user.id, text: text.trim() });
@@ -1327,7 +1394,7 @@ export const relancerValidation = async (req, res) => {
 
     // Seul le soumetteur ou un admin peut relancer
     const isOwner = document.userId === req.user.id;
-    if (!isOwner && req.user.role !== 'admin') {
+    if (!isOwner && !['admin','superadmin'].includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Seul le soumetteur ou un administrateur peut relancer la validation.' });
     }
 

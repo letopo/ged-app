@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import ReactDOM from 'react-dom';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI } from '../services/api';
+import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI, formsAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import WorkflowProgress from '../components/WorkflowProgress';
 import { DocumentGridSkeleton, DocumentTableSkeleton } from '../components/SkeletonLoader';
@@ -13,6 +13,7 @@ import { useConfirm } from '../components/ConfirmModal';
 import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive, Star, Download, Shield, Settings, ChevronDown, GitBranch } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
+import DocumentDiscussion from '../components/DocumentDiscussion';
 import { useFavorites } from '../hooks/useFavorites';
 import TemplatePermissionsModal from '../components/TemplatePermissionsModal';
 
@@ -131,6 +132,7 @@ const DocumentList = () => {
 
   const [accessibleTemplates, setAccessibleTemplates] = useState([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [publishedForms, setPublishedForms] = useState([]);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
 
   // Mapping icones par template
@@ -172,9 +174,11 @@ const DocumentList = () => {
   const sidebarTemplates = permissionsLoaded ? accessibleTemplates : DEFAULT_TEMPLATES;
 
   useEffect(() => {
-    // Nettoyer l'ancien cache sessionStorage si present (migration)
     sessionStorage.removeItem('ged-template-permissions');
     loadTemplatePermissions();
+    formsAPI.getAll({ status: 'published' })
+      .then(r => setPublishedForms(r.data?.data || []))
+      .catch(() => {});
   }, []);
 
   // Pré-remplit la recherche depuis l'URL (?q=...) : la barre de recherche du
@@ -781,8 +785,8 @@ const DocumentList = () => {
                                 documentStatus={doc.status}
                                 documentId={doc.id}
                                 submittedBy={doc.userId}
-                                isAdmin={user?.role === 'admin'}
-                                onReassign={user?.role === 'admin' ? handleOpenReassign : null}
+                                isAdmin={['admin','superadmin'].includes(user?.role)}
+                                onReassign={['admin','superadmin'].includes(user?.role) ? handleOpenReassign : null}
                                 onRelanced={() => loadDocuments(currentPage)}
                                 hideDiscussion={doc.status !== 'rejected'}
                               />
@@ -857,8 +861,8 @@ const DocumentList = () => {
                             documentStatus={doc.status}
                             documentId={doc.id}
                             submittedBy={doc.userId}
-                            isAdmin={user?.role === 'admin'}
-                            onReassign={user?.role === 'admin' ? handleOpenReassign : null}
+                            isAdmin={['admin','superadmin'].includes(user?.role)}
+                            onReassign={['admin','superadmin'].includes(user?.role) ? handleOpenReassign : null}
                             onRelanced={() => loadDocuments(currentPage)}
                             hideDiscussion={doc.status !== 'rejected'}
                           />
@@ -879,7 +883,7 @@ const DocumentList = () => {
 
           {/* Empty state */}
           {totalDocuments === 0 && !loading && (
-            <div className="ged-card" style={{ padding: 40, textAlign: 'center' }}>
+            <div className="ged-card" style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               <FileText size={32} color="var(--fg-subtle)" style={{ marginBottom: 12 }} />
               <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>Aucun document trouvé</p>
               <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
@@ -920,7 +924,7 @@ const DocumentList = () => {
               <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FilePlus size={14} color="var(--brand)" /> Nouveau document
               </h3>
-              {user?.role === 'admin' && (
+              {['admin','superadmin'].includes(user?.role) && (
                 <button onClick={() => setShowPermissionsModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4 }} title="Gérer les permissions">
                   <Settings size={13} />
                 </button>
@@ -970,6 +974,26 @@ const DocumentList = () => {
               })}
             {sidebarTemplates.filter(t => t.hasAccess).length === 0 && (
               <li style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: 'var(--fg-muted)' }}>Aucun modèle disponible</li>
+            )}
+            {/* Formulaires Form Builder publiés */}
+            {publishedForms.filter(f => !searchValidatorTerm || f.title.toLowerCase().includes(searchValidatorTerm.toLowerCase())).length > 0 && (
+              <>
+                <li style={{ padding: '10px 10px 4px', fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.6px', marginTop: 4 }}>
+                  Formulaires
+                </li>
+                {publishedForms
+                  .filter(f => !searchValidatorTerm || f.title.toLowerCase().includes(searchValidatorTerm.toLowerCase()))
+                  .map(f => {
+                    const itemStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 'var(--radius-2)', cursor: 'pointer', textDecoration: 'none', fontSize: 12.5, color: 'var(--fg)', width: '100%', border: 'none', background: 'none', textAlign: 'left' };
+                    return (
+                      <li key={f.id}>
+                        <Link to={`/forms/${f.id}/fill`} style={itemStyle} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                          <span>📋</span><span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.title}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+              </>
             )}
           </ul>
         </div>
@@ -1046,8 +1070,8 @@ const DocumentList = () => {
                 {loadingUsers
                   ? <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}><Loader className="animate-spin" style={{ color: 'var(--brand)' }} /></div>
                   : availableUsers.length === 0 && !searchValidatorTerm
-                    ? <div style={{ textAlign: 'center', padding: '24px 0', background: 'var(--surface-2)', borderRadius: 'var(--radius-3)' }}>
-                        <AlertCircle style={{ margin: '0 auto 8px', color: 'var(--fg-subtle)' }} size={32} />
+                    ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '24px 0', background: 'var(--surface-2)', borderRadius: 'var(--radius-3)' }}>
+                        <AlertCircle style={{ marginBottom: 8, color: 'var(--fg-subtle)' }} size={32} />
                         <p style={{ color: 'var(--fg)', fontSize: 13, margin: 0 }}>Aucun validateur disponible</p>
                       </div>
                     : <>
@@ -1145,6 +1169,13 @@ const DocumentList = () => {
           onSelectDocument={setViewingDocument}
           documents={sortedDocuments}
           showActions={false}
+        />
+      )}
+
+      {viewingDocument && (
+        <DocumentDiscussion
+          documentId={viewingDocument.id}
+          documentTitle={viewingDocument.title}
         />
       )}
 
