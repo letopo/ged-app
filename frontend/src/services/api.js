@@ -182,6 +182,14 @@ export const offSocketEvent = (eventName, callback) => {
   socket.off(eventName, callback);
 };
 
+/**
+ * Écoute les changements de droits d'accès pour l'utilisateur courant
+ */
+export const onRightsChanged = (callback) => {
+  if (!socket) return;
+  socket.on('rights_changed', callback);
+};
+
 // ============================================
 // API pour l'Authentification
 // ============================================
@@ -547,6 +555,7 @@ export const workflowTemplatesAPI = {
   create: (data) => api.post('/workflow-templates', data),
   update: (id, data) => api.put(`/workflow-templates/${id}`, data),
   delete: (id) => api.delete(`/workflow-templates/${id}`),
+  seed: () => api.post('/workflow-templates/seed'),
 };
 
 // ============================================
@@ -565,10 +574,13 @@ export const formsAPI = {
   getPermissions: (id)       => api.get(`/forms/${id}/permissions`),
   setPermissions: (id, perms)=> api.put(`/forms/${id}/permissions`, { permissions: perms }),
   getStats:    (id)          => api.get(`/forms/${id}/stats`),
-  submitResponse:       (id, data)        => api.post(`/forms/${id}/responses`, { data }),
-  getResponses:         (id, params)      => api.get(`/forms/${id}/responses`, { params }),
-  getResponseById:      (id, rid)         => api.get(`/forms/${id}/responses/${rid}`),
-  updateResponseStatus: (id, rid, status) => api.patch(`/forms/${id}/responses/${rid}/status`, { status }),
+  submitResponse:       (id, data)           => api.post(`/forms/${id}/responses`, { data }),
+  getResponses:         (id, params)         => api.get(`/forms/${id}/responses`, { params }),
+  getResponseById:      (id, rid)            => api.get(`/forms/${id}/responses/${rid}`),
+  updateResponseStatus: (id, rid, status)    => api.patch(`/forms/${id}/responses/${rid}/status`, { status }),
+  approveStep:          (id, rid, comment)   => api.post(`/forms/${id}/responses/${rid}/approve`, { comment }),
+  rejectStep:           (id, rid, comment)   => api.post(`/forms/${id}/responses/${rid}/reject`, { comment }),
+  getPendingApprovals:  ()                   => api.get('/forms/responses/pending'),
 };
 
 // Postes organisationnels assignables (comptable, DG, DDS…)

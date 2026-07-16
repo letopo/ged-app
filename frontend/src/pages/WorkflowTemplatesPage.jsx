@@ -308,6 +308,7 @@ export default function WorkflowTemplatesPage() {
 
   const [availableUsers, setAvailableUsers] = useState([]);
   const [loadingUsers, setLoadingUsers]     = useState(false);
+  const [seeding, setSeeding]               = useState(false);
 
   useEffect(() => { loadTemplates(); }, []);
 
@@ -318,6 +319,16 @@ export default function WorkflowTemplatesPage() {
       setTemplates(res.data?.data || []);
     } catch { toast.error('Erreur chargement des modèles'); }
     finally { setLoading(false); }
+  };
+
+  const handleSeed = async () => {
+    try {
+      setSeeding(true);
+      const res = await workflowTemplatesAPI.seed();
+      toast.success(res.data?.message || 'Modèles créés');
+      loadTemplates();
+    } catch { toast.error('Erreur lors de la création des modèles manquants'); }
+    finally { setSeeding(false); }
   };
 
   const loadUsers = async () => {
@@ -448,9 +459,14 @@ export default function WorkflowTemplatesPage() {
             Circuits de validation configurables — {templates.length} modèle{templates.length !== 1 ? 's' : ''}
           </div>
         </div>
-        <button onClick={openCreate} style={s.btnPrimary}>
-          <Plus size={14} /> Nouveau modèle
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handleSeed} disabled={seeding} style={{ ...s.btnOutline, opacity: seeding ? 0.6 : 1 }} title="Créer un modèle par défaut pour chaque template codé en dur qui n'en a pas encore">
+            {seeding ? <Loader size={14} className="animate-spin" /> : <Copy size={14} />} Créer les modèles manquants
+          </button>
+          <button onClick={openCreate} style={s.btnPrimary}>
+            <Plus size={14} /> Nouveau modèle
+          </button>
+        </div>
       </div>
 
       {/* Empty state */}
