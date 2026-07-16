@@ -4,13 +4,14 @@ import ReactDOM from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   X, Check, AlertTriangle, MessageSquare, FilePlus,
-  ArrowUp, ArrowDown, Loader, Download,
+  ArrowUp, ArrowDown, Loader, Download, Printer,
   ChevronRight, CheckCircle, Clock, XCircle,
-  FileText, Tag, Calendar, User, Hash, Scan, Settings2,
+  FileText, Tag, Calendar, User, Hash, Scan, Settings2, UserCheck,
 } from 'lucide-react';
 import { documentsAPI, getFileBaseUrl } from '../services/api';
 import toast from 'react-hot-toast';
 import OnlyOfficeEditor, { isOfficeFile } from './OnlyOfficeEditor';
+import FormResponseViewer from './FormBuilder/Renderer/FormResponseViewer';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ const strColor = (s) => AVATAR_COLORS[(s || '').split('').reduce((a, c) => a + c
 
 // ── WorkflowStep ─────────────────────────────────────────────────────────────
 
-function WorkflowStep({ stepNum, label, userName, dateStr, status, isLast }) {
+function WorkflowStep({ stepNum, label, userName, dateStr, status, isLast, onReassign }) {
   const cfg = {
     approved: { icon: CheckCircle, color: 'var(--success)',   bg: 'var(--success-soft)', dot: 'var(--success)'  },
     rejected: { icon: XCircle,     color: 'var(--danger)',    bg: 'var(--danger-soft)',  dot: 'var(--danger)'   },
@@ -73,7 +74,20 @@ function WorkflowStep({ stepNum, label, userName, dateStr, status, isLast }) {
         {Icon ? <Icon size={13} /> : stepNum}
       </div>
       <div style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)', lineHeight: 1.3 }}>{label}</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)', lineHeight: 1.3 }}>{label}</div>
+          {onReassign && (
+            <button
+              onClick={onReassign}
+              title="Réaffecter à un autre validateur"
+              style={{ padding: 3, borderRadius: 'var(--radius-2)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', flexShrink: 0, transition: 'background .15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <UserCheck size={13} />
+            </button>
+          )}
+        </div>
         {userName && <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 1 }}>{userName}</div>}
         <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 2 }}>
           {dateStr || (status === 'active' ? 'En cours' : status === 'pending' ? 'En attente' : '')}
@@ -152,8 +166,10 @@ const DocumentViewer = ({
   showActions = false,
   documents = [],
   onSelectDocument,
+  onReassign,
 }) => {
   const { user } = useAuth();
+  const isAdmin = ['admin', 'superadmin'].includes(user?.role);
   const [comment, setComment]                 = useState('');
   const [rejectComment, setRejectComment]     = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
@@ -247,8 +263,9 @@ const DocumentViewer = ({
   if (!doc) return null;
 
   // ── Derived ──────────────────────────────────────────────────────────────────
+  const isFormResponse = doc.fileType === 'application/x-form-response' || doc.metadata?.sourceType === 'form_response';
   const signatureZones = doc.metadata?.signatureZones || [];
-  const fileTypeLabel  = FILE_TYPE_LABEL[doc.fileType] || (doc.fileType?.split('/')[1]?.toUpperCase()) || 'Fichier';
+  const fileTypeLabel  = isFormResponse ? 'Formulaire' : (FILE_TYPE_LABEL[doc.fileType] || (doc.fileType?.split('/')[1]?.toUpperCase()) || 'Fichier');
   const sizeLabel      = fmtSize(doc.fileSize);
   const pageCount      = doc.pageCount || doc.metadata?.pageCount;
   const typeDisplay    = [fileTypeLabel, sizeLabel, pageCount ? `${pageCount} page${pageCount > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ');
@@ -278,13 +295,36 @@ const DocumentViewer = ({
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
-          <button onClick={handleDownload} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-            <Download size={13} /> Télécharger
-          </button>
-          <input type="file" ref={fileInputRef} onChange={onFileSelect} accept="application/pdf" style={{ display: 'none' }} />
-          <button onClick={() => fileInputRef.current.click()} title="Ajouter une page PDF" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 32, width: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer' }}>
-            <FilePlus size={14} />
-          </button>
+          {isFormResponse ? (
+            <button onClick={() => {
+              const el = document.querySelector('#form-response-print-area');
+              if (!el) return;
+              const clone = el.cloneNode(true);
+              // Retirer le scale — canvas pleine taille pour l'impression
+              const cvs = clone.querySelector('.form-response-canvas');
+              if (cvs) { cvs.style.transform = 'none'; cvs.style.width = '800px'; cvs.style.margin = '0 auto'; }
+              const wrap = clone.querySelector('.form-response-canvas-wrap');
+              if (wrap) { wrap.style.height = 'auto'; wrap.style.overflow = 'visible'; }
+              // Supprimer la balise <style> interne (CSS media print inutile dans la nouvelle fenêtre)
+              clone.querySelectorAll('style').forEach(s => s.remove());
+              const win = window.open('', '_blank', 'width=950,height=800');
+              if (!win) return;
+              win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${(doc.title || 'Formulaire').replace(/</g,'&lt;')}</title><style>*{box-sizing:border-box;}body{margin:0;padding:0;font-family:Inter,system-ui,sans-serif;background:#fff;}@page{margin:8mm;}img{max-width:100%;}</style></head><body>${clone.outerHTML}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+              win.document.close();
+            }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+              <Printer size={13} /> Imprimer / PDF
+            </button>
+          ) : (
+            <>
+              <button onClick={handleDownload} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                <Download size={13} /> Télécharger
+              </button>
+              <input type="file" ref={fileInputRef} onChange={onFileSelect} accept="application/pdf" style={{ display: 'none' }} />
+              <button onClick={() => fileInputRef.current.click()} title="Ajouter une page PDF" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 32, width: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer' }}>
+                <FilePlus size={14} />
+              </button>
+            </>
+          )}
           {showActions && (
             <button onClick={handleValidate} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 16px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--success)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               <Check size={13} /> Approuver
@@ -334,9 +374,22 @@ const DocumentViewer = ({
           </div>
         </div>
 
-        {/* ── CENTER : PDF ────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f0f0f0', position: 'relative', overflow: 'hidden' }}>
-          {isOfficeFile(doc.fileName || doc.filePath) ? (
+        {/* ── CENTER : Formulaire HTML ou PDF ─────────────────────────────── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isFormResponse ? '#f8fafc' : '#f0f0f0', position: 'relative', overflow: 'hidden' }}>
+          {isFormResponse ? (
+            /* ── Réponse de formulaire : rendu HTML identique au canvas ── */
+            <div id="form-response-portal" style={{ flex: 1, overflowY: 'auto', padding: '20px 0' }}>
+              <div style={{ maxWidth: 860, margin: '0 auto', background: '#fff', borderRadius: 10, boxShadow: '0 2px 16px rgba(0,0,0,.08)', overflow: 'hidden' }}>
+                <FormResponseViewer
+                  form={{ schema: doc.metadata?.schema, title: doc.title }}
+                  responseData={doc.metadata?.responseData || {}}
+                  submittedBy={doc.metadata?.submittedBy}
+                  refCode={doc.metadata?.refCode}
+                  wfSteps={wfSteps}
+                />
+              </div>
+            </div>
+          ) : isOfficeFile(doc.fileName || doc.filePath) ? (
             <OnlyOfficeEditor documentId={doc.id} onClose={onClose} />
           ) : (
             <>
@@ -390,7 +443,8 @@ const DocumentViewer = ({
                       label={assigneeName || `Validation N${i + 1}`}
                       userName={`Validation N${i + 1}${roleLabel ? ` · ${roleLabel}` : ''}`}
                       dateStr={wf.updatedAt && wf.status !== 'pending' ? new Date(wf.updatedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' · ' + new Date(wf.updatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null}
-                      status={stepStatus} isLast={i === wfSteps.length - 1} />
+                      status={stepStatus} isLast={i === wfSteps.length - 1}
+                      onReassign={isAdmin && onReassign && ['pending', 'queued'].includes(wf.status) ? () => onReassign(wf) : null} />
                   );
                 })}
               </div>

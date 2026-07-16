@@ -1169,6 +1169,7 @@ const DocumentList = () => {
           onSelectDocument={setViewingDocument}
           documents={sortedDocuments}
           showActions={false}
+          onReassign={handleOpenReassign}
         />
       )}
 
