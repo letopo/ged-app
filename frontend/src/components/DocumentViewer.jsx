@@ -337,10 +337,10 @@ const DocumentViewer = ({
       </div>
 
       {/* ── 3-PANEL BODY ──────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="docviewer-body">
 
         {/* ── LEFT : Document List ────────────────────────────────────────── */}
-        <div style={{ width: 270, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border)', background: 'var(--surface)', overflow: 'hidden' }}>
+        <div className="docviewer-list" style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border)', background: 'var(--surface)', overflow: 'hidden' }}>
           {/* Tabs */}
           <div style={{ display: 'flex', padding: '10px 14px 0', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
             {[
@@ -375,7 +375,7 @@ const DocumentViewer = ({
         </div>
 
         {/* ── CENTER : Formulaire HTML ou PDF ─────────────────────────────── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: isFormResponse ? '#f8fafc' : '#f0f0f0', position: 'relative', overflow: 'hidden' }}>
+        <div className="docviewer-center" style={{ display: 'flex', flexDirection: 'column', background: isFormResponse ? '#f8fafc' : '#f0f0f0', position: 'relative', overflow: 'hidden' }}>
           {isFormResponse ? (
             /* ── Réponse de formulaire : rendu HTML identique au canvas ── */
             <div id="form-response-portal" style={{ flex: 1, overflowY: 'auto', padding: '20px 0' }}>
@@ -423,7 +423,7 @@ const DocumentViewer = ({
         </div>
 
         {/* ── RIGHT : Workflow + Meta + Actions ───────────────────────────── */}
-        <div style={{ width: 270, flexShrink: 0, borderLeft: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="docviewer-side" style={{ borderLeft: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 0' }}>
 
             {/* Workflow */}

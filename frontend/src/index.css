@@ -323,3 +323,15 @@
   .doclist-2col { grid-template-columns: 1fr; }
   .doclist-2col .doclist-sidebar { position: static; }
 }
+
+/* Visionneuse de document — 3 panneaux (liste / PDF / workflow) empilés sur mobile */
+.docviewer-body   { flex: 1; display: flex; overflow: hidden; }
+.docviewer-list   { width: 270px; flex-shrink: 0; }
+.docviewer-center { flex: 1; }
+.docviewer-side   { width: 270px; flex-shrink: 0; }
+@media (max-width: 860px) {
+  .docviewer-body   { flex-direction: column; overflow-y: auto; }
+  .docviewer-list   { display: none !important; }
+  .docviewer-center { flex: none !important; min-height: 50vh; width: 100%; }
+  .docviewer-side   { width: 100%; border-left: none !important; border-top: 1px solid var(--border); }
+}
