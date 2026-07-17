@@ -4,12 +4,12 @@
 // trace — exactement le bug "page blanche sur iPhone" qu'on n'arrivait pas à
 // diagnostiquer faute de visibilité.
 import React from 'react';
-import { AlertTriangle, RotateCcw, Trash2 } from 'lucide-react';
+import { AlertTriangle, RotateCcw, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { error: null };
+    this.state = { error: null, componentStack: null, showDetails: false, copied: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -18,7 +18,28 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('❌ Erreur applicative interceptée par ErrorBoundary:', error, info?.componentStack);
+    this.setState({ componentStack: info?.componentStack || null });
   }
+
+  buildReport = () => {
+    const { error, componentStack } = this.state;
+    return [
+      `URL: ${window.location.href}`,
+      `Date: ${new Date().toISOString()}`,
+      `User-Agent: ${navigator.userAgent}`,
+      `Erreur: ${error?.name || 'Error'}: ${error?.message || String(error)}`,
+      error?.stack ? `Stack:\n${error.stack}` : null,
+      componentStack ? `Component stack:${componentStack}` : null,
+    ].filter(Boolean).join('\n\n');
+  };
+
+  handleCopy = () => {
+    const report = this.buildReport();
+    (navigator.clipboard?.writeText(report) || Promise.reject())
+      .then(() => this.setState({ copied: true }))
+      .catch(() => {})
+      .finally(() => setTimeout(() => this.setState({ copied: false }), 2000));
+  };
 
   handleReload = () => {
     window.location.reload();
@@ -64,11 +85,29 @@ class ErrorBoundary extends React.Component {
             <Trash2 size={14} /> Réinitialiser et se reconnecter
           </button>
         </div>
-        {import.meta.env.DEV && (
-          <pre style={{ marginTop: 16, maxWidth: 600, overflow: 'auto', fontSize: 11, color: '#dc2626', textAlign: 'left', background: '#fff', padding: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}>
-            {String(this.state.error?.stack || this.state.error)}
-          </pre>
-        )}
+        <div style={{ marginTop: 8, width: '100%', maxWidth: 500 }}>
+          <button onClick={() => this.setState(s => ({ showDetails: !s.showDetails }))} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none',
+            color: '#6b7280', fontSize: 12, cursor: 'pointer', padding: '4px 0',
+          }}>
+            <ChevronDown size={13} style={{ transform: this.state.showDetails ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+            Détails techniques
+          </button>
+          {this.state.showDetails && (
+            <div style={{ textAlign: 'left' }}>
+              <pre style={{ maxHeight: 260, overflow: 'auto', fontSize: 11, color: '#dc2626', background: '#fff', padding: 12, borderRadius: 8, border: '1px solid #e5e7eb', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: '0 0 8px' }}>
+                {this.buildReport()}
+              </pre>
+              <button onClick={this.handleCopy} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, height: 30, padding: '0 12px',
+                borderRadius: 8, border: '1px solid #e5e7eb', background: 'transparent', color: '#6b7280', fontSize: 12, cursor: 'pointer',
+              }}>
+                {this.state.copied ? <Check size={12} /> : <Copy size={12} />}
+                {this.state.copied ? 'Copié' : 'Copier le détail'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
