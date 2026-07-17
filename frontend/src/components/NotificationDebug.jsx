@@ -1,11 +1,11 @@
 // frontend/src/components/NotificationDebug.jsx
 import { useState, useEffect } from 'react';
 import { Bell, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { 
-  isPushSupported, 
-  subscribeToPush, 
+import {
+  isPushSupported,
+  subscribeToPush,
   unsubscribeFromPush,
-  checkPushSubscription 
+  checkPushSubscription
 } from '../utils/pushNotificationHelper';
 import { getSocket } from '../services/api';
 
@@ -18,46 +18,31 @@ export default function NotificationDebug() {
     pushSupported: false
   });
 
-  // ❌ SUPPRIMER CES LIGNES
-  // const { user } = useAuth();
-  // const isValidator = user?.role === 'validator' || user?.role === 'admin';
-
   const checkStatus = async () => {
-    const notificationPermission = Notification.permission;
-    
+    const notificationPermission = 'Notification' in window ? Notification.permission : 'unsupported';
+
     let serviceWorkerStatus = 'not-supported';
     if ('serviceWorker' in navigator) {
       try {
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration) {
-          if (registration.active) {
-            serviceWorkerStatus = 'active';
-          } else if (registration.installing) {
-            serviceWorkerStatus = 'installing';
-          } else if (registration.waiting) {
-            serviceWorkerStatus = 'waiting';
-          }
+          if (registration.active) serviceWorkerStatus = 'active';
+          else if (registration.installing) serviceWorkerStatus = 'installing';
+          else if (registration.waiting) serviceWorkerStatus = 'waiting';
         } else {
           serviceWorkerStatus = 'not-registered';
         }
-      } catch (error) {
+      } catch {
         serviceWorkerStatus = 'error';
       }
     }
-    
+
     const socket = getSocket();
     const socketConnected = socket?.connected || false;
-    
     const pushSupported = isPushSupported();
     const pushSubscribed = await checkPushSubscription();
-    
-    setStatus({
-      notificationPermission,
-      serviceWorkerStatus,
-      socketConnected,
-      pushSubscribed,
-      pushSupported
-    });
+
+    setStatus({ notificationPermission, serviceWorkerStatus, socketConnected, pushSubscribed, pushSupported });
   };
 
   useEffect(() => {
@@ -67,9 +52,9 @@ export default function NotificationDebug() {
   }, []);
 
   const handleRequestPermission = async () => {
+    if (!('Notification' in window)) return;
     try {
-      const permission = await Notification.requestPermission();
-      console.log('Permission:', permission);
+      await Notification.requestPermission();
       await checkStatus();
     } catch (error) {
       console.error('Erreur permission:', error);
@@ -77,19 +62,11 @@ export default function NotificationDebug() {
   };
 
   const handleSubscribePush = async () => {
-    // ❌ SUPPRIMER CETTE CONDITION
-    // if (!isValidator) {
-    //   alert('❌ Les notifications Push sont réservées aux validateurs');
-    //   return;
-    // }
-
     try {
-      console.log('📬 Souscription push...');
       await subscribeToPush();
       await checkStatus();
       alert('✅ Souscription push réussie !');
     } catch (error) {
-      console.error('❌ Erreur souscription:', error);
       alert('❌ Erreur: ' + error.message);
     }
   };
@@ -100,13 +77,12 @@ export default function NotificationDebug() {
       await checkStatus();
       alert('✅ Désinscription réussie !');
     } catch (error) {
-      console.error('❌ Erreur désinscription:', error);
       alert('❌ Erreur: ' + error.message);
     }
   };
 
   const handleTestNotification = () => {
-    if (Notification.permission === 'granted') {
+    if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('🧪 Test de notification', {
         body: 'Ceci est une notification de test',
         icon: '/favicon.ico',
@@ -117,116 +93,83 @@ export default function NotificationDebug() {
     }
   };
 
-  const StatusIcon = ({ condition }) => {
-    if (condition) return <CheckCircle className="text-green-500" size={20} />;
-    return <XCircle className="text-red-500" size={20} />;
+  const StatusIcon = ({ condition }) =>
+    condition
+      ? <CheckCircle size={20} style={{ color: 'var(--success)' }} />
+      : <XCircle size={20} style={{ color: 'var(--danger)' }} />;
+
+  const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between' };
+  const labelStyle = { fontSize: 13, color: 'var(--fg)' };
+  const monoStyle = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-muted)' };
+
+  const btnBase = {
+    width: '100%', padding: '8px 12px', fontSize: 13, fontWeight: 500,
+    borderRadius: 'var(--radius-2)', border: 'none', cursor: 'pointer', color: '#fff',
+    transition: 'opacity .15s',
   };
 
   return (
-    <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-md z-50">
-      <div className="flex items-center gap-2 mb-4">
-        <Bell className="text-blue-600" />
-        <h3 className="font-bold text-gray-900 dark:text-white">Diagnostic Notifications</h3>
+    <div style={{
+      position: 'fixed', bottom: 16, right: 16,
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)',
+      padding: 16, maxWidth: 384, zIndex: 9999, width: '100%',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <Bell size={18} style={{ color: 'var(--brand)' }} />
+        <h3 style={{ fontWeight: 700, color: 'var(--fg)', fontSize: 14, margin: 0 }}>Diagnostic Notifications</h3>
       </div>
 
-      {/* ❌ SUPPRIMER LE BADGE DE RÔLE */}
-
-      <div className="space-y-2 text-sm">
-        {/* Permission */}
-        <div className="flex items-center justify-between">
-          <span className="text-gray-700 dark:text-gray-300">Permission Notification:</span>
-          <div className="flex items-center gap-2">
-            <StatusIcon condition={status.notificationPermission === 'granted'} />
-            <span className="font-mono text-xs">{status.notificationPermission}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {[
+          { label: 'Permission Notification:', value: status.notificationPermission, ok: status.notificationPermission === 'granted' },
+          { label: 'Service Worker:', value: status.serviceWorkerStatus, ok: status.serviceWorkerStatus === 'active' },
+          { label: 'Socket.IO:', value: status.socketConnected ? 'connecté' : 'déconnecté', ok: status.socketConnected },
+          { label: 'Push supporté:', value: status.pushSupported ? 'oui' : 'non', ok: status.pushSupported },
+          { label: 'Push souscrit:', value: status.pushSubscribed ? 'oui' : 'non', ok: status.pushSubscribed },
+        ].map(({ label, value, ok }) => (
+          <div key={label} style={rowStyle}>
+            <span style={labelStyle}>{label}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <StatusIcon condition={ok} />
+              <span style={monoStyle}>{value}</span>
+            </div>
           </div>
-        </div>
-
-        {/* Service Worker */}
-        <div className="flex items-center justify-between">
-          <span className="text-gray-700 dark:text-gray-300">Service Worker:</span>
-          <div className="flex items-center gap-2">
-            <StatusIcon condition={status.serviceWorkerStatus === 'active'} />
-            <span className="font-mono text-xs">{status.serviceWorkerStatus}</span>
-          </div>
-        </div>
-
-        {/* Socket.IO */}
-        <div className="flex items-center justify-between">
-          <span className="text-gray-700 dark:text-gray-300">Socket.IO:</span>
-          <div className="flex items-center gap-2">
-            <StatusIcon condition={status.socketConnected} />
-            <span className="font-mono text-xs">{status.socketConnected ? 'connecté' : 'déconnecté'}</span>
-          </div>
-        </div>
-
-        {/* Push Support */}
-        <div className="flex items-center justify-between">
-          <span className="text-gray-700 dark:text-gray-300">Push supporté:</span>
-          <div className="flex items-center gap-2">
-            <StatusIcon condition={status.pushSupported} />
-            <span className="font-mono text-xs">{status.pushSupported ? 'oui' : 'non'}</span>
-          </div>
-        </div>
-
-        {/* Push Subscribed */}
-        <div className="flex items-center justify-between">
-          <span className="text-gray-700 dark:text-gray-300">Push souscrit:</span>
-          <div className="flex items-center gap-2">
-            <StatusIcon condition={status.pushSubscribed} />
-            <span className="font-mono text-xs">{status.pushSubscribed ? 'oui' : 'non'}</span>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Actions */}
-      <div className="mt-4 space-y-2">
+      <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {status.notificationPermission !== 'granted' && (
-          <button
-            onClick={handleRequestPermission}
-            className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-          >
+          <button onClick={handleRequestPermission} style={{ ...btnBase, background: 'var(--brand)' }}>
             Demander permission
           </button>
         )}
-
         {status.notificationPermission === 'granted' && !status.pushSubscribed && (
-          <button
-            onClick={handleSubscribePush}
-            className="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-          >
+          <button onClick={handleSubscribePush} style={{ ...btnBase, background: 'var(--success)' }}>
             Souscrire au Push
           </button>
         )}
-
         {status.pushSubscribed && (
-          <button
-            onClick={handleUnsubscribePush}
-            className="w-full px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-          >
+          <button onClick={handleUnsubscribePush} style={{ ...btnBase, background: 'var(--danger)' }}>
             Se désinscrire
           </button>
         )}
-
-        <button
-          onClick={handleTestNotification}
-          className="w-full px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
-        >
+        <button onClick={handleTestNotification} style={{ ...btnBase, background: '#7c3aed' }}>
           Tester notification
         </button>
-
-        <button
-          onClick={checkStatus}
-          className="w-full px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
-        >
+        <button onClick={checkStatus} style={{ ...btnBase, background: 'var(--fg-muted)' }}>
           Actualiser
         </button>
       </div>
 
-      {/* Aide */}
       {status.serviceWorkerStatus !== 'active' && (
-        <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded text-xs">
-          <AlertCircle size={14} className="inline mr-1" />
-          Le Service Worker n'est pas actif. Rechargez la page.
+        <div style={{
+          marginTop: 12, padding: 8, borderRadius: 'var(--radius-2)',
+          background: 'var(--warning-soft)', border: '1px solid var(--warning)',
+          fontSize: 12, display: 'flex', alignItems: 'flex-start', gap: 6,
+        }}>
+          <AlertCircle size={14} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} />
+          <span style={{ color: 'var(--fg)' }}>Le Service Worker n'est pas actif. Rechargez la page.</span>
         </div>
       )}
     </div>

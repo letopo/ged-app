@@ -1,7 +1,7 @@
 // frontend/src/hooks/useNotifications.js
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { initializeSocket, onNewTask, onTaskUpdate, offSocketEvent, disconnectSocket } from '../services/api';
+import { initializeSocket, onNewTask, onTaskUpdate, onRightsChanged, offSocketEvent, disconnectSocket, getSocket } from '../services/api';
 import { 
   isPushSupported, 
   subscribeToPush, 
@@ -9,7 +9,7 @@ import {
 } from '../utils/pushNotificationHelper';
 
 const useNotifications = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, updateUser } = useAuth();
   const audioRef = useRef(null);
   const hasRequestedPermission = useRef(false);
   const [pushSubscribed, setPushSubscribed] = useState(false);
@@ -81,50 +81,46 @@ const useNotifications = () => {
   }, [requestNotificationPermission]); // ❌ Supprimer isValidator ici aussi
 
   const showNotification = useCallback((data) => {
-    if (Notification.permission !== 'granted') {
-      console.log('🔕 Permission de notification refusée');
-      return;
-    }
-
-    const title = '🔔 Nouvelle tâche de validation';
-    const options = {
-      body: `${data.documentTitle}\nSoumis par: ${data.submittedBy}`,
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
-      tag: `task-${data.taskId}`,
-      requireInteraction: true,
-      data: {
-        taskId: data.taskId,
-        documentId: data.documentId,
-        url: '/mes-taches'
-      }
-    };
-
-    const notification = new Notification(title, options);
-
+    // Toujours jouer le son, meme sans permission de notification
     if (audioRef.current) {
       audioRef.current.play().catch(e => {
         console.warn('⚠️ Impossible de jouer le son:', e.message);
       });
     }
 
-    notification.onclick = () => {
-      window.focus();
-      
-      if (window.location.pathname === '/mes-taches') {
-        window.location.reload();
-      } else {
-        window.location.href = '/mes-taches';
-      }
-      
-      notification.close();
-    };
+    // Afficher la notification navigateur si permission accordee
+    // ('Notification' n'existe pas du tout sur Safari iOS hors mode standalone)
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const title = 'Nouvelle tache de validation';
+      const options = {
+        body: `${data.documentTitle}\nSoumis par: ${data.submittedBy}`,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: `task-${data.taskId}`,
+        requireInteraction: true,
+        data: {
+          taskId: data.taskId,
+          documentId: data.documentId,
+          url: '/mes-taches'
+        }
+      };
 
-    setTimeout(() => {
-      notification.close();
-    }, 10000);
+      const notification = new Notification(title, options);
 
-    console.log('🔔 Notification affichée:', data.documentTitle);
+      notification.onclick = () => {
+        window.focus();
+        if (window.location.pathname === '/mes-taches') {
+          window.location.reload();
+        } else {
+          window.location.href = '/mes-taches';
+        }
+        notification.close();
+      };
+
+      setTimeout(() => notification.close(), 10000);
+    }
+
+    console.log('🔔 Notification recue:', data.documentTitle);
   }, []);
 
   const handleNewTask = useCallback((data) => {
@@ -137,6 +133,26 @@ const useNotifications = () => {
     console.log('🔄 Mise à jour de tâche:', data);
     window.dispatchEvent(new CustomEvent('taskUpdate', { detail: data }));
   }, []);
+
+  const handleRightsChanged = useCallback(async (data) => {
+    console.log('🔐 Droits modifiés:', data);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/auth/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const body = await res.json();
+        const freshUser = body.user || body;
+        localStorage.setItem('user', JSON.stringify(freshUser));
+        updateUser(freshUser);
+        // Bannière visible
+        window.dispatchEvent(new CustomEvent('rightsChanged', { detail: data }));
+      }
+    } catch (e) {
+      console.error('Erreur rechargement profil:', e);
+    }
+  }, [updateUser]);
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -153,6 +169,22 @@ const useNotifications = () => {
     } else {
       onNewTask(handleNewTask);
       onTaskUpdate(handleTaskUpdate);
+      onRightsChanged(handleRightsChanged);
+
+      // Notification @mention dans le chat
+      const handleMention = (data) => {
+        window.dispatchEvent(new CustomEvent('chatMention', { detail: data }));
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const n = new Notification(`💬 ${data.fromName} vous a mentionné`, {
+            body: data.excerpt,
+            icon: '/favicon.ico',
+            tag: `mention-${data.conversationId}`,
+          });
+          n.onclick = () => { window.focus(); window.location.href = `/chat/${data.conversationId}`; n.close(); };
+          setTimeout(() => n.close(), 8000);
+        }
+      };
+      socket.on('chat:mention', handleMention);
     }
 
     // ✅ Tout le monde peut initialiser Push
@@ -163,6 +195,7 @@ const useNotifications = () => {
       if (socket) {
         offSocketEvent('task_assigned', handleNewTask);
         offSocketEvent('task_updated', handleTaskUpdate);
+        offSocketEvent('rights_changed', handleRightsChanged);
         disconnectSocket();
       }
     };
@@ -171,7 +204,7 @@ const useNotifications = () => {
   return {
     requestNotificationPermission,
     notificationsSupported: 'Notification' in window,
-    notificationsEnabled: Notification.permission === 'granted',
+    notificationsEnabled: 'Notification' in window && Notification.permission === 'granted',
     pushSupported: isPushSupported(),
     pushSubscribed
     // ❌ SUPPRIMER isValidator de l'export
