@@ -300,3 +300,26 @@
   .desktop-nav { display: flex !important; }
   .mobile-nav  { display: none !important; }
 }
+
+/* Paramètres — sidebar interne empilée sur mobile au lieu de déborder */
+.settings-shell   { display: flex; min-height: calc(100vh - 48px); background: var(--bg); }
+.settings-sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 28px 0 24px; background: var(--surface); }
+.settings-main    { flex: 1; min-width: 0; overflow-y: auto; padding: 36px 48px 60px; display: flex; justify-content: center; }
+@media (max-width: 860px) {
+  .settings-shell   { flex-direction: column; }
+  .settings-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 16px 0; overflow-x: auto; }
+  .settings-main    { padding: 20px 16px 40px; }
+}
+
+/* Tableau de bord — colonne calendrier + raccourcis empilée sur mobile */
+.dashboard-2col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+@media (max-width: 860px) {
+  .dashboard-2col { grid-template-columns: 1fr; }
+}
+
+/* Documents — liste + sidebar "Nouveau document" empilées sur mobile */
+.doclist-2col { display: grid; grid-template-columns: 1fr 260px; gap: 20px; align-items: start; }
+@media (max-width: 860px) {
+  .doclist-2col { grid-template-columns: 1fr; }
+  .doclist-2col .doclist-sidebar { position: static; }
+}

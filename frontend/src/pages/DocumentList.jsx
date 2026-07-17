@@ -679,7 +679,7 @@ const DocumentList = () => {
       </div>
 
       {/* Layout 2 colonnes : main (3/4) + sidebar templates (1/4) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20, alignItems: 'start' }}>
+      <div className="doclist-2col">
         <div>
 
           {/* Bulk action bar */}
@@ -918,7 +918,7 @@ const DocumentList = () => {
         </div>
 
         {/* SIDEBAR — Templates */}
-        <div className="ged-card" style={{ padding: 0, overflow: 'hidden', position: 'sticky', top: 72 }}>
+        <div className="ged-card doclist-sidebar" style={{ padding: 0, overflow: 'hidden', position: 'sticky', top: 72 }}>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 6 }}>

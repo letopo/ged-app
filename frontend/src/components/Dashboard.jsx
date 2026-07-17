@@ -153,7 +153,7 @@ function HeroCard({ task, onApprove }) {
 
 function KpiGrid({ stats }) {
   const items = [
-    { label: 'Total documents', value: stats.total,    sub: '+12% ce mois',    trend: 'up',   to: '/documents' },
+    { label: 'Total documents', value: stats.total,    sub: null,              trend: null,   to: '/documents' },
     { label: 'En validation',   value: stats.pending,  sub: `${stats.urgent || 0} urgents`, trend: null, to: '/documents?status=pending_validation' },
     { label: 'Approuvés',       value: stats.approved, sub: stats.total ? `${Math.round(stats.approved/stats.total*100)}%` : '—', trend: 'up', to: '/documents?status=approved' },
     { label: 'Délai moyen',     value: stats.avgDays != null ? stats.avgDays : '—',
@@ -341,7 +341,7 @@ const btnGhost = {
 function RecentDocs({ documents }) {
   if (!documents.length) {
     return (
-      <div className="ged-card" style={{ padding: '24px', textAlign: 'center' }}>
+      <div className="ged-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
         <FileText size={20} color="var(--fg-subtle)" style={{ marginBottom: 8 }} />
         <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Aucun document récent</p>
         <Link to="/upload" style={{ fontSize: 12, color: 'var(--brand)', textDecoration: 'none' }}>
@@ -621,7 +621,7 @@ const Dashboard = () => {
       <KpiGrid stats={stats} />
 
       {/* Two-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20 }}>
+      <div className="dashboard-2col">
 
         {/* Left: calendar + recent docs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

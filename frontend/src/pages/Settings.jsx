@@ -208,10 +208,10 @@ export default function Settings() {
   const activeLabel = NAV.flatMap(g => g.items).find(i => i.id === activeTab)?.label || '';
 
   return (
-    <div style={{ display:'flex', minHeight:'calc(100vh - 48px)', background:'var(--bg)' }} className="animate-pageFade">
+    <div className="settings-shell animate-pageFade">
 
       {/* ── Left sidebar ────────────────────────────────────────────────── */}
-      <aside style={{ width:220, flexShrink:0, borderRight:'1px solid var(--border)', padding:'28px 0 24px', background:'var(--surface)' }}>
+      <aside className="settings-sidebar">
         <div style={{ fontSize:18, fontWeight:700, color:'var(--fg)', padding:'0 20px', marginBottom:24 }}>Paramètres</div>
 
         {NAV.map(group => (
@@ -248,7 +248,7 @@ export default function Settings() {
       </aside>
 
       {/* ── Right content ───────────────────────────────────────────────── */}
-      <main style={{ flex:1, overflowY:'auto', padding:'36px 48px 60px', display:'flex', justifyContent:'center' }}>
+      <main className="settings-main">
         <div style={{ width:'100%', maxWidth: ['team','notifications'].includes(activeTab) ? 1100 : 560 }}>
 
           {/* ── Profil ───────────────────────────────────────────────────── */}
