@@ -27,13 +27,13 @@ export const getMyTemplates = async (req, res) => {
     const permissions = await TemplatePermission.findAll();
 
     // Postes occupés par l'utilisateur (ex: ['comptable']) — récupérés une fois
-    const userPostes = user.role === 'admin' ? [] : await getUserPosteCodes(user.id);
+    const userPostes = ['admin','superadmin'].includes(user.role) ? [] : await getUserPosteCodes(user.id);
 
     // Tous les templates définis
     const result = permissions.map(p => {
       const data = p.toJSON();
       // Un admin voit tout
-      if (user.role === 'admin') {
+      if (['admin','superadmin'].includes(user.role)) {
         data.hasAccess = true;
         return data;
       }
@@ -62,7 +62,7 @@ export const getMyTemplates = async (req, res) => {
 // Créer ou mettre à jour une permission de template
 export const upsert = async (req, res) => {
   try {
-    const { templateName, allowedRoles, allowedUserIds, isRestricted, description } = req.body;
+    const { templateName, allowedRoles, allowedUserIds, isRestricted, description, defaultVisibility } = req.body;
     if (!templateName) return res.status(400).json({ message: 'templateName requis' });
 
     const [permission, created] = await TemplatePermission.upsert({
@@ -71,6 +71,7 @@ export const upsert = async (req, res) => {
       allowedUserIds: allowedUserIds || [],
       isRestricted: isRestricted ?? false,
       description: description || null,
+      defaultVisibility: defaultVisibility || 'personal',
     }, {
       returning: true,
     });
@@ -86,7 +87,7 @@ export const upsert = async (req, res) => {
 export const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { allowedRoles, allowedUserIds, isRestricted, description } = req.body;
+    const { allowedRoles, allowedUserIds, isRestricted, description, defaultVisibility } = req.body;
 
     const permission = await TemplatePermission.findByPk(id);
     if (!permission) return res.status(404).json({ message: 'Permission non trouvée' });
@@ -96,6 +97,7 @@ export const update = async (req, res) => {
       allowedUserIds: allowedUserIds ?? permission.allowedUserIds,
       isRestricted: isRestricted ?? permission.isRestricted,
       description: description ?? permission.description,
+      defaultVisibility: defaultVisibility ?? permission.defaultVisibility,
     });
 
     res.json({ data: permission });
@@ -137,6 +139,7 @@ export const seed = async (req, res) => {
         allowedRoles: [],
         allowedUserIds: [],
         description: 'Accessible à tous',
+        defaultVisibility: 'personal',
       }));
 
     if (toCreate.length === 0) {

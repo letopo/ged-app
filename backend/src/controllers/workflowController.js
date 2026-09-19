@@ -12,6 +12,7 @@ import { getSignatureConfig } from '../config/documentSignatureConfig.js';
 // ✅ NOUVEAU : Import du Socket Manager
 import { emitNewTaskNotification, emitTaskUpdateNotification, isUserConnected } from '../utils/socketManager.js';
 import { buildOrdreMissionChain, resolveOrdreMissionChain } from '../utils/ordreMissionChain.js';
+import { buildPieceDeCaisseChain, resolvePieceDeCaisseChain } from '../utils/pieceDeCaisseChain.js';
 import { getPosteHolders, userHasPoste } from '../utils/posteResolver.js';
 import { sendNewTaskPushNotification } from '../services/pushNotificationService.js';
 import { mergePDFs } from '../utils/pdfMerger.js';
@@ -218,6 +219,13 @@ export const createWorkflow = async (req, res) => {
       }
       finalValidatorIds = built.validatorIds;
       comptableAdded = built.comptableAdded;
+    } else if (document.category === 'Pièce de caisse') {
+      // Circuit construit côté serveur : DG → Comptable → Bénéficiaire (si compte) → Caissière.
+      const built = await buildPieceDeCaisseChain(document, posteSelections || {});
+      if (built.error) {
+        return res.status(400).json({ success: false, message: built.error });
+      }
+      finalValidatorIds = built.validatorIds;
     } else if (req.body.workflowTemplateId) {
       // Circuit depuis un modèle de workflow (formulaires Form Builder)
       const template = await WorkflowTemplate.findByPk(req.body.workflowTemplateId);
@@ -304,6 +312,24 @@ export const getOrdreMissionPreview = async (req, res) => {
     res.json({ success: true, steps: result.steps });
   } catch (error) {
     console.error('❌ Erreur aperçu OM:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+export const getPieceDeCaisseChainPreview = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const document = await Document.findByPk(documentId);
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document introuvable.' });
+    }
+    const result = await resolvePieceDeCaisseChain(document, {});
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+    res.json({ success: true, steps: result.steps });
+  } catch (error) {
+    console.error('❌ Erreur aperçu circuit Pièce de caisse:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
@@ -686,6 +712,12 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
             }
         }
 
+        // Signature "Pour Ordre" — cette étape est actuellement portée par un remplaçant
+        // (absence du titulaire habituel) : on annote qui elle représente.
+        const poOriginalUser = task.isSubstituted && task.originalValidatorId
+          ? await User.findByPk(task.originalValidatorId, { attributes: ['firstName', 'lastName'] })
+          : null;
+
         // 1. DATER (RH) — le validateur est-il titulaire du poste RH ?
         if (validationType === 'dater' && await userHasPoste(validator.id, 'rh')) {
           const dateText = `Reçu le : ${new Date().toLocaleDateString('fr-FR')}`;
@@ -738,6 +770,14 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
             targetPage.drawText(name,    { x: textX + 2, y: sigY + 12, size: 8, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
             targetPage.drawText(`Le ${dateStr}`, { x: textX + 2, y: sigY + 2, size: 7, font: regFont, color: rgb(0.4, 0.4, 0.4) });
           }
+          if (poOriginalUser) {
+            const poFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const poX = activeZone ? activeZone.x + 4 : (baseX + 4);
+            targetPage.drawText(
+              `P.O. ${poOriginalUser.firstName || ''} ${poOriginalUser.lastName || ''}`.trim(),
+              { x: poX, y: sigY - 8, size: 7, font: poFont, color: rgb(0.7, 0.2, 0.1) }
+            );
+          }
         }
 
         // 3. CACHET
@@ -778,6 +818,14 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
             targetPage.drawText(name, { x: textX + 2, y: stampYAdjusted + 12, size: 8, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
             targetPage.drawText('H.S.J.M', { x: textX + 2, y: stampYAdjusted + 2, size: 7, font: regFont, color: rgb(0.4, 0.4, 0.4) });
           }
+          if (poOriginalUser) {
+            const poFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const poX = activeZone ? activeZone.x + 4 : (baseX + 4);
+            targetPage.drawText(
+              `P.O. ${poOriginalUser.firstName || ''} ${poOriginalUser.lastName || ''}`.trim(),
+              { x: poX, y: stampYAdjusted - 8, size: 7, font: poFont, color: rgb(0.7, 0.2, 0.1) }
+            );
+          }
         }
 
         // Sauvegarde du fichier modifié
@@ -800,7 +848,17 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       // ✅ Utilisation de effectiveStatus au lieu de status
       if (effectiveStatus) {
         await task.update({ status: effectiveStatus, comment, validatedAt: new Date() }, { transaction: t });
-        
+
+        // Étape "Payer" de la caissière sur une Pièce de caisse : marque le paiement
+        // et archive le document (visible ensuite côté comptable ET caissière, cf.
+        // buildDocumentAccessWhere qui inclut déjà tout validateur de workflow).
+        if (document.category === 'Pièce de caisse' && validationType === 'payer' && effectiveStatus === 'approved') {
+          await document.update({
+            archived: true,
+            metadata: { ...document.metadata, paye: true, payeAt: new Date().toISOString(), payePar: userId },
+          }, { transaction: t });
+        }
+
         if (effectiveStatus === 'approved') {
           const nextTask = await Workflow.findOne({ where: { documentId: document.id, status: 'queued' }, order: [['step', 'ASC']], transaction: t });
           
@@ -927,7 +985,10 @@ export const getDocumentWorkflow = async (req, res) => {
     const { documentId } = req.params;
     const workflows = await Workflow.findAll({
       where: { documentId },
-      include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }],
+      include: [
+        { model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] },
+        { model: User, as: 'originalValidator', attributes: ['id', 'firstName', 'lastName'] },
+      ],
       order: [['step', 'ASC']],
     });
     if (workflows.length === 0) {
@@ -1310,6 +1371,103 @@ export const reassignTask = async (req, res) => {
     res.json({ success: true, data: updated, message: `Tâche réaffectée à ${newValidator.firstName} ${newValidator.lastName}.` });
   } catch (error) {
     console.error('❌ Erreur réaffectation:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// ============================================
+// PRÉSENCE / ABSENCE — redirection automatique vers le remplaçant fixe
+// ============================================
+export const toggleAbsence = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isAbsent } = req.body;
+
+    if (typeof isAbsent !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isAbsent (boolean) requis.' });
+    }
+    if (req.user.id !== id && !['admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Réservé à l\'utilisateur concerné ou à un administrateur.' });
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+
+    const { AuditLog } = await import('../models/index.js');
+
+    if (isAbsent === user.isAbsent) {
+      return res.json({ success: true, message: 'Statut déjà à jour.', redirected: 0 });
+    }
+
+    let redirected = 0;
+
+    if (isAbsent) {
+      if (!user.substituteId) {
+        return res.status(400).json({ success: false, message: 'Configurez d\'abord un remplaçant avant de passer en absent.' });
+      }
+      const substitute = await User.findByPk(user.substituteId);
+      if (!substitute) {
+        return res.status(400).json({ success: false, message: 'Le remplaçant configuré est introuvable.' });
+      }
+
+      const tasks = await Workflow.findAll({
+        where: { validatorId: id, status: ['pending', 'queued'] },
+        include: [{ model: Document, as: 'document', include: [{ model: User, as: 'uploadedBy' }] }],
+      });
+
+      for (const task of tasks) {
+        await task.update({
+          originalValidatorId: task.originalValidatorId || id,
+          validatorId: user.substituteId,
+          isSubstituted: true,
+        });
+        redirected += 1;
+        if (task.status === 'pending' && task.document) {
+          notifyValidator(substitute, task.document);
+        }
+      }
+
+      await AuditLog.log(req, 'ABSENCE_ON', 'user', id, {
+        targetUser: `${user.firstName} ${user.lastName}`,
+        substituteId: user.substituteId,
+        substituteName: `${substitute.firstName} ${substitute.lastName}`,
+        tasksRedirected: redirected,
+      });
+    } else {
+      const tasks = await Workflow.findAll({
+        where: { originalValidatorId: id, isSubstituted: true, status: ['pending', 'queued'] },
+        include: [{ model: Document, as: 'document', include: [{ model: User, as: 'uploadedBy' }] }],
+      });
+
+      for (const task of tasks) {
+        await task.update({
+          validatorId: id,
+          isSubstituted: false,
+          originalValidatorId: null,
+        });
+        redirected += 1;
+        if (task.status === 'pending' && task.document) {
+          notifyValidator(user, task.document);
+        }
+      }
+
+      await AuditLog.log(req, 'ABSENCE_OFF', 'user', id, {
+        targetUser: `${user.firstName} ${user.lastName}`,
+        tasksReturned: redirected,
+      });
+    }
+
+    await user.update({ isAbsent });
+
+    res.json({
+      success: true,
+      message: isAbsent
+        ? `${user.firstName} ${user.lastName} est absent(e) — ${redirected} tâche(s) redirigée(s).`
+        : `${user.firstName} ${user.lastName} est de retour — ${redirected} tâche(s) rendue(s).`,
+      redirected,
+    });
+  } catch (error) {
+    console.error('❌ Erreur toggleAbsence:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };

@@ -2,6 +2,37 @@
 // Gestion des postes organisationnels et de leurs titulaires (admin).
 
 import { Poste, User, UserPoste, OrdreMissionType } from '../models/index.js';
+import AuditLog from '../models/AuditLog.js';
+import { emitRightsChanged } from '../utils/socketManager.js';
+
+// POST /api/postes  { code, label, description }
+export const createPoste = async (req, res, next) => {
+  try {
+    const { code, label, description } = req.body;
+    if (!code || !label) {
+      return res.status(400).json({ success: false, error: 'code et label requis' });
+    }
+    const normalizedCode = String(code).trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (!normalizedCode) {
+      return res.status(400).json({ success: false, error: 'code invalide' });
+    }
+
+    const existing = await Poste.findOne({ where: { code: normalizedCode } });
+    if (existing) {
+      return res.status(409).json({ success: false, error: 'Ce code de poste existe déjà' });
+    }
+
+    const poste = await Poste.create({ code: normalizedCode, label, description: description || null });
+
+    try {
+      await AuditLog.log(req, 'POSTE_CREATED', 'poste', poste.id, { posteCode: poste.code, posteLabel: poste.label });
+    } catch (_) {}
+
+    res.status(201).json({ success: true, message: `Poste "${poste.label}" créé`, data: poste });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // GET /api/postes — catalogue + titulaires
 export const listPostes = async (req, res, next) => {
@@ -47,6 +78,16 @@ export const assignHolder = async (req, res, next) => {
       return res.status(409).json({ success: false, error: 'Cet utilisateur occupe déjà ce poste' });
     }
 
+    try {
+      await AuditLog.log(req, 'POSTE_ASSIGNED', 'user', userId, {
+        targetUser: `${user.firstName} ${user.lastName}`,
+        targetEmail: user.email,
+        posteCode: code,
+        posteLabel: poste.label,
+      });
+    } catch (_) {}
+    emitRightsChanged(userId, { type: 'poste_assigned', posteCode: code, posteLabel: poste.label });
+
     res.status(201).json({ success: true, message: `${user.firstName} ${user.lastName} assigné au poste ${poste.label}`, data: assignment });
   } catch (error) {
     next(error);
@@ -65,6 +106,18 @@ export const removeHolder = async (req, res, next) => {
     if (!deleted) {
       return res.status(404).json({ success: false, error: 'Assignation introuvable' });
     }
+
+    const user = await User.findByPk(userId, { attributes: ['firstName', 'lastName', 'email'] }).catch(() => null);
+    try {
+      await AuditLog.log(req, 'POSTE_REMOVED', 'user', userId, {
+        targetUser: user ? `${user.firstName} ${user.lastName}` : userId,
+        targetEmail: user?.email,
+        posteCode: code,
+        posteLabel: poste.label,
+      });
+    } catch (_) {}
+    emitRightsChanged(userId, { type: 'poste_removed', posteCode: code, posteLabel: poste.label });
+
     res.json({ success: true, message: 'Titulaire retiré du poste' });
   } catch (error) {
     next(error);
@@ -77,7 +130,7 @@ export const listOrdreMissionTypes = async (req, res, next) => {
     const types = await OrdreMissionType.findAll({
       where: { isActive: true },
       order: [['label', 'ASC']],
-      attributes: ['id', 'code', 'label', 'posteChain'],
+      attributes: ['id', 'code', 'label', 'posteChain', 'serviceId'],
     });
     res.json({ success: true, data: types });
   } catch (error) {

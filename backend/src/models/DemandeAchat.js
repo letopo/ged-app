@@ -115,6 +115,10 @@ const DemandeAchat = sequelize.define('DemandeAchat', {
     type: DataTypes.ENUM('draft', 'pending_approval', 'approved', 'rejected', 'in_progress', 'completed'),
     defaultValue: 'draft',
   },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'demandes_achats',
   timestamps: true,

@@ -16,6 +16,7 @@ import {
   archiveDocument,
   unarchiveDocument,
   getArchivedDocuments,
+  getPieceDeCaisseHistory,
 } from '../controllers/documentController.js';
 import { Document, User, Workflow } from '../models/index.js';
 import { Op } from 'sequelize'; // ✅ AJOUT IMPORTANT
@@ -175,6 +176,149 @@ router.get('/next-numero', protect, async (req, res) => {
 // @desc    Récupérer les documents archivés (groupés par catégorie)
 // @access  Private
 router.get('/archives', protect, getArchivedDocuments);
+
+// @route   GET /api/documents/piece-de-caisse-history
+// @desc    Historique des Pièces de caisse payées (rapport caissière), filtrable par date
+// @access  Private (caissier/admin)
+router.get('/piece-de-caisse-history', protect, getPieceDeCaisseHistory);
+
+// @route   GET /api/documents/categories
+// @desc    Retourne la liste distincte des catégories (léger, sans charger tous les docs)
+// @access  Private
+router.get('/categories', protect, async (req, res) => {
+  try {
+    const { QueryTypes } = await import('sequelize');
+    const sequelize = (await import('../config/database.js')).default;
+    const rows = await sequelize.query(
+      `SELECT DISTINCT category FROM documents WHERE category IS NOT NULL AND archived = false ORDER BY category ASC`,
+      { type: QueryTypes.SELECT }
+    );
+    res.json({ success: true, data: rows.map(r => r.category) });
+  } catch (err) {
+    console.error('Erreur /categories:', err);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// @route   GET /api/documents/statistics
+// @desc    Statistiques avancées sur les documents et workflows
+// @access  Private (admin only)
+router.get('/statistics', protect, async (req, res) => {
+  try {
+    if (!['admin','superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Accès réservé aux administrateurs' });
+    }
+
+    const { period = '12' } = req.query; // nombre de mois
+    const monthsAgo = new Date();
+    monthsAgo.setMonth(monthsAgo.getMonth() - parseInt(period));
+
+    // 1. Documents par catégorie
+    const byCategory = await Document.findAll({
+      attributes: [
+        'category',
+        [Document.sequelize.fn('COUNT', Document.sequelize.col('Document.id')), 'count']
+      ],
+      where: { archived: { [Op.ne]: true } },
+      group: ['category'],
+      order: [[Document.sequelize.literal('count'), 'DESC']],
+      raw: true,
+    });
+
+    // 2. Documents par statut
+    const byStatus = await Document.findAll({
+      attributes: [
+        'status',
+        [Document.sequelize.fn('COUNT', Document.sequelize.col('Document.id')), 'count']
+      ],
+      where: { archived: { [Op.ne]: true } },
+      group: ['status'],
+      raw: true,
+    });
+
+    // 3. Documents par mois (évolution)
+    const byMonth = await Document.findAll({
+      attributes: [
+        [Document.sequelize.fn('DATE_TRUNC', 'month', Document.sequelize.col('Document.created_at')), 'month'],
+        [Document.sequelize.fn('COUNT', Document.sequelize.col('Document.id')), 'count']
+      ],
+      where: {
+        createdAt: { [Op.gte]: monthsAgo }
+      },
+      group: [Document.sequelize.fn('DATE_TRUNC', 'month', Document.sequelize.col('Document.created_at'))],
+      order: [[Document.sequelize.literal('month'), 'ASC']],
+      raw: true,
+    });
+
+    // 4. Top uploaders
+    const topUploaders = await Document.findAll({
+      attributes: [
+        [Document.sequelize.col('Document.user_id'), 'userId'],
+        [Document.sequelize.fn('COUNT', Document.sequelize.col('Document.id')), 'count']
+      ],
+      include: [{
+        model: User,
+        as: 'uploadedBy',
+        attributes: ['firstName', 'lastName', 'email'],
+      }],
+      group: ['Document.user_id', 'uploadedBy.id', 'uploadedBy.first_name', 'uploadedBy.last_name', 'uploadedBy.email'],
+      order: [[Document.sequelize.literal('count'), 'DESC']],
+      limit: 10,
+      raw: true,
+      nest: true,
+    });
+
+    // 5. Workflows stats
+    const workflowStats = await Workflow.findAll({
+      attributes: [
+        'status',
+        [Workflow.sequelize.fn('COUNT', Workflow.sequelize.col('Workflow.id')), 'count']
+      ],
+      group: ['status'],
+      raw: true,
+    });
+
+    // 6. Workflows par mois
+    const workflowByMonth = await Workflow.findAll({
+      attributes: [
+        [Workflow.sequelize.fn('DATE_TRUNC', 'month', Workflow.sequelize.col('Workflow.created_at')), 'month'],
+        'status',
+        [Workflow.sequelize.fn('COUNT', Workflow.sequelize.col('Workflow.id')), 'count']
+      ],
+      where: {
+        createdAt: { [Op.gte]: monthsAgo }
+      },
+      group: [
+        Workflow.sequelize.fn('DATE_TRUNC', 'month', Workflow.sequelize.col('Workflow.created_at')),
+        'status'
+      ],
+      order: [[Workflow.sequelize.literal('month'), 'ASC']],
+      raw: true,
+    });
+
+    // 7. Totaux
+    const totalDocs = await Document.count({ where: { archived: { [Op.ne]: true } } });
+    const totalArchived = await Document.count({ where: { archived: true } });
+    const totalWorkflows = await Workflow.count();
+    const pendingWorkflows = await Workflow.count({ where: { status: 'pending' } });
+
+    res.json({
+      success: true,
+      data: {
+        totals: { documents: totalDocs, archived: totalArchived, workflows: totalWorkflows, pending: pendingWorkflows },
+        byCategory,
+        byStatus,
+        byMonth,
+        topUploaders,
+        workflowStats,
+        workflowByMonth,
+      }
+    });
+  } catch (error) {
+    console.error('Erreur statistiques:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
 
 // Appliquer la protection par token JWT à toutes les routes de ce fichier
 router.use(protect);

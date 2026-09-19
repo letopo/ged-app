@@ -46,6 +46,24 @@
   --info:            #1557A0;
   --info-soft:       #E5EEFA;
 
+  /* ── Accent GMAO (couleur d'identité du module) ──────── */
+  --accent-teal:      #0d9488;
+  --accent-teal-soft: #ccfbf1;
+
+  /* ── Services (GMAO — palette catégorielle) ──────────── */
+  --svc-anes-bg:   #dbeafe; --svc-anes-text:   #1e40af; --svc-anes-chip:   #3b82f6;
+  --svc-bop-bg:    #f3e8ff; --svc-bop-text:    #6b21a8; --svc-bop-chip:    #a855f7;
+  --svc-sau-bg:    #fee2e2; --svc-sau-text:    #991b1b; --svc-sau-chip:    #ef4444;
+  --svc-ped-bg:    #dcfce7; --svc-ped-text:    #166534; --svc-ped-chip:    #22c55e;
+  --svc-go-bg:     #fce7f3; --svc-go-text:     #9d174d; --svc-go-chip:     #ec4899;
+  --svc-chi-bg:    #ffedd5; --svc-chi-text:    #9a3412; --svc-chi-chip:    #f97316;
+  --svc-nn-bg:     #fef9c3; --svc-nn-text:     #854d0e; --svc-nn-chip:     #eab308;
+  --svc-med-bg:    #ccfbf1; --svc-med-text:    #134e4a; --svc-med-chip:    #14b8a6;
+  --svc-dent-bg:   #cffafe; --svc-dent-text:   #164e63; --svc-dent-chip:   #06b6d4;
+  --svc-lab-bg:    #e0e7ff; --svc-lab-text:    #3730a3; --svc-lab-chip:    #6366f1;
+  --svc-pharma-bg: #d1fae5; --svc-pharma-text: #065f46; --svc-pharma-chip: #10b981;
+  --svc-admin-bg:  #f3f4f6; --svc-admin-text:  #1f2937; --svc-admin-chip:  #6b7280;
+
   /* ── Shadows ────────────────────────────────────────── */
   --shadow-1: 0 1px 2px rgba(15,27,45,0.04);
   --shadow-2: 0 4px 12px rgba(15,27,45,0.08), 0 1px 3px rgba(15,27,45,0.04);
@@ -100,6 +118,24 @@
   --danger-soft:     #2D0F0F;
   --info:            #5B89D6;
   --info-soft:       #0F1C35;
+
+  /* ── Accent GMAO (couleur d'identité du module, variante sombre) ── */
+  --accent-teal:      #2dd4bf;
+  --accent-teal-soft: #0d2e2a;
+
+  /* ── Services (GMAO — palette catégorielle, variante sombre) ── */
+  --svc-anes-bg:   #1e2b4d; --svc-anes-text:   #93c5fd; --svc-anes-chip:   #60a5fa;
+  --svc-bop-bg:    #2e1a47; --svc-bop-text:    #d8b4fe; --svc-bop-chip:    #c084fc;
+  --svc-sau-bg:    #451a1a; --svc-sau-text:    #fca5a5; --svc-sau-chip:    #f87171;
+  --svc-ped-bg:    #14291c; --svc-ped-text:    #86efac; --svc-ped-chip:    #4ade80;
+  --svc-go-bg:     #451a2e; --svc-go-text:     #f9a8d4; --svc-go-chip:     #f472b6;
+  --svc-chi-bg:    #431f0a; --svc-chi-text:    #fdba74; --svc-chi-chip:    #fb923c;
+  --svc-nn-bg:     #422e0a; --svc-nn-text:     #fde047; --svc-nn-chip:     #facc15;
+  --svc-med-bg:    #0d2e2a; --svc-med-text:    #5eead4; --svc-med-chip:    #2dd4bf;
+  --svc-dent-bg:   #0d2b33; --svc-dent-text:   #67e8f9; --svc-dent-chip:   #22d3ee;
+  --svc-lab-bg:    #251f4d; --svc-lab-text:    #a5b4fc; --svc-lab-chip:    #818cf8;
+  --svc-pharma-bg: #0d2e21; --svc-pharma-text: #6ee7b7; --svc-pharma-chip: #34d399;
+  --svc-admin-bg:  #2a2f3a; --svc-admin-text:  #c3c9d4; --svc-admin-chip:  #8c95a8;
 
   --shadow-1: 0 1px 2px rgba(0,0,0,0.2);
   --shadow-2: 0 4px 12px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2);

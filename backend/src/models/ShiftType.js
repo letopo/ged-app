@@ -62,7 +62,11 @@ const ShiftType = sequelize.define('ShiftType', {
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'shift_types',
   timestamps: true,

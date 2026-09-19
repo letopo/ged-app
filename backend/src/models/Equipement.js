@@ -36,6 +36,10 @@ const Equipement = sequelize.define('Equipement', {
     allowNull: true,
   },
   notes: { type: DataTypes.TEXT, allowNull: true },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'equipements',
   timestamps: true,

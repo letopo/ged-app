@@ -2,7 +2,10 @@
 import User from '../models/User.js';
 import Service from '../models/Service.js';
 import ServiceMember from '../models/ServiceMember.js';
+import Poste from '../models/Poste.js';
+import AuditLog from '../models/AuditLog.js';
 import { Op } from 'sequelize';
+import { emitRightsChanged } from '../utils/socketManager.js';
 
 // @desc    Récupérer tous les utilisateurs
 // @route   GET /api/users
@@ -49,7 +52,7 @@ export const createUser = async (req, res, next) => {
         return res.status(409).json({ success: false, error: 'Email ou nom d\'utilisateur déjà utilisé' });
       }
   
-      const newUser = await User.create({ email, password, firstName, lastName, username, role });
+      const newUser = await User.create({ email, password, firstName, lastName, username, role, tenantId: req.tenantId });
       const userResult = newUser.toJSON();
       delete userResult.password;
   
@@ -65,7 +68,7 @@ export const createUser = async (req, res, next) => {
 export const updateUser = async (req, res, next) => {
   try {
     // Champs à mettre à jour, y compris ceux que vous voulez ajouter
-    const { role, isActive, firstName, lastName, email, username } = req.body; 
+    const { role, isActive, firstName, lastName, email, username, substituteId } = req.body;
     const userId = req.params.id;
     const user = await User.findByPk(userId);
 
@@ -94,10 +97,30 @@ export const updateUser = async (req, res, next) => {
     // ----------------------------------------------------
 
     // Mise à jour des autres champs
-    if (role !== undefined) user.role = role;
+    if (role !== undefined && role !== user.role) {
+      const oldRole = user.role;
+      user.role = role;
+      try {
+        await AuditLog.log(req, 'ROLE_CHANGED', 'user', userId, {
+          targetUser: `${user.firstName} ${user.lastName}`,
+          targetEmail: user.email,
+          oldRole,
+          newRole: role,
+        });
+      } catch (_) {}
+      emitRightsChanged(userId, { type: 'role', oldRole, newRole: role });
+    } else if (role !== undefined) {
+      user.role = role;
+    }
     if (isActive !== undefined) user.isActive = isActive;
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
+    if (substituteId !== undefined) {
+      if (substituteId === user.id) {
+        return res.status(400).json({ success: false, error: 'Un utilisateur ne peut pas être son propre remplaçant.' });
+      }
+      user.substituteId = substituteId || null;
+    }
 
     await user.save();
     
@@ -245,6 +268,27 @@ export const getMyService = async (req, res, next) => {
     });
   } catch (error) {
     console.error('❌ Erreur récupération service utilisateur:', error);
+    next(error);
+  }
+};
+
+// @desc    Récupérer tous les utilisateurs avec leurs postes
+// @route   GET /api/users/with-postes
+// @access  Private (Admin)
+export const getUsersWithPostes = async (req, res, next) => {
+  try {
+    const users = await User.findAll({
+      order: [['firstName', 'ASC'], ['lastName', 'ASC']],
+      attributes: { exclude: ['password'] },
+      include: [{
+        model: Poste,
+        as: 'postes',
+        through: { attributes: [] },
+        attributes: ['id', 'code', 'label'],
+      }],
+    });
+    res.json({ success: true, count: users.length, users });
+  } catch (error) {
     next(error);
   }
 };

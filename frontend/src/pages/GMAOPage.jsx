@@ -1,6 +1,7 @@
 // frontend/src/pages/GMAOPage.jsx
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { gmaoAPI, listsAPI } from '../services/api';
+import { useConfirm } from '../components/ConfirmModal';
 import {
   Wrench, Plus, Edit2, Trash2, X, Save, ChevronLeft, ChevronRight,
   AlertCircle, CheckCircle, Clock, BarChart2, Calendar, List,
@@ -17,29 +18,29 @@ import toast from 'react-hot-toast';
 const SERVICES = ['ANES', 'BOP', 'SAU', 'PED', 'GO', 'CHI', 'NN', 'MED', 'DENT', 'LAB', 'PHARMA', 'ADMIN'];
 
 const SERVICE_COLORS = {
-  ANES:   { bg: 'bg-blue-100',   text: 'text-blue-800',   chip: 'bg-blue-500' },
-  BOP:    { bg: 'bg-purple-100', text: 'text-purple-800', chip: 'bg-purple-500' },
-  SAU:    { bg: 'bg-red-100',    text: 'text-red-800',    chip: 'bg-red-500' },
-  PED:    { bg: 'bg-green-100',  text: 'text-green-800',  chip: 'bg-green-500' },
-  GO:     { bg: 'bg-pink-100',   text: 'text-pink-800',   chip: 'bg-pink-500' },
-  CHI:    { bg: 'bg-orange-100', text: 'text-orange-800', chip: 'bg-orange-500' },
-  NN:     { bg: 'bg-yellow-100', text: 'text-yellow-800', chip: 'bg-yellow-500' },
-  MED:    { bg: 'bg-teal-100',   text: 'text-teal-800',   chip: 'bg-teal-500' },
-  DENT:   { bg: 'bg-cyan-100',   text: 'text-cyan-800',   chip: 'bg-cyan-500' },
-  LAB:    { bg: 'bg-indigo-100', text: 'text-indigo-800', chip: 'bg-indigo-500' },
-  PHARMA: { bg: 'bg-emerald-100',text: 'text-emerald-800',chip: 'bg-emerald-500' },
-  ADMIN:  { bg: 'bg-gray-100',   text: 'text-gray-800',   chip: 'bg-gray-500' },
+  ANES:   { bg: 'var(--svc-anes-bg)',   text: 'var(--svc-anes-text)',   chip: 'var(--svc-anes-chip)' },
+  BOP:    { bg: 'var(--svc-bop-bg)',    text: 'var(--svc-bop-text)',    chip: 'var(--svc-bop-chip)' },
+  SAU:    { bg: 'var(--svc-sau-bg)',    text: 'var(--svc-sau-text)',    chip: 'var(--svc-sau-chip)' },
+  PED:    { bg: 'var(--svc-ped-bg)',    text: 'var(--svc-ped-text)',    chip: 'var(--svc-ped-chip)' },
+  GO:     { bg: 'var(--svc-go-bg)',     text: 'var(--svc-go-text)',     chip: 'var(--svc-go-chip)' },
+  CHI:    { bg: 'var(--svc-chi-bg)',    text: 'var(--svc-chi-text)',    chip: 'var(--svc-chi-chip)' },
+  NN:     { bg: 'var(--svc-nn-bg)',     text: 'var(--svc-nn-text)',     chip: 'var(--svc-nn-chip)' },
+  MED:    { bg: 'var(--svc-med-bg)',    text: 'var(--svc-med-text)',    chip: 'var(--svc-med-chip)' },
+  DENT:   { bg: 'var(--svc-dent-bg)',   text: 'var(--svc-dent-text)',   chip: 'var(--svc-dent-chip)' },
+  LAB:    { bg: 'var(--svc-lab-bg)',    text: 'var(--svc-lab-text)',    chip: 'var(--svc-lab-chip)' },
+  PHARMA: { bg: 'var(--svc-pharma-bg)', text: 'var(--svc-pharma-text)', chip: 'var(--svc-pharma-chip)' },
+  ADMIN:  { bg: 'var(--svc-admin-bg)',  text: 'var(--svc-admin-text)',  chip: 'var(--svc-admin-chip)' },
 };
 
-const getServiceColor = (service) => SERVICE_COLORS[service] || { bg: 'bg-gray-100', text: 'text-gray-800', chip: 'bg-gray-400' };
+const getServiceColor = (service) => SERVICE_COLORS[service] || { bg: 'var(--surface-2)', text: 'var(--fg-muted)', chip: 'var(--fg-subtle)' };
 
 const MONTH_LABELS = ['JAN', 'FÉV', 'MAR', 'AVR', 'MAI', 'JUN', 'JUL', 'AOÛ', 'SEP', 'OCT', 'NOV', 'DÉC'];
 const MONTH_FULL   = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
 const STATUT_CONFIG = {
-  actif:        { label: 'Actif',         color: 'bg-green-100 text-green-800 border-green-200' },
-  en_reparation:{ label: 'En réparation', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  hors_service: { label: 'Hors service',  color: 'bg-red-100 text-red-800 border-red-200' },
+  actif:        { label: 'Actif',         style: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' } },
+  en_reparation:{ label: 'En réparation', style: { background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)' } },
+  hors_service: { label: 'Hors service',  style: { background: 'var(--danger-soft)',  color: 'var(--danger)',  border: '1px solid var(--danger)'  } },
 };
 
 const EMPTY_EQ = {
@@ -54,9 +55,9 @@ const getAmortissementStatus = (eq) => {
   const today = new Date();
   const rebus = new Date(eq.date_mise_au_rebus);
   const diffDays = Math.ceil((rebus - today) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0)   return { label: 'Amorti',       color: 'bg-gray-100 text-gray-600 border-gray-300',      urgent: false };
-  if (diffDays <= 90) return { label: `${diffDays}j`,  color: 'bg-red-100 text-red-700 border-red-300',         urgent: true  };
-  if (diffDays <= 365)return { label: `${Math.ceil(diffDays/30)}m`, color: 'bg-orange-100 text-orange-700 border-orange-300', urgent: true };
+  if (diffDays < 0)   return { label: 'Amorti',       style: { background: '#f3f4f6', color: '#4b5563', border: '1px solid #d1d5db' }, urgent: false };
+  if (diffDays <= 90) return { label: `${diffDays}j`,  style: { background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger)' }, urgent: true  };
+  if (diffDays <= 365)return { label: `${Math.ceil(diffDays/30)}m`, style: { background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)' }, urgent: true };
   return null;
 };
 
@@ -83,29 +84,29 @@ const EMPTY_COMPLETE_FORM = {
 };
 
 const INTERVENTION_STATUT_CONFIG = {
-  planifiee:  { label: 'Planifiée',  color: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700' },
-  en_cours:   { label: 'En cours',   color: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700' },
-  terminee:   { label: 'Terminée',   color: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700' },
-  reportee:   { label: 'Reportée',   color: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700' },
+  planifiee:  { label: 'Planifiée',  style: { background: 'var(--brand-soft)',   color: 'var(--brand)',   border: '1px solid var(--brand)'   } },
+  en_cours:   { label: 'En cours',   style: { background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)' } },
+  terminee:   { label: 'Terminée',   style: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' } },
+  reportee:   { label: 'Reportée',   style: { background: 'rgba(234,88,12,0.1)', color: '#c2410c',        border: '1px solid #f97316'        } },
 };
 
 const PRIORITE_CONFIG = {
-  faible:  { label: 'Faible',  color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700' },
-  normal:  { label: 'Normal',  color: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600' },
-  urgent:  { label: 'Urgent',  color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700' },
+  faible:  { label: 'Faible',  style: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' } },
+  normal:  { label: 'Normal',  style: { background: 'var(--surface-2)',    color: 'var(--fg-muted)', border: '1px solid var(--border)'  } },
+  urgent:  { label: 'Urgent',  style: { background: 'var(--danger-soft)',  color: 'var(--danger)',   border: '1px solid var(--danger)'  } },
 };
 
 // ─── STAT CARD ───────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, icon: Icon, colorClass, bgClass }) {
+function StatCard({ label, value, icon: Icon, color, bg }) {
   return (
-    <div className={`${bgClass} rounded-xl p-4 flex items-center space-x-4 shadow-sm border border-white/50`}>
-      <div className={`p-2.5 rounded-lg bg-white/60`}>
-        <Icon className={`w-5 h-5 ${colorClass}`} />
+    <div style={{ background: bg, borderRadius: 'var(--radius-3)', padding: 16, display: 'flex', alignItems: 'center', gap: 16, boxShadow: 'var(--shadow-1)' }}>
+      <div style={{ padding: 10, borderRadius: 'var(--radius-2)', background: 'var(--surface)' }}>
+        <Icon style={{ width: 20, height: 20, color }} />
       </div>
       <div>
-        <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
-        <p className="text-xs text-gray-600 font-medium">{label}</p>
+        <p style={{ fontSize: 24, fontWeight: 700, color }}>{value}</p>
+        <p style={{ fontSize: 12, color: 'var(--fg-muted)', fontWeight: 500 }}>{label}</p>
       </div>
     </div>
   );
@@ -143,20 +144,20 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
+        <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>
             {initial?.id ? 'Modifier l\'équipement' : 'Ajouter un équipement'}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+          <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center space-x-2 text-red-700">
+            <div className="rounded-lg p-3 flex items-center space-x-2" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm">{error}</span>
             </div>
@@ -164,11 +165,11 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Nom <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
+                Nom <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <input
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.nom}
                 onChange={e => set('nom', e.target.value)}
                 placeholder="Ex: Moniteur multi-paramètres"
@@ -176,9 +177,9 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Référence</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Référence</label>
               <input
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.reference}
                 onChange={e => set('reference', e.target.value)}
                 placeholder="REF-001"
@@ -186,9 +187,9 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Numéro de série</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Numéro de série</label>
               <input
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.numero_serie}
                 onChange={e => set('numero_serie', e.target.value)}
                 placeholder="SN-XXXXXXXX"
@@ -196,21 +197,24 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Service</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Service</label>
               <select
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.service}
                 onChange={e => set('service', e.target.value)}
               >
                 <option value="">-- Sélectionner --</option>
+                {form.service && !services.includes(form.service) && (
+                  <option value={form.service}>{form.service} (ancien)</option>
+                )}
                 {services.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type d'équipement</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Type d'équipement</label>
               <input
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.type_equipement}
                 onChange={e => set('type_equipement', e.target.value)}
                 placeholder="Ex: Monitoring, Respirateur..."
@@ -218,9 +222,9 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marque</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Marque</label>
               <input
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.marque}
                 onChange={e => set('marque', e.target.value)}
                 placeholder="Ex: Philips, GE, Mindray..."
@@ -228,9 +232,9 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Modèle</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Modèle</label>
               <input
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.modele}
                 onChange={e => set('modele', e.target.value)}
                 placeholder="Ex: IntelliVue MX450"
@@ -238,10 +242,10 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date mise en service</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Date mise en service</label>
               <input
                 type="date"
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.date_mise_en_service}
                 onChange={e => {
                   const val = e.target.value;
@@ -257,9 +261,9 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Statut</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Statut</label>
               <select
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.statut}
                 onChange={e => set('statut', e.target.value)}
               >
@@ -270,10 +274,10 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Matricule</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Matricule</label>
               <input
                 name="matricule"
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.matricule || ''}
                 onChange={e => set('matricule', e.target.value)}
                 placeholder="Ex: 01MILA1H8"
@@ -281,9 +285,9 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origine</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Origine</label>
               <select
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.origine || ''}
                 onChange={e => set('origine', e.target.value)}
               >
@@ -296,9 +300,9 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fournisseur</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Fournisseur</label>
               <input
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.fournisseur || ''}
                 onChange={e => set('fournisseur', e.target.value)}
                 placeholder="Ex: BIOECOMS, Philips..."
@@ -306,24 +310,24 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
                 Date de mise au rebus
-                <span className="ml-2 text-xs font-normal text-blue-500">(auto : mise en service + 10 ans)</span>
+                <span className="ml-2 text-xs font-normal" style={{ color: 'var(--brand)' }}>(auto : mise en service + 10 ans)</span>
               </label>
               <input
                 type="date"
                 name="date_mise_au_rebus"
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.date_mise_au_rebus || ''}
                 onChange={e => set('date_mise_au_rebus', e.target.value)}
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Notes</label>
               <textarea
                 rows={3}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.notes}
                 onChange={e => set('notes', e.target.value)}
                 placeholder="Remarques, localisation précise..."
@@ -335,14 +339,14 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors" style={{ color: 'var(--fg-muted)', background: 'var(--surface-2)' }}
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center space-x-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors"
+              className="flex items-center space-x-2 px-5 py-2 text-sm font-medium rounded-lg disabled:opacity-60 transition-colors" style={{ background: 'var(--brand)', color: '#fff' }}
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               <span>{saving ? 'Sauvegarde...' : 'Enregistrer'}</span>
@@ -396,31 +400,31 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
   const selectedMois = Array.isArray(form.mois) ? form.mois : [];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
+        <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>
             {initial?.id ? 'Modifier le plan' : 'Nouveau plan de maintenance'}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-            <X className="w-5 h-5 text-gray-500" />
+          <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center space-x-2 text-red-700">
+            <div className="rounded-lg p-3 flex items-center space-x-2" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm">{error}</span>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Équipement <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
+              Équipement <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <select
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.equipement_id}
               onChange={e => set('equipement_id', e.target.value)}
             >
@@ -432,8 +436,8 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Mois de maintenance <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--fg-muted)' }}>
+              Mois de maintenance <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <div className="grid grid-cols-4 gap-2">
               {MONTH_LABELS.map((lbl, idx) => {
@@ -444,11 +448,10 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
                     key={m}
                     type="button"
                     onClick={() => toggleMois(m)}
-                    className={`py-1.5 text-xs font-semibold rounded-lg border-2 transition-colors ${
-                      selected
-                        ? 'bg-blue-600 border-blue-600 text-white'
-                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-400'
-                    }`}
+                    className="py-1.5 text-xs font-semibold rounded-lg transition-colors"
+                    style={selected
+                      ? { background: 'var(--brand)', border: '2px solid var(--brand)', color: '#fff' }
+                      : { background: 'var(--surface)', border: '2px solid var(--border)', color: 'var(--fg-muted)' }}
                   >
                     {lbl}
                   </button>
@@ -456,7 +459,7 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
               })}
             </div>
             {selectedMois.length > 0 && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>
                 {selectedMois.length} mois sélectionné{selectedMois.length > 1 ? 's' : ''} — fréquence : {selectedMois.length === 1 ? 'annuelle' : selectedMois.length === 2 ? 'semestrielle' : selectedMois.length === 3 ? 'trimestrielle' : selectedMois.length === 4 ? 'trimestrielle' : selectedMois.length === 12 ? 'mensuelle' : 'personnalisée'}
               </p>
             )}
@@ -464,27 +467,27 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
                 Jour du mois
               </label>
               <input
                 type="number"
                 min="1"
                 max="31"
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.jour_du_mois}
                 onChange={e => set('jour_du_mois', e.target.value)}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
                 Durée estimée (h)
               </label>
               <input
                 type="number"
                 min="0"
                 step="0.5"
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.duree_estimee}
                 onChange={e => set('duree_estimee', e.target.value)}
                 placeholder="Ex: 2.5"
@@ -493,10 +496,10 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Notes</label>
             <textarea
               rows={2}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.notes}
               onChange={e => set('notes', e.target.value)}
               placeholder="Instructions de maintenance, matériel requis..."
@@ -504,10 +507,10 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
           </div>
 
           <div className="flex justify-end space-x-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg transition-colors" style={{ color: 'var(--fg-muted)', background: 'var(--surface-2)' }}>
               Annuler
             </button>
-            <button type="submit" disabled={saving} className="flex items-center space-x-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors">
+            <button type="submit" disabled={saving} className="flex items-center space-x-2 px-5 py-2 text-sm font-medium rounded-lg disabled:opacity-60 transition-colors" style={{ background: 'var(--brand)', color: '#fff' }}>
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               <span>{saving ? 'Sauvegarde...' : 'Enregistrer'}</span>
             </button>
@@ -555,29 +558,29 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
   const isCorrective = form.type === 'corrective';
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
+        <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>
             {isCorrective ? 'Déclarer une panne' : 'Nouvelle intervention'}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-            <X className="w-5 h-5 text-gray-500" />
+          <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 flex items-center space-x-2 text-red-700 dark:text-red-400">
+            <div className="rounded-lg p-3 flex items-center space-x-2" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm">{error}</span>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Type</label>
             <select
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-60"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.type}
               onChange={e => set('type', e.target.value)}
               disabled={!!forcedType}
@@ -588,11 +591,11 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Équipement <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
+              Équipement <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <select
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.equipement_id}
               onChange={e => set('equipement_id', e.target.value)}
             >
@@ -605,9 +608,9 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priorité</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Priorité</label>
               <select
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.priorite}
                 onChange={e => set('priorite', e.target.value)}
               >
@@ -617,12 +620,12 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Date planifiée <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
+                Date planifiée <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <input
                 type="date"
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.date_planifiee}
                 onChange={e => set('date_planifiee', e.target.value)}
               />
@@ -630,9 +633,9 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Technicien</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Technicien</label>
             <input
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.technicien_id}
               onChange={e => set('technicien_id', e.target.value)}
               placeholder="Nom du technicien..."
@@ -640,10 +643,10 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Description</label>
             <textarea
               rows={3}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.description}
               onChange={e => set('description', e.target.value)}
               placeholder="Description de l'intervention..."
@@ -652,9 +655,9 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
 
           {isCorrective && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Signalé par</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Signalé par</label>
               <input
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.signale_par}
                 onChange={e => set('signale_par', e.target.value)}
                 placeholder="Nom de la personne ayant signalé la panne..."
@@ -663,13 +666,14 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
           )}
 
           <div className="flex justify-end space-x-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg transition-colors" style={{ color: 'var(--fg-muted)', background: 'var(--surface-2)' }}>
               Annuler
             </button>
             <button
               type="submit"
               disabled={saving}
-              className={`flex items-center space-x-2 px-5 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-60 transition-colors ${isCorrective ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+              className="flex items-center space-x-2 px-5 py-2 text-sm font-medium rounded-lg disabled:opacity-60 transition-colors"
+              style={{ background: isCorrective ? 'var(--danger)' : 'var(--brand)', color: '#fff' }}
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               <span>{saving ? 'Sauvegarde...' : isCorrective ? 'Déclarer' : 'Créer'}</span>
@@ -722,31 +726,31 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
     : '';
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
+        <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border)' }}>
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Clôturer l'intervention</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{eqName}{datePlan ? ` — ${datePlan}` : ''}</p>
+            <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>Clôturer l'intervention</h2>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--fg-subtle)' }}>{eqName}{datePlan ? ` — ${datePlan}` : ''}</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-            <X className="w-5 h-5 text-gray-500" />
+          <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 flex items-center space-x-2 text-red-700 dark:text-red-400">
+            <div className="rounded-lg p-3 flex items-center space-x-2" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm">{error}</span>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Actions effectuées</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Actions effectuées</label>
             <textarea
               rows={3}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none resize-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.actions_effectuees}
               onChange={e => set('actions_effectuees', e.target.value)}
               placeholder="Décrivez les actions réalisées..."
@@ -754,10 +758,10 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pièces/consommables remplacés</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Pièces/consommables remplacés</label>
             <textarea
               rows={2}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none resize-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.pieces_remplacees}
               onChange={e => set('pieces_remplacees', e.target.value)}
               placeholder="Pièces, filtres, consommables remplacés..."
@@ -765,12 +769,12 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Durée réelle (heures)</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Durée réelle (heures)</label>
             <input
               type="number"
               min="0"
               step="0.5"
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.duree_reelle}
               onChange={e => set('duree_reelle', e.target.value)}
               placeholder="Ex: 2.5"
@@ -778,10 +782,10 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Observations</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Observations</label>
             <textarea
               rows={2}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none resize-none"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.observations}
               onChange={e => set('observations', e.target.value)}
               placeholder="Remarques, recommandations..."
@@ -789,13 +793,13 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
           </div>
 
           <div className="flex justify-end space-x-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg transition-colors" style={{ color: 'var(--fg-muted)', background: 'var(--surface-2)' }}>
               Annuler
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center space-x-2 px-5 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-60 transition-colors"
+              className="flex items-center space-x-2 px-5 py-2 text-sm font-medium rounded-lg disabled:opacity-60 transition-colors" style={{ background: 'var(--success)', color: '#fff' }}
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
               <span>{saving ? 'Clôture...' : 'Clôturer'}</span>
@@ -812,6 +816,7 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
 function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const [actioning, setActioning] = useState(false);
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const eq = intervention.equipement || {};
   const eqName = eq.nom || intervention.equipement_nom || 'Équipement inconnu';
@@ -837,7 +842,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
   };
 
   const doDelete = async () => {
-    if (!window.confirm('Supprimer cette intervention ?')) return;
+    if (!(await confirm({ title: 'Supprimer l\'intervention', message: 'Supprimer cette intervention ?', confirmLabel: 'Supprimer', variant: 'danger' }))) return;
     setActioning(true);
     try { await onDelete(intervention.id); }
     catch (e) { toast(e.response?.data?.message || e.message); }
@@ -845,31 +850,33 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+    <>
+    {ConfirmModalRenderer}
+    <div className="rounded-lg shadow-sm hover:shadow-md transition-shadow" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="p-4">
         {/* Top row */}
         <div className="flex flex-wrap items-start gap-2 mb-3">
-          <span className="font-semibold text-gray-900 dark:text-white text-sm flex-1 min-w-0 truncate">{eqName}</span>
+          <span className="font-semibold text-sm flex-1 min-w-0 truncate" style={{ color: 'var(--fg)' }}>{eqName}</span>
           <div className="flex flex-wrap gap-1.5 flex-shrink-0">
             {service && (
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${sc.bg} ${sc.text}`}>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: sc.bg, color: sc.text }}>
                 {service}
               </span>
             )}
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${isPreventive ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-700' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-700'}`}>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border" style={isPreventive ? { background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand)' } : { background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger)' }}>
               {isPreventive ? 'Préventive' : 'Corrective'}
             </span>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${prCfg.color}`}>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={prCfg.style}>
               {prCfg.label}
             </span>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${stCfg.color}`}>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={stCfg.style}>
               {stCfg.label}
             </span>
           </div>
         </div>
 
         {/* Middle info row */}
-        <div className="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-400 mb-3">
+        <div className="flex flex-wrap gap-4 text-xs mb-3" style={{ color: 'var(--fg-muted)' }}>
           <span className="flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5" />
             {datePlan}
@@ -888,19 +895,19 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
         {/* Terminée details accordion */}
         {intervention.statut === 'terminee' && dateReal && (
           <div className="mb-3">
-            <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400 mb-1">
+            <div className="flex items-center gap-2 text-xs mb-1" style={{ color: 'var(--success)' }}>
               <CheckCircle className="w-3.5 h-3.5" />
               <span>Terminée le {dateReal}</span>
             </div>
             <button
               onClick={() => setExpanded(v => !v)}
-              className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--brand)' }}
             >
               {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               {expanded ? 'Masquer les détails' : 'Voir les détails'}
             </button>
             {expanded && (
-              <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-2 text-xs text-gray-700 dark:text-gray-300">
+              <div className="mt-2 p-3 rounded-lg space-y-2 text-xs" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
                 {intervention.actions_effectuees && (
                   <div><span className="font-medium">Actions effectuées :</span> {intervention.actions_effectuees}</div>
                 )}
@@ -925,7 +932,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
               <button
                 onClick={() => doStatusChange('en_cours')}
                 disabled={actioning}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:hover:bg-yellow-900/40 rounded-lg transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}
               >
                 <PlayCircle className="w-3.5 h-3.5" />
                 Démarrer
@@ -933,7 +940,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
               <button
                 onClick={() => onComplete(intervention)}
                 disabled={actioning}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/40 rounded-lg transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 Terminer
@@ -941,7 +948,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
               <button
                 onClick={() => doStatusChange('reportee')}
                 disabled={actioning}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/40 rounded-lg transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'rgba(234,88,12,0.1)', color: '#c2410c' }}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reporter
@@ -953,7 +960,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
               <button
                 onClick={() => onComplete(intervention)}
                 disabled={actioning}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/40 rounded-lg transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 Terminer
@@ -961,7 +968,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
               <button
                 onClick={() => doStatusChange('reportee')}
                 disabled={actioning}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/40 rounded-lg transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'rgba(234,88,12,0.1)', color: '#c2410c' }}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reporter
@@ -972,7 +979,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
             <button
               onClick={() => doStatusChange('planifiee')}
               disabled={actioning}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40 rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}
             >
               <Calendar className="w-3.5 h-3.5" />
               Réplanifier
@@ -981,7 +988,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
           <button
             onClick={doDelete}
             disabled={actioning}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/10 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 ml-auto"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ml-auto" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}
           >
             {actioning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
             Supprimer
@@ -989,6 +996,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -1004,6 +1012,7 @@ function InterventionsTab({ equipements, services = [] }) {
   const [selectedIntervention, setSelectedIntervention] = useState(null);
   const [forcedType, setForcedType] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const fetchInterventions = useCallback(async () => {
     setLoading(true);
@@ -1046,7 +1055,7 @@ function InterventionsTab({ equipements, services = [] }) {
 
   const handleGenerateInterventions = async () => {
     const year = new Date().getFullYear();
-    if (!window.confirm(`Générer les interventions préventives pour ${year} depuis les plans de maintenance ?`)) return;
+    if (!(await confirm({ title: 'Générer les interventions', message: `Générer les interventions préventives pour ${year} depuis les plans de maintenance ?`, confirmLabel: 'Générer', variant: 'info' }))) return;
     setGenerating(true);
     try {
       const res = await gmaoAPI.generatePreventiveInterventions({ annee: year });
@@ -1081,21 +1090,23 @@ function InterventionsTab({ equipements, services = [] }) {
   };
 
   return (
+    <>
+    {ConfirmModalRenderer}
     <div className="space-y-6">
       {/* Mini stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Planifiées" value={countByStatut.planifiee} icon={Calendar} colorClass="text-blue-700" bgClass="bg-blue-50 dark:bg-blue-900/20" />
-        <StatCard label="En cours" value={countByStatut.en_cours} icon={PlayCircle} colorClass="text-yellow-700" bgClass="bg-yellow-50 dark:bg-yellow-900/20" />
-        <StatCard label="Terminées" value={countByStatut.terminee} icon={CheckCircle} colorClass="text-green-700" bgClass="bg-green-50 dark:bg-green-900/20" />
-        <StatCard label="Reportées" value={countByStatut.reportee} icon={RotateCcw} colorClass="text-orange-700" bgClass="bg-orange-50 dark:bg-orange-900/20" />
+        <StatCard label="Planifiées" value={countByStatut.planifiee} icon={Calendar} color="var(--brand)" bg="var(--brand-soft)" />
+        <StatCard label="En cours" value={countByStatut.en_cours} icon={PlayCircle} color="var(--warning)" bg="var(--warning-soft)" />
+        <StatCard label="Terminées" value={countByStatut.terminee} icon={CheckCircle} color="var(--success)" bg="var(--success-soft)" />
+        <StatCard label="Reportées" value={countByStatut.reportee} icon={RotateCcw} color="var(--info)" bg="var(--info-soft)" />
       </div>
 
       {/* Top action bar */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="rounded-lg shadow-sm p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={openCorrectiveModal}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors" style={{ background: 'var(--danger)', color: '#fff' }}
           >
             <AlertTriangle className="w-4 h-4" />
             <span>Déclarer une panne</span>
@@ -1104,16 +1115,16 @@ function InterventionsTab({ equipements, services = [] }) {
           <button
             onClick={handleGenerateInterventions}
             disabled={generating}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60 transition-colors" style={{ background: 'var(--brand)', color: '#fff' }}
           >
             {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             <span>Générer préventives</span>
           </button>
 
           <div className="flex items-center space-x-2 ml-auto">
-            <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <Filter className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--fg-subtle)' }} />
             <select
-              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={filters.type}
               onChange={e => setFilter('type', e.target.value)}
             >
@@ -1122,7 +1133,7 @@ function InterventionsTab({ equipements, services = [] }) {
               <option value="corrective">Corrective</option>
             </select>
             <select
-              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={filters.statut}
               onChange={e => setFilter('statut', e.target.value)}
             >
@@ -1133,7 +1144,7 @@ function InterventionsTab({ equipements, services = [] }) {
               <option value="reportee">Reportée</option>
             </select>
             <select
-              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={filters.service}
               onChange={e => setFilter('service', e.target.value)}
             >
@@ -1145,7 +1156,7 @@ function InterventionsTab({ equipements, services = [] }) {
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 flex items-center space-x-3 text-red-700 dark:text-red-400">
+        <div className="rounded-lg p-4 flex items-center space-x-3" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -1153,15 +1164,15 @@ function InterventionsTab({ equipements, services = [] }) {
 
       {/* Cards list */}
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-500 dark:text-gray-400">
+        <div className="flex items-center justify-center py-16" style={{ color: 'var(--fg-muted)' }}>
           <RefreshCw className="w-6 h-6 animate-spin mr-2" />
           <span>Chargement des interventions...</span>
         </div>
       ) : interventions.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 flex flex-col items-center justify-center text-gray-400">
+        <div className="rounded-lg p-12 flex flex-col items-center justify-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
           <Wrench className="w-12 h-12 mb-3 opacity-30" />
-          <p className="font-medium text-gray-500 dark:text-gray-400">Aucune intervention</p>
-          <p className="text-sm mt-1 text-center text-gray-400 dark:text-gray-500">
+          <p className="font-medium" style={{ color: 'var(--fg-muted)' }}>Aucune intervention</p>
+          <p className="text-sm mt-1 text-center">
             Cliquez sur &quot;Générer préventives&quot; pour créer les interventions depuis les plans.
           </p>
         </div>
@@ -1180,7 +1191,7 @@ function InterventionsTab({ equipements, services = [] }) {
       )}
 
       {interventions.length > 0 && (
-        <div className="text-xs text-gray-400 text-center">
+        <div className="text-xs text-center" style={{ color: 'var(--fg-subtle)' }}>
           {interventions.length} intervention{interventions.length > 1 ? 's' : ''} affichée{interventions.length > 1 ? 's' : ''}
         </div>
       )}
@@ -1201,6 +1212,7 @@ function InterventionsTab({ equipements, services = [] }) {
         onComplete={handleCompleteIntervention}
       />
     </div>
+    </>
   );
 }
 
@@ -1215,6 +1227,7 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planTarget, setPlanTarget] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const filtered = equipements.filter(eq => {
     if (filterService && eq.service !== filterService) return false;
@@ -1239,7 +1252,7 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Supprimer cet équipement et tous ses plans de maintenance ?')) return;
+    if (!(await confirm({ title: 'Supprimer l\'équipement', message: 'Supprimer cet équipement et tous ses plans de maintenance ?', confirmLabel: 'Supprimer', variant: 'danger' }))) return;
     setDeleting(id);
     try {
       await gmaoAPI.deleteEquipement(id);
@@ -1257,34 +1270,36 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
   });
 
   return (
+    <>
+    {ConfirmModalRenderer}
     <div className="space-y-6">
       {/* Bannière alerte fin de vie */}
       {finDeVie.length > 0 && (
-        <div className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-sm text-orange-800">
-          <AlertTriangle className="w-5 h-5 text-orange-500 mt-0.5 shrink-0" />
+        <div className="flex items-start gap-3 rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(234,88,12,0.08)', border: '1px solid #f97316', color: '#c2410c' }}>
+          <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" style={{ color: '#f97316' }} />
           <div>
             <span className="font-semibold">{finDeVie.length} équipement{finDeVie.length > 1 ? 's' : ''} en fin d'amortissement</span>
-            <span className="ml-2 text-orange-600">— {finDeVie.map(e => e.nom).join(', ')}</span>
+            <span className="ml-2" style={{ color: '#ea580c' }}>— {finDeVie.map(e => e.nom).join(', ')}</span>
           </div>
         </div>
       )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard label="Total équipements" value={stats?.totalEquipements ?? equipements.length} icon={Package} colorClass="text-blue-700" bgClass="bg-blue-50" />
-        <StatCard label="Actifs" value={stats?.actifs ?? equipements.filter(e => e.statut === 'actif').length} icon={CheckCircle} colorClass="text-green-700" bgClass="bg-green-50" />
-        <StatCard label="En réparation" value={stats?.enReparation ?? equipements.filter(e => e.statut === 'en_reparation').length} icon={Clock} colorClass="text-yellow-700" bgClass="bg-yellow-50" />
-        <StatCard label="Hors service" value={stats?.horsService ?? equipements.filter(e => e.statut === 'hors_service').length} icon={AlertCircle} colorClass="text-red-700" bgClass="bg-red-50" />
-        <StatCard label="Fin de vie ≤1 an" value={finDeVie.length} icon={AlertTriangle} colorClass="text-orange-700" bgClass="bg-orange-50" />
+        <StatCard label="Total équipements" value={stats?.totalEquipements ?? equipements.length} icon={Package} color="var(--brand)" bg="var(--brand-soft)" />
+        <StatCard label="Actifs" value={stats?.actifs ?? equipements.filter(e => e.statut === 'actif').length} icon={CheckCircle} color="var(--success)" bg="var(--success-soft)" />
+        <StatCard label="En réparation" value={stats?.enReparation ?? equipements.filter(e => e.statut === 'en_reparation').length} icon={Clock} color="var(--warning)" bg="var(--warning-soft)" />
+        <StatCard label="Hors service" value={stats?.horsService ?? equipements.filter(e => e.statut === 'hors_service').length} icon={AlertCircle} color="var(--danger)" bg="var(--danger-soft)" />
+        <StatCard label="Fin de vie ≤1 an" value={finDeVie.length} icon={AlertTriangle} color="var(--warning)" bg="var(--warning-soft)" />
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="rounded-lg shadow-sm p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--fg-subtle)' }} />
             <input
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               placeholder="Rechercher équipement, référence, marque..."
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -1292,9 +1307,9 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
           </div>
 
           <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <Filter className="w-4 h-4" style={{ color: 'var(--fg-subtle)' }} />
             <select
-              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={filterService}
               onChange={e => setFilterService(e.target.value)}
             >
@@ -1303,7 +1318,7 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
             </select>
 
             <select
-              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={filterStatut}
               onChange={e => setFilterStatut(e.target.value)}
             >
@@ -1316,7 +1331,7 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
 
           <button
             onClick={() => { setEditTarget(null); setModalOpen(true); }}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors ml-auto"
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ml-auto" style={{ background: 'var(--brand)', color: '#fff' }}
           >
             <Plus className="w-4 h-4" />
             <span>Ajouter</span>
@@ -1325,14 +1340,14 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-500">
+          <div className="flex items-center justify-center py-16" style={{ color: 'var(--fg-muted)' }}>
             <RefreshCw className="w-6 h-6 animate-spin mr-2" />
             <span>Chargement...</span>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--fg-subtle)' }}>
             <Package className="w-12 h-12 mb-3 opacity-30" />
             <p className="font-medium">Aucun équipement trouvé</p>
             <p className="text-sm mt-1">Ajoutez votre premier équipement via le bouton ci-dessus</p>
@@ -1341,46 +1356,46 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Nom</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Référence</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Service</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Type</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Marque / Modèle</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Statut</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Actions</th>
+                <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                  <th className="text-left px-4 py-3 font-semibold" style={{ color: 'var(--fg-muted)' }}>Nom</th>
+                  <th className="text-left px-4 py-3 font-semibold" style={{ color: 'var(--fg-muted)' }}>Référence</th>
+                  <th className="text-left px-4 py-3 font-semibold" style={{ color: 'var(--fg-muted)' }}>Service</th>
+                  <th className="text-left px-4 py-3 font-semibold" style={{ color: 'var(--fg-muted)' }}>Type</th>
+                  <th className="text-left px-4 py-3 font-semibold" style={{ color: 'var(--fg-muted)' }}>Marque / Modèle</th>
+                  <th className="text-left px-4 py-3 font-semibold" style={{ color: 'var(--fg-muted)' }}>Statut</th>
+                  <th className="text-right px-4 py-3 font-semibold" style={{ color: 'var(--fg-muted)' }}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              <tbody>
                 {filtered.map(eq => {
                   const sc = getServiceColor(eq.service);
                   const stCfg = STATUT_CONFIG[eq.statut] || STATUT_CONFIG.actif;
                   const amort = getAmortissementStatus(eq);
                   return (
-                    <tr key={eq.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${amort?.urgent ? 'bg-orange-50/40 dark:bg-orange-900/10' : ''}`}>
+                    <tr key={eq.id} className="transition-colors" style={{ borderBottom: '1px solid var(--border)', background: amort?.urgent ? 'rgba(234,88,12,0.04)' : undefined }}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <p className="font-medium text-gray-900 dark:text-white">{eq.nom}</p>
+                          <p className="font-medium" style={{ color: 'var(--fg)' }}>{eq.nom}</p>
                           {amort && (
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold border ${amort.color}`} title={`Mise au rebus : ${new Date(eq.date_mise_au_rebus).toLocaleDateString('fr-FR')}`}>
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold" style={amort.style} title={`Mise au rebus : ${new Date(eq.date_mise_au_rebus).toLocaleDateString('fr-FR')}`}>
                               <AlertTriangle className="w-3 h-3" />{amort.label}
                             </span>
                           )}
                         </div>
-                        {eq.numero_serie && <p className="text-xs text-gray-400">SN: {eq.numero_serie}</p>}
+                        {eq.numero_serie && <p className="text-xs" style={{ color: 'var(--fg-subtle)' }}>SN: {eq.numero_serie}</p>}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{eq.reference || <span className="text-gray-300">—</span>}</td>
+                      <td className="px-4 py-3" style={{ color: 'var(--fg-muted)' }}>{eq.reference || <span style={{ color: 'var(--fg-subtle)' }}>—</span>}</td>
                       <td className="px-4 py-3">
                         {eq.service ? (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${sc.bg} ${sc.text}`}>{eq.service}</span>
-                        ) : <span className="text-gray-300">—</span>}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: sc.bg, color: sc.text }}>{eq.service}</span>
+                        ) : <span style={{ color: 'var(--fg-subtle)' }}>—</span>}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{eq.type_equipement || <span className="text-gray-300">—</span>}</td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                        {eq.marque || eq.modele ? `${eq.marque || ''} ${eq.modele || ''}`.trim() : <span className="text-gray-300">—</span>}
+                      <td className="px-4 py-3" style={{ color: 'var(--fg-muted)' }}>{eq.type_equipement || <span style={{ color: 'var(--fg-subtle)' }}>—</span>}</td>
+                      <td className="px-4 py-3" style={{ color: 'var(--fg-muted)' }}>
+                        {eq.marque || eq.modele ? `${eq.marque || ''} ${eq.modele || ''}`.trim() : <span style={{ color: 'var(--fg-subtle)' }}>—</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${stCfg.color}`}>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold" style={stCfg.style}>
                           {stCfg.label}
                         </span>
                       </td>
@@ -1388,21 +1403,21 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => onViewFiche && onViewFiche(eq.id)}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            className="p-1.5 rounded transition-colors" style={{ color: '#6366f1' }}
                             title="Fiche de vie"
                           >
                             <FileText className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => { setEditTarget(eq); setModalOpen(true); }}
-                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--brand)' }}
                             title="Modifier"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => { setPlanTarget(eq); setPlanModalOpen(true); }}
-                            className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                            className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--success)' }}
                             title="Ajouter un plan de maintenance"
                           >
                             <Calendar className="w-4 h-4" />
@@ -1410,7 +1425,7 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
                           <button
                             onClick={() => handleDelete(eq.id)}
                             disabled={deleting === eq.id}
-                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-40"
+                            className="p-1.5 rounded-lg transition-colors disabled:opacity-40" style={{ color: 'var(--danger)' }}
                             title="Supprimer"
                           >
                             {deleting === eq.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
@@ -1422,7 +1437,7 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
                 })}
               </tbody>
             </table>
-            <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400">
+            <div className="px-4 py-3 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
               {filtered.length} équipement{filtered.length > 1 ? 's' : ''} affiché{filtered.length > 1 ? 's' : ''}
               {filtered.length !== equipements.length && ` sur ${equipements.length} au total`}
             </div>
@@ -1450,6 +1465,7 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
         }}
       />
     </div>
+    </>
   );
 }
 
@@ -1487,30 +1503,30 @@ function CalendarTab({ stats }) {
   return (
     <div className="space-y-6">
       {/* Header bar */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="rounded-lg shadow-sm p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <div className="flex items-center space-x-2 rounded-lg p-1" style={{ background: 'var(--surface-2)' }}>
               <button
                 onClick={() => setYear(y => y - 1)}
-                className="p-1.5 rounded-md hover:bg-white dark:hover:bg-gray-600 transition-colors"
+                className="p-1.5 rounded-md transition-colors" style={{ color: 'var(--fg-muted)' }}
               >
-                <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-3 py-1 text-sm font-bold text-gray-900 dark:text-white min-w-16 text-center">{year}</span>
+              <span className="px-3 py-1 text-sm font-bold min-w-16 text-center" style={{ color: 'var(--fg)' }}>{year}</span>
               <button
                 onClick={() => setYear(y => y + 1)}
-                className="p-1.5 rounded-md hover:bg-white dark:hover:bg-gray-600 transition-colors"
+                className="p-1.5 rounded-md transition-colors" style={{ color: 'var(--fg-muted)' }}
               >
-                <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm font-semibold">
+              <div className="px-3 py-1 rounded-lg text-sm font-semibold" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>
                 {totalInterventions} intervention{totalInterventions > 1 ? 's' : ''} planifiée{totalInterventions > 1 ? 's' : ''}
               </div>
               {stats && (
-                <div className="bg-green-50 text-green-700 px-3 py-1 rounded-lg text-sm font-semibold">
+                <div className="px-3 py-1 rounded-lg text-sm font-semibold" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
                   {stats.totalPlans ?? 0} plan{(stats.totalPlans ?? 0) > 1 ? 's' : ''} actif{(stats.totalPlans ?? 0) > 1 ? 's' : ''}
                 </div>
               )}
@@ -1522,8 +1538,8 @@ function CalendarTab({ stats }) {
             {SERVICES.slice(0, 8).map(s => {
               const c = getServiceColor(s);
               return (
-                <span key={s} className={`flex items-center space-x-1 px-2 py-0.5 rounded text-xs font-medium ${c.bg} ${c.text}`}>
-                  <span className={`w-2 h-2 rounded-full ${c.chip}`}></span>
+                <span key={s} className="flex items-center space-x-1 px-2 py-0.5 rounded text-xs font-medium" style={{ background: c.bg, color: c.text }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: c.chip }}></span>
                   <span>{s}</span>
                 </span>
               );
@@ -1533,16 +1549,16 @@ function CalendarTab({ stats }) {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-2 text-red-700">
+        <div className="rounded-lg p-4 flex items-center space-x-2" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Calendar grid */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-500">
+          <div className="flex items-center justify-center py-20" style={{ color: 'var(--fg-muted)' }}>
             <RefreshCw className="w-6 h-6 animate-spin mr-2" />
             <span>Chargement du calendrier...</span>
           </div>
@@ -1551,19 +1567,19 @@ function CalendarTab({ stats }) {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 bg-gray-100 dark:bg-gray-700 border-b border-r border-gray-200 dark:border-gray-600 px-3 py-3 text-center text-gray-600 dark:text-gray-400 font-semibold min-w-12">J</th>
+                  <th className="sticky left-0 z-10 px-3 py-3 text-center font-semibold min-w-12" style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)', color: 'var(--fg-muted)' }}>J</th>
                   {MONTH_LABELS.map((lbl, idx) => (
-                    <th key={idx} className="border-b border-r border-gray-200 dark:border-gray-600 px-2 py-3 text-center font-bold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 min-w-28">
+                    <th key={idx} className="px-2 py-3 text-center font-bold min-w-28" style={{ borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)', color: 'var(--fg-muted)', background: 'var(--surface-2)' }}>
                       <div>{lbl}</div>
-                      <div className="font-normal text-gray-400 text-xs">{year}</div>
+                      <div className="font-normal text-xs" style={{ color: 'var(--fg-subtle)' }}>{year}</div>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                  <tr key={day} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
-                    <td className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-700/50 border-b border-r border-gray-200 dark:border-gray-600 px-3 py-1.5 text-center font-semibold text-gray-500 dark:text-gray-400 text-xs">
+                  <tr key={day} className="transition-colors">
+                    <td className="sticky left-0 z-10 px-3 py-1.5 text-center font-semibold text-xs" style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
                       {day}
                     </td>
                     {Array.from({ length: 12 }, (_, mIdx) => {
@@ -1575,13 +1591,11 @@ function CalendarTab({ stats }) {
                       return (
                         <td
                           key={month}
-                          className={`border-b border-r border-gray-100 dark:border-gray-700/50 px-1 py-1 align-top min-h-8 ${
-                            isInvalid ? 'bg-gray-50/80 dark:bg-gray-800/50' : ''
-                          }`}
-                          style={{ minHeight: '2rem' }}
+                          className="px-1 py-1 align-top"
+                          style={{ minHeight: '2rem', borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)', background: isInvalid ? 'var(--surface-2)' : undefined }}
                         >
                           {isInvalid ? (
-                            <span className="block w-full h-4 rounded bg-gray-100 dark:bg-gray-700/30 opacity-30"></span>
+                            <span className="block w-full h-4 rounded opacity-30" style={{ background: 'var(--border)' }}></span>
                           ) : entries.length > 0 ? (
                             <div className="space-y-0.5">
                               {entries.map((entry, eIdx) => {
@@ -1591,8 +1605,8 @@ function CalendarTab({ stats }) {
                                   <div
                                     key={eIdx}
                                     title={`${entry.nom}\nService: ${entry.service || 'N/A'}\nDurée: ${entry.duree ? entry.duree + 'h' : 'N/A'}${entry.notes ? '\n' + entry.notes : ''}`}
-                                    className={`flex items-center px-1.5 py-0.5 rounded text-white text-xs font-medium cursor-default truncate ${sc.chip}`}
-                                    style={{ fontSize: '10px', lineHeight: '1.4' }}
+                                    className="flex items-center px-1.5 py-0.5 rounded text-xs font-medium cursor-default truncate"
+                                    style={{ background: sc.chip, color: '#fff', fontSize: '10px', lineHeight: '1.4' }}
                                   >
                                     {truncated}
                                   </div>
@@ -1613,9 +1627,9 @@ function CalendarTab({ stats }) {
 
       {/* Plans list summary */}
       {!loading && totalInterventions > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center space-x-2">
-            <List className="w-4 h-4 text-blue-500" />
+        <div className="rounded-lg shadow-sm p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="font-semibold mb-3 flex items-center space-x-2" style={{ color: 'var(--fg)' }}>
+            <List className="w-4 h-4" style={{ color: 'var(--brand)' }} />
             <span>Répartition par mois</span>
           </h3>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
@@ -1623,9 +1637,9 @@ function CalendarTab({ stats }) {
               const monthData = calendarData[m] || {};
               const count = Object.values(monthData).reduce((a, arr) => a + arr.length, 0);
               return (
-                <div key={m} className={`rounded-lg p-2.5 text-center ${count > 0 ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-gray-50 dark:bg-gray-700/30'}`}>
-                  <p className={`text-xs font-semibold ${count > 0 ? 'text-blue-700 dark:text-blue-400' : 'text-gray-400'}`}>{MONTH_LABELS[m - 1]}</p>
-                  <p className={`text-xl font-bold mt-0.5 ${count > 0 ? 'text-blue-600 dark:text-blue-300' : 'text-gray-300'}`}>{count}</p>
+                <div key={m} className="rounded-lg p-2.5 text-center" style={{ background: count > 0 ? 'var(--brand-soft)' : 'var(--surface-2)' }}>
+                  <p className="text-xs font-semibold" style={{ color: count > 0 ? 'var(--brand)' : 'var(--fg-subtle)' }}>{MONTH_LABELS[m - 1]}</p>
+                  <p className="text-xl font-bold mt-0.5" style={{ color: count > 0 ? 'var(--brand)' : 'var(--fg-subtle)' }}>{count}</p>
                 </div>
               );
             })}
@@ -1643,7 +1657,7 @@ const MONTH_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oc
 const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
   const [selectedEquipement, setSelectedEquipement] = useState('');
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8" style={{ borderBottom: '2px solid var(--brand)' }} /></div>;
   if (!analytics) return null;
 
   const maxMonth = Math.max(...analytics.byMonth.map(m => m.total), 1);
@@ -1655,117 +1669,117 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Taux de conformité */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Taux de conformité</span>
-            <CheckCircle className="w-4 h-4 text-green-500" />
+            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>Taux de conformité</span>
+            <CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />
           </div>
-          <div className="text-3xl font-bold text-green-600 dark:text-green-400">{analytics.tauxConformite}%</div>
-          <div className="text-xs text-gray-400">{analytics.termineeThisYear} / {analytics.totalThisYear} préventives</div>
+          <div className="text-3xl font-bold" style={{ color: 'var(--success)' }}>{analytics.tauxConformite}%</div>
+          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{analytics.termineeThisYear} / {analytics.totalThisYear} préventives</div>
           {/* Progress bar */}
-          <div className="mt-2 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
-            <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${analytics.tauxConformite}%` }} />
+          <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${analytics.tauxConformite}%`, background: 'var(--success)' }} />
           </div>
         </div>
 
         {/* En retard */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">En retard</span>
-            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>En retard</span>
+            <AlertTriangle className="w-4 h-4" style={{ color: 'var(--danger)' }} />
           </div>
-          <div className={`text-3xl font-bold ${analytics.enRetard > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>{analytics.enRetard}</div>
-          <div className="text-xs text-gray-400">interventions en retard</div>
+          <div className="text-3xl font-bold" style={{ color: analytics.enRetard > 0 ? 'var(--danger)' : 'var(--fg-subtle)' }}>{analytics.enRetard}</div>
+          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>interventions en retard</div>
         </div>
 
         {/* En cours */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">En cours</span>
-            <PlayCircle className="w-4 h-4 text-yellow-500" />
+            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>En cours</span>
+            <PlayCircle className="w-4 h-4" style={{ color: 'var(--warning)' }} />
           </div>
-          <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{analytics.enCours}</div>
-          <div className="text-xs text-gray-400">en cours actuellement</div>
+          <div className="text-3xl font-bold" style={{ color: 'var(--warning)' }}>{analytics.enCours}</div>
+          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>en cours actuellement</div>
         </div>
 
         {/* Durée moyenne */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Durée moy. réalisation</span>
-            <Clock className="w-4 h-4 text-blue-500" />
+            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>Durée moy. réalisation</span>
+            <Clock className="w-4 h-4" style={{ color: 'var(--brand)' }} />
           </div>
-          <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{analytics.avgDuree ?? '—'}{analytics.avgDuree ? 'h' : ''}</div>
-          <div className="text-xs text-gray-400">par intervention terminée</div>
+          <div className="text-3xl font-bold" style={{ color: 'var(--brand)' }}>{analytics.avgDuree ?? '—'}{analytics.avgDuree ? 'h' : ''}</div>
+          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>par intervention terminée</div>
         </div>
       </div>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Bar chart: Interventions par mois */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Interventions par mois ({new Date().getFullYear()})</h3>
+        <div className="lg:col-span-2 rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>Interventions par mois ({new Date().getFullYear()})</h3>
           <div className="flex items-end gap-1 h-32">
             {analytics.byMonth.map((m) => (
               <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
                 <div className="w-full flex flex-col items-center justify-end" style={{ height: '96px' }}>
                   <div
-                    className="w-full bg-blue-500 dark:bg-blue-600 rounded-t opacity-80 hover:opacity-100 transition-opacity cursor-default relative group"
-                    style={{ height: `${maxMonth > 0 ? Math.max((m.total / maxMonth) * 96, m.total > 0 ? 4 : 0) : 0}px` }}
+                    className="w-full rounded-t opacity-80 hover:opacity-100 transition-opacity cursor-default relative"
+                    style={{ height: `${maxMonth > 0 ? Math.max((m.total / maxMonth) * 96, m.total > 0 ? 4 : 0) : 0}px`, background: 'var(--brand)' }}
                     title={`${m.total} interventions`}
                   >
                     {m.corrective > 0 && (
                       <div
-                        className="w-full bg-red-400 dark:bg-red-500 rounded-t absolute bottom-0"
-                        style={{ height: `${(m.corrective / m.total) * 100}%` }}
+                        className="w-full rounded-t absolute bottom-0"
+                        style={{ height: `${(m.corrective / m.total) * 100}%`, background: 'var(--danger)' }}
                       />
                     )}
                     {m.total > 0 && (
-                      <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">{m.total}</span>
+                      <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap" style={{ color: 'var(--fg-muted)' }}>{m.total}</span>
                     )}
                   </div>
                 </div>
-                <span className="text-[9px] text-gray-400">{MONTH_SHORT[m.month - 1]}</span>
+                <span className="text-[9px]" style={{ color: 'var(--fg-subtle)' }}>{MONTH_SHORT[m.month - 1]}</span>
               </div>
             ))}
           </div>
           <div className="flex gap-4 mt-3">
-            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-500 rounded-sm"/><span className="text-xs text-gray-500">Préventive</span></div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-400 rounded-sm"/><span className="text-xs text-gray-500">Corrective</span></div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm" style={{ background: 'var(--brand)' }}/><span className="text-xs" style={{ color: 'var(--fg-muted)' }}>Préventive</span></div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm" style={{ background: 'var(--danger)' }}/><span className="text-xs" style={{ color: 'var(--fg-muted)' }}>Corrective</span></div>
           </div>
         </div>
 
         {/* Preventive vs Corrective donut-style */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Répartition par type</h3>
+        <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>Répartition par type</h3>
           {totalTypes > 0 ? (
             <>
               <div className="space-y-3">
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-blue-600 dark:text-blue-400 font-medium">Préventives</span>
-                    <span className="text-gray-500">{analytics.preventiveCount} ({Math.round(analytics.preventiveCount/totalTypes*100)}%)</span>
+                    <span className="font-medium" style={{ color: 'var(--brand)' }}>Préventives</span>
+                    <span style={{ color: 'var(--fg-subtle)' }}>{analytics.preventiveCount} ({Math.round(analytics.preventiveCount/totalTypes*100)}%)</span>
                   </div>
-                  <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(analytics.preventiveCount/totalTypes)*100}%` }} />
+                  <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${(analytics.preventiveCount/totalTypes)*100}%`, background: 'var(--brand)' }} />
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-red-600 dark:text-red-400 font-medium">Correctives</span>
-                    <span className="text-gray-500">{analytics.correctiveCount} ({Math.round(analytics.correctiveCount/totalTypes*100)}%)</span>
+                    <span className="font-medium" style={{ color: 'var(--danger)' }}>Correctives</span>
+                    <span style={{ color: 'var(--fg-subtle)' }}>{analytics.correctiveCount} ({Math.round(analytics.correctiveCount/totalTypes*100)}%)</span>
                   </div>
-                  <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-red-500 rounded-full" style={{ width: `${(analytics.correctiveCount/totalTypes)*100}%` }} />
+                  <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${(analytics.correctiveCount/totalTypes)*100}%`, background: 'var(--danger)' }} />
                   </div>
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="text-center text-2xl font-bold text-gray-700 dark:text-gray-300">{totalTypes}</div>
-                <div className="text-center text-xs text-gray-400">total interventions {new Date().getFullYear()}</div>
+              <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+                <div className="text-center text-2xl font-bold" style={{ color: 'var(--fg-muted)' }}>{totalTypes}</div>
+                <div className="text-center text-xs" style={{ color: 'var(--fg-subtle)' }}>total interventions {new Date().getFullYear()}</div>
               </div>
             </>
           ) : (
-            <div className="text-center text-gray-400 text-sm mt-8">Aucune donnée</div>
+            <div className="text-center text-sm mt-8" style={{ color: 'var(--fg-subtle)' }}>Aucune donnée</div>
           )}
         </div>
       </div>
@@ -1773,8 +1787,8 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Service distribution */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Interventions par service</h3>
+        <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>Interventions par service</h3>
           {analytics.byService.length > 0 ? (
             <div className="space-y-2">
               {analytics.byService.slice(0, 8).map(s => {
@@ -1783,70 +1797,70 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
                 return (
                   <div key={s.service}>
                     <div className="flex items-center justify-between text-xs mb-0.5">
-                      <span className={`font-medium ${color.text}`}>{s.service}</span>
-                      <span className="text-gray-400">{s.total} ({pct}% terminées)</span>
+                      <span className="font-medium" style={{ color: color.text }}>{s.service}</span>
+                      <span style={{ color: 'var(--fg-subtle)' }}>{s.total} ({pct}% terminées)</span>
                     </div>
-                    <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${color.bg}`} style={{ width: `${(s.total / maxService) * 100}%` }} />
+                    <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                      <div className="h-full rounded-full" style={{ width: `${(s.total / maxService) * 100}%`, background: color.chip }} />
                     </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="text-center text-gray-400 text-sm mt-8">Aucune donnée</div>
+            <div className="text-center text-sm mt-8" style={{ color: 'var(--fg-subtle)' }}>Aucune donnée</div>
           )}
         </div>
 
         {/* Top équipements défaillants */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Top équipements défaillants</h3>
+        <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>Top équipements défaillants</h3>
           {analytics.topDefaillants.length > 0 ? (
             <div className="space-y-2">
               {analytics.topDefaillants.slice(0, 6).map((item, idx) => {
                 const color = SERVICE_COLORS[item.equipement?.service] || SERVICE_COLORS['ADMIN'];
                 return (
                   <div key={item.equipement?.id} className="flex items-center gap-3">
-                    <span className="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 text-xs flex items-center justify-center font-bold">{idx + 1}</span>
+                    <span className="w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>{idx + 1}</span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{item.equipement?.nom}</div>
-                      <span className={`text-[10px] px-1 rounded ${color.bg} ${color.text}`}>{item.equipement?.service}</span>
+                      <div className="text-xs font-medium truncate" style={{ color: 'var(--fg-muted)' }}>{item.equipement?.nom}</div>
+                      <span className="text-[10px] px-1 rounded" style={{ background: color.bg, color: color.text }}>{item.equipement?.service}</span>
                     </div>
-                    <span className="text-sm font-bold text-red-600 dark:text-red-400">{item.nbPannes} pannes</span>
+                    <span className="text-sm font-bold" style={{ color: 'var(--danger)' }}>{item.nbPannes} pannes</span>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="text-center text-gray-400 text-sm mt-8">Aucune panne enregistrée</div>
+            <div className="text-center text-sm mt-8" style={{ color: 'var(--fg-subtle)' }}>Aucune panne enregistrée</div>
           )}
         </div>
       </div>
 
       {/* Overdue interventions */}
       {analytics.overdueList?.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-red-200 dark:border-red-800">
-          <h3 className="text-sm font-semibold text-red-700 dark:text-red-400 mb-4 flex items-center gap-2">
+        <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--danger)' }}>
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--danger)' }}>
             <AlertTriangle className="w-4 h-4" />
             Interventions en retard ({analytics.enRetard})
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead><tr className="text-left text-gray-400 border-b border-gray-100 dark:border-gray-700">
+              <thead><tr className="text-left" style={{ borderBottom: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
                 <th className="pb-2">Équipement</th><th className="pb-2">Service</th><th className="pb-2">Type</th><th className="pb-2">Date planifiée</th><th className="pb-2">Retard</th>
               </tr></thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+              <tbody>
                 {analytics.overdueList.map(i => {
                   const days = Math.floor((new Date() - new Date(i.date_planifiee)) / 86400000);
                   return (
-                    <tr key={i.id} className="text-gray-600 dark:text-gray-400">
-                      <td className="py-1.5 font-medium text-gray-800 dark:text-gray-200">{i.equipement?.nom}</td>
+                    <tr key={i.id} style={{ borderBottom: '1px solid var(--border)', color: 'var(--fg-muted)' }}>
+                      <td className="py-1.5 font-medium" style={{ color: 'var(--fg)' }}>{i.equipement?.nom}</td>
                       <td className="py-1.5">{i.equipement?.service}</td>
                       <td className="py-1.5">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${i.type === 'corrective' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{i.type}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px]" style={i.type === 'corrective' ? { background: 'var(--danger-soft)', color: 'var(--danger)' } : { background: 'var(--brand-soft)', color: 'var(--brand)' }}>{i.type}</span>
                       </td>
                       <td className="py-1.5">{new Date(i.date_planifiee).toLocaleDateString('fr-FR')}</td>
-                      <td className="py-1.5 font-bold text-red-600">{days}j</td>
+                      <td className="py-1.5 font-bold" style={{ color: 'var(--danger)' }}>{days}j</td>
                     </tr>
                   );
                 })}
@@ -1857,8 +1871,8 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
       )}
 
       {/* Rapport PDF section */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+      <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
           <FileText className="w-4 h-4" />
           Rapport par équipement
         </h3>
@@ -1867,7 +1881,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
             <select
               value={selectedEquipement}
               onChange={e => setSelectedEquipement(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="w-full px-3 py-2 text-sm rounded-lg outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             >
               <option value="">-- Sélectionner un équipement --</option>
               {equipements.map(eq => (
@@ -1878,7 +1892,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
           <button
             disabled={!selectedEquipement}
             onClick={() => onViewRapport(selectedEquipement)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            className="px-4 py-2 text-sm rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2" style={{ background: 'var(--brand)', color: '#fff' }}
           >
             <FileText className="w-4 h-4" />
             Générer rapport
@@ -1908,60 +1922,60 @@ const RapportModal = ({ rapport, loading, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-start justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl my-4">
+    <div className="fixed inset-0 flex items-start justify-center z-50 p-4 overflow-y-auto" style={{ background: 'rgba(0,0,0,0.6)' }}>
+      <div className="rounded-lg shadow-2xl w-full max-w-4xl my-4" style={{ background: 'var(--surface)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+            <FileText className="w-5 h-5" style={{ color: 'var(--brand)' }} />
             Rapport d&apos;équipement
           </h2>
           <div className="flex gap-2">
             {rapport && (
-              <button onClick={handlePrint} className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 flex items-center gap-1">
+              <button onClick={handlePrint} className="px-3 py-1.5 text-sm rounded-lg flex items-center gap-1" style={{ background: 'var(--brand)', color: '#fff' }}>
                 <Download className="w-4 h-4" /> Exporter PDF
               </button>
             )}
-            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-              <X className="w-5 h-5 text-gray-500" />
+            <button onClick={onClose} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            <div className="animate-spin rounded-full h-8 w-8" style={{ borderBottom: '2px solid var(--brand)' }} />
           </div>
         ) : rapport ? (
-          <div ref={rapportRef} className="p-6 bg-white">
+          <div ref={rapportRef} className="p-6" style={{ background: '#ffffff' }}>
             {/* Equipment info */}
             <div className="mb-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{rapport.equipement.nom}</h1>
-                  <p className="text-gray-500">{rapport.equipement.reference} • {rapport.equipement.service}</p>
+                  <h1 className="text-2xl font-bold" style={{ color: '#111827' }}>{rapport.equipement.nom}</h1>
+                  <p style={{ color: '#6b7280' }}>{rapport.equipement.reference} • {rapport.equipement.service}</p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${rapport.equipement.statut === 'actif' ? 'bg-green-100 text-green-700' : rapport.equipement.statut === 'en_reparation' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                <span className="px-3 py-1 rounded-full text-sm font-medium" style={rapport.equipement.statut === 'actif' ? { background: '#d1fae5', color: '#065f46' } : rapport.equipement.statut === 'en_reparation' ? { background: '#fef9c3', color: '#854d0e' } : { background: '#fee2e2', color: '#991b1b' }}>
                   {rapport.equipement.statut}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-4 text-sm">
-                {rapport.equipement.marque && <div><span className="text-gray-400">Marque:</span> <span className="font-medium">{rapport.equipement.marque}</span></div>}
-                {rapport.equipement.modele && <div><span className="text-gray-400">Modèle:</span> <span className="font-medium">{rapport.equipement.modele}</span></div>}
-                {rapport.equipement.numero_serie && <div><span className="text-gray-400">N° Série:</span> <span className="font-medium">{rapport.equipement.numero_serie}</span></div>}
-                {rapport.equipement.date_mise_en_service && <div><span className="text-gray-400">Mise en service:</span> <span className="font-medium">{new Date(rapport.equipement.date_mise_en_service).toLocaleDateString('fr-FR')}</span></div>}
+                {rapport.equipement.marque && <div><span style={{ color: '#9ca3af' }}>Marque:</span> <span className="font-medium">{rapport.equipement.marque}</span></div>}
+                {rapport.equipement.modele && <div><span style={{ color: '#9ca3af' }}>Modèle:</span> <span className="font-medium">{rapport.equipement.modele}</span></div>}
+                {rapport.equipement.numero_serie && <div><span style={{ color: '#9ca3af' }}>N° Série:</span> <span className="font-medium">{rapport.equipement.numero_serie}</span></div>}
+                {rapport.equipement.date_mise_en_service && <div><span style={{ color: '#9ca3af' }}>Mise en service:</span> <span className="font-medium">{new Date(rapport.equipement.date_mise_en_service).toLocaleDateString('fr-FR')}</span></div>}
               </div>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-4 gap-3 mb-6">
               {[
-                { label: 'Total interventions', value: rapport.stats.total, color: 'bg-gray-50 text-gray-700' },
-                { label: 'Terminées', value: rapport.stats.terminee, color: 'bg-green-50 text-green-700' },
-                { label: 'Correctives', value: rapport.stats.corrective, color: 'bg-red-50 text-red-700' },
-                { label: 'Durée moy.', value: rapport.stats.avgDuree ? `${rapport.stats.avgDuree}h` : '—', color: 'bg-blue-50 text-blue-700' },
+                { label: 'Total interventions', value: rapport.stats.total, bg: '#f9fafb', color: '#374151' },
+                { label: 'Terminées', value: rapport.stats.terminee, bg: '#d1fae5', color: '#065f46' },
+                { label: 'Correctives', value: rapport.stats.corrective, bg: '#fee2e2', color: '#991b1b' },
+                { label: 'Durée moy.', value: rapport.stats.avgDuree ? `${rapport.stats.avgDuree}h` : '—', bg: '#dbeafe', color: '#1e40af' },
               ].map(s => (
-                <div key={s.label} className={`rounded-lg p-3 ${s.color}`}>
+                <div key={s.label} className="rounded-lg p-3" style={{ background: s.bg, color: s.color }}>
                   <div className="text-xl font-bold">{s.value}</div>
                   <div className="text-xs">{s.label}</div>
                 </div>
@@ -1969,35 +1983,35 @@ const RapportModal = ({ rapport, loading, onClose }) => {
             </div>
 
             {/* Interventions table */}
-            <h3 className="font-semibold text-gray-900 mb-3">Historique des interventions</h3>
+            <h3 className="font-semibold mb-3" style={{ color: '#111827' }}>Historique des interventions</h3>
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="bg-gray-50">
+                <tr style={{ background: '#f9fafb' }}>
                   {['Date', 'Type', 'Statut', 'Technicien', 'Durée', 'Actions / Observations'].map(h => (
-                    <th key={h} className="text-left p-2 border border-gray-200 text-gray-600 font-medium">{h}</th>
+                    <th key={h} className="text-left p-2 font-medium" style={{ border: '1px solid #e5e7eb', color: '#4b5563' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rapport.interventions.map(i => (
-                  <tr key={i.id} className="hover:bg-gray-50">
-                    <td className="p-2 border border-gray-200">{new Date(i.date_planifiee).toLocaleDateString('fr-FR')}</td>
-                    <td className="p-2 border border-gray-200">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${i.type === 'corrective' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{i.type}</span>
+                  <tr key={i.id}>
+                    <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>{new Date(i.date_planifiee).toLocaleDateString('fr-FR')}</td>
+                    <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={i.type === 'corrective' ? { background: '#fee2e2', color: '#991b1b' } : { background: '#dbeafe', color: '#1e40af' }}>{i.type}</span>
                     </td>
-                    <td className="p-2 border border-gray-200">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${i.statut === 'terminee' ? 'bg-green-100 text-green-700' : i.statut === 'en_cours' ? 'bg-yellow-100 text-yellow-700' : i.statut === 'reportee' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}`}>{i.statut}</span>
+                    <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={i.statut === 'terminee' ? { background: '#d1fae5', color: '#065f46' } : i.statut === 'en_cours' ? { background: '#fef9c3', color: '#854d0e' } : i.statut === 'reportee' ? { background: '#ffedd5', color: '#9a3412' } : { background: '#f3f4f6', color: '#4b5563' }}>{i.statut}</span>
                     </td>
-                    <td className="p-2 border border-gray-200">{i.technicien ? `${i.technicien.firstName} ${i.technicien.lastName}` : '—'}</td>
-                    <td className="p-2 border border-gray-200">{i.duree_reelle ? `${i.duree_reelle}h` : '—'}</td>
-                    <td className="p-2 border border-gray-200 max-w-[200px]">
+                    <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>{i.technicien ? `${i.technicien.firstName} ${i.technicien.lastName}` : '—'}</td>
+                    <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>{i.duree_reelle ? `${i.duree_reelle}h` : '—'}</td>
+                    <td className="p-2 max-w-[200px]" style={{ border: '1px solid #e5e7eb' }}>
                       <div className="truncate">{i.actions_effectuees || i.observations || i.description || '—'}</div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="mt-4 text-xs text-gray-400 text-right">Rapport généré le {new Date().toLocaleDateString('fr-FR')} — HSJM Workflow</div>
+            <div className="mt-4 text-xs text-right" style={{ color: '#9ca3af' }}>Rapport généré le {new Date().toLocaleDateString('fr-FR')} — HSJM Workflow</div>
           </div>
         ) : null}
       </div>
@@ -2031,21 +2045,21 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
 
   const eq = rapport?.equipement;
 
-  const STATUT_COLOR = {
-    actif: 'bg-green-100 text-green-700 border-green-200',
-    en_reparation: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    hors_service: 'bg-red-100 text-red-700 border-red-200',
+  const STATUT_STYLE = {
+    actif: { background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7' },
+    en_reparation: { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' },
+    hors_service: { background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' },
   };
 
   return (
     <div className="flex h-full min-h-[500px]">
       {/* Liste équipements */}
-      <div className="w-72 border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
-        <div className="p-3 border-b border-gray-100">
+      <div className="w-72 flex flex-col flex-shrink-0" style={{ borderRight: '1px solid var(--border)', background: 'var(--surface)' }}>
+        <div className="p-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-2.5 top-2.5 w-4 h-4" style={{ color: 'var(--fg-subtle)' }} />
             <input
-              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="w-full pl-8 pr-3 py-2 text-sm rounded-lg focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               placeholder="Rechercher un équipement…"
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -2054,21 +2068,21 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
         </div>
         <div className="flex-1 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">Aucun équipement</div>
+            <div className="text-center py-8 text-sm" style={{ color: 'var(--fg-subtle)' }}>Aucun équipement</div>
           ) : filtered.map(eq => {
             const col = STATUT_CONFIG[eq.statut] || STATUT_CONFIG.actif;
+            const isSelected = selectedId === eq.id;
             return (
               <button
                 key={eq.id}
                 onClick={() => loadRapport(eq.id)}
-                className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-teal-50 transition-colors ${
-                  selectedId === eq.id ? 'bg-teal-50 border-l-4 border-l-teal-500' : ''
-                }`}
+                className="w-full text-left px-4 py-3 transition-colors"
+                style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'var(--brand-soft)' : undefined, borderLeft: isSelected ? '4px solid var(--brand)' : '4px solid transparent' }}
               >
-                <div className="font-medium text-gray-800 text-sm truncate">{eq.nom}</div>
+                <div className="font-medium text-sm truncate" style={{ color: 'var(--fg)' }}>{eq.nom}</div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-gray-400 text-xs">{eq.service || '—'}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${col.color}`}>
+                  <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{eq.service || '—'}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={col.style}>
                     {col.label}
                   </span>
                 </div>
@@ -2076,48 +2090,48 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
             );
           })}
         </div>
-        <div className="p-2 border-t border-gray-100 text-center text-xs text-gray-400">
+        <div className="p-2 text-center text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
           {filtered.length} équipement{filtered.length > 1 ? 's' : ''}
         </div>
       </div>
 
       {/* Fiche équipement */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+      <div className="flex-1 overflow-y-auto p-6" style={{ background: 'var(--surface-2)' }}>
         {!selectedId ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
-            <Package className="w-12 h-12 mb-3 text-gray-200" />
+          <div className="flex flex-col items-center justify-center h-full text-center" style={{ color: 'var(--fg-subtle)' }}>
+            <Package className="w-12 h-12 mb-3 opacity-20" />
             <p className="text-sm font-medium">Sélectionnez un équipement</p>
             <p className="text-xs mt-1">pour afficher sa fiche d'identité</p>
           </div>
         ) : loadingR ? (
           <div className="flex justify-center items-center h-full">
-            <RefreshCw className="w-6 h-6 animate-spin text-teal-500" />
+            <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} />
           </div>
         ) : !rapport ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <AlertCircle className="w-8 h-8 mb-2 text-red-300" />
+          <div className="flex flex-col items-center justify-center h-full" style={{ color: 'var(--fg-subtle)' }}>
+            <AlertCircle className="w-8 h-8 mb-2" style={{ color: 'var(--danger)' }} />
             <p className="text-sm">Erreur de chargement</p>
           </div>
         ) : (
           <div className="max-w-3xl mx-auto space-y-5">
             {/* Header */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">{eq.nom}</h2>
+                  <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>{eq.nom}</h2>
                   <div className="flex items-center gap-2 mt-1.5">
                     {eq.service && (
-                      <span className="text-xs font-semibold px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>
                         {eq.service}
                       </span>
                     )}
                     {eq.statut && (
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUT_COLOR[eq.statut] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={STATUT_STYLE[eq.statut] || { background: 'var(--surface-2)', color: 'var(--fg-muted)', border: '1px solid var(--border)' }}>
                         {STATUT_CONFIG[eq.statut]?.label || eq.statut}
                       </span>
                     )}
                     {eq.origine && (
-                      <span className="text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full capitalize">
+                      <span className="text-xs px-2.5 py-1 rounded-full capitalize" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
                         {eq.origine}
                       </span>
                     )}
@@ -2125,17 +2139,17 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
                 </div>
                 {eq.matricule && (
                   <div className="text-right">
-                    <div className="text-xs text-gray-400">Matricule</div>
-                    <div className="font-mono font-bold text-gray-700 text-sm">{eq.matricule}</div>
+                    <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>Matricule</div>
+                    <div className="font-mono font-bold text-sm" style={{ color: 'var(--fg-muted)' }}>{eq.matricule}</div>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Spécifications techniques */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-teal-500" /> Spécifications
+            <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+                <FileText className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Spécifications
               </h3>
               <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
                 {[
@@ -2144,33 +2158,30 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
                   ['N° Série', eq.numero_serie], ['Fournisseur', eq.fournisseur],
                 ].map(([label, val]) => val ? (
                   <div key={label}>
-                    <span className="text-xs text-gray-400 block">{label}</span>
-                    <span className="text-gray-800 font-medium">{val}</span>
+                    <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>{label}</span>
+                    <span className="font-medium" style={{ color: 'var(--fg)' }}>{val}</span>
                   </div>
                 ) : null)}
               </div>
             </div>
 
             {/* Dates importantes */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-teal-500" /> Dates
+            <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+                <Calendar className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Dates
               </h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-xs text-gray-400 block">Mise en service</span>
-                  <span className="text-gray-800 font-medium">
+                  <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>Mise en service</span>
+                  <span className="font-medium" style={{ color: 'var(--fg)' }}>
                     {eq.date_mise_en_service
                       ? new Date(eq.date_mise_en_service).toLocaleDateString('fr-FR')
                       : '—'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs text-gray-400 block">Fin de vie estimée</span>
-                  <span className={`font-medium ${
-                    eq.date_mise_au_rebus && new Date(eq.date_mise_au_rebus) < new Date()
-                      ? 'text-red-600' : 'text-gray-800'
-                  }`}>
+                  <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>Fin de vie estimée</span>
+                  <span className="font-medium" style={{ color: eq.date_mise_au_rebus && new Date(eq.date_mise_au_rebus) < new Date() ? 'var(--danger)' : 'var(--fg)' }}>
                     {eq.date_mise_au_rebus
                       ? new Date(eq.date_mise_au_rebus).toLocaleDateString('fr-FR')
                       : '—'}
@@ -2181,26 +2192,26 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
 
             {/* Stats maintenance */}
             {rapport.stats && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Wrench className="w-4 h-4 text-teal-500" /> Bilan Maintenance
+              <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+                  <Wrench className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Bilan Maintenance
                 </h3>
                 <div className="grid grid-cols-4 gap-3">
                   {[
-                    { label: 'Total', val: rapport.stats.total, color: 'bg-blue-50 text-blue-700' },
-                    { label: 'Terminées', val: rapport.stats.terminee, color: 'bg-green-50 text-green-700' },
-                    { label: 'Correctives', val: rapport.stats.corrective, color: 'bg-orange-50 text-orange-700' },
-                    { label: 'Préventives', val: rapport.stats.preventive, color: 'bg-teal-50 text-teal-700' },
-                  ].map(({ label, val, color }) => (
-                    <div key={label} className={`${color} rounded-lg p-3 text-center`}>
+                    { label: 'Total', val: rapport.stats.total, bg: 'var(--brand-soft)', color: 'var(--brand)' },
+                    { label: 'Terminées', val: rapport.stats.terminee, bg: 'var(--success-soft)', color: 'var(--success)' },
+                    { label: 'Correctives', val: rapport.stats.corrective, bg: 'rgba(234,88,12,0.1)', color: '#c2410c' },
+                    { label: 'Préventives', val: rapport.stats.preventive, bg: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' },
+                  ].map(({ label, val, bg, color }) => (
+                    <div key={label} className="rounded-lg p-3 text-center" style={{ background: bg, color }}>
                       <div className="text-2xl font-bold">{val}</div>
                       <div className="text-xs font-medium mt-0.5">{label}</div>
                     </div>
                   ))}
                 </div>
                 {rapport.stats.avgDuree && (
-                  <p className="text-xs text-gray-400 mt-3 text-center">
-                    Durée moyenne d'intervention : <span className="font-semibold text-gray-600">{rapport.stats.avgDuree}h</span>
+                  <p className="text-xs mt-3 text-center" style={{ color: 'var(--fg-subtle)' }}>
+                    Durée moyenne d'intervention : <span className="font-semibold" style={{ color: 'var(--fg-muted)' }}>{rapport.stats.avgDuree}h</span>
                   </p>
                 )}
               </div>
@@ -2208,27 +2219,25 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
 
             {/* Historique des 5 dernières interventions */}
             {rapport.interventions?.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-teal-500" /> Dernières interventions
+              <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+                  <Clock className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Dernières interventions
                 </h3>
                 <div className="space-y-2">
                   {rapport.interventions.slice(0, 5).map(iv => {
                     const sc = INTERVENTION_STATUT_CONFIG[iv.statut] || INTERVENTION_STATUT_CONFIG.planifiee;
                     return (
-                      <div key={iv.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 text-sm">
-                        <span className="text-gray-500 text-xs w-20 flex-shrink-0">
+                      <div key={iv.id} className="flex items-center gap-3 p-2.5 rounded-lg text-sm" style={{ background: 'var(--surface-2)' }}>
+                        <span className="text-xs w-20 flex-shrink-0" style={{ color: 'var(--fg-subtle)' }}>
                           {iv.date_planifiee ? new Date(iv.date_planifiee).toLocaleDateString('fr-FR') : '—'}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${sc.color}`}>
+                        <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0" style={sc.style}>
                           {sc.label}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded flex-shrink-0 ${
-                          iv.type === 'corrective' ? 'bg-orange-100 text-orange-700' : 'bg-teal-100 text-teal-700'
-                        }`}>
+                        <span className="text-xs px-2 py-0.5 rounded flex-shrink-0" style={iv.type === 'corrective' ? { background: 'rgba(234,88,12,0.1)', color: '#c2410c' } : { background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' }}>
                           {iv.type}
                         </span>
-                        <span className="text-gray-600 truncate">{iv.description || '—'}</span>
+                        <span className="truncate" style={{ color: 'var(--fg-muted)' }}>{iv.description || '—'}</span>
                       </div>
                     );
                   })}
@@ -2238,9 +2247,9 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
 
             {/* Notes */}
             {eq.notes && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <h3 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">Notes</h3>
-                <p className="text-sm text-amber-800">{eq.notes}</p>
+              <div className="rounded-lg p-4" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#d97706' }}>Notes</h3>
+                <p className="text-sm" style={{ color: '#92400e' }}>{eq.notes}</p>
               </div>
             )}
           </div>
@@ -2273,10 +2282,10 @@ function LocalisationPanel({ equipements = [] }) {
   });
   const services = Object.keys(byService).sort();
 
-  const STATUT_DOT = {
-    actif: 'bg-green-500',
-    en_reparation: 'bg-yellow-500',
-    hors_service: 'bg-red-500',
+  const STATUT_DOT_COLOR = {
+    actif: 'var(--success)',
+    en_reparation: 'var(--warning)',
+    hors_service: 'var(--danger)',
   };
 
   return (
@@ -2284,16 +2293,16 @@ function LocalisationPanel({ equipements = [] }) {
       {/* Toolbar */}
       <div className="flex items-center gap-3 mb-6">
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-2.5 top-2.5 w-4 h-4" style={{ color: 'var(--fg-subtle)' }} />
           <input
-            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
+            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             placeholder="Rechercher…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
         <select
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+          className="text-sm rounded-lg px-3 py-2 focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
           value={filterStatut}
           onChange={e => setFilterStatut(e.target.value)}
         >
@@ -2302,14 +2311,14 @@ function LocalisationPanel({ equipements = [] }) {
           <option value="en_reparation">En réparation</option>
           <option value="hors_service">Hors service</option>
         </select>
-        <span className="text-sm text-gray-400">{filtered.length} équipement{filtered.length > 1 ? 's' : ''}</span>
+        <span className="text-sm" style={{ color: 'var(--fg-subtle)' }}>{filtered.length} équipement{filtered.length > 1 ? 's' : ''}</span>
       </div>
 
       {/* Légende */}
       <div className="flex items-center gap-4 mb-5">
-        {[['actif', 'Actif', 'bg-green-500'], ['en_reparation', 'En réparation', 'bg-yellow-500'], ['hors_service', 'Hors service', 'bg-red-500']].map(([key, label, color]) => (
-          <div key={key} className="flex items-center gap-1.5 text-xs text-gray-500">
-            <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
+        {[['actif', 'Actif', 'var(--success)'], ['en_reparation', 'En réparation', 'var(--warning)'], ['hors_service', 'Hors service', 'var(--danger)']].map(([key, label, color]) => (
+          <div key={key} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--fg-muted)' }}>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
             {label}
           </div>
         ))}
@@ -2317,7 +2326,7 @@ function LocalisationPanel({ equipements = [] }) {
 
       {/* Grille par service */}
       {services.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">Aucun équipement trouvé</div>
+        <div className="text-center py-12" style={{ color: 'var(--fg-subtle)' }}>Aucun équipement trouvé</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {services.map(svc => {
@@ -2326,30 +2335,30 @@ function LocalisationPanel({ equipements = [] }) {
             const enRep = eqs.filter(e => e.statut === 'en_reparation').length;
             const hors = eqs.filter(e => e.statut === 'hors_service').length;
             return (
-              <div key={svc} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div key={svc} className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 {/* Service header */}
-                <div className="px-4 py-3 bg-slate-800 flex items-center justify-between">
-                  <span className="text-white font-semibold text-sm">{svc}</span>
-                  <span className="text-slate-300 text-xs font-medium">{eqs.length} équip.</span>
+                <div className="px-4 py-3 flex items-center justify-between" style={{ background: '#1e293b' }}>
+                  <span className="font-semibold text-sm" style={{ color: '#fff' }}>{svc}</span>
+                  <span className="text-xs font-medium" style={{ color: '#cbd5e1' }}>{eqs.length} équip.</span>
                 </div>
                 {/* Mini stats */}
-                <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
-                  {[['Actifs', actifs, 'text-green-600'], ['Répar.', enRep, 'text-yellow-600'], ['H.S.', hors, 'text-red-600']].map(([label, count, color]) => (
-                    <div key={label} className="py-2 text-center">
-                      <div className={`text-lg font-bold ${color}`}>{count}</div>
-                      <div className="text-[10px] text-gray-400">{label}</div>
+                <div className="grid grid-cols-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                  {[['Actifs', actifs, 'var(--success)'], ['Répar.', enRep, 'var(--warning)'], ['H.S.', hors, 'var(--danger)']].map(([label, count, color], i) => (
+                    <div key={label} className="py-2 text-center" style={i < 2 ? { borderRight: '1px solid var(--border)' } : {}}>
+                      <div className="text-lg font-bold" style={{ color }}>{count}</div>
+                      <div className="text-[10px]" style={{ color: 'var(--fg-subtle)' }}>{label}</div>
                     </div>
                   ))}
                 </div>
                 {/* Equipment list */}
-                <div className="divide-y divide-gray-50 max-h-48 overflow-y-auto">
+                <div className="max-h-48 overflow-y-auto">
                   {eqs.map(eq => (
-                    <div key={eq.id} className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 transition-colors">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUT_DOT[eq.statut] || 'bg-gray-400'}`} />
+                    <div key={eq.id} className="flex items-center gap-2.5 px-4 py-2.5 transition-colors" style={{ borderBottom: '1px solid var(--border)' }}>
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: STATUT_DOT_COLOR[eq.statut] || 'var(--fg-subtle)' }} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-800 font-medium truncate">{eq.nom}</div>
+                        <div className="text-sm font-medium truncate" style={{ color: 'var(--fg)' }}>{eq.nom}</div>
                         {eq.matricule && (
-                          <div className="text-xs text-gray-400 font-mono">{eq.matricule}</div>
+                          <div className="text-xs font-mono" style={{ color: 'var(--fg-subtle)' }}>{eq.matricule}</div>
                         )}
                       </div>
                     </div>
@@ -2393,11 +2402,11 @@ function HistoriquePanel({ equipements = [] }) {
       {/* Sélection équipement */}
       <div className="flex items-center gap-4 mb-6">
         <div className="flex-1 max-w-sm">
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--fg-subtle)' }}>
             Équipement
           </label>
           <select
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+            className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             value={selectedId}
             onChange={e => loadHistory(e.target.value)}
           >
@@ -2413,11 +2422,10 @@ function HistoriquePanel({ equipements = [] }) {
               <button
                 key={t}
                 onClick={() => setFilterType(t)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  filterType === t
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={filterType === t
+                  ? { background: '#1e293b', color: '#fff' }
+                  : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg-muted)' }}
               >
                 {t === '' ? 'Tous' : t === 'preventive' ? 'Préventif' : 'Correctif'}
               </button>
@@ -2427,17 +2435,17 @@ function HistoriquePanel({ equipements = [] }) {
       </div>
 
       {!selectedId ? (
-        <div className="text-center py-16 text-gray-400">
-          <Clock className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+        <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}>
+          <Clock className="w-12 h-12 mx-auto mb-3 opacity-20" />
           <p className="text-sm">Sélectionnez un équipement pour voir son historique</p>
         </div>
       ) : loading ? (
         <div className="flex justify-center py-12">
-          <RefreshCw className="w-6 h-6 animate-spin text-teal-500" />
+          <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <CheckCircle className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+        <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}>
+          <CheckCircle className="w-10 h-10 mx-auto mb-3 opacity-20" />
           <p className="text-sm">Aucune intervention enregistrée pour cet équipement</p>
         </div>
       ) : (
@@ -2445,17 +2453,17 @@ function HistoriquePanel({ equipements = [] }) {
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-semibold text-gray-800">{selectedEq?.nom}</h3>
-              <p className="text-xs text-gray-400">{filtered.length} intervention{filtered.length > 1 ? 's' : ''}</p>
+              <h3 className="font-semibold" style={{ color: 'var(--fg)' }}>{selectedEq?.nom}</h3>
+              <p className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{filtered.length} intervention{filtered.length > 1 ? 's' : ''}</p>
             </div>
             {/* Summary pills */}
             <div className="flex gap-2">
               {[
-                { label: 'Terminées', count: interventions.filter(i => i.statut === 'terminee').length, color: 'bg-green-100 text-green-700' },
-                { label: 'En cours', count: interventions.filter(i => i.statut === 'en_cours').length, color: 'bg-yellow-100 text-yellow-700' },
-                { label: 'Planifiées', count: interventions.filter(i => i.statut === 'planifiee').length, color: 'bg-blue-100 text-blue-700' },
-              ].map(({ label, count, color }) => count > 0 ? (
-                <span key={label} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${color}`}>
+                { label: 'Terminées', count: interventions.filter(i => i.statut === 'terminee').length, bg: 'var(--success-soft)', color: 'var(--success)' },
+                { label: 'En cours', count: interventions.filter(i => i.statut === 'en_cours').length, bg: 'var(--warning-soft)', color: 'var(--warning)' },
+                { label: 'Planifiées', count: interventions.filter(i => i.statut === 'planifiee').length, bg: 'var(--brand-soft)', color: 'var(--brand)' },
+              ].map(({ label, count, bg, color }) => count > 0 ? (
+                <span key={label} className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: bg, color }}>
                   {count} {label}
                 </span>
               ) : null)}
@@ -2464,66 +2472,60 @@ function HistoriquePanel({ equipements = [] }) {
 
           {/* Timeline */}
           <div className="relative">
-            <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-200" />
+            <div className="absolute left-4 top-0 bottom-0 w-px" style={{ background: 'var(--border)' }} />
             <div className="space-y-3">
-              {filtered.map((iv, i) => {
+              {filtered.map((iv) => {
                 const sc = INTERVENTION_STATUT_CONFIG[iv.statut] || INTERVENTION_STATUT_CONFIG.planifiee;
                 const pc = PRIORITE_CONFIG[iv.priorite] || PRIORITE_CONFIG.normal;
-                const isLast = iv.statut === 'terminee';
+                const dotColor = iv.statut === 'terminee' ? 'var(--success)' : iv.statut === 'en_cours' ? 'var(--warning)' : iv.statut === 'reportee' ? '#f97316' : 'var(--brand)';
                 return (
                   <div key={iv.id} className="relative pl-10">
                     {/* Timeline dot */}
-                    <div className={`absolute left-2.5 top-3 w-3 h-3 rounded-full border-2 border-white ring-1 ring-gray-200 ${
-                      iv.statut === 'terminee' ? 'bg-green-500' :
-                      iv.statut === 'en_cours' ? 'bg-yellow-500' :
-                      iv.statut === 'reportee' ? 'bg-orange-400' : 'bg-blue-400'
-                    }`} />
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow">
+                    <div className="absolute left-2.5 top-3 w-3 h-3 rounded-full" style={{ background: dotColor, border: '2px solid var(--surface)' }} />
+                    <div className="rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${sc.color}`}>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={sc.style}>
                               {sc.label}
                             </span>
-                            <span className={`text-xs px-2 py-0.5 rounded ${
-                              iv.type === 'corrective' ? 'bg-orange-100 text-orange-700' : 'bg-teal-100 text-teal-700'
-                            }`}>
+                            <span className="text-xs px-2 py-0.5 rounded" style={iv.type === 'corrective' ? { background: 'rgba(234,88,12,0.1)', color: '#c2410c' } : { background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' }}>
                               {iv.type === 'corrective' ? 'Correctif' : 'Préventif'}
                             </span>
-                            <span className={`text-xs px-2 py-0.5 rounded border ${pc.color}`}>
+                            <span className="text-xs px-2 py-0.5 rounded" style={pc.style}>
                               {pc.label}
                             </span>
                           </div>
                           {iv.description && (
-                            <p className="mt-2 text-sm text-gray-700">{iv.description}</p>
+                            <p className="mt-2 text-sm" style={{ color: 'var(--fg-muted)' }}>{iv.description}</p>
                           )}
                           {iv.actions_effectuees && (
-                            <p className="mt-1 text-xs text-gray-500 italic">
+                            <p className="mt-1 text-xs italic" style={{ color: 'var(--fg-subtle)' }}>
                               Actions : {iv.actions_effectuees}
                             </p>
                           )}
                           {iv.pieces_remplacees && (
-                            <p className="mt-1 text-xs text-gray-500">
+                            <p className="mt-1 text-xs" style={{ color: 'var(--fg-subtle)' }}>
                               Pièces : {iv.pieces_remplacees}
                             </p>
                           )}
                           {(iv.technicien?.firstName || iv.signale_par) && (
-                            <p className="mt-1 text-xs text-gray-400">
+                            <p className="mt-1 text-xs" style={{ color: 'var(--fg-subtle)' }}>
                               {iv.technicien ? `Technicien : ${iv.technicien.firstName} ${iv.technicien.lastName || ''}` : `Signalé par : ${iv.signale_par}`}
                             </p>
                           )}
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <div className="text-xs font-semibold text-gray-600">
+                          <div className="text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>
                             {iv.date_planifiee ? new Date(iv.date_planifiee).toLocaleDateString('fr-FR') : '—'}
                           </div>
                           {iv.date_realisation && (
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>
                               Réalisé : {new Date(iv.date_realisation).toLocaleDateString('fr-FR')}
                             </div>
                           )}
                           {iv.duree_reelle && (
-                            <div className="text-xs text-gray-400">{iv.duree_reelle}h</div>
+                            <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{iv.duree_reelle}h</div>
                           )}
                         </div>
                       </div>
@@ -2546,6 +2548,7 @@ function RetraitPanel({ equipements = [], onRefresh }) {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -2572,29 +2575,31 @@ function RetraitPanel({ equipements = [], onRefresh }) {
   };
 
   return (
+    <>
+    {ConfirmModalRenderer}
     <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Formulaire de retrait */}
       <div>
-        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-orange-500" />
+        <h3 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+          <AlertTriangle className="w-4 h-4" style={{ color: '#ea580c' }} />
           Enregistrer un retrait
         </h3>
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="rounded-lg shadow-sm p-5 space-y-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {success && (
-            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+            <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ background: 'var(--success-soft)', border: '1px solid var(--success)', color: 'var(--success)' }}>
               <CheckCircle className="w-4 h-4" />{success}
             </div>
           )}
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
               <AlertCircle className="w-4 h-4" />{error}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Équipement *</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg-muted)' }}>Équipement *</label>
             <select
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.equipement_id}
               onChange={e => set('equipement_id', e.target.value)}
             >
@@ -2606,19 +2611,19 @@ function RetraitPanel({ equipements = [], onRefresh }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Date de retrait *</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg-muted)' }}>Date de retrait *</label>
             <input
               type="date"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.date}
               onChange={e => set('date', e.target.value)}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Motif *</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg-muted)' }}>Motif *</label>
             <select
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.motif}
               onChange={e => set('motif', e.target.value)}
             >
@@ -2633,9 +2638,9 @@ function RetraitPanel({ equipements = [], onRefresh }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Destination / Responsable</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg-muted)' }}>Destination / Responsable</label>
             <input
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               placeholder="Ex: Atelier central, Service BOP, M. Dupont…"
               value={form.destination}
               onChange={e => set('destination', e.target.value)}
@@ -2645,7 +2650,7 @@ function RetraitPanel({ equipements = [], onRefresh }) {
           <button
             type="submit"
             disabled={saving}
-            className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50"
+            className="w-full py-2.5 font-semibold rounded-lg text-sm transition-colors disabled:opacity-50" style={{ background: '#ea580c', color: '#fff' }}
           >
             {saving ? 'Enregistrement…' : 'Enregistrer le retrait'}
           </button>
@@ -2654,36 +2659,36 @@ function RetraitPanel({ equipements = [], onRefresh }) {
 
       {/* Équipements actuellement en retrait */}
       <div>
-        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <RotateCcw className="w-4 h-4 text-yellow-600" />
+        <h3 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+          <RotateCcw className="w-4 h-4" style={{ color: 'var(--warning)' }} />
           Équipements en retrait
-          <span className="ml-auto text-sm font-normal text-gray-400">{enRetrait.length}</span>
+          <span className="ml-auto text-sm font-normal" style={{ color: 'var(--fg-subtle)' }}>{enRetrait.length}</span>
         </h3>
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {enRetrait.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">
-              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+            <div className="p-8 text-center" style={{ color: 'var(--fg-subtle)' }}>
+              <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-20" />
               <p className="text-sm">Aucun équipement en retrait</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div>
               {enRetrait.map(eq => (
-                <div key={eq.id} className="flex items-start gap-3 p-4 hover:bg-yellow-50 transition-colors">
-                  <div className="w-2 h-2 rounded-full bg-yellow-500 mt-2 flex-shrink-0" />
+                <div key={eq.id} className="flex items-start gap-3 p-4 transition-colors" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ background: 'var(--warning)' }} />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-800 text-sm">{eq.nom}</div>
-                    <div className="text-xs text-gray-400">{eq.service || '—'}</div>
+                    <div className="font-medium text-sm" style={{ color: 'var(--fg)' }}>{eq.nom}</div>
+                    <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{eq.service || '—'}</div>
                     {eq.notes && (
-                      <div className="text-xs text-gray-500 mt-0.5 truncate">{eq.notes.split('\n')[0]}</div>
+                      <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--fg-muted)' }}>{eq.notes.split('\n')[0]}</div>
                     )}
                   </div>
                   <button
                     onClick={async () => {
-                      if (!confirm(`Remettre "${eq.nom}" en service ?`)) return;
+                      if (!(await confirm({ title: 'Remise en service', message: `Remettre "${eq.nom}" en service ?`, confirmLabel: 'Remettre en service', variant: 'info' }))) return;
                       await gmaoAPI.updateEquipement(eq.id, { statut: 'actif' });
                       onRefresh();
                     }}
-                    className="text-xs text-green-600 hover:text-green-700 font-medium flex-shrink-0"
+                    className="text-xs font-medium flex-shrink-0" style={{ color: 'var(--success)' }}
                   >
                     Remettre en service
                   </button>
@@ -2694,6 +2699,7 @@ function RetraitPanel({ equipements = [], onRefresh }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -2706,6 +2712,7 @@ function ReformePanel({ equipements = [], onRefresh }) {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -2715,7 +2722,7 @@ function ReformePanel({ equipements = [], onRefresh }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.equipement_id || !form.motif) { setError('Équipement et motif requis.'); return; }
-    if (!confirm('Confirmer la mise en réforme de cet équipement ? Cette action le retire définitivement du parc actif.')) return;
+    if (!(await confirm({ title: 'Mise en réforme', message: 'Confirmer la mise en réforme de cet équipement ? Cette action le retire définitivement du parc actif.', confirmLabel: 'Mettre en réforme', variant: 'danger' }))) return;
     setSaving(true);
     setError('');
     try {
@@ -2738,33 +2745,35 @@ function ReformePanel({ equipements = [], onRefresh }) {
   };
 
   return (
+    <>
+    {ConfirmModalRenderer}
     <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Formulaire */}
       <div>
-        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <XCircle className="w-4 h-4 text-red-500" />
+        <h3 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+          <XCircle className="w-4 h-4" style={{ color: 'var(--danger)' }} />
           Mettre en réforme
         </h3>
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-red-100 shadow-sm p-5 space-y-4">
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+        <form onSubmit={handleSubmit} className="rounded-lg shadow-sm p-5 space-y-4" style={{ background: 'var(--surface)', border: '1px solid var(--danger)' }}>
+          <div className="p-3 rounded-lg text-xs" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
             La mise en réforme retire l'équipement du parc actif de façon permanente.
           </div>
 
           {success && (
-            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+            <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ background: 'var(--success-soft)', border: '1px solid var(--success)', color: 'var(--success)' }}>
               <CheckCircle className="w-4 h-4" />{success}
             </div>
           )}
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
               <AlertCircle className="w-4 h-4" />{error}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Équipement *</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg-muted)' }}>Équipement *</label>
             <select
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.equipement_id}
               onChange={e => set('equipement_id', e.target.value)}
             >
@@ -2776,19 +2785,19 @@ function ReformePanel({ equipements = [], onRefresh }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Date de réforme *</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg-muted)' }}>Date de réforme *</label>
             <input
               type="date"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.date_reforme}
               onChange={e => set('date_reforme', e.target.value)}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Motif de réforme *</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg-muted)' }}>Motif de réforme *</label>
             <select
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.motif}
               onChange={e => set('motif', e.target.value)}
             >
@@ -2804,10 +2813,10 @@ function ReformePanel({ equipements = [], onRefresh }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Observations</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg-muted)' }}>Observations</label>
             <textarea
               rows={3}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               placeholder="Observations complémentaires…"
               value={form.observations}
               onChange={e => set('observations', e.target.value)}
@@ -2817,7 +2826,7 @@ function ReformePanel({ equipements = [], onRefresh }) {
           <button
             type="submit"
             disabled={saving}
-            className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50"
+            className="w-full py-2.5 font-semibold rounded-lg text-sm transition-colors disabled:opacity-50" style={{ background: 'var(--danger)', color: '#fff' }}
           >
             {saving ? 'Enregistrement…' : 'Confirmer la mise en réforme'}
           </button>
@@ -2826,32 +2835,32 @@ function ReformePanel({ equipements = [], onRefresh }) {
 
       {/* Liste des réformés */}
       <div>
-        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <List className="w-4 h-4 text-red-400" />
+        <h3 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+          <List className="w-4 h-4" style={{ color: 'var(--danger)' }} />
           Équipements réformés
-          <span className="ml-auto text-sm font-normal text-gray-400">{reformes.length}</span>
+          <span className="ml-auto text-sm font-normal" style={{ color: 'var(--fg-subtle)' }}>{reformes.length}</span>
         </h3>
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {reformes.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">
-              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+            <div className="p-8 text-center" style={{ color: 'var(--fg-subtle)' }}>
+              <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-20" />
               <p className="text-sm">Aucun équipement réformé</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-50 max-h-[450px] overflow-y-auto">
+            <div className="max-h-[450px] overflow-y-auto">
               {reformes.map(eq => (
-                <div key={eq.id} className="flex items-start gap-3 p-4">
-                  <div className="w-2 h-2 rounded-full bg-red-500 mt-2 flex-shrink-0" />
+                <div key={eq.id} className="flex items-start gap-3 p-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ background: 'var(--danger)' }} />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-700 text-sm">{eq.nom}</div>
-                    <div className="text-xs text-gray-400">{eq.service || '—'}</div>
+                    <div className="font-medium text-sm" style={{ color: 'var(--fg-muted)' }}>{eq.nom}</div>
+                    <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{eq.service || '—'}</div>
                     {eq.date_mise_au_rebus && (
-                      <div className="text-xs text-red-400 mt-0.5">
+                      <div className="text-xs mt-0.5" style={{ color: 'var(--danger)' }}>
                         Réformé le {new Date(eq.date_mise_au_rebus).toLocaleDateString('fr-FR')}
                       </div>
                     )}
                     {eq.notes && (
-                      <div className="text-xs text-gray-500 mt-0.5 truncate">{eq.notes.split('\n')[0]}</div>
+                      <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--fg-subtle)' }}>{eq.notes.split('\n')[0]}</div>
                     )}
                   </div>
                 </div>
@@ -2861,6 +2870,7 @@ function ReformePanel({ equipements = [], onRefresh }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -2876,11 +2886,11 @@ const TYPE_CONTRAT_LABELS = {
 };
 
 const STATUT_CONTRAT = {
-  actif:             { label: 'Actif',             color: 'bg-green-100 text-green-700 border-green-200' },
-  expire:            { label: 'Expiré',            color: 'bg-red-100 text-red-700 border-red-200' },
-  resilie:           { label: 'Résilié',           color: 'bg-gray-100 text-gray-600 border-gray-200' },
-  en_renouvellement: { label: 'En renouvellement', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  suspendu:          { label: 'Suspendu',          color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  actif:             { label: 'Actif',             style: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' } },
+  expire:            { label: 'Expiré',            style: { background: 'var(--danger-soft)',  color: 'var(--danger)',  border: '1px solid var(--danger)'  } },
+  resilie:           { label: 'Résilié',           style: { background: 'var(--surface-2)',    color: 'var(--fg-muted)', border: '1px solid var(--border)' } },
+  en_renouvellement: { label: 'En renouvellement', style: { background: 'var(--brand-soft)',   color: 'var(--brand)',   border: '1px solid var(--brand)'   } },
+  suspendu:          { label: 'Suspendu',          style: { background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)' } },
 };
 
 function ContratsPanel() {
@@ -2892,6 +2902,7 @@ function ContratsPanel() {
   const EMPTY = { prestataire:'', type_contrat:'maintenance_totale', date_debut:'', date_fin:'', montant:'', periodicite:'annuel', statut:'actif', contact_prestataire:'', telephone:'', email:'', alerte_renouvellement:30, description:'', notes:'' };
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -2925,7 +2936,7 @@ function ContratsPanel() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer ce contrat ?')) return;
+    if (!(await confirm({ title: 'Supprimer le contrat', message: 'Supprimer ce contrat ?', confirmLabel: 'Supprimer', variant: 'danger' }))) return;
     await gmaoAPI.deleteContrat(id);
     load();
   };
@@ -2937,102 +2948,104 @@ function ContratsPanel() {
   const montantTotal = contrats.filter(c => c.statut === 'actif').reduce((s, c) => s + (c.montant || 0), 0);
 
   return (
+    <>
+    {ConfirmModalRenderer}
     <div className="p-6 space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Contrats actifs', val: actifs, color: 'bg-green-50 border-green-200 text-green-700' },
-          { label: 'Expirent bientôt', val: expiresBientot, color: expiresBientot > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-gray-50 border-gray-200 text-gray-500' },
-          { label: 'Expirés', val: expires, color: expires > 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-50 border-gray-200 text-gray-500' },
-          { label: 'Montant annuel total', val: `${montantTotal.toLocaleString('fr-FR')} €`, color: 'bg-blue-50 border-blue-200 text-blue-700' },
-        ].map(({ label, val, color }) => (
-          <div key={label} className={`rounded-xl border p-4 ${color}`}>
-            <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{label}</div>
-            <div className="text-2xl font-bold">{val}</div>
+          { label: 'Contrats actifs', val: actifs, bg: 'var(--success-soft)', color: 'var(--success)' },
+          { label: 'Expirent bientôt', val: expiresBientot, bg: expiresBientot > 0 ? 'rgba(245,158,11,0.1)' : 'var(--surface-2)', color: expiresBientot > 0 ? '#d97706' : 'var(--fg-subtle)' },
+          { label: 'Expirés', val: expires, bg: expires > 0 ? 'var(--danger-soft)' : 'var(--surface-2)', color: expires > 0 ? 'var(--danger)' : 'var(--fg-subtle)' },
+          { label: 'Montant annuel total', val: `${montantTotal.toLocaleString('fr-FR')} €`, bg: 'var(--brand-soft)', color: 'var(--brand)' },
+        ].map(({ label, val, bg, color }) => (
+          <div key={label} className="rounded-lg p-4" style={{ background: bg, border: `1px solid ${color}` }}>
+            <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1" style={{ color }}>{label}</div>
+            <div className="text-2xl font-bold" style={{ color }}>{val}</div>
           </div>
         ))}
       </div>
 
       {/* Toolbar */}
       <div className="flex items-center gap-3 flex-wrap">
-        <select className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+        <select className="rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
           value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
           <option value="">Tous les statuts</option>
           {Object.entries(STATUT_CONTRAT).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
         <button onClick={() => { setEditTarget(null); setForm(EMPTY); setShowForm(true); }}
-          className="ml-auto flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg transition-colors">
+          className="ml-auto flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors" style={{ background: 'var(--accent-teal)', color: '#fff' }}>
           <Plus className="w-4 h-4" /> Nouveau contrat
         </button>
       </div>
 
       {/* Formulaire */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-teal-200 shadow-sm p-5">
+        <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--accent-teal)' }}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-gray-800">{editTarget ? 'Modifier le contrat' : 'Nouveau contrat'}</h3>
-            <button onClick={() => { setShowForm(false); setEditTarget(null); }}><X className="w-4 h-4 text-gray-400 hover:text-gray-600" /></button>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--fg)' }}>{editTarget ? 'Modifier le contrat' : 'Nouveau contrat'}</h3>
+            <button onClick={() => { setShowForm(false); setEditTarget(null); }}><X className="w-4 h-4" style={{ color: 'var(--fg-subtle)' }} /></button>
           </div>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Prestataire *</label>
-              <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Prestataire *</label>
+              <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder="Nom du prestataire…" value={form.prestataire} onChange={e => set('prestataire', e.target.value)} required />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Type de contrat</label>
-              <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Type de contrat</label>
+              <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.type_contrat} onChange={e => set('type_contrat', e.target.value)}>
                 {Object.entries(TYPE_CONTRAT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Montant (€/an)</label>
-              <input type="number" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Montant (€/an)</label>
+              <input type="number" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder="0" value={form.montant} onChange={e => set('montant', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Date début *</label>
-              <input type="date" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Date début *</label>
+              <input type="date" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.date_debut} onChange={e => set('date_debut', e.target.value)} required />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Date fin *</label>
-              <input type="date" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Date fin *</label>
+              <input type="date" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.date_fin} onChange={e => set('date_fin', e.target.value)} required />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Contact</label>
-              <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Contact</label>
+              <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder="Nom du contact" value={form.contact_prestataire} onChange={e => set('contact_prestataire', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Téléphone</label>
-              <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Téléphone</label>
+              <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder="+237 6XX XXX XXX" value={form.telephone} onChange={e => set('telephone', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Statut</label>
-              <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Statut</label>
+              <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.statut} onChange={e => set('statut', e.target.value)}>
                 {Object.entries(STATUT_CONTRAT).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Alerte renouvellement (jours avant)</label>
-              <input type="number" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Alerte renouvellement (jours avant)</label>
+              <input type="number" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.alerte_renouvellement} onChange={e => set('alerte_renouvellement', e.target.value)} />
             </div>
             <div className="md:col-span-2">
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Description / Périmètre couvert</label>
-              <textarea rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none resize-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Description / Périmètre couvert</label>
+              <textarea rows={2} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder="Services ou équipements couverts…" value={form.description} onChange={e => set('description', e.target.value)} />
             </div>
             <div className="md:col-span-2 flex gap-3 justify-end">
               <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Annuler</button>
+                className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>Annuler</button>
               <button type="submit" disabled={saving}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+                className="px-5 py-2 text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--accent-teal)', color: '#fff' }}>
                 {saving ? 'Enregistrement…' : editTarget ? 'Mettre à jour' : 'Créer le contrat'}
               </button>
             </div>
@@ -3042,17 +3055,17 @@ function ContratsPanel() {
 
       {/* Liste */}
       {loading ? (
-        <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 animate-spin text-teal-500" /></div>
+        <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>
       ) : contrats.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <FileText className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+        <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}>
+          <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
           <p className="text-sm">Aucun contrat enregistré</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-400 uppercase tracking-wider">
+              <thead><tr className="text-xs uppercase tracking-wider" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg-subtle)' }}>
                 <th className="text-left px-4 py-3">Prestataire</th>
                 <th className="text-left px-4 py-3">Type</th>
                 <th className="text-left px-4 py-3">Période</th>
@@ -3061,38 +3074,38 @@ function ContratsPanel() {
                 <th className="text-left px-4 py-3">Échéance</th>
                 <th className="px-4 py-3"></th>
               </tr></thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody>
                 {contrats.map(c => {
                   const sc = STATUT_CONTRAT[c.statut] || STATUT_CONTRAT.actif;
                   return (
-                    <tr key={c.id} className={`hover:bg-gray-50 ${c.expirationProche ? 'bg-amber-50' : c.expire ? 'bg-red-50' : ''}`}>
+                    <tr key={c.id} className="transition-colors" style={{ borderBottom: '1px solid var(--border)', background: c.expirationProche ? 'rgba(245,158,11,0.05)' : c.expire ? 'var(--danger-soft)' : undefined }}>
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-gray-800">{c.prestataire}</div>
-                        {c.contact_prestataire && <div className="text-xs text-gray-400">{c.contact_prestataire}</div>}
+                        <div className="font-semibold" style={{ color: 'var(--fg)' }}>{c.prestataire}</div>
+                        {c.contact_prestataire && <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{c.contact_prestataire}</div>}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{TYPE_CONTRAT_LABELS[c.type_contrat] || c.type_contrat}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500">
+                      <td className="px-4 py-3" style={{ color: 'var(--fg-muted)' }}>{TYPE_CONTRAT_LABELS[c.type_contrat] || c.type_contrat}</td>
+                      <td className="px-4 py-3 text-xs" style={{ color: 'var(--fg-subtle)' }}>
                         {c.date_debut && new Date(c.date_debut).toLocaleDateString('fr-FR')} → {c.date_fin && new Date(c.date_fin).toLocaleDateString('fr-FR')}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-700">
+                      <td className="px-4 py-3 text-right font-semibold" style={{ color: 'var(--fg-muted)' }}>
                         {c.montant ? `${parseFloat(c.montant).toLocaleString('fr-FR')} €` : '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${sc.color}`}>{sc.label}</span>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={sc.style}>{sc.label}</span>
                       </td>
                       <td className="px-4 py-3">
                         {c.joursRestants > 0 ? (
-                          <span className={`text-xs font-semibold ${c.expirationProche ? 'text-amber-600' : 'text-gray-500'}`}>
+                          <span className="text-xs font-semibold" style={{ color: c.expirationProche ? '#d97706' : 'var(--fg-subtle)' }}>
                             {c.joursRestants}j restants
                           </span>
                         ) : (
-                          <span className="text-xs text-red-500 font-semibold">Expiré</span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>Expiré</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => openEdit(c)} className="text-gray-400 hover:text-teal-600 transition-colors"><Edit2 className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleDelete(c.id)} className="text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => openEdit(c)} className="transition-colors" style={{ color: 'var(--fg-subtle)' }}><Edit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleDelete(c.id)} className="transition-colors" style={{ color: 'var(--fg-subtle)' }}><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
                     </tr>
@@ -3104,6 +3117,7 @@ function ContratsPanel() {
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -3123,6 +3137,7 @@ function PiecesPanel({ subSection }) {
   const [form, setForm] = useState(EMPTY_PIECE);
   const [mvtForm, setMvtForm] = useState({ type:'entree', quantite:1, date: new Date().toISOString().split('T')[0], motif:'', prix_unitaire:'' });
   const [saving, setSaving] = useState(false);
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const loadPieces = async () => {
     setLoading(true);
@@ -3173,16 +3188,16 @@ function PiecesPanel({ subSection }) {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer cette pièce ?')) return;
+    if (!(await confirm({ title: 'Supprimer la pièce', message: 'Supprimer cette pièce ?', confirmLabel: 'Supprimer', variant: 'danger' }))) return;
     await gmaoAPI.deletePiece(id);
     loadPieces();
   };
 
   const MVT_TYPE = {
-    entree: { label: 'Entrée', color: 'bg-green-100 text-green-700' },
-    sortie: { label: 'Sortie', color: 'bg-red-100 text-red-700' },
-    ajustement: { label: 'Ajustement', color: 'bg-blue-100 text-blue-700' },
-    retour: { label: 'Retour', color: 'bg-yellow-100 text-yellow-700' },
+    entree:     { label: 'Entrée',      style: { background: 'var(--success-soft)', color: 'var(--success)' } },
+    sortie:     { label: 'Sortie',      style: { background: 'var(--danger-soft)',  color: 'var(--danger)'  } },
+    ajustement: { label: 'Ajustement',  style: { background: 'var(--brand-soft)',   color: 'var(--brand)'   } },
+    retour:     { label: 'Retour',      style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
   };
 
   const stockCritiques = pieces.filter(p => p.stockCritique).length;
@@ -3191,19 +3206,19 @@ function PiecesPanel({ subSection }) {
   if (subSection === 'pieces_mouvements') {
     return (
       <div className="p-6 space-y-4">
-        <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-          <List className="w-5 h-5 text-teal-500" /> Listing des mouvements de stock
-          <span className="ml-auto text-sm font-normal text-gray-400">{mouvements.length} mouvement{mouvements.length > 1 ? 's' : ''}</span>
+        <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+          <List className="w-5 h-5" style={{ color: 'var(--accent-teal)' }} /> Listing des mouvements de stock
+          <span className="ml-auto text-sm font-normal" style={{ color: 'var(--fg-subtle)' }}>{mouvements.length} mouvement{mouvements.length > 1 ? 's' : ''}</span>
         </h3>
         {loading ? (
-          <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 animate-spin text-teal-500" /></div>
+          <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>
         ) : mouvements.length === 0 ? (
-          <div className="text-center py-16 text-gray-400"><Package className="w-12 h-12 mx-auto mb-3 text-gray-200" /><p>Aucun mouvement enregistré</p></div>
+          <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}><Package className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--border)' }} /><p>Aucun mouvement enregistré</p></div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead><tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-400 uppercase tracking-wider">
+                <thead><tr className="text-xs uppercase tracking-wider" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg-subtle)' }}>
                   <th className="text-left px-4 py-3">Date</th>
                   <th className="text-left px-4 py-3">Pièce</th>
                   <th className="text-left px-4 py-3">Type</th>
@@ -3211,17 +3226,17 @@ function PiecesPanel({ subSection }) {
                   <th className="text-left px-4 py-3">Motif</th>
                   <th className="text-left px-4 py-3">Par</th>
                 </tr></thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody>
                   {mouvements.map(m => {
                     const mt = MVT_TYPE[m.type] || MVT_TYPE.entree;
                     return (
-                      <tr key={m.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2.5 text-gray-500 text-xs">{m.date ? new Date(m.date).toLocaleDateString('fr-FR') : '—'}</td>
-                        <td className="px-4 py-2.5"><div className="font-medium text-gray-800">{m.piece?.designation || '—'}</div><div className="text-xs text-gray-400">{m.piece?.reference}</div></td>
-                        <td className="px-4 py-2.5"><span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${mt.color}`}>{mt.label}</span></td>
-                        <td className="px-4 py-2.5 text-right font-bold text-gray-700">{m.quantite} {m.piece?.unite || ''}</td>
-                        <td className="px-4 py-2.5 text-gray-500">{m.motif || '—'}</td>
-                        <td className="px-4 py-2.5 text-gray-400 text-xs">{m.auteur ? `${m.auteur.firstName} ${m.auteur.lastName || ''}` : '—'}</td>
+                      <tr key={m.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--fg-muted)' }}>{m.date ? new Date(m.date).toLocaleDateString('fr-FR') : '—'}</td>
+                        <td className="px-4 py-2.5"><div className="font-medium" style={{ color: 'var(--fg)' }}>{m.piece?.designation || '—'}</div><div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{m.piece?.reference}</div></td>
+                        <td className="px-4 py-2.5"><span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={mt.style}>{mt.label}</span></td>
+                        <td className="px-4 py-2.5 text-right font-bold" style={{ color: 'var(--fg-muted)' }}>{m.quantite} {m.piece?.unite || ''}</td>
+                        <td className="px-4 py-2.5" style={{ color: 'var(--fg-muted)' }}>{m.motif || '—'}</td>
+                        <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--fg-subtle)' }}>{m.auteur ? `${m.auteur.firstName} ${m.auteur.lastName || ''}` : '—'}</td>
                       </tr>
                     );
                   })}
@@ -3236,50 +3251,53 @@ function PiecesPanel({ subSection }) {
 
   // ── Pièces et consommables / Gestion du stock ──
   return (
+    <>
+    {ConfirmModalRenderer}
     <div className="p-6 space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
-          <div className="text-2xl font-bold text-gray-800">{pieces.length}</div>
-          <div className="text-xs text-gray-400 mt-0.5">Références</div>
+        <div className="rounded-lg p-4 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="text-2xl font-bold" style={{ color: 'var(--fg)' }}>{pieces.length}</div>
+          <div className="text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>Références</div>
         </div>
-        <div className={`rounded-xl border p-4 text-center ${stockCritiques > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
-          <div className={`text-2xl font-bold ${stockCritiques > 0 ? 'text-red-700' : 'text-green-700'}`}>{stockCritiques}</div>
-          <div className={`text-xs mt-0.5 ${stockCritiques > 0 ? 'text-red-600' : 'text-green-600'}`}>Stock critique{stockCritiques > 1 ? 's' : ''}</div>
+        <div className="rounded-lg border p-4 text-center" style={stockCritiques > 0 ? { background: 'var(--danger-soft)', border: '1px solid var(--danger)' } : { background: 'var(--success-soft)', border: '1px solid var(--success)' }}>
+          <div className="text-2xl font-bold" style={{ color: stockCritiques > 0 ? 'var(--danger)' : 'var(--success)' }}>{stockCritiques}</div>
+          <div className="text-xs mt-0.5" style={{ color: stockCritiques > 0 ? 'var(--danger)' : 'var(--success)' }}>Stock critique{stockCritiques > 1 ? 's' : ''}</div>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-          <div className="text-2xl font-bold text-blue-700">
+        <div className="rounded-lg p-4 text-center" style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
+          <div className="text-2xl font-bold" style={{ color: 'var(--brand)' }}>
             {pieces.reduce((s, p) => s + (p.quantite_stock * (p.prix_unitaire || 0)), 0).toLocaleString('fr-FR')} €
           </div>
-          <div className="text-xs text-blue-600 mt-0.5">Valeur du stock</div>
+          <div className="text-xs mt-0.5" style={{ color: 'var(--brand)' }}>Valeur du stock</div>
         </div>
       </div>
 
       {/* Toolbar */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" />
-          <input className="pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-400 focus:outline-none"
+          <Search className="absolute left-2.5 top-2.5 w-4 h-4" style={{ color: 'var(--fg-subtle)' }} />
+          <input className="pl-8 pr-3 py-2 text-sm rounded-lg focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             placeholder="Référence, désignation…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <button
           onClick={() => setAlerteOnly(a => !a)}
-          className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${alerteOnly ? 'bg-red-600 text-white border-red-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors"
+          style={alerteOnly ? { background: 'var(--danger)', color: '#fff', borderColor: 'var(--danger)' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg-muted)' }}
         >
           <AlertCircle className="w-4 h-4" /> Stock critique seulement
         </button>
         <button onClick={() => { setEditTarget(null); setForm(EMPTY_PIECE); setShowForm(true); }}
-          className="ml-auto flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg">
+          className="ml-auto flex items-center gap-2 px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>
           <Plus className="w-4 h-4" /> Ajouter une pièce
         </button>
       </div>
 
       {/* Formulaire pièce */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-teal-200 shadow-sm p-5">
+        <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--accent-teal)' }}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-gray-800">{editTarget ? 'Modifier la pièce' : 'Nouvelle pièce de rechange'}</h3>
-            <button onClick={() => { setShowForm(false); setEditTarget(null); }}><X className="w-4 h-4 text-gray-400" /></button>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--fg)' }}>{editTarget ? 'Modifier la pièce' : 'Nouvelle pièce de rechange'}</h3>
+            <button onClick={() => { setShowForm(false); setEditTarget(null); }}><X className="w-4 h-4" style={{ color: 'var(--fg-subtle)' }} /></button>
           </div>
           <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {[
@@ -3294,16 +3312,16 @@ function PiecesPanel({ subSection }) {
               { k:'localisation', label:'Localisation (armoire…)', type:'text', placeholder:'Armoire A-1…' },
             ].map(({ k, label, type, placeholder }) => (
               <div key={k}>
-                <label className="text-xs font-semibold text-gray-500 block mb-1">{label}</label>
-                <input type={type} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+                <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{label}</label>
+                <input type={type} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                   placeholder={placeholder} value={form[k]} onChange={e => set(k, e.target.value)} />
               </div>
             ))}
             <div className="col-span-full flex gap-3 justify-end">
               <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Annuler</button>
+                className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>Annuler</button>
               <button type="submit" disabled={saving}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+                className="px-5 py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--accent-teal)' }}>
                 {saving ? 'Enregistrement…' : editTarget ? 'Mettre à jour' : 'Ajouter'}
               </button>
             </div>
@@ -3313,16 +3331,16 @@ function PiecesPanel({ subSection }) {
 
       {/* Formulaire mouvement */}
       {showMvtForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(0,0,0,0.4)' }}>
+          <div className="shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-800">Mouvement de stock — {showMvtForm.designation}</h3>
-              <button onClick={() => setShowMvtForm(null)}><X className="w-5 h-5 text-gray-400" /></button>
+              <h3 className="font-bold" style={{ color: 'var(--fg)' }}>Mouvement de stock — {showMvtForm.designation}</h3>
+              <button onClick={() => setShowMvtForm(null)}><X className="w-5 h-5" style={{ color: 'var(--fg-subtle)' }} /></button>
             </div>
             <form onSubmit={handleMouvement} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-gray-500 block mb-1">Type de mouvement</label>
-                <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Type de mouvement</label>
+                <select className="w-full rounded-lg px-3 py-2 text-sm" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                   value={mvtForm.type} onChange={e => setMvtForm(f => ({ ...f, type: e.target.value }))}>
                   <option value="entree">Entrée (réapprovisionnement)</option>
                   <option value="sortie">Sortie (utilisation)</option>
@@ -3332,24 +3350,24 @@ function PiecesPanel({ subSection }) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Quantité *</label>
-                  <input type="number" min="1" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Quantité *</label>
+                  <input type="number" min="1" className="w-full rounded-lg px-3 py-2 text-sm" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={mvtForm.quantite} onChange={e => setMvtForm(f => ({ ...f, quantite: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Date</label>
-                  <input type="date" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Date</label>
+                  <input type="date" className="w-full rounded-lg px-3 py-2 text-sm" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={mvtForm.date} onChange={e => setMvtForm(f => ({ ...f, date: e.target.value }))} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 block mb-1">Motif</label>
-                <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Motif</label>
+                <input className="w-full rounded-lg px-3 py-2 text-sm" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                   placeholder="Raison du mouvement…" value={mvtForm.motif} onChange={e => setMvtForm(f => ({ ...f, motif: e.target.value }))} />
               </div>
               <div className="flex gap-3 justify-end">
-                <button type="button" onClick={() => setShowMvtForm(null)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm">Annuler</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+                <button type="button" onClick={() => setShowMvtForm(null)} className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>Annuler</button>
+                <button type="submit" disabled={saving} className="px-5 py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--accent-teal)' }}>
                   {saving ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
               </div>
@@ -3360,14 +3378,14 @@ function PiecesPanel({ subSection }) {
 
       {/* Table pièces */}
       {loading ? (
-        <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 animate-spin text-teal-500" /></div>
+        <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>
       ) : pieces.length === 0 ? (
-        <div className="text-center py-16 text-gray-400"><Package className="w-12 h-12 mx-auto mb-3 text-gray-200" /><p className="text-sm">Aucune pièce enregistrée</p></div>
+        <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}><Package className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--border)' }} /><p className="text-sm">Aucune pièce enregistrée</p></div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-400 uppercase tracking-wider">
+              <thead><tr className="text-xs uppercase tracking-wider" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg-subtle)' }}>
                 <th className="text-left px-4 py-3">Référence</th>
                 <th className="text-left px-4 py-3">Désignation</th>
                 <th className="text-left px-4 py-3">Catégorie</th>
@@ -3376,32 +3394,31 @@ function PiecesPanel({ subSection }) {
                 <th className="text-left px-4 py-3">Localisation</th>
                 <th className="px-4 py-3"></th>
               </tr></thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody>
                 {pieces.map(p => (
-                  <tr key={p.id} className={`hover:bg-gray-50 ${p.stockCritique ? 'bg-red-50' : ''}`}>
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{p.reference}</td>
-                    <td className="px-4 py-2.5 font-medium text-gray-800">{p.designation}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{p.categorie || '—'}</td>
+                  <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', background: p.stockCritique ? 'var(--danger-soft)' : 'transparent' }}>
+                    <td className="px-4 py-2.5 font-mono text-xs" style={{ color: 'var(--fg-muted)' }}>{p.reference}</td>
+                    <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--fg)' }}>{p.designation}</td>
+                    <td className="px-4 py-2.5" style={{ color: 'var(--fg-muted)' }}>{p.categorie || '—'}</td>
                     <td className="px-4 py-2.5 text-center">
-                      <span className={`inline-flex items-center gap-1 font-bold text-sm px-2 py-0.5 rounded-full ${
-                        p.stockCritique ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                      }`}>
+                      <span className="inline-flex items-center gap-1 font-bold text-sm px-2 py-0.5 rounded-full"
+                        style={p.stockCritique ? { background: 'var(--danger-soft)', color: 'var(--danger)' } : { background: 'var(--success-soft)', color: 'var(--success)' }}>
                         {p.quantite_stock} {p.unite}
                         {p.stockCritique && <AlertCircle className="w-3 h-3" />}
                       </span>
-                      <div className="text-[10px] text-gray-400 mt-0.5">min: {p.quantite_min}</div>
+                      <div className="text-[10px] mt-0.5" style={{ color: 'var(--fg-subtle)' }}>min: {p.quantite_min}</div>
                     </td>
-                    <td className="px-4 py-2.5 text-right text-gray-600">
+                    <td className="px-4 py-2.5 text-right" style={{ color: 'var(--fg-muted)' }}>
                       {p.prix_unitaire ? `${parseFloat(p.prix_unitaire).toLocaleString('fr-FR')} €` : '—'}
                     </td>
-                    <td className="px-4 py-2.5 text-gray-400">{p.localisation || '—'}</td>
+                    <td className="px-4 py-2.5" style={{ color: 'var(--fg-subtle)' }}>{p.localisation || '—'}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-1">
                         <button onClick={() => setShowMvtForm(p)} title="Mouvement de stock"
-                          className="text-xs px-2 py-1 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded font-medium">±Stock</button>
+                          className="text-xs px-2 py-1 rounded font-medium" style={{ background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' }}>±Stock</button>
                         <button onClick={() => { setEditTarget(p); setForm({ ...EMPTY_PIECE, ...p }); setShowForm(true); }}
-                          className="text-gray-400 hover:text-teal-600"><Edit2 className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleDelete(p.id)} className="text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                          style={{ color: 'var(--fg-subtle)' }}><Edit2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleDelete(p.id)} style={{ color: 'var(--fg-subtle)' }}><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
                   </tr>
@@ -3412,18 +3429,19 @@ function PiecesPanel({ subSection }) {
         </div>
       )}
     </div>
+    </>
   );
 }
 
 // ─── ACQUISITION PANEL ────────────────────────────────────────────────────────
 
 const STATUT_ACQ = {
-  en_attente:   { label: 'En attente',   color: 'bg-yellow-100 text-yellow-700 border-yellow-200', step: 0 },
-  approuvee:    { label: 'Approuvée',    color: 'bg-blue-100 text-blue-700 border-blue-200',       step: 1 },
-  rejetee:      { label: 'Rejetée',      color: 'bg-red-100 text-red-700 border-red-200',          step: -1 },
-  commandee:    { label: 'Commandée',    color: 'bg-indigo-100 text-indigo-700 border-indigo-200', step: 2 },
-  receptionnee: { label: 'Réceptionnée', color: 'bg-teal-100 text-teal-700 border-teal-200',       step: 3 },
-  affectee:     { label: 'Affectée',     color: 'bg-green-100 text-green-700 border-green-200',    step: 4 },
+  en_attente:   { label: 'En attente',   style: { background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)' }, step: 0 },
+  approuvee:    { label: 'Approuvée',    style: { background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand)' },       step: 1 },
+  rejetee:      { label: 'Rejetée',      style: { background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger)' },    step: -1 },
+  commandee:    { label: 'Commandée',    style: { background: 'var(--info-soft)', color: 'var(--info)', border: '1px solid var(--info)' }, step: 2 },
+  receptionnee: { label: 'Réceptionnée', style: { background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)', border: '1px solid var(--accent-teal)' },  step: 3 },
+  affectee:     { label: 'Affectée',     style: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' }, step: 4 },
 };
 
 const WORKFLOW_STEPS = ['en_attente','approuvee','commandee','receptionnee','affectee'];
@@ -3437,6 +3455,7 @@ function AcquisitionPanel() {
   const EMPTY = { designation:'', type_equipement:'', quantite:1, service_demandeur:'', priorite:'normale', motif:'', specifications:'', budget_estime:'', fournisseur:'', numero_commande:'', prix_achat:'', notes:'' };
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -3481,7 +3500,11 @@ function AcquisitionPanel() {
     if (selected?.id === acq.id) setSelected({ ...acq, ...updates });
   };
 
-  const PRIORITE_BADGE = { normale: 'bg-gray-100 text-gray-600', urgente: 'bg-orange-100 text-orange-700', critique: 'bg-red-100 text-red-700' };
+  const PRIORITE_BADGE = {
+    normale:  { background: 'var(--surface-2)', color: 'var(--fg-muted)' },
+    urgente:  { background: 'rgba(234,88,12,0.12)', color: '#ea580c' },
+    critique: { background: 'var(--danger-soft)', color: 'var(--danger)' },
+  };
 
   const counts = {
     en_attente: acquisitions.filter(a => a.statut === 'en_attente').length,
@@ -3491,50 +3514,54 @@ function AcquisitionPanel() {
   };
 
   return (
+    <>
+    {ConfirmModalRenderer}
     <div className="flex h-full min-h-[500px]">
       {/* Panneau gauche — liste */}
-      <div className="w-80 border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
+      <div className="w-80 flex flex-col flex-shrink-0" style={{ borderRight: '1px solid var(--border)', background: 'var(--surface)' }}>
         {/* Stats rapides */}
-        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
-          {[['En attente', counts.en_attente,'text-yellow-600'],['Approuvées', counts.approuvee,'text-blue-600'],['Commandées', counts.commandee,'text-indigo-600']].map(([label, count, color]) => (
-            <div key={label} className="py-3 text-center">
-              <div className={`text-xl font-bold ${color}`}>{count}</div>
-              <div className="text-[10px] text-gray-400">{label}</div>
+        <div className="grid grid-cols-3" style={{ borderBottom: '1px solid var(--border)' }}>
+          {[['En attente', counts.en_attente, 'var(--warning)'],['Approuvées', counts.approuvee, 'var(--brand)'],['Commandées', counts.commandee, '#6366f1']].map(([label, count, color]) => (
+            <div key={label} className="py-3 text-center" style={{ borderRight: '1px solid var(--border)' }}>
+              <div className="text-xl font-bold" style={{ color }}>{count}</div>
+              <div className="text-[10px]" style={{ color: 'var(--fg-subtle)' }}>{label}</div>
             </div>
           ))}
         </div>
         {/* Filtres */}
-        <div className="p-3 border-b border-gray-100 flex gap-2">
-          <select className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+        <div className="p-3 flex gap-2" style={{ borderBottom: '1px solid var(--border)' }}>
+          <select className="flex-1 rounded-lg px-2 py-1.5 text-xs focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
             <option value="">Tous</option>
             {Object.entries(STATUT_ACQ).filter(([k]) => k !== 'rejetee').map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             <option value="rejetee">Rejetées</option>
           </select>
           <button onClick={() => { setShowForm(true); setSelected(null); }}
-            className="flex items-center gap-1 px-2 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg">
+            className="flex items-center gap-1 px-2 py-1.5 text-white text-xs font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>
             <Plus className="w-3 h-3" /> Nouvelle
           </button>
         </div>
         {/* Liste */}
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+        <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-teal-500" /></div>
+            <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>
           ) : acquisitions.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-xs">Aucune demande</div>
+            <div className="text-center py-8 text-xs" style={{ color: 'var(--fg-subtle)' }}>Aucune demande</div>
           ) : acquisitions.map(a => {
             const sc = STATUT_ACQ[a.statut] || STATUT_ACQ.en_attente;
+            const isSelected = selected?.id === a.id;
             return (
               <button key={a.id} onClick={() => { setSelected(a); setShowForm(false); }}
-                className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${selected?.id === a.id ? 'bg-teal-50 border-l-4 border-l-teal-500' : ''}`}>
+                className="w-full text-left px-4 py-3 transition-colors"
+                style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'var(--accent-teal-soft)' : 'transparent', borderLeft: isSelected ? '4px solid var(--accent-teal)' : '4px solid transparent' }}>
                 <div className="flex items-start justify-between gap-2">
-                  <div className="font-medium text-gray-800 text-xs truncate flex-1">{a.designation}</div>
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${sc.color}`}>{sc.label}</span>
+                  <div className="font-medium text-xs truncate flex-1" style={{ color: 'var(--fg)' }}>{a.designation}</div>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0" style={sc.style}>{sc.label}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] text-gray-400">{a.reference || '—'}</span>
-                  <span className={`text-[10px] px-1 py-0.5 rounded ${PRIORITE_BADGE[a.priorite] || ''}`}>{a.priorite}</span>
-                  {a.service_demandeur && <span className="text-[10px] text-gray-400">{a.service_demandeur}</span>}
+                  <span className="text-[10px] font-mono" style={{ color: 'var(--fg-subtle)' }}>{a.reference || '—'}</span>
+                  <span className="text-[10px] px-1 py-0.5 rounded" style={PRIORITE_BADGE[a.priorite] || {}}>{a.priorite}</span>
+                  {a.service_demandeur && <span className="text-[10px]" style={{ color: 'var(--fg-subtle)' }}>{a.service_demandeur}</span>}
                 </div>
               </button>
             );
@@ -3543,38 +3570,38 @@ function AcquisitionPanel() {
       </div>
 
       {/* Panneau droit — détail / formulaire */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+      <div className="flex-1 overflow-y-auto p-6" style={{ background: 'var(--surface-2)' }}>
         {showForm ? (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl">
-            <h3 className="text-base font-bold text-gray-800 mb-5">Nouvelle demande d'acquisition</h3>
+          <div className="rounded-lg shadow-sm p-6 max-w-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <h3 className="text-base font-bold mb-5" style={{ color: 'var(--fg)' }}>Nouvelle demande d'acquisition</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Désignation de l'équipement *</label>
-                  <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Désignation de l'équipement *</label>
+                  <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     placeholder="Nom de l'équipement demandé…" value={form.designation} onChange={e => set('designation', e.target.value)} required />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Type d'équipement</label>
-                  <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Type d'équipement</label>
+                  <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     placeholder="Moniteur, Défibrillateur…" value={form.type_equipement} onChange={e => set('type_equipement', e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Quantité</label>
-                  <input type="number" min="1" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Quantité</label>
+                  <input type="number" min="1" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={form.quantite} onChange={e => set('quantite', e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Service demandeur</label>
-                  <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Service demandeur</label>
+                  <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={form.service_demandeur} onChange={e => set('service_demandeur', e.target.value)}>
                     <option value="">— Sélectionner —</option>
                     {SERVICES.map(s => <option key={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Priorité</label>
-                  <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Priorité</label>
+                  <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={form.priorite} onChange={e => set('priorite', e.target.value)}>
                     <option value="normale">Normale</option>
                     <option value="urgente">Urgente</option>
@@ -3582,24 +3609,24 @@ function AcquisitionPanel() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Budget estimé (€)</label>
-                  <input type="number" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Budget estimé (€)</label>
+                  <input type="number" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     placeholder="0" value={form.budget_estime} onChange={e => set('budget_estime', e.target.value)} />
                 </div>
                 <div className="col-span-2">
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Motif / Justification</label>
-                  <textarea rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none resize-none"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Motif / Justification</label>
+                  <textarea rows={2} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     placeholder="Pourquoi cet équipement est-il nécessaire ?" value={form.motif} onChange={e => set('motif', e.target.value)} />
                 </div>
                 <div className="col-span-2">
-                  <label className="text-xs font-semibold text-gray-500 block mb-1">Spécifications techniques</label>
-                  <textarea rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none resize-none"
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Spécifications techniques</label>
+                  <textarea rows={2} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     placeholder="Caractéristiques techniques requises…" value={form.specifications} onChange={e => set('specifications', e.target.value)} />
                 </div>
               </div>
               <div className="flex gap-3 justify-end pt-2">
-                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600">Annuler</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>Annuler</button>
+                <button type="submit" disabled={saving} className="px-5 py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--accent-teal)' }}>
                   {saving ? 'Enregistrement…' : 'Soumettre la demande'}
                 </button>
               </div>
@@ -3608,28 +3635,28 @@ function AcquisitionPanel() {
         ) : selected ? (
           <div className="max-w-2xl space-y-5">
             {/* Header */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-gray-400 font-mono">{selected.reference || '—'}</span>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${(STATUT_ACQ[selected.statut] || STATUT_ACQ.en_attente).color}`}>
+                    <span className="text-xs font-mono" style={{ color: 'var(--fg-subtle)' }}>{selected.reference || '—'}</span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={(STATUT_ACQ[selected.statut] || STATUT_ACQ.en_attente).style}>
                       {(STATUT_ACQ[selected.statut] || STATUT_ACQ.en_attente).label}
                     </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${PRIORITE_BADGE[selected.priorite] || ''}`}>{selected.priorite}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={PRIORITE_BADGE[selected.priorite] || {}}>{selected.priorite}</span>
                   </div>
-                  <h2 className="text-lg font-bold text-gray-900">{selected.designation}</h2>
-                  <div className="text-sm text-gray-500 mt-0.5">{selected.type_equipement} — {selected.service_demandeur || '—'} — Qté: {selected.quantite}</div>
+                  <h2 className="text-lg font-bold" style={{ color: 'var(--fg)' }}>{selected.designation}</h2>
+                  <div className="text-sm mt-0.5" style={{ color: 'var(--fg-muted)' }}>{selected.type_equipement} — {selected.service_demandeur || '—'} — Qté: {selected.quantite}</div>
                 </div>
-                <button onClick={() => { if(confirm('Supprimer cette demande ?')) { gmaoAPI.deleteAcquisition(selected.id); setSelected(null); load(); } }}
-                  className="text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={async () => { if (await confirm({ title: 'Supprimer la demande', message: 'Supprimer cette demande ?', confirmLabel: 'Supprimer', variant: 'danger' })) { gmaoAPI.deleteAcquisition(selected.id); setSelected(null); load(); } }}
+                  style={{ color: 'var(--fg-subtle)' }}><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
 
             {/* Stepper workflow */}
             {selected.statut !== 'rejetee' && (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Progression</h3>
+              <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--fg-muted)' }}>Progression</h3>
                 <div className="flex items-center gap-0">
                   {WORKFLOW_STEPS.map((step, i) => {
                     const sc = STATUT_ACQ[step];
@@ -3639,19 +3666,17 @@ function AcquisitionPanel() {
                     return (
                       <div key={step} className="flex items-center flex-1">
                         <div className={`flex flex-col items-center ${i < WORKFLOW_STEPS.length - 1 ? 'flex-1' : ''}`}>
-                          <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${
-                            done ? 'bg-teal-500 border-teal-500 text-white' :
-                            active ? 'bg-white border-teal-500 text-teal-600 ring-2 ring-teal-200' :
-                            'bg-white border-gray-200 text-gray-400'
-                          }`}>
+                          <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all"
+                            style={done ? { background: 'var(--accent-teal)', borderColor: 'var(--accent-teal)', color: '#fff' } : active ? { background: 'var(--surface)', borderColor: 'var(--accent-teal)', color: 'var(--accent-teal)' } : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--fg-subtle)' }}>
                             {done ? '✓' : i + 1}
                           </div>
-                          <span className={`text-[9px] mt-1 text-center ${active ? 'font-bold text-teal-600' : done ? 'text-gray-500' : 'text-gray-300'}`}>
+                          <span className="text-[9px] mt-1 text-center"
+                            style={{ color: active ? 'var(--accent-teal)' : done ? 'var(--fg-muted)' : 'var(--fg-subtle)', fontWeight: active ? 700 : 400 }}>
                             {sc.label}
                           </span>
                         </div>
                         {i < WORKFLOW_STEPS.length - 1 && (
-                          <div className={`h-0.5 flex-1 mb-4 ${i < currentStep ? 'bg-teal-400' : 'bg-gray-200'}`} />
+                          <div className="h-0.5 flex-1 mb-4" style={{ background: i < currentStep ? 'var(--accent-teal)' : 'var(--border)' }} />
                         )}
                       </div>
                     );
@@ -3661,31 +3686,31 @@ function AcquisitionPanel() {
             )}
 
             {/* Actions workflow */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Actions</h3>
+            <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--fg-muted)' }}>Actions</h3>
               <div className="flex flex-wrap gap-2">
                 {selected.statut === 'en_attente' && <>
-                  <button onClick={() => handleStatutChange(selected, 'approuvee')} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700">✓ Approuver</button>
-                  <button onClick={() => handleStatutChange(selected, 'rejetee')} className="px-4 py-2 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600">✗ Rejeter</button>
+                  <button onClick={() => handleStatutChange(selected, 'approuvee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--brand)' }}>✓ Approuver</button>
+                  <button onClick={() => handleStatutChange(selected, 'rejetee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--danger)' }}>✗ Rejeter</button>
                 </>}
                 {selected.statut === 'approuvee' && (
-                  <button onClick={() => handleStatutChange(selected, 'commandee')} className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">📦 Marquer commandé</button>
+                  <button onClick={() => handleStatutChange(selected, 'commandee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: '#6366f1' }}>📦 Marquer commandé</button>
                 )}
                 {selected.statut === 'commandee' && (
-                  <button onClick={() => handleStatutChange(selected, 'receptionnee')} className="px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700">✓ Marquer réceptionné</button>
+                  <button onClick={() => handleStatutChange(selected, 'receptionnee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>✓ Marquer réceptionné</button>
                 )}
                 {selected.statut === 'receptionnee' && (
-                  <button onClick={() => handleStatutChange(selected, 'affectee')} className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700">✓ Affecter au service</button>
+                  <button onClick={() => handleStatutChange(selected, 'affectee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--success)' }}>✓ Affecter au service</button>
                 )}
                 {selected.statut === 'rejetee' && (
-                  <button onClick={() => handleStatutChange(selected, 'en_attente')} className="px-4 py-2 bg-gray-600 text-white text-sm font-semibold rounded-lg hover:bg-gray-700">↺ Remettre en attente</button>
+                  <button onClick={() => handleStatutChange(selected, 'en_attente')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--fg-subtle)' }}>↺ Remettre en attente</button>
                 )}
               </div>
             </div>
 
             {/* Détails */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Détails</h3>
+            <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--fg-muted)' }}>Détails</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {[
                   ['Budget estimé', selected.budget_estime ? `${parseFloat(selected.budget_estime).toLocaleString('fr-FR')} €` : '—'],
@@ -3698,39 +3723,40 @@ function AcquisitionPanel() {
                   ['Date réception', selected.date_reception ? new Date(selected.date_reception).toLocaleDateString('fr-FR') : '—'],
                 ].map(([label, val]) => (
                   <div key={label}>
-                    <span className="text-xs text-gray-400 block">{label}</span>
-                    <span className="text-gray-800 font-medium">{val}</span>
+                    <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>{label}</span>
+                    <span className="font-medium" style={{ color: 'var(--fg)' }}>{val}</span>
                   </div>
                 ))}
               </div>
               {selected.motif && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <span className="text-xs text-gray-400 block mb-1">Motif / Justification</span>
-                  <p className="text-sm text-gray-700">{selected.motif}</p>
+                <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <span className="text-xs block mb-1" style={{ color: 'var(--fg-subtle)' }}>Motif / Justification</span>
+                  <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>{selected.motif}</p>
                 </div>
               )}
               {selected.specifications && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <span className="text-xs text-gray-400 block mb-1">Spécifications</span>
-                  <p className="text-sm text-gray-700">{selected.specifications}</p>
+                <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <span className="text-xs block mb-1" style={{ color: 'var(--fg-subtle)' }}>Spécifications</span>
+                  <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>{selected.specifications}</p>
                 </div>
               )}
               {selected.motif_rejet && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <span className="text-xs font-semibold text-red-700 block mb-1">Motif de rejet</span>
-                  <p className="text-sm text-red-800">{selected.motif_rejet}</p>
+                <div className="mt-3 p-3 rounded-lg" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)' }}>
+                  <span className="text-xs font-semibold block mb-1" style={{ color: 'var(--danger)' }}>Motif de rejet</span>
+                  <p className="text-sm" style={{ color: 'var(--danger)' }}>{selected.motif_rejet}</p>
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <ShoppingCart className="w-12 h-12 mb-3 text-gray-200" />
+          <div className="flex flex-col items-center justify-center h-full" style={{ color: 'var(--fg-subtle)' }}>
+            <ShoppingCart className="w-12 h-12 mb-3" style={{ color: 'var(--border)' }} />
             <p className="text-sm">Sélectionnez une demande ou créez-en une nouvelle</p>
           </div>
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -3745,6 +3771,7 @@ function BudgetPanelAPI({ subSection }) {
   const [loading, setLoading] = useState(true);
   const [migrating, setMigrating] = useState(false);
   const [migrateMsg, setMigrateMsg] = useState('');
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -3786,7 +3813,7 @@ function BudgetPanelAPI({ subSection }) {
     if (!keyLignes.length && !keyAchats.length && !keyFactures.length) {
       setMigrateMsg(`Aucune donnée locale pour ${annee}.`); return;
     }
-    if (!confirm(`Migrer ${keyLignes.length} lignes, ${keyAchats.length} achats, ${keyFactures.length} factures de ${annee} vers la base de données ?`)) return;
+    if (!(await confirm({ title: 'Migration budget', message: `Migrer ${keyLignes.length} lignes, ${keyAchats.length} achats, ${keyFactures.length} factures de ${annee} vers la base de données ?`, confirmLabel: 'Migrer', variant: 'info' }))) return;
     setMigrating(true);
     try {
       const res = await gmaoAPI.migrateBudget({ annee, lignes: keyLignes, achats: keyAchats, factures: keyFactures });
@@ -3826,19 +3853,23 @@ function BudgetPanelAPI({ subSection }) {
   const delLigne   = async (id) => { await gmaoAPI.deleteBudgetLigne(id); load(); };
   const delDepense = async (id) => { await gmaoAPI.deleteBudgetDepense(id); load(); };
 
-  const FACT_STATUT = { en_attente: { label:'En attente', color:'bg-yellow-100 text-yellow-700' }, payee: { label:'Payée', color:'bg-green-100 text-green-700' }, contestee: { label:'Contestée', color:'bg-red-100 text-red-700' } };
+  const FACT_STATUT = {
+    en_attente: { label:'En attente', style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
+    payee:      { label:'Payée',      style: { background: 'var(--success-soft)', color: 'var(--success)' } },
+    contestee:  { label:'Contestée',  style: { background: 'var(--danger-soft)',  color: 'var(--danger)'  } },
+  };
 
   const SH = ({ icon, title }) => (
-    <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">{icon}{title}</h3>
+    <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>{icon}{title}</h3>
   );
 
   const MigrateBar = () => (
-    <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-      <div className="flex-1 text-xs text-blue-700">
+    <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
+      <div className="flex-1 text-xs" style={{ color: 'var(--brand)' }}>
         {migrateMsg ? <span className="font-semibold">{migrateMsg}</span> : 'Vous avez des données budgétaires stockées localement ?'}
       </div>
       <button onClick={handleMigrate} disabled={migrating}
-        className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+        className="px-3 py-1.5 text-white text-xs font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--brand)' }}>
         {migrating ? 'Migration…' : '↑ Migrer depuis localStorage'}
       </button>
     </div>
@@ -3846,49 +3877,49 @@ function BudgetPanelAPI({ subSection }) {
 
   const renderLigneBudgetaire = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <SH icon={<DollarSign className="w-4 h-4 text-blue-500" />} title="Ajouter une ligne budgétaire" />
+      <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <SH icon={<DollarSign className="w-4 h-4" style={{ color: 'var(--brand)' }} />} title="Ajouter une ligne budgétaire" />
         <form onSubmit={addLigne} className="space-y-3">
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Catégorie *</label>
-            <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Catégorie *</label>
+            <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={formLigne.categorie} onChange={e => setFormLigne(f => ({ ...f, categorie: e.target.value }))}>
               <option value="">— Sélectionner —</option>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Montant alloué (€) *</label>
-            <input type="number" min="0" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Montant alloué (€) *</label>
+            <input type="number" min="0" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={formLigne.montant} onChange={e => setFormLigne(f => ({ ...f, montant: e.target.value }))} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Description</label>
-            <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Description</label>
+            <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               placeholder="Optionnel…" value={formLigne.description} onChange={e => setFormLigne(f => ({ ...f, description: e.target.value }))} />
           </div>
-          <button type="submit" disabled={saving} className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+          <button type="submit" disabled={saving} className="w-full py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--brand)' }}>
             {saving ? 'Enregistrement…' : 'Ajouter la ligne'}
           </button>
         </form>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <span className="text-sm font-bold text-gray-700">Lignes budgétaires {annee}</span>
-          <span className="text-sm font-bold text-blue-600">{totalAlloue.toLocaleString('fr-FR')} €</span>
+      <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+          <span className="text-sm font-bold" style={{ color: 'var(--fg-muted)' }}>Lignes budgétaires {annee}</span>
+          <span className="text-sm font-bold" style={{ color: 'var(--brand)' }}>{totalAlloue.toLocaleString('fr-FR')} €</span>
         </div>
-        {loading ? <div className="flex justify-center p-6"><RefreshCw className="w-5 h-5 animate-spin text-teal-500" /></div> : lignes.length === 0 ? (
-          <div className="p-6 text-center text-gray-400 text-sm">Aucune ligne</div>
+        {loading ? <div className="flex justify-center p-6"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div> : lignes.length === 0 ? (
+          <div className="p-6 text-center text-sm" style={{ color: 'var(--fg-subtle)' }}>Aucune ligne</div>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div>
             {lignes.map(l => (
-              <div key={l.id} className="flex items-center gap-3 px-5 py-3">
+              <div key={l.id} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-800">{l.categorie}</div>
-                  {l.description && <div className="text-xs text-gray-400">{l.description}</div>}
+                  <div className="text-sm font-medium" style={{ color: 'var(--fg)' }}>{l.categorie}</div>
+                  {l.description && <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{l.description}</div>}
                 </div>
-                <span className="font-bold text-blue-700">{parseFloat(l.montant).toLocaleString('fr-FR')} €</span>
-                <button onClick={() => delLigne(l.id)} className="text-gray-300 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                <span className="font-bold" style={{ color: 'var(--brand)' }}>{parseFloat(l.montant).toLocaleString('fr-FR')} €</span>
+                <button onClick={() => delLigne(l.id)} style={{ color: 'var(--fg-subtle)' }}><X className="w-3.5 h-3.5" /></button>
               </div>
             ))}
           </div>
@@ -3899,8 +3930,8 @@ function BudgetPanelAPI({ subSection }) {
 
   const renderAchats = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <SH icon={<ShoppingCart className="w-4 h-4 text-orange-500" />} title="Enregistrer un achat / dépense" />
+      <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <SH icon={<ShoppingCart className="w-4 h-4" style={{ color: '#ea580c' }} />} title="Enregistrer un achat / dépense" />
         <form onSubmit={addAchat} className="space-y-3">
           {[
             { k:'date', label:'Date', type:'date' },
@@ -3909,42 +3940,42 @@ function BudgetPanelAPI({ subSection }) {
             { k:'montant', label:'Montant (€) *', type:'number', placeholder:'0' },
           ].map(({ k, label, type, placeholder }) => (
             <div key={k}>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">{label}</label>
-              <input type={type} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{label}</label>
+              <input type={type} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder={placeholder} value={formAchat[k]} onChange={e => setFormAchat(f => ({ ...f, [k]: e.target.value }))} />
             </div>
           ))}
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Catégorie</label>
-            <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Catégorie</label>
+            <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={formAchat.categorie} onChange={e => setFormAchat(f => ({ ...f, categorie: e.target.value }))}>
               <option value="">— Catégorie —</option>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
-          <button type="submit" disabled={saving} className="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+          <button type="submit" disabled={saving} className="w-full py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: '#ea580c' }}>
             {saving ? 'Enregistrement…' : 'Enregistrer la dépense'}
           </button>
         </form>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <span className="text-sm font-bold text-gray-700">Achats & Dépenses {annee}</span>
-          <span className="text-sm font-bold text-orange-600">{totalAchats.toLocaleString('fr-FR')} €</span>
+      <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+          <span className="text-sm font-bold" style={{ color: 'var(--fg-muted)' }}>Achats & Dépenses {annee}</span>
+          <span className="text-sm font-bold" style={{ color: '#ea580c' }}>{totalAchats.toLocaleString('fr-FR')} €</span>
         </div>
-        {loading ? <div className="flex justify-center p-6"><RefreshCw className="w-5 h-5 animate-spin text-teal-500" /></div> : achats.length === 0 ? (
-          <div className="p-6 text-center text-gray-400 text-sm">Aucun achat</div>
+        {loading ? <div className="flex justify-center p-6"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div> : achats.length === 0 ? (
+          <div className="p-6 text-center text-sm" style={{ color: 'var(--fg-subtle)' }}>Aucun achat</div>
         ) : (
-          <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto">
             {achats.map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-5 py-3">
-                <div className="text-xs text-gray-400 w-20 flex-shrink-0">{new Date(a.date).toLocaleDateString('fr-FR')}</div>
+              <div key={a.id} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                <div className="text-xs w-20 flex-shrink-0" style={{ color: 'var(--fg-subtle)' }}>{new Date(a.date).toLocaleDateString('fr-FR')}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-800 truncate">{a.description}</div>
-                  {a.fournisseur && <div className="text-xs text-gray-400">{a.fournisseur}</div>}
+                  <div className="text-sm font-medium truncate" style={{ color: 'var(--fg)' }}>{a.description}</div>
+                  {a.fournisseur && <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{a.fournisseur}</div>}
                 </div>
-                <span className="font-bold text-orange-600 flex-shrink-0">{parseFloat(a.montant).toLocaleString('fr-FR')} €</span>
-                <button onClick={() => delDepense(a.id)} className="text-gray-300 hover:text-red-500 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                <span className="font-bold flex-shrink-0" style={{ color: '#ea580c' }}>{parseFloat(a.montant).toLocaleString('fr-FR')} €</span>
+                <button onClick={() => delDepense(a.id)} className="flex-shrink-0" style={{ color: 'var(--fg-subtle)' }}><X className="w-3.5 h-3.5" /></button>
               </div>
             ))}
           </div>
@@ -3955,8 +3986,8 @@ function BudgetPanelAPI({ subSection }) {
 
   const renderFactures = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <SH icon={<Receipt className="w-4 h-4 text-purple-500" />} title="Enregistrer une facture" />
+      <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <SH icon={<Receipt className="w-4 h-4" style={{ color: '#9333ea' }} />} title="Enregistrer une facture" />
         <form onSubmit={addFacture} className="space-y-3">
           {[
             { k:'date', label:'Date facture', type:'date' },
@@ -3967,48 +3998,48 @@ function BudgetPanelAPI({ subSection }) {
             { k:'montant', label:'Montant TTC (€) *', type:'number', placeholder:'0' },
           ].map(({ k, label, type, placeholder }) => (
             <div key={k}>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">{label}</label>
-              <input type={type} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{label}</label>
+              <input type={type} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder={placeholder} value={formFact[k]} onChange={e => setFormFact(f => ({ ...f, [k]: e.target.value }))} />
             </div>
           ))}
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Statut</label>
-            <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Statut</label>
+            <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={formFact.statut_facture} onChange={e => setFormFact(f => ({ ...f, statut_facture: e.target.value }))}>
               <option value="en_attente">En attente</option><option value="payee">Payée</option><option value="contestee">Contestée</option>
             </select>
           </div>
-          <button type="submit" disabled={saving} className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+          <button type="submit" disabled={saving} className="w-full py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: '#9333ea' }}>
             {saving ? 'Enregistrement…' : 'Enregistrer la facture'}
           </button>
         </form>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <span className="text-sm font-bold text-gray-700">Factures {annee}</span>
-          <span className="text-sm font-bold text-purple-600">{totalFact.toLocaleString('fr-FR')} €</span>
+      <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+          <span className="text-sm font-bold" style={{ color: 'var(--fg-muted)' }}>Factures {annee}</span>
+          <span className="text-sm font-bold" style={{ color: '#9333ea' }}>{totalFact.toLocaleString('fr-FR')} €</span>
         </div>
-        {loading ? <div className="flex justify-center p-6"><RefreshCw className="w-5 h-5 animate-spin text-teal-500" /></div> : factures.length === 0 ? (
-          <div className="p-6 text-center text-gray-400 text-sm">Aucune facture</div>
+        {loading ? <div className="flex justify-center p-6"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div> : factures.length === 0 ? (
+          <div className="p-6 text-center text-sm" style={{ color: 'var(--fg-subtle)' }}>Aucune facture</div>
         ) : (
-          <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto">
             {factures.map(f => {
               const sc = FACT_STATUT[f.statut_facture] || FACT_STATUT.en_attente;
               return (
-                <div key={f.id} className="flex items-center gap-3 px-5 py-3">
+                <div key={f.id} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-800">{f.fournisseur || f.description}</span>
-                      {f.numero_facture && <span className="text-xs text-gray-400">{f.numero_facture}</span>}
+                      <span className="text-sm font-medium" style={{ color: 'var(--fg)' }}>{f.fournisseur || f.description}</span>
+                      {f.numero_facture && <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{f.numero_facture}</span>}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-gray-400">{new Date(f.date).toLocaleDateString('fr-FR')}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.color}`}>{sc.label}</span>
+                      <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{new Date(f.date).toLocaleDateString('fr-FR')}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={sc.style}>{sc.label}</span>
                     </div>
                   </div>
-                  <span className="font-bold text-purple-600 flex-shrink-0">{parseFloat(f.montant).toLocaleString('fr-FR')} €</span>
-                  <button onClick={() => delDepense(f.id)} className="text-gray-300 hover:text-red-500 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                  <span className="font-bold flex-shrink-0" style={{ color: '#9333ea' }}>{parseFloat(f.montant).toLocaleString('fr-FR')} €</span>
+                  <button onClick={() => delDepense(f.id)} className="flex-shrink-0" style={{ color: 'var(--fg-subtle)' }}><X className="w-3.5 h-3.5" /></button>
                 </div>
               );
             })}
@@ -4019,52 +4050,52 @@ function BudgetPanelAPI({ subSection }) {
   );
 
   const renderEtat = () => {
-    const barColor = pctConsomme > 90 ? 'bg-red-500' : pctConsomme > 70 ? 'bg-yellow-400' : 'bg-green-500';
+    const barBg = pctConsomme > 90 ? 'var(--danger)' : pctConsomme > 70 ? 'var(--warning)' : 'var(--success)';
     return (
       <div className="space-y-6">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">État du Budget {annee}</h3>
+        <div className="rounded-lg shadow-sm p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--fg-muted)' }}>État du Budget {annee}</h3>
           <div className="grid grid-cols-3 gap-4 mb-6">
             {[
-              { label:'Budget alloué', val: totalAlloue, color:'text-blue-600' },
-              { label:'Total dépenses', val: totalDepenses, color:'text-red-600' },
-              { label:'Solde disponible', val: solde, color: solde >= 0 ? 'text-green-600' : 'text-red-600' },
+              { label:'Budget alloué', val: totalAlloue, color: 'var(--brand)' },
+              { label:'Total dépenses', val: totalDepenses, color: 'var(--danger)' },
+              { label:'Solde disponible', val: solde, color: solde >= 0 ? 'var(--success)' : 'var(--danger)' },
             ].map(({ label, val, color }) => (
-              <div key={label} className="text-center p-4 bg-gray-50 rounded-xl">
-                <div className={`text-2xl font-bold ${color}`}>{val.toLocaleString('fr-FR')} €</div>
-                <div className="text-xs text-gray-400 mt-0.5">{label}</div>
+              <div key={label} className="text-center p-4 rounded-lg" style={{ background: 'var(--surface-2)' }}>
+                <div className="text-2xl font-bold" style={{ color }}>{val.toLocaleString('fr-FR')} €</div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>{label}</div>
               </div>
             ))}
           </div>
           <div className="mb-2 flex justify-between text-sm">
-            <span className="text-gray-500">Consommation</span>
-            <span className={`font-bold ${pctConsomme > 90 ? 'text-red-600' : pctConsomme > 70 ? 'text-yellow-600' : 'text-green-600'}`}>{pctConsomme}%</span>
+            <span style={{ color: 'var(--fg-muted)' }}>Consommation</span>
+            <span className="font-bold" style={{ color: barBg }}>{pctConsomme}%</span>
           </div>
-          <div className="h-6 bg-gray-100 rounded-full overflow-hidden">
-            <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(100, pctConsomme)}%` }} />
+          <div className="h-6 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctConsomme)}%`, background: barBg }} />
           </div>
-          {pctConsomme > 90 && <div className="mt-3 flex items-center gap-2 text-xs text-red-600 font-medium"><AlertTriangle className="w-4 h-4" /> Budget presque épuisé</div>}
+          {pctConsomme > 90 && <div className="mt-3 flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--danger)' }}><AlertTriangle className="w-4 h-4" /> Budget presque épuisé</div>}
         </div>
         {lignes.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50"><span className="text-sm font-bold text-gray-700">Détail par catégorie</span></div>
+          <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}><span className="text-sm font-bold" style={{ color: 'var(--fg-muted)' }}>Détail par catégorie</span></div>
             <table className="w-full text-sm">
-              <thead><tr className="border-b border-gray-100 text-xs text-gray-400 uppercase">
+              <thead><tr className="text-xs uppercase" style={{ borderBottom: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
                 <th className="text-left px-5 py-2">Catégorie</th>
                 <th className="text-right px-5 py-2">Alloué</th>
                 <th className="text-right px-5 py-2">Dépensé</th>
                 <th className="text-right px-5 py-2">Reste</th>
               </tr></thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody>
                 {lignes.map(l => {
                   const spent = [...achats, ...factures].filter(d => d.categorie === l.categorie).reduce((s, d) => s + (parseFloat(d.montant) || 0), 0);
                   const reste = parseFloat(l.montant) - spent;
                   return (
-                    <tr key={l.id} className="hover:bg-gray-50">
-                      <td className="px-5 py-2.5 font-medium text-gray-700">{l.categorie}</td>
-                      <td className="px-5 py-2.5 text-right text-blue-600 font-semibold">{parseFloat(l.montant).toLocaleString('fr-FR')} €</td>
-                      <td className="px-5 py-2.5 text-right text-orange-600">{spent.toLocaleString('fr-FR')} €</td>
-                      <td className={`px-5 py-2.5 text-right font-bold ${reste < 0 ? 'text-red-600' : 'text-green-600'}`}>{reste.toLocaleString('fr-FR')} €</td>
+                    <tr key={l.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td className="px-5 py-2.5 font-medium" style={{ color: 'var(--fg-muted)' }}>{l.categorie}</td>
+                      <td className="px-5 py-2.5 text-right font-semibold" style={{ color: 'var(--brand)' }}>{parseFloat(l.montant).toLocaleString('fr-FR')} €</td>
+                      <td className="px-5 py-2.5 text-right" style={{ color: '#ea580c' }}>{spent.toLocaleString('fr-FR')} €</td>
+                      <td className="px-5 py-2.5 text-right font-bold" style={{ color: reste < 0 ? 'var(--danger)' : 'var(--success)' }}>{reste.toLocaleString('fr-FR')} €</td>
                     </tr>
                   );
                 })}
@@ -4077,11 +4108,13 @@ function BudgetPanelAPI({ subSection }) {
   };
 
   return (
+    <>
+    {ConfirmModalRenderer}
     <div className="p-6 space-y-5">
       <div className="flex items-center gap-4">
         <div>
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Année budgétaire</label>
-          <select className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+          <label className="text-xs font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--fg-muted)' }}>Année budgétaire</label>
+          <select className="rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             value={annee} onChange={e => setAnnee(Number(e.target.value))}>
             {[2023,2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -4093,6 +4126,7 @@ function BudgetPanelAPI({ subSection }) {
       {subSection === 'budget_factures' && renderFactures()}
       {subSection === 'budget_etat'     && renderEtat()}
     </div>
+    </>
   );
 }
 
@@ -4138,7 +4172,7 @@ function StatsPersonnelsPanel() {
 
   if (loading) return (
     <div className="flex justify-center items-center h-64">
-      <RefreshCw className="w-6 h-6 animate-spin text-teal-500" />
+      <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} />
     </div>
   );
 
@@ -4147,23 +4181,24 @@ function StatsPersonnelsPanel() {
       {/* Toolbar */}
       <div className="flex items-center gap-4">
         <div>
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Année</label>
+          <label className="text-xs font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--fg-muted)' }}>Année</label>
           <select
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            className="rounded-lg px-3 py-2 text-sm focus:outline-none"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             value={annee}
             onChange={e => setAnnee(Number(e.target.value))}
           >
             {[2023,2024,2025,2026].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-        <div className="ml-auto text-sm text-gray-400">
+        <div className="ml-auto text-sm" style={{ color: 'var(--fg-subtle)' }}>
           {totalInterventions} intervention{totalInterventions > 1 ? 's' : ''} — {techs.length} technicien{techs.length > 1 ? 's' : ''}
         </div>
       </div>
 
       {techs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-          <Users className="w-12 h-12 mb-3 text-gray-200" />
+        <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--fg-subtle)' }}>
+          <Users className="w-12 h-12 mb-3" style={{ color: 'var(--border)' }} />
           <p className="text-sm">Aucune donnée pour {annee}</p>
         </div>
       ) : (
@@ -4171,11 +4206,11 @@ function StatsPersonnelsPanel() {
           {/* Summary cards */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: 'Technicien le + actif', val: leader?.nom, sub: `${leader?.total} interventions`, color: 'bg-teal-50 border-teal-200 text-teal-700', icon: <Users className="w-5 h-5" /> },
-              { label: 'Total heures estimées', val: `${techs.reduce((s,t) => s + t.heures, 0).toFixed(1)}h`, sub: 'durée réelle cumulée', color: 'bg-blue-50 border-blue-200 text-blue-700', icon: <Clock className="w-5 h-5" /> },
-              { label: 'Taux de complétion', val: `${totalInterventions ? Math.round(interventions.filter(i=>i.statut==='terminee').length/totalInterventions*100) : 0}%`, sub: 'interventions terminées', color: 'bg-green-50 border-green-200 text-green-700', icon: <CheckCircle className="w-5 h-5" /> },
-            ].map(({ label, val, sub, color, icon }) => (
-              <div key={label} className={`rounded-xl border p-4 ${color}`}>
+              { label: 'Technicien le + actif', val: leader?.nom, sub: `${leader?.total} interventions`, bg: 'var(--accent-teal-soft)', border: 'var(--accent-teal)', color: 'var(--accent-teal)', icon: <Users className="w-5 h-5" /> },
+              { label: 'Total heures estimées', val: `${techs.reduce((s,t) => s + t.heures, 0).toFixed(1)}h`, sub: 'durée réelle cumulée', bg: 'var(--brand-soft)', border: 'var(--brand)', color: 'var(--brand)', icon: <Clock className="w-5 h-5" /> },
+              { label: 'Taux de complétion', val: `${totalInterventions ? Math.round(interventions.filter(i=>i.statut==='terminee').length/totalInterventions*100) : 0}%`, sub: 'interventions terminées', bg: 'var(--success-soft)', border: 'var(--success)', color: 'var(--success)', icon: <CheckCircle className="w-5 h-5" /> },
+            ].map(({ label, val, sub, bg, border, color, icon }) => (
+              <div key={label} className="rounded-lg p-4" style={{ background: bg, border: `1px solid ${border}`, color }}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold uppercase tracking-wider opacity-70">{label}</span>
                   {icon}
@@ -4188,11 +4223,11 @@ function StatsPersonnelsPanel() {
 
           {/* Alerte surcharge */}
           {leader && totalInterventions > 0 && leader.total / totalInterventions > 0.5 && (
-            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 p-4 rounded-lg" style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid #d97706' }}>
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#d97706' }} />
               <div>
-                <p className="text-sm font-semibold text-amber-800">Risque de surcharge détecté</p>
-                <p className="text-xs text-amber-700 mt-0.5">
+                <p className="text-sm font-semibold" style={{ color: '#92400e' }}>Risque de surcharge détecté</p>
+                <p className="text-xs mt-0.5" style={{ color: '#b45309' }}>
                   <strong>{leader.nom}</strong> réalise {Math.round(leader.total/totalInterventions*100)}% des interventions.
                   Envisagez de redistribuer la charge ou de recruter un technicien supplémentaire.
                 </p>
@@ -4201,43 +4236,43 @@ function StatsPersonnelsPanel() {
           )}
 
           {/* Tableau des techniciens */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-                <Users className="w-4 h-4 text-teal-500" /> Classement par activité — {annee}
+          <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+              <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+                <Users className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Classement par activité — {annee}
               </h3>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div>
               {techs.map((t, i) => {
                 const pct = Math.round(t.total / maxTotal * 100);
                 const share = Math.round(t.total / totalInterventions * 100);
+                const rankStyle = i === 0 ? { background: 'var(--warning-soft)', color: 'var(--warning)' }
+                  : i === 1 ? { background: 'var(--surface-2)', color: 'var(--fg-muted)' }
+                  : i === 2 ? { background: 'rgba(234,88,12,0.12)', color: '#ea580c' }
+                  : { background: 'var(--surface-2)', color: 'var(--fg-subtle)' };
                 return (
-                  <div key={t.nom} className="px-5 py-4">
+                  <div key={t.nom} className="px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
                     <div className="flex items-center gap-3 mb-2">
-                      <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                        i === 0 ? 'bg-yellow-100 text-yellow-700' :
-                        i === 1 ? 'bg-gray-100 text-gray-600' :
-                        i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-500'
-                      }`}>
+                      <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={rankStyle}>
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-800 text-sm">{t.nom}</div>
-                        <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+                        <div className="font-semibold text-sm" style={{ color: 'var(--fg)' }}>{t.nom}</div>
+                        <div className="flex items-center gap-3 text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>
                           <span>{t.total} interventions ({share}%)</span>
-                          <span className="text-teal-600">{t.preventives} prév.</span>
-                          <span className="text-orange-600">{t.correctives} corr.</span>
-                          <span className="text-green-600">{t.terminees} terminées</span>
+                          <span style={{ color: 'var(--accent-teal)' }}>{t.preventives} prév.</span>
+                          <span style={{ color: '#ea580c' }}>{t.correctives} corr.</span>
+                          <span style={{ color: 'var(--success)' }}>{t.terminees} terminées</span>
                           {t.heures > 0 && <span>{t.heures.toFixed(1)}h</span>}
                         </div>
                       </div>
-                      <span className="text-sm font-bold text-gray-600 flex-shrink-0">{t.total}</span>
+                      <span className="text-sm font-bold flex-shrink-0" style={{ color: 'var(--fg-muted)' }}>{t.total}</span>
                     </div>
                     {/* Barre de progression */}
-                    <div className="ml-10 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="ml-10 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
                       <div
-                        className={`h-full rounded-full transition-all ${i === 0 ? 'bg-teal-500' : 'bg-gray-300'}`}
-                        style={{ width: `${pct}%` }}
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, background: i === 0 ? 'var(--accent-teal)' : 'var(--border)' }}
                       />
                     </div>
                   </div>
@@ -4270,14 +4305,12 @@ function StatsFinancePanel({ analytics }) {
 
   if (!analytics) return (
     <div className="flex justify-center items-center h-64">
-      <RefreshCw className="w-6 h-6 animate-spin text-teal-500" />
+      <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} />
     </div>
   );
 
   const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
-  // Cost per month = (total interventions × avg duration × taux) — approximate
-  // byMonth already has total and terminee counts
   const monthCosts = analytics.byMonth.map(m => ({
     ...m,
     cout: Math.round(m.terminee * (analytics.avgDuree || 2) * tauxHoraire),
@@ -4288,7 +4321,6 @@ function StatsFinancePanel({ analytics }) {
   const coutCorr = Math.round(analytics.correctiveCount * (analytics.avgDuree || 2) * tauxHoraire);
   const totalTypes = coutPrev + coutCorr || 1;
 
-  // byService costs
   const serviceCosts = analytics.byService.map(s => ({
     ...s,
     cout: Math.round(s.terminee * (analytics.avgDuree || 2) * tauxHoraire),
@@ -4300,26 +4332,26 @@ function StatsFinancePanel({ analytics }) {
       {/* Header + taux horaire */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-gray-800">Analyse Financière de la Maintenance</h3>
-          <p className="text-xs text-gray-400 mt-0.5">Estimation basée sur la durée réelle × taux horaire configuré</p>
+          <h3 className="text-base font-bold" style={{ color: 'var(--fg)' }}>Analyse Financière de la Maintenance</h3>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>Estimation basée sur la durée réelle × taux horaire configuré</p>
         </div>
         <div className="flex items-center gap-2">
           {editRate ? (
             <>
               <input
                 type="number" min="1"
-                className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:ring-2 focus:ring-teal-400 focus:outline-none"
+                className="w-24 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={tmpRate}
                 onChange={e => setTmpRate(e.target.value)}
               />
-              <span className="text-sm text-gray-500">€/h</span>
-              <button onClick={saveRate} className="px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg">OK</button>
-              <button onClick={() => setEditRate(false)} className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg">Annuler</button>
+              <span className="text-sm" style={{ color: 'var(--fg-muted)' }}>€/h</span>
+              <button onClick={saveRate} className="px-3 py-1.5 text-white text-xs font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>OK</button>
+              <button onClick={() => setEditRate(false)} className="px-3 py-1.5 text-xs rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>Annuler</button>
             </>
           ) : (
             <button
               onClick={() => { setTmpRate(tauxHoraire); setEditRate(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}
             >
               <Settings2 className="w-3.5 h-3.5" />
               Taux : {tauxHoraire} €/h
@@ -4331,61 +4363,61 @@ function StatsFinancePanel({ analytics }) {
       {/* KPIs financiers */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Coût total estimé', val: `${totalCout.toLocaleString('fr-FR')} €`, icon: <DollarSign className="w-5 h-5 text-blue-500" />, color: 'border-blue-100 bg-blue-50' },
-          { label: 'Coût préventif', val: `${coutPrev.toLocaleString('fr-FR')} €`, icon: <TrendingUp className="w-5 h-5 text-teal-500" />, color: 'border-teal-100 bg-teal-50', sub: `${Math.round(coutPrev/totalTypes*100)}% du total` },
-          { label: 'Coût correctif', val: `${coutCorr.toLocaleString('fr-FR')} €`, icon: <AlertTriangle className="w-5 h-5 text-orange-500" />, color: 'border-orange-100 bg-orange-50', sub: `${Math.round(coutCorr/totalTypes*100)}% du total` },
-          { label: 'Durée moy / inter.', val: analytics.avgDuree ? `${analytics.avgDuree}h` : '—', icon: <Clock className="w-5 h-5 text-gray-500" />, color: 'border-gray-100 bg-gray-50', sub: 'durée réelle moyenne' },
-        ].map(({ label, val, icon, color, sub }) => (
-          <div key={label} className={`rounded-xl border p-4 ${color}`}>
-            <div className="flex items-center justify-between mb-1">{icon}<span className="text-xs text-gray-500">{label}</span></div>
-            <div className="text-xl font-bold text-gray-800 mt-1">{val}</div>
-            {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+          { label: 'Coût total estimé', val: `${totalCout.toLocaleString('fr-FR')} €`, icon: <DollarSign className="w-5 h-5" style={{ color: 'var(--brand)' }} />, bg: 'var(--brand-soft)', border: 'var(--brand)', color: 'var(--brand)' },
+          { label: 'Coût préventif', val: `${coutPrev.toLocaleString('fr-FR')} €`, icon: <TrendingUp className="w-5 h-5" style={{ color: 'var(--accent-teal)' }} />, bg: 'var(--accent-teal-soft)', border: 'var(--accent-teal)', color: 'var(--accent-teal)', sub: `${Math.round(coutPrev/totalTypes*100)}% du total` },
+          { label: 'Coût correctif', val: `${coutCorr.toLocaleString('fr-FR')} €`, icon: <AlertTriangle className="w-5 h-5" style={{ color: '#ea580c' }} />, bg: 'rgba(234,88,12,0.1)', border: '#ea580c', color: '#ea580c', sub: `${Math.round(coutCorr/totalTypes*100)}% du total` },
+          { label: 'Durée moy / inter.', val: analytics.avgDuree ? `${analytics.avgDuree}h` : '—', icon: <Clock className="w-5 h-5" style={{ color: 'var(--fg-muted)' }} />, bg: 'var(--surface-2)', border: 'var(--border)', color: 'var(--fg-muted)', sub: 'durée réelle moyenne' },
+        ].map(({ label, val, icon, bg, border, color, sub }) => (
+          <div key={label} className="rounded-lg p-4" style={{ background: bg, border: `1px solid ${border}` }}>
+            <div className="flex items-center justify-between mb-1">{icon}<span className="text-xs" style={{ color }}>{label}</span></div>
+            <div className="text-xl font-bold mt-1" style={{ color }}>{val}</div>
+            {sub && <div className="text-xs mt-0.5" style={{ color }}>{sub}</div>}
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Évolution mensuelle du coût */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <BarChart2 className="w-4 h-4 text-blue-500" /> Coût mensuel estimé
+        <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+            <BarChart2 className="w-4 h-4" style={{ color: 'var(--brand)' }} /> Coût mensuel estimé
           </h3>
           <div className="flex items-end gap-1 h-32">
             {monthCosts.map((m, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                 <div
-                  className="w-full bg-blue-400 rounded-t-sm transition-all hover:bg-blue-500"
-                  style={{ height: `${m.cout ? Math.max(4, (m.cout / maxCout) * 100) : 0}%` }}
+                  className="w-full rounded-t-sm transition-all"
+                  style={{ height: `${m.cout ? Math.max(4, (m.cout / maxCout) * 100) : 0}%`, background: 'var(--brand)' }}
                   title={`${MONTHS[i]} : ${m.cout.toLocaleString('fr-FR')} €`}
                 />
-                <span className="text-[9px] text-gray-400">{MONTHS[i]}</span>
+                <span className="text-[9px]" style={{ color: 'var(--fg-subtle)' }}>{MONTHS[i]}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Répartition préventif / correctif */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <PieChart className="w-4 h-4 text-teal-500" /> Répartition du coût
+        <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+            <PieChart className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Répartition du coût
           </h3>
           <div className="space-y-3 mt-4">
             {[
-              { label: 'Préventif', val: coutPrev, color: 'bg-teal-500', pct: Math.round(coutPrev/totalTypes*100) },
-              { label: 'Correctif', val: coutCorr, color: 'bg-orange-400', pct: Math.round(coutCorr/totalTypes*100) },
-            ].map(({ label, val, color, pct }) => (
+              { label: 'Préventif', val: coutPrev, barColor: 'var(--accent-teal)', pct: Math.round(coutPrev/totalTypes*100) },
+              { label: 'Correctif', val: coutCorr, barColor: '#ea580c', pct: Math.round(coutCorr/totalTypes*100) },
+            ].map(({ label, val, barColor, pct }) => (
               <div key={label}>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600 font-medium">{label}</span>
-                  <span className="font-bold text-gray-800">{val.toLocaleString('fr-FR')} € <span className="text-gray-400 font-normal text-xs">({pct}%)</span></span>
+                  <span className="font-medium" style={{ color: 'var(--fg-muted)' }}>{label}</span>
+                  <span className="font-bold" style={{ color: 'var(--fg)' }}>{val.toLocaleString('fr-FR')} € <span className="font-normal text-xs" style={{ color: 'var(--fg-subtle)' }}>({pct}%)</span></span>
                 </div>
-                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400 italic">
+          <div className="mt-4 pt-4 text-xs italic" style={{ borderTop: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
             * Estimation : nb interventions × durée moy ({analytics.avgDuree || 2}h) × {tauxHoraire} €/h
           </div>
         </div>
@@ -4393,21 +4425,21 @@ function StatsFinancePanel({ analytics }) {
 
       {/* Coût par service */}
       {serviceCosts.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-purple-500" /> Coût par service
+        <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+            <Layers className="w-4 h-4" style={{ color: '#9333ea' }} /> Coût par service
           </h3>
           <div className="space-y-2.5">
             {serviceCosts.slice(0,8).map((s) => (
               <div key={s.service} className="flex items-center gap-3">
-                <span className="text-sm text-gray-600 w-24 truncate flex-shrink-0">{s.service}</span>
-                <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                <span className="text-sm w-24 truncate flex-shrink-0" style={{ color: 'var(--fg-muted)' }}>{s.service}</span>
+                <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
                   <div
-                    className="h-full bg-purple-400 rounded-full transition-all"
-                    style={{ width: `${(s.cout / maxSvcCout) * 100}%` }}
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${(s.cout / maxSvcCout) * 100}%`, background: '#9333ea' }}
                   />
                 </div>
-                <span className="text-sm font-semibold text-gray-700 w-28 text-right flex-shrink-0">
+                <span className="text-sm font-semibold w-28 text-right flex-shrink-0" style={{ color: 'var(--fg-muted)' }}>
                   {s.cout.toLocaleString('fr-FR')} €
                 </span>
               </div>
@@ -4471,14 +4503,14 @@ function ToolPanoramaPiecesPanel() {
   });
   const maxMonth = Math.max(...byMonth.map(m => m.count), 1);
 
-  if (loading) return <div className="flex justify-center items-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-teal-500" /></div>;
+  if (loading) return <div className="flex justify-center items-center h-64"><RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>;
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-base font-bold text-gray-800">Panorama des Pièces & Consommables</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Analyse des pièces remplacées lors des interventions terminées</p>
+          <h2 className="text-base font-bold" style={{ color: 'var(--fg)' }}>Panorama des Pièces & Consommables</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>Analyse des pièces remplacées lors des interventions terminées</p>
         </div>
         <div className="flex gap-3">
           {[
@@ -4486,38 +4518,39 @@ function ToolPanoramaPiecesPanel() {
             { val: ivWithPieces, label: 'interventions concernées' },
             { val: topPieces.length, label: 'références distinctes' },
           ].map(({ val, label }) => (
-            <div key={label} className="text-center bg-white border border-gray-200 rounded-xl px-4 py-2">
-              <div className="text-xl font-bold text-gray-800">{val}</div>
-              <div className="text-[10px] text-gray-400">{label}</div>
+            <div key={label} className="text-center rounded-lg px-4 py-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="text-xl font-bold" style={{ color: 'var(--fg)' }}>{val}</div>
+              <div className="text-[10px]" style={{ color: 'var(--fg-subtle)' }}>{label}</div>
             </div>
           ))}
         </div>
       </div>
 
       {topPieces.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-          <Package className="w-12 h-12 mb-3 text-gray-200" />
+        <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--fg-subtle)' }}>
+          <Package className="w-12 h-12 mb-3" style={{ color: 'var(--border)' }} />
           <p className="text-sm">Aucune pièce enregistrée dans les interventions</p>
           <p className="text-xs mt-1">Renseignez le champ "Pièces remplacées" lors de la clôture d'interventions</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Top pièces */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Package className="w-4 h-4 text-teal-500" /> Top pièces utilisées
+          <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+              <Package className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Top pièces utilisées
             </h3>
             <div className="space-y-2.5">
               {topPieces.map((p, i) => (
                 <div key={p.nom} className="flex items-center gap-3">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
-                    i < 3 ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'
-                  }`}>{i+1}</span>
-                  <span className="text-sm text-gray-700 flex-1 truncate capitalize">{p.nom}</span>
-                  <div className="w-24 h-2.5 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
-                    <div className={`h-full rounded-full ${i < 3 ? 'bg-teal-500' : 'bg-gray-300'}`} style={{ width: `${(p.count/maxCount)*100}%` }} />
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                    style={i < 3 ? { background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' } : { background: 'var(--surface-2)', color: 'var(--fg-subtle)' }}>
+                    {i+1}
+                  </span>
+                  <span className="text-sm flex-1 truncate capitalize" style={{ color: 'var(--fg-muted)' }}>{p.nom}</span>
+                  <div className="w-24 h-2.5 rounded-full overflow-hidden flex-shrink-0" style={{ background: 'var(--surface-2)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${(p.count/maxCount)*100}%`, background: i < 3 ? 'var(--accent-teal)' : 'var(--border)' }} />
                   </div>
-                  <span className="text-sm font-bold text-gray-600 w-8 text-right flex-shrink-0">{p.count}</span>
+                  <span className="text-sm font-bold w-8 text-right flex-shrink-0" style={{ color: 'var(--fg-muted)' }}>{p.count}</span>
                 </div>
               ))}
             </div>
@@ -4525,37 +4558,37 @@ function ToolPanoramaPiecesPanel() {
 
           {/* Services les plus consommateurs */}
           <div className="space-y-4">
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-purple-500" /> Services consommateurs
+            <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+                <Layers className="w-4 h-4" style={{ color: '#9333ea' }} /> Services consommateurs
               </h3>
               <div className="space-y-2.5">
                 {topServices.map(([svc, count]) => (
                   <div key={svc} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 w-20 truncate flex-shrink-0">{svc}</span>
-                    <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-400 rounded-full" style={{ width: `${(count/maxSvc)*100}%` }} />
+                    <span className="text-sm w-20 truncate flex-shrink-0" style={{ color: 'var(--fg-muted)' }}>{svc}</span>
+                    <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                      <div className="h-full rounded-full" style={{ width: `${(count/maxSvc)*100}%`, background: '#9333ea' }} />
                     </div>
-                    <span className="text-sm font-bold text-gray-700 w-8 text-right flex-shrink-0">{count}</span>
+                    <span className="text-sm font-bold w-8 text-right flex-shrink-0" style={{ color: 'var(--fg-muted)' }}>{count}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Fréquence mensuelle */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <BarChart2 className="w-4 h-4 text-blue-500" /> Fréquence mensuelle
+            <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+                <BarChart2 className="w-4 h-4" style={{ color: 'var(--brand)' }} /> Fréquence mensuelle
               </h3>
               <div className="flex items-end gap-1 h-16">
                 {byMonth.map((m, i) => (
                   <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                     <div
-                      className="w-full bg-blue-300 rounded-t-sm hover:bg-blue-400 transition-colors"
-                      style={{ height: `${m.count ? Math.max(4, (m.count/maxMonth)*100) : 0}%` }}
+                      className="w-full rounded-t-sm transition-colors"
+                      style={{ height: `${m.count ? Math.max(4, (m.count/maxMonth)*100) : 0}%`, background: 'var(--brand)' }}
                       title={`${MONTHS[i]} : ${m.count}`}
                     />
-                    <span className="text-[8px] text-gray-400">{MONTHS[i].substring(0,1)}</span>
+                    <span className="text-[8px]" style={{ color: 'var(--fg-subtle)' }}>{MONTHS[i].substring(0,1)}</span>
                   </div>
                 ))}
               </div>
@@ -4570,12 +4603,11 @@ function ToolPanoramaPiecesPanel() {
 // ─── TOOL ANALYSE 20/80 PANEL ─────────────────────────────────────────────────
 
 function ToolAnalyse2080Panel({ analytics }) {
-  if (!analytics) return <div className="flex justify-center items-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-teal-500" /></div>;
+  if (!analytics) return <div className="flex justify-center items-center h-64"><RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>;
 
   const defaillants = analytics.topDefaillants || [];
   const totalPannes = defaillants.reduce((s, d) => s + d.nbPannes, 0) || 1;
 
-  // Build cumulative Pareto data
   let cumul = 0;
   const pareto = defaillants.map((d, i) => {
     cumul += d.nbPannes;
@@ -4587,28 +4619,26 @@ function ToolAnalyse2080Panel({ analytics }) {
     };
   });
 
-  // Find where cumulative crosses 80%
   const seuil80 = pareto.findIndex(p => p.pctCumul >= 80);
   const nb20pct = seuil80 >= 0 ? seuil80 + 1 : pareto.length;
   const pct20equip = pareto.length > 0 ? Math.round(nb20pct / pareto.length * 100) : 0;
-
   const maxPannes = Math.max(...pareto.map(p => p.nbPannes), 1);
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-yellow-500" />
+        <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+          <Zap className="w-5 h-5" style={{ color: 'var(--warning)' }} />
           Analyse 20/80 — Budget de Maintenance
         </h2>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>
           Les {pct20equip}% d'équipements les plus défaillants concentrent 80% des interventions correctives
         </p>
       </div>
 
       {pareto.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-          <Zap className="w-12 h-12 mb-3 text-gray-200" />
+        <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--fg-subtle)' }}>
+          <Zap className="w-12 h-12 mb-3" style={{ color: 'var(--border)' }} />
           <p className="text-sm">Aucune intervention corrective enregistrée</p>
         </div>
       ) : (
@@ -4616,11 +4646,11 @@ function ToolAnalyse2080Panel({ analytics }) {
           {/* Résumé Pareto */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: 'Équipements critiques', val: nb20pct, sub: `représentent 80% des pannes`, color: 'bg-red-50 border-red-200 text-red-700' },
-              { label: 'Total pannes correctives', val: totalPannes, sub: 'sur tous les équipements', color: 'bg-orange-50 border-orange-200 text-orange-700' },
-              { label: 'Équipement le + défaillant', val: pareto[0]?.equipement?.nom || '—', sub: `${pareto[0]?.nbPannes || 0} pannes`, color: 'bg-yellow-50 border-yellow-200 text-yellow-700' },
-            ].map(({ label, val, sub, color }) => (
-              <div key={label} className={`rounded-xl border p-4 ${color}`}>
+              { label: 'Équipements critiques', val: nb20pct, sub: `représentent 80% des pannes`, bg: 'var(--danger-soft)', border: 'var(--danger)', color: 'var(--danger)' },
+              { label: 'Total pannes correctives', val: totalPannes, sub: 'sur tous les équipements', bg: 'rgba(234,88,12,0.1)', border: '#ea580c', color: '#ea580c' },
+              { label: 'Équipement le + défaillant', val: pareto[0]?.equipement?.nom || '—', sub: `${pareto[0]?.nbPannes || 0} pannes`, bg: 'var(--warning-soft)', border: 'var(--warning)', color: 'var(--warning)' },
+            ].map(({ label, val, sub, bg, border, color }) => (
+              <div key={label} className="rounded-lg p-4" style={{ background: bg, border: `1px solid ${border}`, color }}>
                 <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-2">{label}</div>
                 <div className="text-xl font-bold truncate">{val}</div>
                 <div className="text-xs opacity-70 mt-0.5">{sub}</div>
@@ -4629,17 +4659,17 @@ function ToolAnalyse2080Panel({ analytics }) {
           </div>
 
           {/* Graphe Pareto */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-5 flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-orange-500" /> Diagramme de Pareto
+          <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-5 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+              <BarChart2 className="w-4 h-4" style={{ color: '#ea580c' }} /> Diagramme de Pareto
             </h3>
             <div className="relative">
               {/* Barre seuil 80% */}
               <div
-                className="absolute top-0 bottom-8 border-l-2 border-dashed border-red-400 z-10"
-                style={{ left: `${seuil80 >= 0 ? ((seuil80 + 0.5) / pareto.length) * 100 : 80}%` }}
+                className="absolute top-0 bottom-8 border-l-2 border-dashed z-10"
+                style={{ left: `${seuil80 >= 0 ? ((seuil80 + 0.5) / pareto.length) * 100 : 80}%`, borderColor: 'var(--danger)' }}
               >
-                <span className="absolute -top-5 -translate-x-1/2 text-[10px] text-red-500 font-bold whitespace-nowrap bg-white px-1">
+                <span className="absolute -top-5 -translate-x-1/2 text-[10px] font-bold whitespace-nowrap px-1" style={{ color: 'var(--danger)', background: 'var(--surface)' }}>
                   seuil 80%
                 </span>
               </div>
@@ -4649,8 +4679,8 @@ function ToolAnalyse2080Panel({ analytics }) {
                   return (
                     <div key={p.equipement?.id || i} className="flex-1 flex flex-col items-center">
                       <div
-                        className={`w-full rounded-t-sm transition-all ${isAbove80 ? 'bg-red-400 hover:bg-red-500' : 'bg-gray-300 hover:bg-gray-400'}`}
-                        style={{ height: `${Math.max(4, (p.nbPannes / maxPannes) * 100)}%` }}
+                        className="w-full rounded-t-sm transition-all"
+                        style={{ height: `${Math.max(4, (p.nbPannes / maxPannes) * 100)}%`, background: isAbove80 ? 'var(--danger)' : 'var(--border)' }}
                         title={`${p.equipement?.nom}: ${p.nbPannes} pannes (${p.pctCumul}% cumulé)`}
                       />
                     </div>
@@ -4661,14 +4691,14 @@ function ToolAnalyse2080Panel({ analytics }) {
           </div>
 
           {/* Tableau détaillé */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Classement détaillé</h3>
+          <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+              <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--fg-muted)' }}>Classement détaillé</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wider">
+                  <tr className="text-xs uppercase tracking-wider" style={{ borderBottom: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
                     <th className="text-left px-4 py-2">Rang</th>
                     <th className="text-left px-4 py-2">Équipement</th>
                     <th className="text-left px-4 py-2">Service</th>
@@ -4677,21 +4707,21 @@ function ToolAnalyse2080Panel({ analytics }) {
                     <th className="text-left px-4 py-2">Zone</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody>
                   {pareto.map((p, i) => (
-                    <tr key={i} className={`${i < nb20pct ? 'bg-red-50' : ''} hover:bg-gray-50`}>
-                      <td className="px-4 py-2.5 font-bold text-gray-500">#{p.rank}</td>
-                      <td className="px-4 py-2.5 font-medium text-gray-800">{p.equipement?.nom || '—'}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{p.equipement?.service || '—'}</td>
-                      <td className="px-4 py-2.5 text-right font-bold text-orange-600">{p.nbPannes}</td>
+                    <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i < nb20pct ? 'var(--danger-soft)' : 'transparent' }}>
+                      <td className="px-4 py-2.5 font-bold" style={{ color: 'var(--fg-muted)' }}>#{p.rank}</td>
+                      <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--fg)' }}>{p.equipement?.nom || '—'}</td>
+                      <td className="px-4 py-2.5" style={{ color: 'var(--fg-muted)' }}>{p.equipement?.service || '—'}</td>
+                      <td className="px-4 py-2.5 text-right font-bold" style={{ color: '#ea580c' }}>{p.nbPannes}</td>
                       <td className="px-4 py-2.5 text-right">
-                        <span className={`font-semibold ${p.pctCumul >= 80 ? 'text-red-500' : 'text-gray-600'}`}>{p.pctCumul}%</span>
+                        <span className="font-semibold" style={{ color: p.pctCumul >= 80 ? 'var(--danger)' : 'var(--fg-muted)' }}>{p.pctCumul}%</span>
                       </td>
                       <td className="px-4 py-2.5">
                         {i < nb20pct ? (
-                          <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-semibold">Critique</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>Critique</span>
                         ) : (
-                          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">Normal</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--fg-subtle)' }}>Normal</span>
                         )}
                       </td>
                     </tr>
@@ -4709,16 +4739,15 @@ function ToolAnalyse2080Panel({ analytics }) {
 // ─── TOOL CONSOMMATION BUDGET PANEL ──────────────────────────────────────────
 
 function ToolConsoBudgetPanel({ analytics }) {
-  if (!analytics) return <div className="flex justify-center items-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-teal-500" /></div>;
+  if (!analytics) return <div className="flex justify-center items-center h-64"><RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>;
 
   const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
   const totalTypes = (analytics.preventiveCount + analytics.correctiveCount) || 1;
   const maxMonth = Math.max(...analytics.byMonth.map(m => m.total), 1);
   const maxService = Math.max(...analytics.byService.map(s => s.total), 1);
 
-  const COLORS = ['bg-teal-500','bg-blue-500','bg-purple-500','bg-orange-400','bg-pink-500','bg-indigo-500','bg-yellow-500','bg-red-400'];
+  const SERVICE_BAR_COLORS = ['var(--accent-teal)','var(--brand)','#9333ea','#ea580c','#ec4899','#6366f1','var(--warning)','var(--danger)'];
 
-  // Recommandations automatiques
   const recs = [];
   if (analytics.tauxConformite < 70)
     recs.push({ type: 'warning', msg: `Taux de conformité bas (${analytics.tauxConformite}%) — renforcer la planification préventive.` });
@@ -4735,31 +4764,31 @@ function ToolConsoBudgetPanel({ analytics }) {
     recs.push({ type: 'success', msg: 'Vos indicateurs de maintenance sont dans les normes. Continuez sur cette lancée !' });
 
   const REC_STYLE = {
-    warning: 'bg-amber-50 border-amber-200 text-amber-800',
-    danger:  'bg-red-50 border-red-200 text-red-800',
-    info:    'bg-blue-50 border-blue-200 text-blue-800',
-    success: 'bg-green-50 border-green-200 text-green-800',
+    warning: { background: 'var(--warning-soft)', border: '1px solid var(--warning)', color: '#92400e' },
+    danger:  { background: 'var(--danger-soft)',  border: '1px solid var(--danger)',  color: 'var(--danger)' },
+    info:    { background: 'var(--brand-soft)',    border: '1px solid var(--brand)',   color: 'var(--brand)' },
+    success: { background: 'var(--success-soft)',  border: '1px solid var(--success)', color: 'var(--success)' },
   };
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
-          <PieChart className="w-5 h-5 text-purple-500" />
+        <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+          <PieChart className="w-5 h-5" style={{ color: '#9333ea' }} />
           Analyse de la Consommation du Budget
         </h2>
-        <p className="text-xs text-gray-400 mt-1">Vue globale de l'efficacité de votre activité de maintenance</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>Vue globale de l'efficacité de votre activité de maintenance</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Conformité', val: `${analytics.tauxConformite}%`, icon: <CheckCircle className="w-5 h-5" />, color: analytics.tauxConformite >= 80 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700' },
-          { label: 'Interventions (année)', val: analytics.totalThisYear, icon: <Wrench className="w-5 h-5" />, color: 'bg-blue-50 border-blue-200 text-blue-700' },
-          { label: 'Part préventif', val: `${Math.round(analytics.preventiveCount/totalTypes*100)}%`, icon: <TrendingUp className="w-5 h-5" />, color: 'bg-teal-50 border-teal-200 text-teal-700' },
-          { label: 'Retards', val: analytics.enRetard, icon: <AlertTriangle className="w-5 h-5" />, color: analytics.enRetard > 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700' },
-        ].map(({ label, val, icon, color }) => (
-          <div key={label} className={`rounded-xl border p-4 ${color}`}>
+          { label: 'Conformité', val: `${analytics.tauxConformite}%`, icon: <CheckCircle className="w-5 h-5" />, bg: analytics.tauxConformite >= 80 ? 'var(--success-soft)' : 'var(--warning-soft)', border: analytics.tauxConformite >= 80 ? 'var(--success)' : 'var(--warning)', color: analytics.tauxConformite >= 80 ? 'var(--success)' : 'var(--warning)' },
+          { label: 'Interventions (année)', val: analytics.totalThisYear, icon: <Wrench className="w-5 h-5" />, bg: 'var(--brand-soft)', border: 'var(--brand)', color: 'var(--brand)' },
+          { label: 'Part préventif', val: `${Math.round(analytics.preventiveCount/totalTypes*100)}%`, icon: <TrendingUp className="w-5 h-5" />, bg: 'var(--accent-teal-soft)', border: 'var(--accent-teal)', color: 'var(--accent-teal)' },
+          { label: 'Retards', val: analytics.enRetard, icon: <AlertTriangle className="w-5 h-5" />, bg: analytics.enRetard > 0 ? 'var(--danger-soft)' : 'var(--success-soft)', border: analytics.enRetard > 0 ? 'var(--danger)' : 'var(--success)', color: analytics.enRetard > 0 ? 'var(--danger)' : 'var(--success)' },
+        ].map(({ label, val, icon, bg, border, color }) => (
+          <div key={label} className="rounded-lg p-4" style={{ background: bg, border: `1px solid ${border}`, color }}>
             <div className="flex items-center justify-between mb-2">{icon}<span className="text-xs font-semibold uppercase opacity-70">{label}</span></div>
             <div className="text-2xl font-bold">{val}</div>
           </div>
@@ -4768,57 +4797,57 @@ function ToolConsoBudgetPanel({ analytics }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Répartition Prév / Corr */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Répartition des interventions</h3>
+        <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--fg-muted)' }}>Répartition des interventions</h3>
           <div className="space-y-3">
             {[
-              { label: 'Préventif', count: analytics.preventiveCount, color: 'bg-teal-500' },
-              { label: 'Correctif', count: analytics.correctiveCount, color: 'bg-orange-400' },
-            ].map(({ label, count, color }) => {
+              { label: 'Préventif', count: analytics.preventiveCount, barColor: 'var(--accent-teal)' },
+              { label: 'Correctif', count: analytics.correctiveCount, barColor: '#ea580c' },
+            ].map(({ label, count, barColor }) => {
               const pct = Math.round(count / totalTypes * 100);
               return (
                 <div key={label}>
                   <div className="flex justify-between text-sm mb-1.5">
-                    <span className="text-gray-600">{label}</span>
-                    <span className="font-bold text-gray-800">{count} <span className="text-gray-400 font-normal">({pct}%)</span></span>
+                    <span style={{ color: 'var(--fg-muted)' }}>{label}</span>
+                    <span className="font-bold" style={{ color: 'var(--fg)' }}>{count} <span className="font-normal" style={{ color: 'var(--fg-subtle)' }}>({pct}%)</span></span>
                   </div>
-                  <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                  <div className="h-4 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColor }} />
                   </div>
                 </div>
               );
             })}
           </div>
           {/* Terminées vs planifiées */}
-          <div className="mt-5 pt-4 border-t border-gray-100">
+          <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
             <div className="flex justify-between text-sm mb-1.5">
-              <span className="text-gray-600">Terminées / Planifiées</span>
-              <span className="font-bold text-gray-800">{analytics.termineeThisYear} / {analytics.totalThisYear}</span>
+              <span style={{ color: 'var(--fg-muted)' }}>Terminées / Planifiées</span>
+              <span className="font-bold" style={{ color: 'var(--fg)' }}>{analytics.termineeThisYear} / {analytics.totalThisYear}</span>
             </div>
-            <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-4 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
               <div
-                className={`h-full rounded-full ${analytics.tauxConformite >= 80 ? 'bg-green-500' : analytics.tauxConformite >= 60 ? 'bg-yellow-400' : 'bg-red-400'}`}
-                style={{ width: `${analytics.tauxConformite}%` }}
+                className="h-full rounded-full"
+                style={{ width: `${analytics.tauxConformite}%`, background: analytics.tauxConformite >= 80 ? 'var(--success)' : analytics.tauxConformite >= 60 ? 'var(--warning)' : 'var(--danger)' }}
               />
             </div>
           </div>
         </div>
 
         {/* Distribution par service */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Distribution par service</h3>
+        <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--fg-muted)' }}>Distribution par service</h3>
           {analytics.byService.length === 0 ? (
-            <div className="text-center text-gray-400 py-8 text-sm">Aucune donnée</div>
+            <div className="text-center py-8 text-sm" style={{ color: 'var(--fg-subtle)' }}>Aucune donnée</div>
           ) : (
             <div className="space-y-2.5">
               {analytics.byService.slice(0,6).map((s, i) => (
                 <div key={s.service} className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-sm flex-shrink-0 ${COLORS[i % COLORS.length]}`} />
-                  <span className="text-sm text-gray-600 w-20 truncate flex-shrink-0">{s.service}</span>
-                  <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full ${COLORS[i % COLORS.length]} rounded-full`} style={{ width: `${(s.total/maxService)*100}%` }} />
+                  <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: SERVICE_BAR_COLORS[i % SERVICE_BAR_COLORS.length] }} />
+                  <span className="text-sm w-20 truncate flex-shrink-0" style={{ color: 'var(--fg-muted)' }}>{s.service}</span>
+                  <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${(s.total/maxService)*100}%`, background: SERVICE_BAR_COLORS[i % SERVICE_BAR_COLORS.length] }} />
                   </div>
-                  <span className="text-xs font-semibold text-gray-600 w-8 text-right">{s.total}</span>
+                  <span className="text-xs font-semibold w-8 text-right" style={{ color: 'var(--fg-muted)' }}>{s.total}</span>
                 </div>
               ))}
             </div>
@@ -4827,43 +4856,41 @@ function ToolConsoBudgetPanel({ analytics }) {
       </div>
 
       {/* Évolution mensuelle */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <BarChart2 className="w-4 h-4 text-blue-500" /> Activité mensuelle (année en cours)
+      <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+          <BarChart2 className="w-4 h-4" style={{ color: 'var(--brand)' }} /> Activité mensuelle (année en cours)
         </h3>
         <div className="flex items-end gap-1 h-28">
           {analytics.byMonth.map((m, i) => (
             <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
               <div className="w-full flex flex-col items-stretch" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                {/* Terminées */}
                 <div
-                  className="w-full bg-teal-400 hover:bg-teal-500 transition-colors"
-                  style={{ height: `${m.terminee ? Math.max(2, (m.terminee/maxMonth)*80) : 0}%` }}
+                  className="w-full transition-colors"
+                  style={{ height: `${m.terminee ? Math.max(2, (m.terminee/maxMonth)*80) : 0}%`, background: 'var(--accent-teal)' }}
                   title={`${MONTHS[i]}: ${m.terminee} terminées / ${m.total} total`}
                 />
-                {/* Non terminées */}
                 <div
-                  className="w-full bg-gray-200"
-                  style={{ height: `${(m.total - m.terminee) ? Math.max(2, ((m.total-m.terminee)/maxMonth)*80) : 0}%` }}
+                  className="w-full"
+                  style={{ height: `${(m.total - m.terminee) ? Math.max(2, ((m.total-m.terminee)/maxMonth)*80) : 0}%`, background: 'var(--border)' }}
                 />
               </div>
-              <span className="text-[9px] text-gray-400">{MONTHS[i]}</span>
+              <span className="text-[9px]" style={{ color: 'var(--fg-subtle)' }}>{MONTHS[i]}</span>
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
-          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-teal-400" />Terminées</div>
-          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-gray-200" />En attente</div>
+        <div className="flex items-center gap-4 mt-3 text-xs" style={{ color: 'var(--fg-subtle)' }}>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ background: 'var(--accent-teal)' }} />Terminées</div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ background: 'var(--border)' }} />En attente</div>
         </div>
       </div>
 
       {/* Recommandations */}
       <div className="space-y-2">
-        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-          <Zap className="w-4 h-4 text-yellow-500" /> Recommandations automatiques
+        <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
+          <Zap className="w-4 h-4" style={{ color: 'var(--warning)' }} /> Recommandations automatiques
         </h3>
         {recs.map((r, i) => (
-          <div key={i} className={`flex items-start gap-3 p-3.5 rounded-xl border ${REC_STYLE[r.type]}`}>
+          <div key={i} className="flex items-start gap-3 p-3.5 rounded-lg" style={REC_STYLE[r.type]}>
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <p className="text-sm">{r.msg}</p>
           </div>
@@ -4938,57 +4965,61 @@ function BudgetPanel({ subSection }) {
   };
   const delFacture = (id) => save({ ...budget, [key('factures')]: factures.filter(f => f.id !== id) });
 
-  const FACT_STATUT = { en_attente: { label: 'En attente', color: 'bg-yellow-100 text-yellow-700' }, payee: { label: 'Payée', color: 'bg-green-100 text-green-700' }, contestee: { label: 'Contestée', color: 'bg-red-100 text-red-700' } };
+  const BP_FACT_STATUT = {
+    en_attente: { label: 'En attente', style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
+    payee:      { label: 'Payée',      style: { background: 'var(--success-soft)', color: 'var(--success)' } },
+    contestee:  { label: 'Contestée',  style: { background: 'var(--danger-soft)',  color: 'var(--danger)'  } },
+  };
 
   const SectionHeader = ({ icon, title }) => (
-    <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">{icon}{title}</h3>
+    <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>{icon}{title}</h3>
   );
 
   const renderLigneBudgetaire = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <SectionHeader icon={<DollarSign className="w-4 h-4 text-blue-500" />} title="Ajouter une ligne budgétaire" />
+      <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <SectionHeader icon={<DollarSign className="w-4 h-4" style={{ color: 'var(--brand)' }} />} title="Ajouter une ligne budgétaire" />
         <form onSubmit={addLigne} className="space-y-3">
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Catégorie *</label>
-            <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none bg-white"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Catégorie *</label>
+            <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={formLigne.categorie} onChange={e => setFormLigne(f => ({ ...f, categorie: e.target.value }))}>
               <option value="">— Sélectionner —</option>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Montant alloué (€) *</label>
-            <input type="number" min="0" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Montant alloué (€) *</label>
+            <input type="number" min="0" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               placeholder="0" value={formLigne.montant} onChange={e => setFormLigne(f => ({ ...f, montant: e.target.value }))} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Description</label>
-            <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Description</label>
+            <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               placeholder="Optionnel…" value={formLigne.description} onChange={e => setFormLigne(f => ({ ...f, description: e.target.value }))} />
           </div>
-          <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+          <button type="submit" className="w-full py-2 text-white text-sm font-semibold rounded-lg transition-colors" style={{ background: 'var(--brand)' }}>
             Ajouter la ligne
           </button>
         </form>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <span className="text-sm font-bold text-gray-700">Lignes budgétaires {annee}</span>
-          <span className="text-sm font-bold text-blue-600">{totalAlloue.toLocaleString('fr-FR')} €</span>
+      <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+          <span className="text-sm font-bold" style={{ color: 'var(--fg-muted)' }}>Lignes budgétaires {annee}</span>
+          <span className="text-sm font-bold" style={{ color: 'var(--brand)' }}>{totalAlloue.toLocaleString('fr-FR')} €</span>
         </div>
         {lignes.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Aucune ligne budgétaire</div>
+          <div className="p-8 text-center text-sm" style={{ color: 'var(--fg-subtle)' }}>Aucune ligne budgétaire</div>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div>
             {lignes.map(l => (
-              <div key={l.id} className="flex items-center gap-3 px-5 py-3">
+              <div key={l.id} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-800">{l.categorie}</div>
-                  {l.description && <div className="text-xs text-gray-400">{l.description}</div>}
+                  <div className="text-sm font-medium" style={{ color: 'var(--fg)' }}>{l.categorie}</div>
+                  {l.description && <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{l.description}</div>}
                 </div>
-                <span className="font-bold text-blue-700">{parseFloat(l.montant).toLocaleString('fr-FR')} €</span>
-                <button onClick={() => delLigne(l.id)} className="text-gray-300 hover:text-red-500 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                <span className="font-bold" style={{ color: 'var(--brand)' }}>{parseFloat(l.montant).toLocaleString('fr-FR')} €</span>
+                <button onClick={() => delLigne(l.id)} style={{ color: 'var(--fg-subtle)' }}><X className="w-3.5 h-3.5" /></button>
               </div>
             ))}
           </div>
@@ -4999,8 +5030,8 @@ function BudgetPanel({ subSection }) {
 
   const renderAchats = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <SectionHeader icon={<ShoppingCart className="w-4 h-4 text-orange-500" />} title="Enregistrer un achat / dépense" />
+      <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <SectionHeader icon={<ShoppingCart className="w-4 h-4" style={{ color: '#ea580c' }} />} title="Enregistrer un achat / dépense" />
         <form onSubmit={addAchat} className="space-y-3">
           {[
             { key: 'date', label: 'Date', type: 'date' },
@@ -5009,42 +5040,42 @@ function BudgetPanel({ subSection }) {
             { key: 'montant', label: 'Montant (€) *', type: 'number', placeholder: '0' },
           ].map(({ key, label, type, placeholder }) => (
             <div key={key}>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">{label}</label>
-              <input type={type} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{label}</label>
+              <input type={type} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder={placeholder} value={formAchat[key]} onChange={e => setFormAchat(f => ({ ...f, [key]: e.target.value }))} />
             </div>
           ))}
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Catégorie</label>
-            <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none bg-white"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Catégorie</label>
+            <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={formAchat.categorie} onChange={e => setFormAchat(f => ({ ...f, categorie: e.target.value }))}>
               <option value="">— Catégorie —</option>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
-          <button type="submit" className="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-colors">
+          <button type="submit" className="w-full py-2 text-white text-sm font-semibold rounded-lg transition-colors" style={{ background: '#ea580c' }}>
             Enregistrer la dépense
           </button>
         </form>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <span className="text-sm font-bold text-gray-700">Achats & Dépenses {annee}</span>
-          <span className="text-sm font-bold text-orange-600">{totalAchats.toLocaleString('fr-FR')} €</span>
+      <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+          <span className="text-sm font-bold" style={{ color: 'var(--fg-muted)' }}>Achats & Dépenses {annee}</span>
+          <span className="text-sm font-bold" style={{ color: '#ea580c' }}>{totalAchats.toLocaleString('fr-FR')} €</span>
         </div>
         {achats.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Aucun achat enregistré</div>
+          <div className="p-8 text-center text-sm" style={{ color: 'var(--fg-subtle)' }}>Aucun achat enregistré</div>
         ) : (
-          <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto">
             {[...achats].reverse().map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-5 py-3">
-                <div className="text-xs text-gray-400 flex-shrink-0 w-20">{new Date(a.date).toLocaleDateString('fr-FR')}</div>
+              <div key={a.id} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                <div className="text-xs flex-shrink-0 w-20" style={{ color: 'var(--fg-subtle)' }}>{new Date(a.date).toLocaleDateString('fr-FR')}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-800 truncate">{a.description}</div>
-                  {a.fournisseur && <div className="text-xs text-gray-400">{a.fournisseur}</div>}
+                  <div className="text-sm font-medium truncate" style={{ color: 'var(--fg)' }}>{a.description}</div>
+                  {a.fournisseur && <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{a.fournisseur}</div>}
                 </div>
-                <span className="font-bold text-orange-600 flex-shrink-0">{parseFloat(a.montant).toLocaleString('fr-FR')} €</span>
-                <button onClick={() => delAchat(a.id)} className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                <span className="font-bold flex-shrink-0" style={{ color: '#ea580c' }}>{parseFloat(a.montant).toLocaleString('fr-FR')} €</span>
+                <button onClick={() => delAchat(a.id)} className="flex-shrink-0" style={{ color: 'var(--fg-subtle)' }}><X className="w-3.5 h-3.5" /></button>
               </div>
             ))}
           </div>
@@ -5055,8 +5086,8 @@ function BudgetPanel({ subSection }) {
 
   const renderFactures = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <SectionHeader icon={<Receipt className="w-4 h-4 text-purple-500" />} title="Enregistrer une facture" />
+      <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <SectionHeader icon={<Receipt className="w-4 h-4" style={{ color: '#9333ea' }} />} title="Enregistrer une facture" />
         <form onSubmit={addFacture} className="space-y-3">
           {[
             { key: 'date_facture', label: 'Date facture', type: 'date' },
@@ -5067,51 +5098,51 @@ function BudgetPanel({ subSection }) {
             { key: 'montant_ttc', label: 'Montant TTC (€) *', type: 'number', placeholder: '0' },
           ].map(({ key, label, type, placeholder }) => (
             <div key={key}>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">{label}</label>
-              <input type={type} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{label}</label>
+              <input type={type} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder={placeholder} value={formFact[key]}
                 onChange={e => setFormFact(f => ({ ...f, [key]: e.target.value }))} />
             </div>
           ))}
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Statut</label>
-            <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Statut</label>
+            <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={formFact.statut} onChange={e => setFormFact(f => ({ ...f, statut: e.target.value }))}>
               <option value="en_attente">En attente</option>
               <option value="payee">Payée</option>
               <option value="contestee">Contestée</option>
             </select>
           </div>
-          <button type="submit" className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors">
+          <button type="submit" className="w-full py-2 text-white text-sm font-semibold rounded-lg transition-colors" style={{ background: '#9333ea' }}>
             Enregistrer la facture
           </button>
         </form>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <span className="text-sm font-bold text-gray-700">Factures {annee}</span>
-          <span className="text-sm font-bold text-purple-600">{totalFact.toLocaleString('fr-FR')} €</span>
+      <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+          <span className="text-sm font-bold" style={{ color: 'var(--fg-muted)' }}>Factures {annee}</span>
+          <span className="text-sm font-bold" style={{ color: '#9333ea' }}>{totalFact.toLocaleString('fr-FR')} €</span>
         </div>
         {factures.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Aucune facture enregistrée</div>
+          <div className="p-8 text-center text-sm" style={{ color: 'var(--fg-subtle)' }}>Aucune facture enregistrée</div>
         ) : (
-          <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto">
             {[...factures].reverse().map(f => {
-              const sc = FACT_STATUT[f.statut] || FACT_STATUT.en_attente;
+              const sc = BP_FACT_STATUT[f.statut] || BP_FACT_STATUT.en_attente;
               return (
-                <div key={f.id} className="flex items-center gap-3 px-5 py-3">
+                <div key={f.id} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-800">{f.prestataire}</span>
-                      {f.numero && <span className="text-xs text-gray-400">{f.numero}</span>}
+                      <span className="text-sm font-medium" style={{ color: 'var(--fg)' }}>{f.prestataire}</span>
+                      {f.numero && <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{f.numero}</span>}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-gray-400">{new Date(f.date_facture).toLocaleDateString('fr-FR')}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.color}`}>{sc.label}</span>
+                      <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{new Date(f.date_facture).toLocaleDateString('fr-FR')}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={sc.style}>{sc.label}</span>
                     </div>
                   </div>
-                  <span className="font-bold text-purple-600 flex-shrink-0">{parseFloat(f.montant_ttc).toLocaleString('fr-FR')} €</span>
-                  <button onClick={() => delFacture(f.id)} className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                  <span className="font-bold flex-shrink-0" style={{ color: '#9333ea' }}>{parseFloat(f.montant_ttc).toLocaleString('fr-FR')} €</span>
+                  <button onClick={() => delFacture(f.id)} className="flex-shrink-0" style={{ color: 'var(--fg-subtle)' }}><X className="w-3.5 h-3.5" /></button>
                 </div>
               );
             })}
@@ -5123,33 +5154,33 @@ function BudgetPanel({ subSection }) {
 
   const renderEtat = () => {
     const pctBar = Math.min(100, pctConsomme);
-    const barColor = pctConsomme > 90 ? 'bg-red-500' : pctConsomme > 70 ? 'bg-yellow-400' : 'bg-green-500';
+    const barBg = pctConsomme > 90 ? 'var(--danger)' : pctConsomme > 70 ? 'var(--warning)' : 'var(--success)';
     return (
       <div className="space-y-6">
         {/* Jauge budgétaire */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">État du Budget {annee}</h3>
+        <div className="rounded-lg shadow-sm p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--fg-muted)' }}>État du Budget {annee}</h3>
           <div className="grid grid-cols-3 gap-4 mb-6">
             {[
-              { label: 'Budget alloué', val: totalAlloue, color: 'text-blue-600' },
-              { label: 'Total dépenses', val: totalDepenses, color: 'text-red-600' },
-              { label: 'Solde disponible', val: solde, color: solde >= 0 ? 'text-green-600' : 'text-red-600' },
+              { label: 'Budget alloué', val: totalAlloue, color: 'var(--brand)' },
+              { label: 'Total dépenses', val: totalDepenses, color: 'var(--danger)' },
+              { label: 'Solde disponible', val: solde, color: solde >= 0 ? 'var(--success)' : 'var(--danger)' },
             ].map(({ label, val, color }) => (
-              <div key={label} className="text-center p-4 bg-gray-50 rounded-xl">
-                <div className={`text-2xl font-bold ${color}`}>{val.toLocaleString('fr-FR')} €</div>
-                <div className="text-xs text-gray-400 mt-0.5">{label}</div>
+              <div key={label} className="text-center p-4 rounded-lg" style={{ background: 'var(--surface-2)' }}>
+                <div className="text-2xl font-bold" style={{ color }}>{val.toLocaleString('fr-FR')} €</div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>{label}</div>
               </div>
             ))}
           </div>
           <div className="mb-2 flex justify-between text-sm">
-            <span className="text-gray-500">Consommation</span>
-            <span className={`font-bold ${pctConsomme > 90 ? 'text-red-600' : pctConsomme > 70 ? 'text-yellow-600' : 'text-green-600'}`}>{pctConsomme}%</span>
+            <span style={{ color: 'var(--fg-muted)' }}>Consommation</span>
+            <span className="font-bold" style={{ color: barBg }}>{pctConsomme}%</span>
           </div>
-          <div className="h-6 bg-gray-100 rounded-full overflow-hidden">
-            <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pctBar}%` }} />
+          <div className="h-6 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${pctBar}%`, background: barBg }} />
           </div>
           {pctConsomme > 90 && (
-            <div className="mt-3 flex items-center gap-2 text-xs text-red-600 font-medium">
+            <div className="mt-3 flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--danger)' }}>
               <AlertTriangle className="w-4 h-4" /> Attention : budget presque épuisé
             </div>
           )}
@@ -5157,29 +5188,29 @@ function BudgetPanel({ subSection }) {
 
         {/* Détail par catégorie */}
         {lignes.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
-              <span className="text-sm font-bold text-gray-700">Détail par catégorie</span>
+          <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+              <span className="text-sm font-bold" style={{ color: 'var(--fg-muted)' }}>Détail par catégorie</span>
             </div>
             <table className="w-full text-sm">
-              <thead><tr className="border-b border-gray-100 text-xs text-gray-400 uppercase">
+              <thead><tr className="text-xs uppercase" style={{ borderBottom: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
                 <th className="text-left px-5 py-2">Catégorie</th>
                 <th className="text-right px-5 py-2">Alloué</th>
                 <th className="text-right px-5 py-2">Dépensé</th>
                 <th className="text-right px-5 py-2">Reste</th>
               </tr></thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody>
                 {lignes.map(l => {
                   const spent = [...achats, ...factures.map(f => ({ ...f, montant: f.montant_ttc }))]
                     .filter(a => a.categorie === l.categorie)
                     .reduce((s, a) => s + (parseFloat(a.montant) || 0), 0);
                   const reste = parseFloat(l.montant) - spent;
                   return (
-                    <tr key={l.id} className="hover:bg-gray-50">
-                      <td className="px-5 py-2.5 font-medium text-gray-700">{l.categorie}</td>
-                      <td className="px-5 py-2.5 text-right text-blue-600 font-semibold">{parseFloat(l.montant).toLocaleString('fr-FR')} €</td>
-                      <td className="px-5 py-2.5 text-right text-orange-600">{spent.toLocaleString('fr-FR')} €</td>
-                      <td className={`px-5 py-2.5 text-right font-bold ${reste < 0 ? 'text-red-600' : 'text-green-600'}`}>{reste.toLocaleString('fr-FR')} €</td>
+                    <tr key={l.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td className="px-5 py-2.5 font-medium" style={{ color: 'var(--fg-muted)' }}>{l.categorie}</td>
+                      <td className="px-5 py-2.5 text-right font-semibold" style={{ color: 'var(--brand)' }}>{parseFloat(l.montant).toLocaleString('fr-FR')} €</td>
+                      <td className="px-5 py-2.5 text-right" style={{ color: '#ea580c' }}>{spent.toLocaleString('fr-FR')} €</td>
+                      <td className="px-5 py-2.5 text-right font-bold" style={{ color: reste < 0 ? 'var(--danger)' : 'var(--success)' }}>{reste.toLocaleString('fr-FR')} €</td>
                     </tr>
                   );
                 })}
@@ -5196,13 +5227,13 @@ function BudgetPanel({ subSection }) {
       {/* Toolbar années */}
       <div className="flex items-center gap-4">
         <div>
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Année budgétaire</label>
-          <select className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
+          <label className="text-xs font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--fg-muted)' }}>Année budgétaire</label>
+          <select className="rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             value={annee} onChange={e => setAnnee(Number(e.target.value))}>
             {[2023,2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-        <div className="ml-auto text-xs text-gray-400 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <div className="ml-auto text-xs rounded-lg px-3 py-2" style={{ color: 'var(--warning)', background: 'var(--warning-soft)', border: '1px solid var(--warning)' }}>
           💾 Données stockées localement — export vers BDD prévu en Phase 4
         </div>
       </div>
@@ -5286,12 +5317,12 @@ const TOOLBAR_ITEMS = [
 function WIPPanel({ label }) {
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center p-8">
-      <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mb-5">
-        <Wrench className="w-9 h-9 text-slate-300" />
+      <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5" style={{ background: '#f1f5f9' }}>
+        <Wrench className="w-9 h-9" style={{ color: '#cbd5e1' }} />
       </div>
-      <h3 className="text-lg font-semibold text-slate-500 mb-2">{label}</h3>
-      <p className="text-sm text-slate-400 mb-4">Ce module est en cours de développement.</p>
-      <span className="px-4 py-1.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">
+      <h3 className="text-lg font-semibold mb-2" style={{ color: '#64748b' }}>{label}</h3>
+      <p className="text-sm mb-4" style={{ color: '#94a3b8' }}>Ce module est en cours de développement.</p>
+      <span className="px-4 py-1.5 text-xs font-semibold rounded-full" style={{ background: 'rgba(234,88,12,0.1)', color: '#ea580c', border: '1px solid rgba(234,88,12,0.3)' }}>
         Phase 2 — Prochainement disponible
       </span>
     </div>
@@ -5312,32 +5343,35 @@ function MiniCalendar() {
   const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
 
   return (
-    <div className="text-white">
+    <div style={{ color: '#fff' }}>
       <div className="flex items-center justify-between mb-2">
-        <button onClick={() => setCur(new Date(y, m - 1, 1))} className="p-1 hover:bg-slate-600 rounded transition-colors">
-          <ChevronLeft className="w-3 h-3 text-slate-400" />
+        <button onClick={() => setCur(new Date(y, m - 1, 1))} className="p-1 rounded transition-colors">
+          <ChevronLeft className="w-3 h-3" style={{ color: '#94a3b8' }} />
         </button>
-        <span className="text-xs font-semibold text-slate-200">{MONTHS[m]} {y}</span>
-        <button onClick={() => setCur(new Date(y, m + 1, 1))} className="p-1 hover:bg-slate-600 rounded transition-colors">
-          <ChevronRight className="w-3 h-3 text-slate-400" />
+        <span className="text-xs font-semibold" style={{ color: '#e2e8f0' }}>{MONTHS[m]} {y}</span>
+        <button onClick={() => setCur(new Date(y, m + 1, 1))} className="p-1 rounded transition-colors">
+          <ChevronRight className="w-3 h-3" style={{ color: '#94a3b8' }} />
         </button>
       </div>
       <div className="grid grid-cols-7 text-center gap-0.5">
         {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
-          <div key={d} className="text-slate-500 text-[9px] font-semibold py-0.5">{d}</div>
+          <div key={d} className="text-[9px] font-semibold py-0.5" style={{ color: '#64748b' }}>{d}</div>
         ))}
         {cells.map((day, i) => (
-          <div key={i} className={`text-[10px] py-0.5 rounded leading-4 ${
-            !day ? '' :
-            isToday(day) ? 'bg-teal-500 text-white font-bold' :
-            'text-slate-400 hover:bg-slate-600 hover:text-white cursor-pointer'
-          }`}>
+          <div
+            key={i}
+            className="text-[10px] py-0.5 rounded leading-4"
+            style={!day ? {} : isToday(day)
+              ? { background: 'var(--accent-teal)', color: '#fff', fontWeight: 700 }
+              : { color: '#94a3b8', cursor: 'pointer' }
+            }
+          >
             {day ?? ''}
           </div>
         ))}
       </div>
-      <div className="mt-2 pt-1.5 border-t border-slate-700 text-center">
-        <span className="text-[9px] text-slate-500">
+      <div className="mt-2 pt-1.5 text-center" style={{ borderTop: '1px solid #334155' }}>
+        <span className="text-[9px]" style={{ color: '#64748b' }}>
           Today: {today.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
         </span>
       </div>
@@ -5349,22 +5383,22 @@ function MiniCalendar() {
 
 function SidebarModule({ module, activeSection, onSelect, expanded, onToggle }) {
   return (
-    <div className="border-b border-slate-700/60">
+    <div style={{ borderBottom: '1px solid rgba(51,65,85,0.6)' }}>
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-700/50 transition-colors group"
+        className="w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors group"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-teal-400 text-xs font-bold flex-shrink-0">
+          <span className="text-xs font-bold flex-shrink-0" style={{ color: '#2dd4bf' }}>
             {expanded ? '«' : '»'}
           </span>
-          <span className="text-slate-300 text-[11px] font-semibold uppercase tracking-wide truncate">
+          <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: '#cbd5e1' }}>
             {module.label}
           </span>
         </div>
         {expanded
-          ? <ChevronUp className="w-3 h-3 text-slate-500 flex-shrink-0 ml-1" />
-          : <ChevronDown className="w-3 h-3 text-slate-500 flex-shrink-0 ml-1" />
+          ? <ChevronUp className="w-3 h-3 flex-shrink-0 ml-1" style={{ color: '#64748b' }} />
+          : <ChevronDown className="w-3 h-3 flex-shrink-0 ml-1" style={{ color: '#64748b' }} />
         }
       </button>
 
@@ -5372,21 +5406,21 @@ function SidebarModule({ module, activeSection, onSelect, expanded, onToggle }) 
         <div className="px-2 pb-2.5 grid grid-cols-2 gap-1.5">
           {module.items.map(item => {
             const isActive = activeSection === item.id;
+            const btnStyle = isActive
+              ? { background: 'var(--accent-teal)', color: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }
+              : item.wip
+              ? { background: 'rgba(51,65,85,0.4)', color: '#475569', cursor: 'not-allowed' }
+              : { background: '#334155', color: '#cbd5e1' };
             return (
               <button
                 key={item.id}
                 onClick={() => !item.wip && onSelect(item.id)}
                 title={item.wip ? 'En cours de développement' : item.label}
-                className={`px-2 py-2 rounded text-[11px] font-medium text-center leading-tight transition-all ${
-                  isActive
-                    ? 'bg-teal-500 text-white shadow-md'
-                    : item.wip
-                    ? 'bg-slate-700/40 text-slate-600 cursor-not-allowed'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'
-                }`}
+                className="px-2 py-2 rounded text-[11px] font-medium text-center leading-tight transition-all"
+                style={btnStyle}
               >
                 {item.label}
-                {item.wip && <span className="block text-[8px] text-slate-600 mt-0.5 leading-none">bientôt</span>}
+                {item.wip && <span className="block text-[8px] mt-0.5 leading-none" style={{ color: '#475569' }}>bientôt</span>}
               </button>
             );
           })}
@@ -5586,53 +5620,56 @@ export default function GMAOPage() {
   };
 
   return (
-    <div className="flex flex-col bg-slate-900" style={{ height: 'calc(100vh - 4rem)' }}>
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)', background: '#0f172a' }}>
 
       {/* ── BARRE SUPÉRIEURE ──────────────────────────────────────────────── */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center justify-between flex-shrink-0 gap-4">
+      <div className="px-4 py-2 flex items-center justify-between flex-shrink-0 gap-4" style={{ background: '#1e293b', borderBottom: '1px solid #334155' }}>
 
         {/* Logo + titre */}
         <div className="flex items-center gap-2.5 flex-shrink-0">
-          <div className="p-1.5 bg-teal-500 rounded">
-            <Wrench className="w-4 h-4 text-white" />
+          <div className="p-1.5 rounded" style={{ background: 'var(--accent-teal)' }}>
+            <Wrench className="w-4 h-4" style={{ color: '#fff' }} />
           </div>
           <div className="leading-none">
-            <div className="text-white font-bold text-sm">GMAO</div>
-            <div className="text-slate-500 text-[9px] uppercase tracking-wider">Maintenance Assistée</div>
+            <div className="font-bold text-sm" style={{ color: '#fff' }}>GMAO</div>
+            <div className="text-[9px] uppercase tracking-wider" style={{ color: '#64748b' }}>Maintenance Assistée</div>
           </div>
         </div>
 
         {/* Séparateur */}
-        <div className="h-8 w-px bg-slate-700 flex-shrink-0" />
+        <div className="h-8 w-px flex-shrink-0" style={{ background: '#334155' }} />
 
         {/* Outils d'analyse */}
         <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
-          <span className="text-slate-600 text-[9px] uppercase tracking-widest font-semibold flex-shrink-0 mr-1">
+          <span className="text-[9px] uppercase tracking-widest font-semibold flex-shrink-0 mr-1" style={{ color: '#475569' }}>
             Outils d'analyse
           </span>
-          {TOOLBAR_ITEMS.map(tool => (
-            <button
-              key={tool.id}
-              onClick={() => !tool.wip && setActiveSection(tool.id)}
-              title={tool.label}
-              className={`flex-shrink-0 px-3 py-1.5 rounded text-[11px] font-semibold transition-all whitespace-nowrap ${
-                activeSection === tool.id
-                  ? 'bg-teal-500 text-white shadow-md'
-                  : tool.wip
-                  ? 'bg-slate-700/50 text-slate-600 cursor-not-allowed'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'
-              }`}
-            >
-              {tool.shortLabel}
-              {tool.wip && <span className="ml-1 text-[8px] opacity-50">●</span>}
-            </button>
-          ))}
+          {TOOLBAR_ITEMS.map(tool => {
+            const tbStyle = activeSection === tool.id
+              ? { background: 'var(--accent-teal)', color: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }
+              : tool.wip
+              ? { background: 'rgba(51,65,85,0.5)', color: '#475569', cursor: 'not-allowed' }
+              : { background: '#334155', color: '#cbd5e1' };
+            return (
+              <button
+                key={tool.id}
+                onClick={() => !tool.wip && setActiveSection(tool.id)}
+                title={tool.label}
+                className="flex-shrink-0 px-3 py-1.5 rounded text-[11px] font-semibold transition-all whitespace-nowrap"
+                style={tbStyle}
+              >
+                {tool.shortLabel}
+                {tool.wip && <span className="ml-1 text-[8px] opacity-50">●</span>}
+              </button>
+            );
+          })}
         </div>
 
         {/* Actualiser */}
         <button
           onClick={() => { loadData(); loadPending(); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs font-medium transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors flex-shrink-0"
+          style={{ background: '#334155', color: '#cbd5e1' }}
         >
           <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
           Actualiser
@@ -5640,18 +5677,18 @@ export default function GMAOPage() {
       </div>
 
       {/* ── BREADCRUMB ────────────────────────────────────────────────────── */}
-      <div className="bg-slate-800/60 border-b border-slate-700/50 px-4 py-1 flex items-center gap-1.5 flex-shrink-0">
-        <span className="text-slate-600 text-[10px]">GMAO</span>
-        <ChevronRight className="w-3 h-3 text-slate-700" />
-        <span className="text-slate-500 text-[10px] truncate">{bcModule}</span>
+      <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0" style={{ background: 'rgba(30,41,59,0.6)', borderBottom: '1px solid rgba(51,65,85,0.5)' }}>
+        <span className="text-[10px]" style={{ color: '#475569' }}>GMAO</span>
+        <ChevronRight className="w-3 h-3" style={{ color: '#1e3a5f' }} />
+        <span className="text-[10px] truncate" style={{ color: '#64748b' }}>{bcModule}</span>
         {bcItem && (
           <>
-            <ChevronRight className="w-3 h-3 text-slate-700" />
-            <span className="text-teal-400 text-[10px] font-semibold">{bcItem}</span>
+            <ChevronRight className="w-3 h-3" style={{ color: '#1e3a5f' }} />
+            <span className="text-[10px] font-semibold" style={{ color: '#2dd4bf' }}>{bcItem}</span>
           </>
         )}
         {error && (
-          <span className="ml-auto text-red-400 text-[10px] flex items-center gap-1 flex-shrink-0">
+          <span className="ml-auto text-[10px] flex items-center gap-1 flex-shrink-0" style={{ color: '#f87171' }}>
             <AlertCircle className="w-3 h-3" />{error}
           </span>
         )}
@@ -5661,7 +5698,7 @@ export default function GMAOPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* SIDEBAR GAUCHE */}
-        <div className="w-60 bg-slate-800 border-r border-slate-700 overflow-y-auto flex-shrink-0">
+        <div className="w-60 overflow-y-auto flex-shrink-0" style={{ background: '#1e293b', borderRight: '1px solid #334155' }}>
           {GMAO_MODULES.map(mod => (
             <SidebarModule
               key={mod.id}
@@ -5675,51 +5712,52 @@ export default function GMAOPage() {
         </div>
 
         {/* CONTENU PRINCIPAL */}
-        <div className="flex-1 bg-gray-50 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" style={{ background: 'var(--surface)' }}>
           {renderContent()}
         </div>
 
         {/* PANNEAU DROIT */}
-        <div className="w-60 bg-slate-800 border-l border-slate-700 flex-shrink-0 flex flex-col overflow-hidden">
+        <div className="w-60 flex-shrink-0 flex flex-col overflow-hidden" style={{ background: '#1e293b', borderLeft: '1px solid #334155' }}>
 
           {/* Mini Calendrier */}
-          <div className="p-3 border-b border-slate-700 flex-shrink-0">
+          <div className="p-3 flex-shrink-0" style={{ borderBottom: '1px solid #334155' }}>
             <MiniCalendar />
           </div>
 
           {/* Interventions signalées */}
           <div className="flex-1 flex flex-col p-3 overflow-hidden">
-            <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-wide mb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide mb-2" style={{ color: '#94a3b8' }}>
               Intervention signalé :
             </p>
             <div className="flex items-center justify-between mb-3">
               <button
                 onClick={loadPending}
-                className="px-3 py-1 bg-teal-500 hover:bg-teal-400 text-white text-[10px] font-bold rounded transition-colors"
+                className="px-3 py-1 text-[10px] font-bold rounded transition-colors"
+                style={{ background: 'var(--accent-teal)', color: '#fff' }}
               >
                 Actualiser
               </button>
-              <span className="text-slate-500 text-[10px]">
-                Total : <span className="text-white font-bold">{pendingInterventions.length}</span>
+              <span className="text-[10px]" style={{ color: '#64748b' }}>
+                Total : <span className="font-bold" style={{ color: '#fff' }}>{pendingInterventions.length}</span>
               </span>
             </div>
 
             {/* En-têtes colonne */}
-            <div className="grid grid-cols-3 gap-1 pb-1 border-b border-slate-700 mb-1">
-              <span className="text-slate-600 text-[9px] font-semibold uppercase">Date</span>
-              <span className="text-slate-600 text-[9px] font-semibold uppercase">Heure</span>
-              <span className="text-slate-600 text-[9px] font-semibold uppercase">Equipement</span>
+            <div className="grid grid-cols-3 gap-1 pb-1 mb-1" style={{ borderBottom: '1px solid #334155' }}>
+              <span className="text-[9px] font-semibold uppercase" style={{ color: '#475569' }}>Date</span>
+              <span className="text-[9px] font-semibold uppercase" style={{ color: '#475569' }}>Heure</span>
+              <span className="text-[9px] font-semibold uppercase" style={{ color: '#475569' }}>Equipement</span>
             </div>
 
             {/* Liste interventions */}
             <div className="flex-1 overflow-y-auto space-y-0">
               {pendingLoading ? (
                 <div className="flex justify-center py-6">
-                  <RefreshCw className="w-4 h-4 animate-spin text-slate-600" />
+                  <RefreshCw className="w-4 h-4 animate-spin" style={{ color: '#475569' }} />
                 </div>
               ) : pendingInterventions.length === 0 ? (
-                <div className="text-center py-8 text-slate-700 text-[10px]">
-                  <CheckCircle className="w-5 h-5 mx-auto mb-1 text-slate-700" />
+                <div className="text-center py-8 text-[10px]" style={{ color: '#334155' }}>
+                  <CheckCircle className="w-5 h-5 mx-auto mb-1" style={{ color: '#334155' }} />
                   Aucune intervention<br />en attente
                 </div>
               ) : (
@@ -5732,11 +5770,12 @@ export default function GMAOPage() {
                     <div
                       key={iv.id || i}
                       onClick={() => setActiveSection('maint_intervention')}
-                      className="grid grid-cols-3 gap-1 py-1 border-b border-slate-700/40 hover:bg-slate-700/30 cursor-pointer transition-colors"
+                      className="grid grid-cols-3 gap-1 py-1 cursor-pointer transition-colors"
+                      style={{ borderBottom: '1px solid rgba(51,65,85,0.4)' }}
                     >
-                      <span className="text-slate-400 text-[9px]">{dateStr}</span>
-                      <span className="text-slate-400 text-[9px]">{heureStr}</span>
-                      <span className="text-slate-500 text-[9px] truncate" title={eqLabel}>{eqLabel}</span>
+                      <span className="text-[9px]" style={{ color: '#94a3b8' }}>{dateStr}</span>
+                      <span className="text-[9px]" style={{ color: '#94a3b8' }}>{heureStr}</span>
+                      <span className="text-[9px] truncate" style={{ color: '#64748b' }} title={eqLabel}>{eqLabel}</span>
                     </div>
                   );
                 })

@@ -1,4 +1,4 @@
-﻿// frontend/src/components/Navbar.jsx - DESIGN PROFESSIONNEL REDESIGNÉ
+// frontend/src/components/Navbar.jsx - DESIGN PROFESSIONNEL REDESIGNÉ
 
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -18,10 +18,8 @@ import {
   DoorOpen,
   DollarSign,
   Settings,
-  User,
   ChevronDown,
   Calendar,
-  Briefcase,
   Kanban,
   Grid,
   Receipt,
@@ -29,12 +27,18 @@ import {
   Activity,
   Archive,
   Wrench,
-  Stethoscope
+  Stethoscope,
+  Shield,
+  Calculator,
+  MessageSquare,
 } from 'lucide-react';
-import { workflowAPI } from '../services/api';
+import { workflowAPI, usersAPI } from '../services/api';
+import useChatUnread from '../hooks/useChatUnread';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import GlobalSearch from './GlobalSearch';
+import SyncStatus from './SyncStatus';
+import toast from 'react-hot-toast';
 import { useNavbarTheme } from '../hooks/useNavbarTheme';
 
 const getRoleLabel = (role) => {
@@ -54,16 +58,39 @@ const getRoleLabel = (role) => {
   return roleLabels[role] || role;
 };
 
+// Avatar palette (identity colors — hardcoded intentionally)
+const AVATAR_COLORS = ['#8b5cf6','#3b82f6','#10b981','#f43f5e','#f59e0b','#06b6d4','#ec4899'];
+
 export default function Navbar({ onLogout }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const location = useLocation();
-  
+
   const [isOpen, setIsOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  
+
   const [pendingCount, setPendingCount] = useState(0);
   const [hasNewTask, setHasNewTask] = useState(false);
+  const [togglingAbsence, setTogglingAbsence] = useState(false);
+
+  const handleToggleMyAbsence = async () => {
+    if (!user?.id) return;
+    if (!user.isAbsent && !user.substituteId) {
+      toast.error('Aucun remplaçant configuré sur votre compte — demandez à un administrateur d\'en désigner un avant de vous mettre absent.');
+      return;
+    }
+    setTogglingAbsence(true);
+    try {
+      const res = await usersAPI.setAbsence(user.id, !user.isAbsent);
+      updateUser({ ...user, isAbsent: !user.isAbsent });
+      toast.success(res.data.message);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Erreur lors du changement de statut.');
+    } finally {
+      setTogglingAbsence(false);
+    }
+  };
+  const { unreadCount: chatUnread } = useChatUnread();
   const { themeName, setThemeName, theme, themes } = useNavbarTheme();
 
   const loadPendingTasks = async () => {
@@ -79,7 +106,7 @@ export default function Navbar({ onLogout }) {
     if (!user) return;
     loadPendingTasks();
 
-    const handleNewTask = (event) => {
+    const handleNewTask = () => {
       setPendingCount(prev => prev + 1);
       setHasNewTask(true);
       setTimeout(() => setHasNewTask(false), 3000);
@@ -103,49 +130,41 @@ export default function Navbar({ onLogout }) {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showUserMenu && !event.target.closest('.user-menu-container')) {
-        setShowUserMenu(false);
-      }
-      if (showMoreMenu && !event.target.closest('.more-menu-container')) {
-        setShowMoreMenu(false);
-      }
+      if (showUserMenu && !event.target.closest('.user-menu-container')) setShowUserMenu(false);
+      if (showMoreMenu && !event.target.closest('.more-menu-container')) setShowMoreMenu(false);
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showUserMenu, showMoreMenu]);
 
-  const isActive = (path) => {
-    if (path.startsWith('/kanban') && location.pathname.startsWith('/kanban')) {
-      return 'bg-blue-700 dark:bg-blue-700';
-    }
-    return location.pathname === path || location.pathname.startsWith(path + '/')
-      ? 'bg-blue-700 dark:bg-blue-700'
-      : '';
-  };
+  const isActivePath = (path) =>
+    location.pathname === path || location.pathname.startsWith(path + '/');
 
   // ==========================================
   // CONFIGURATION DES MENUS
   // ==========================================
-
-  // Items visibles directement sur la navbar
   const visibleItems = [
     { path: '/dashboard', icon: Home, label: 'Tableau de bord' },
     { path: '/documents', icon: FileText, label: 'Documents' },
     { path: '/upload', icon: Upload, label: 'Upload' },
   ];
 
-  // Items dans le menu « Plus » — regroupés par sections
   const moreItems = {
     navigation: [
       { path: '/archives', icon: Archive, label: 'Archives', desc: 'Documents archivés' },
       { path: '/workflow-dashboard', icon: BarChart3, label: 'Workflow', desc: 'Tableau de bord workflow' },
+      { path: '/chat', icon: MessageSquare, label: 'Discussion', desc: 'Canaux, messages directs, discussions' },
     ],
     gestion: [
       { path: '/schedules', icon: Calendar, label: 'Plannings', desc: 'Gérer les plannings', managementOnly: true },
       { path: '/employees', icon: Users, label: 'Employés', desc: 'Fiches des employés', rhOrAdminOnly: true },
       { path: '/user-management', icon: Users, label: 'Utilisateurs', desc: 'Comptes & rôles', adminOnly: true },
       { path: '/services', icon: LayoutGrid, label: 'Services', desc: 'Structure de l\'hôpital', adminOnly: true },
+      { path: '/admin/droits-acces', icon: Shield, label: 'Droits d\'accès', desc: 'Matrice & gestion des droits', adminOnly: true },
+      { path: '/audit-log', icon: Shield, label: 'Journal d\'audit', desc: 'Historique des actions', adminOnly: true },
+      { path: '/statistiques', icon: BarChart3, label: 'Statistiques', desc: 'Graphiques & tendances', adminOnly: true },
+      { path: '/workflow-templates', icon: LayoutGrid, label: 'Modeles workflow', desc: 'Circuits de validation', adminOnly: true },
+      { path: '/forms', icon: Grid, label: 'Formulaires', desc: 'Créateur de formulaires', adminOnly: true },
     ],
     apps: [
       { path: '/portail', icon: UserPlus, label: 'Portail', desc: 'Gestion des entrées', gardienOnly: true },
@@ -153,6 +172,8 @@ export default function Navbar({ onLogout }) {
       { path: '/caisse', icon: DollarSign, label: 'Caisse', desc: 'Paiements & reçus', caisseOnly: true },
       { path: '/demandes-achat', icon: ShoppingCart, label: 'Demandes d\'Achat', desc: 'Commandes & achats', demandeAchatOnly: true },
       { path: '/php', icon: Stethoscope, label: 'Module PHP', desc: 'Gestion clinique', phpOnly: true },
+      { path: '/php/factures', icon: Receipt, label: 'Factures PHP', desc: 'Factures prestataires (OCR)', phpOnly: true },
+      { path: '/compta', icon: Calculator, label: 'Comptabilité', desc: 'Pièces de caisse (OCR)', comptaOnly: true },
     ],
     outils: [
       { path: '/kanban/MG', icon: Kanban, label: 'Suivi Technique', desc: 'Tickets techniques', kanbanOnly: true },
@@ -161,7 +182,6 @@ export default function Navbar({ onLogout }) {
     ],
   };
 
-  // Compat — ancien format pour certains checks
   const gestionItems = moreItems.gestion;
   const appsItems = moreItems.apps;
   const toolsItems = moreItems.outils;
@@ -171,103 +191,76 @@ export default function Navbar({ onLogout }) {
   // ==========================================
   const canAccessItem = (item) => {
     if (item.adminOnly && user?.role !== 'admin') return false;
-    
-    if (item.kanbanOnly) {
-      if (!user) return false;
-      const allowedEmails = [
-        'hsjm.directeurdusoutien@gmail.com',
-        'hsjm.pharma@gmail.com',
-        'hopitalcameroun@ordredemaltefrance.org',
-        'aureleyankeu@gmail.com',
-        'hsjm.moyengeneraux@gmail.com',
-        'hsjm.celluleinformatique2@gmail.com',
-        'hsjm.cellulebiomedicale@gmail.com'
-      ];
-      
-      if (allowedEmails.includes(user.email)) return true;
-      const userService = user.Service?.name || user.service || "";
-      const allowedServices = ['MG', 'Moyens Généraux', 'Informatique', 'Biomédical', 'Biomedical'];
-      return allowedServices.some(service => userService.includes(service));
-    }
-    
-    if (item.rhOrAdminOnly) {
-      return user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com';
-    }
-    
-    if (item.gardienOnly) {
-      return user?.role === 'admin' || user?.role === 'gardien';
-    }
-    
-    if (item.accueilOnly) {
-      return user?.role === 'admin' || ['agent_accueil_php', 'agent_accueil_normal'].includes(user?.role);
-    }
-    
-    if (item.caisseOnly) {
-      return user?.role === 'admin' || user?.role === 'caissier';
-    }
-    
-    if (item.managementOnly) {
-      return ['admin', 'director', 'dds', 'medical_chief'].includes(user?.role);
-    }
 
-    if (item.demandeAchatOnly) {
-      return user?.role === 'admin' || user?.role === 'achat' || user?.role === 'user';
-    }
-
-    if (item.gmaoOnly) {
-      const GMAO_EMAILS = [
-        'hsjm.cellulebiomedicale@gmail.com',
-        'hsjm.pharma@gmail.com',
-        'hopitalcameroun@ordredemaltefrance.org',
-      ];
-      return user?.role === 'admin' || GMAO_EMAILS.includes(user?.email);
-    }
-
-    // ── Module PHP : accessible aux agents PHP et admins ─────────────────────
-    if (item.phpOnly) {
-      return user?.role === 'admin' || user?.role === 'agent_accueil_php';
-    }
+    if (item.kanbanOnly)      return user?.role === 'admin' || (user?.postes || []).includes('kanban');
+    if (item.rhOrAdminOnly)   return user?.role === 'admin' || (user?.postes || []).includes('rh');
+    if (item.gardienOnly)     return user?.role === 'admin' || user?.role === 'gardien';
+    if (item.accueilOnly)     return user?.role === 'admin' || ['agent_accueil_php', 'agent_accueil_normal'].includes((user?.role || '').toLowerCase());
+    if (item.caisseOnly)      return user?.role === 'admin' || user?.role === 'caissier';
+    if (item.managementOnly)  return ['admin', 'director', 'dds', 'medical_chief'].includes(user?.role);
+    if (item.demandeAchatOnly) return user?.role === 'admin' || user?.role === 'achat' || user?.role === 'user';
+    if (item.gmaoOnly)        return user?.role === 'admin' || (user?.postes || []).includes('gmao');
+    if (item.phpOnly)         return user?.role === 'admin' || (user?.role || '').toLowerCase() === 'agent_accueil_php';
+    if (item.comptaOnly)      return user?.role === 'admin' || (user?.postes || []).includes('comptable');
 
     return true;
   };
 
-  const hasGestionAccess = gestionItems.some(item => canAccessItem(item));
-  const hasAppsAccess = appsItems.some(item => canAccessItem(item));
-  const hasToolsAccess = toolsItems.some(item => canAccessItem(item));
-
-  // Le menu « Plus » contient au moins les items navigation (Archives, Workflow) visibles par tous
-  const moreNavItems = moreItems.navigation.filter(i => canAccessItem(i));
+  const moreNavItems    = moreItems.navigation.filter(i => canAccessItem(i));
   const moreGestionItems = moreItems.gestion.filter(i => canAccessItem(i));
-  const moreAppsItems = moreItems.apps.filter(i => canAccessItem(i));
-  const moreToolsItems = moreItems.outils.filter(i => canAccessItem(i));
+  const moreAppsItems   = moreItems.apps.filter(i => canAccessItem(i));
+  const moreToolsItems  = moreItems.outils.filter(i => canAccessItem(i));
   const hasMoreItems = moreNavItems.length + moreGestionItems.length + moreAppsItems.length + moreToolsItems.length > 0;
 
-  // Initiales utilisateur pour l'avatar
   const userInitials = user
     ? ((user.firstName?.[0] || user.username?.[0] || '?') + (user.lastName?.[0] || '')).toUpperCase()
     : '?';
-  const avatarColors = ['bg-violet-500','bg-blue-500','bg-emerald-500','bg-rose-500','bg-amber-500','bg-cyan-500','bg-pink-500'];
-  const avatarColor = avatarColors[(user?.username?.charCodeAt(0) || 0) % avatarColors.length];
+  const avatarBg = AVATAR_COLORS[(user?.username?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
 
-  // Helper pour rendre une section du menu « Plus »
+  // ==========================================
+  // STYLES RÉUTILISABLES
+  // ==========================================
+  const navBg = theme.bg;
+  const pillBg = 'rgba(255,255,255,0.10)';
+  const dropdownStyle = {
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius-4)',
+    boxShadow: 'var(--shadow-3)',
+    border: '1px solid var(--border)',
+    backdropFilter: 'blur(16px)',
+  };
+
+  // Helper : render une section du menu « Plus »
   const renderMoreSection = (label, items, closeMenu) => {
     if (items.length === 0) return null;
     return (
       <div>
-        <div className="px-4 py-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{label}</div>
+        <div style={{ padding: '6px 16px', fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
         {items.map((item) => {
           const Icon = item.icon;
-          const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+          const active = isActivePath(item.path);
           return (
             <Link key={item.path} to={item.path} onClick={closeMenu}
-              className={`flex items-center gap-3 px-4 py-2 transition-all mx-1 rounded-xl ${active ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '8px 16px', margin: '0 4px', borderRadius: 'var(--radius-3)',
+                textDecoration: 'none',
+                background: active ? 'var(--brand-soft)' : 'transparent',
+                transition: 'background .15s',
+              }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--surface-2)'; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
             >
-              <div className={`p-1.5 rounded-lg ${active ? 'bg-blue-100 dark:bg-blue-800' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                <Icon className={`w-4 h-4 ${active ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
+              <div style={{
+                padding: 6, borderRadius: 'var(--radius-2)',
+                background: active ? 'var(--brand-soft)' : 'var(--surface-2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon style={{ width: 14, height: 14, color: active ? 'var(--brand)' : 'var(--fg-muted)' }} />
               </div>
-              <div className="min-w-0">
-                <div className={`text-sm font-medium ${active ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'}`}>{item.label}</div>
-                {item.desc && <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{item.desc}</div>}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: active ? 'var(--brand)' : 'var(--fg)' }}>{item.label}</div>
+                {item.desc && <div style={{ fontSize: 11, color: 'var(--fg-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.desc}</div>}
               </div>
             </Link>
           );
@@ -277,65 +270,100 @@ export default function Navbar({ onLogout }) {
   };
 
   return (
-    <nav className={`sticky top-0 z-40 ${theme.bg} backdrop-blur-xl border-b border-white/10 dark:border-white/5 shadow-sm transition-all duration-300`}>
-      <div className="container mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-14">
+    <nav style={{
+      position: 'sticky', top: 0, zIndex: 40,
+      background: navBg,
+      backdropFilter: 'blur(16px)',
+      borderBottom: '1px solid rgba(255,255,255,0.10)',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+      transition: 'background .3s',
+    }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
 
           {/* ========== LOGO ========== */}
-          <div className="flex items-center flex-shrink-0">
-            <Link to="/dashboard" className="flex items-center gap-2.5 group">
-              <div className="bg-white/15 group-hover:bg-white/25 p-1.5 rounded-xl transition-all duration-200">
-                <Activity className="w-5 h-5 text-white" />
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+              <div style={{
+                background: 'rgba(255,255,255,0.15)', padding: 6, borderRadius: 'var(--radius-3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background .2s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+              >
+                <Activity style={{ width: 20, height: 20, color: '#fff' }} />
               </div>
-              <div className="hidden sm:block leading-none">
-                <span className="text-white text-base font-semibold tracking-tight">GED</span>
-                <span className="text-blue-200/70 dark:text-gray-500 text-[10px] block mt-0.5">HSJM Workflow</span>
+              <div style={{ display: 'none' }} className="sm-show" >
+                <span style={{ color: '#fff', fontSize: 15, fontWeight: 600, letterSpacing: '-0.3px', lineHeight: 1 }}>GED</span>
+                <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, display: 'block', marginTop: 2 }}>HSJM Workflow</span>
               </div>
             </Link>
           </div>
 
-          {/* ========== CENTRE : 3 items + « Plus » ========== */}
-          <div className="hidden lg:flex items-center justify-center flex-1 px-4">
-            <div className={`flex items-center gap-1 ${theme.pill} rounded-full p-1`}>
+          {/* ========== CENTRE : items + « Plus » — desktop uniquement ========== */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '0 16px' }} className="desktop-nav">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: pillBg, borderRadius: 999, padding: 4 }}>
               {visibleItems.map((item) => {
                 const Icon = item.icon;
-                const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+                const active = isActivePath(item.path);
                 return (
                   <Link key={item.path} to={item.path}
-                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200
-                      ${active
-                        ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-white shadow-sm'
-                        : 'text-white/80 hover:text-white hover:bg-white/10'
-                      }`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '6px 16px', borderRadius: 999,
+                      fontSize: 13, fontWeight: 500,
+                      textDecoration: 'none',
+                      background: active ? '#fff' : 'transparent',
+                      color: active ? navBg : 'rgba(255,255,255,0.80)',
+                      boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                      transition: 'background .2s, color .2s',
+                    }}
+                    onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = '#fff'; } }}
+                    onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.80)'; } }}
                   >
-                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <Icon style={{ width: 14, height: 14, flexShrink: 0 }} />
                     <span>{item.label}</span>
                   </Link>
                 );
               })}
 
-              {/* Menu « Plus » — tout le reste */}
+              {/* Menu « Plus » */}
               {hasMoreItems && (
-                <div className="relative more-menu-container pb-3 -mb-3"
+                <div className="more-menu-container"
+                  style={{ position: 'relative', paddingBottom: 12, marginBottom: -12 }}
                   onMouseEnter={() => setShowMoreMenu(true)}
                   onMouseLeave={() => setShowMoreMenu(false)}
                 >
-                  <button className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 text-white/80 hover:text-white hover:bg-white/10">
-                    <Grid className="w-3.5 h-3.5" />
+                  <button style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 16px', borderRadius: 999,
+                    fontSize: 13, fontWeight: 500,
+                    background: 'transparent', color: 'rgba(255,255,255,0.80)',
+                    border: 'none', cursor: 'pointer',
+                    transition: 'background .2s, color .2s',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.80)'; }}
+                  >
+                    <Grid style={{ width: 14, height: 14 }} />
                     <span>Plus</span>
-                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showMoreMenu ? 'rotate-180' : ''}`} />
+                    <ChevronDown style={{ width: 12, height: 12, transition: 'transform .2s', transform: showMoreMenu ? 'rotate(180deg)' : 'rotate(0deg)' }} />
                   </button>
 
                   {showMoreMenu && (
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-0 pt-2 w-80 z-50">
-                      <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2 animate-fadeIn max-h-[75vh] overflow-y-auto">
-                      {renderMoreSection('Navigation', moreNavItems, () => setShowMoreMenu(false))}
-                      {moreGestionItems.length > 0 && moreNavItems.length > 0 && <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-4" />}
-                      {renderMoreSection('Gestion', moreGestionItems, () => setShowMoreMenu(false))}
-                      {moreAppsItems.length > 0 && <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-4" />}
-                      {renderMoreSection('Applications', moreAppsItems, () => setShowMoreMenu(false))}
-                      {moreToolsItems.length > 0 && <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-4" />}
-                      {renderMoreSection('Outils', moreToolsItems, () => setShowMoreMenu(false))}
+                    <div style={{
+                      position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+                      marginTop: 0, paddingTop: 8, width: 320, zIndex: 50,
+                    }}>
+                      <div className="animate-fadeIn" style={{ ...dropdownStyle, padding: '8px 0', maxHeight: '75vh', overflowY: 'auto' }}>
+                        {renderMoreSection('Navigation', moreNavItems, () => setShowMoreMenu(false))}
+                        {moreGestionItems.length > 0 && moreNavItems.length > 0 && <div style={{ height: 1, background: 'var(--border)', margin: '4px 16px' }} />}
+                        {renderMoreSection('Gestion', moreGestionItems, () => setShowMoreMenu(false))}
+                        {moreAppsItems.length > 0 && <div style={{ height: 1, background: 'var(--border)', margin: '4px 16px' }} />}
+                        {renderMoreSection('Applications', moreAppsItems, () => setShowMoreMenu(false))}
+                        {moreToolsItems.length > 0 && <div style={{ height: 1, background: 'var(--border)', margin: '4px 16px' }} />}
+                        {renderMoreSection('Outils', moreToolsItems, () => setShowMoreMenu(false))}
                       </div>
                     </div>
                   )}
@@ -344,82 +372,188 @@ export default function Navbar({ onLogout }) {
             </div>
           </div>
 
-          {/* ========== DROITE : icônes ========== */}
-          <div className="hidden lg:flex items-center gap-1">
-            {/* Recherche Spotlight */}
+          {/* ========== DROITE : icônes — desktop ========== */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} className="desktop-nav">
             <GlobalSearch />
 
             {/* Mes Tâches */}
             <Link to="/my-tasks" title="Mes tâches"
-              className="relative p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200"
+              style={{
+                position: 'relative', padding: 8, borderRadius: 'var(--radius-3)',
+                color: 'rgba(255,255,255,0.70)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background .2s, color .2s', textDecoration: 'none',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.70)'; }}
             >
-              <CheckSquare className={hasNewTask ? 'animate-bounce' : ''} style={{ width: 18, height: 18 }} />
+              <CheckSquare style={{ width: 18, height: 18 }} className={hasNewTask ? 'animate-bounce' : ''} />
               {pendingCount > 0 && (
-                <span className={`absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ${hasNewTask ? 'animate-pulse' : ''}`}>
+                <span style={{
+                  position: 'absolute', top: -2, right: -2,
+                  background: '#ef4444', color: '#fff',
+                  fontSize: 10, fontWeight: 700,
+                  borderRadius: 999, minWidth: 18, height: 18,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 4px',
+                }} className={hasNewTask ? 'animate-pulse' : ''}>
                   {pendingCount}
                 </span>
               )}
             </Link>
 
             {/* Notifications */}
-            <button title="Notifications" className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200">
+            <button title="Notifications" style={{
+              padding: 8, borderRadius: 'var(--radius-3)',
+              color: 'rgba(255,255,255,0.70)',
+              background: 'none', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background .2s, color .2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.70)'; }}
+            >
               <Bell style={{ width: 18, height: 18 }} />
             </button>
 
+            {/* Indicateur de synchronisation offline */}
+            <div style={{ display: 'flex', alignItems: 'center', color: 'rgba(255,255,255,0.80)' }}>
+              <SyncStatus />
+            </div>
+
             <ThemeToggle />
 
-            <div className="w-px h-5 bg-white/20 mx-1" />
+            <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.20)', margin: '0 4px' }} />
 
             {/* Avatar utilisateur */}
-            <div className="relative user-menu-container">
+            <div className="user-menu-container" style={{ position: 'relative' }}>
               <button onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-white/10 transition-all duration-200"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  paddingLeft: 4, paddingRight: 8, paddingTop: 4, paddingBottom: 4,
+                  borderRadius: 'var(--radius-3)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  transition: 'background .2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.10)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
-                <div className={`${avatarColor} w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm`}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 'var(--radius-2)',
+                  background: avatarBg, color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, fontWeight: 700, flexShrink: 0,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                }}>
                   {userInitials}
                 </div>
-                <ChevronDown className={`w-3 h-3 text-white/50 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown style={{ width: 12, height: 12, color: 'rgba(255,255,255,0.50)', transition: 'transform .2s', transform: showUserMenu ? 'rotate(180deg)' : 'rotate(0deg)' }} />
               </button>
 
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 z-50 overflow-hidden animate-fadeIn">
-                  <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-100 dark:border-gray-700">
-                    <div className={`${avatarColor} w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm`}>
+                <div className="animate-fadeIn" style={{ position: 'absolute', right: 0, marginTop: 8, width: 288, zIndex: 50, overflow: 'hidden', ...dropdownStyle }}>
+                  {/* En-tête profil */}
+                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-3)', background: avatarBg, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
                       {userInitials}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{user?.username}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
-                      <span className="inline-block mt-0.5 text-[10px] font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">{getRoleLabel(user?.role)}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, color: 'var(--fg)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{user?.username}</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{user?.email}</p>
+                      <span style={{
+                        display: 'inline-block', marginTop: 2,
+                        fontSize: 10, fontWeight: 500,
+                        background: 'var(--brand-soft)', color: 'var(--brand)',
+                        padding: '2px 8px', borderRadius: 999,
+                      }}>{getRoleLabel(user?.role)}</span>
                     </div>
                   </div>
-                  <div className="p-2">
-                    <Link to="/parametres/notifications" onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl text-gray-700 dark:text-gray-300 transition-all">
-                      <div className="p-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg"><Bell className="w-4 h-4 text-gray-500 dark:text-gray-400" /></div>
-                      <div><div className="text-sm font-medium">Notifications</div><div className="text-xs text-gray-400">Gérer vos alertes</div></div>
-                    </Link>
-                    <Link to="/settings" onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl text-gray-700 dark:text-gray-300 transition-all">
-                      <div className="p-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg"><Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" /></div>
-                      <div><div className="text-sm font-medium">Paramètres</div><div className="text-xs text-gray-400">Configuration</div></div>
-                    </Link>
-                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1.5 mx-3" />
-                    <div className="px-3 py-2">
-                      <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Couleur de la barre</p>
-                      <div className="flex gap-1.5">
+
+                  {/* Statut présence */}
+                  <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+                    <button
+                      onClick={handleToggleMyAbsence}
+                      disabled={togglingAbsence}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '8px 12px', borderRadius: 'var(--radius-3)', border: 'none', cursor: togglingAbsence ? 'not-allowed' : 'pointer',
+                        background: user?.isAbsent ? 'var(--warning-soft)' : '#dcfce7',
+                        opacity: togglingAbsence ? 0.6 : 1,
+                      }}
+                    >
+                      <span style={{ fontSize: 12, fontWeight: 600, color: user?.isAbsent ? 'var(--warning)' : '#166534' }}>
+                        {user?.isAbsent ? '🔴 Absent — cliquer pour repasser en ligne' : '🟢 En ligne — cliquer pour se mettre absent'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Liens menu */}
+                  <div style={{ padding: 8 }}>
+                    {[
+                      { to: '/parametres/notifications', icon: Bell, label: 'Notifications', sub: 'Gérer vos alertes' },
+                      { to: '/settings', icon: Settings, label: 'Paramètres', sub: 'Configuration' },
+                    ].map(({ to, icon: Icon, label, sub }) => (
+                      <Link key={to} to={to} onClick={() => setShowUserMenu(false)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '10px 12px', borderRadius: 'var(--radius-3)',
+                          textDecoration: 'none', transition: 'background .15s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{ padding: 6, background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', display: 'flex' }}>
+                          <Icon style={{ width: 14, height: 14, color: 'var(--fg-muted)' }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{label}</div>
+                          <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{sub}</div>
+                        </div>
+                      </Link>
+                    ))}
+
+                    <div style={{ height: 1, background: 'var(--border)', margin: '6px 12px' }} />
+
+                    {/* Couleur de la barre */}
+                    <div style={{ padding: '8px 12px' }}>
+                      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, margin: '0 0 8px' }}>Couleur de la barre</p>
+                      <div style={{ display: 'flex', gap: 6 }}>
                         {Object.entries(themes).map(([key, t]) => (
                           <button key={key} onClick={() => setThemeName(key)} title={t.label}
-                            className={`w-6 h-6 rounded-full ${t.dot} transition-all ${themeName === key ? 'ring-2 ring-offset-2 ring-blue-400 dark:ring-offset-gray-800 scale-110' : 'hover:scale-110'}`}
+                            style={{
+                              width: 24, height: 24, borderRadius: '50%',
+                              background: t.dot, border: 'none', cursor: 'pointer',
+                              outline: themeName === key ? `2px solid ${t.dot}` : 'none',
+                              outlineOffset: 2,
+                              transform: themeName === key ? 'scale(1.15)' : 'scale(1)',
+                              transition: 'transform .15s',
+                            }}
+                            onMouseEnter={e => { if (themeName !== key) e.currentTarget.style.transform = 'scale(1.10)'; }}
+                            onMouseLeave={e => { if (themeName !== key) e.currentTarget.style.transform = 'scale(1)'; }}
                           />
                         ))}
                       </div>
                     </div>
-                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1.5 mx-3" />
+
+                    <div style={{ height: 1, background: 'var(--border)', margin: '6px 12px' }} />
+
+                    {/* Déconnexion */}
                     <button onClick={() => { setShowUserMenu(false); onLogout(); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-red-600 dark:text-red-400 transition-all">
-                      <div className="p-1.5 bg-red-50 dark:bg-red-900/30 rounded-lg"><LogOut className="w-4 h-4" /></div>
-                      <div className="text-left"><div className="text-sm font-medium">Déconnexion</div><div className="text-xs opacity-60">Se déconnecter</div></div>
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 12px', borderRadius: 'var(--radius-3)',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--danger)', transition: 'background .15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-soft)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >
+                      <div style={{ padding: 6, background: 'var(--danger-soft)', borderRadius: 'var(--radius-2)', display: 'flex' }}>
+                        <LogOut style={{ width: 14, height: 14, color: 'var(--danger)' }} />
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>Déconnexion</div>
+                        <div style={{ fontSize: 11, opacity: 0.6 }}>Se déconnecter</div>
+                      </div>
                     </button>
                   </div>
                 </div>
@@ -428,86 +562,88 @@ export default function Navbar({ onLogout }) {
           </div>
 
           {/* ========== MOBILE BUTTON ========== */}
-          <div className="lg:hidden flex items-center gap-1.5">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} className="mobile-nav">
             {pendingCount > 0 && (
-              <Link to="/my-tasks" className="relative p-2" onClick={() => setIsOpen(false)}>
-                <Bell className="w-5 h-5 text-white" />
-                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">{pendingCount}</span>
+              <Link to="/my-tasks" style={{ position: 'relative', padding: 8, display: 'flex', textDecoration: 'none' }} onClick={() => setIsOpen(false)}>
+                <Bell style={{ width: 20, height: 20, color: '#fff' }} />
+                <span style={{ position: 'absolute', top: -2, right: -2, background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 999, height: 16, width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pendingCount}</span>
               </Link>
             )}
             <ThemeToggle />
-            <button onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-xl text-white hover:bg-white/10 transition-all">
-              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <button onClick={() => setIsOpen(!isOpen)}
+              style={{ padding: 8, borderRadius: 'var(--radius-3)', color: '#fff', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'background .15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.10)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {isOpen ? <X style={{ width: 20, height: 20 }} /> : <Menu style={{ width: 20, height: 20 }} />}
             </button>
           </div>
         </div>
 
         {/* ========== MOBILE MENU ========== */}
         {isOpen && (
-          <div className="lg:hidden pb-4 border-t border-white/10 mt-1">
-            <div className="space-y-0.5 pt-3">
-              {/* Items principaux + navigation */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.10)', paddingBottom: 16 }} className="mobile-nav">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 12 }}>
               {[...visibleItems, ...moreNavItems].map((item) => {
                 const Icon = item.icon;
-                const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+                const active = isActivePath(item.path);
                 return (
                   <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
-                      ${active ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                    <Icon className="w-4 h-4" /><span>{item.label}</span>
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 12px', borderRadius: 'var(--radius-3)',
+                      fontSize: 13, fontWeight: 500, textDecoration: 'none',
+                      background: active ? 'rgba(255,255,255,0.20)' : 'transparent',
+                      color: active ? '#fff' : 'rgba(255,255,255,0.80)',
+                      transition: 'background .15s, color .15s',
+                    }}
+                  >
+                    <Icon style={{ width: 16, height: 16 }} /><span>{item.label}</span>
                   </Link>
                 );
               })}
 
-              {moreGestionItems.length > 0 && (
-                <div className="pt-2 mt-1">
-                  <div className="px-3 py-1.5 text-white/40 text-[10px] font-semibold uppercase tracking-widest">Gestion</div>
-                  {moreGestionItems.map((item) => {
+              {[
+                { label: 'Gestion', items: moreGestionItems },
+                { label: 'Applications', items: moreAppsItems },
+                { label: 'Outils', items: moreToolsItems },
+              ].map(({ label, items }) => items.length === 0 ? null : (
+                <div key={label} style={{ paddingTop: 8, marginTop: 4 }}>
+                  <div style={{ padding: '6px 12px', color: 'rgba(255,255,255,0.40)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 2 }}>{label}</div>
+                  {items.map((item) => {
                     const Icon = item.icon;
+                    const active = isActivePath(item.path);
                     return (
                       <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive(item.path) ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                        <Icon className="w-4 h-4" /><span>{item.label}</span>
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '10px 12px', borderRadius: 'var(--radius-3)',
+                          fontSize: 13, fontWeight: 500, textDecoration: 'none',
+                          background: active ? 'rgba(255,255,255,0.20)' : 'transparent',
+                          color: active ? '#fff' : 'rgba(255,255,255,0.80)',
+                          transition: 'background .15s, color .15s',
+                        }}
+                      >
+                        <Icon style={{ width: 16, height: 16 }} /><span>{item.label}</span>
                       </Link>
                     );
                   })}
                 </div>
-              )}
+              ))}
 
-              {moreAppsItems.length > 0 && (
-                <div className="pt-2 mt-1">
-                  <div className="px-3 py-1.5 text-white/40 text-[10px] font-semibold uppercase tracking-widest">Applications</div>
-                  {moreAppsItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive(item.path) ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                        <Icon className="w-4 h-4" /><span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-
-              {moreToolsItems.length > 0 && (
-                <div className="pt-2 mt-1">
-                  <div className="px-3 py-1.5 text-white/40 text-[10px] font-semibold uppercase tracking-widest">Outils</div>
-                  {moreToolsItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link key={item.path} to={item.path} onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive(item.path) ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                        <Icon className="w-4 h-4" /><span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="pt-2 mt-1 border-t border-white/10">
+              <div style={{ paddingTop: 8, marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.10)' }}>
                 <button onClick={() => { setIsOpen(false); onLogout(); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-red-300 hover:bg-red-500/20 rounded-xl text-sm font-medium transition-all">
-                  <LogOut className="w-4 h-4" /><span>Déconnexion</span>
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 12px', borderRadius: 'var(--radius-3)',
+                    fontSize: 13, fontWeight: 500,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: '#fca5a5', transition: 'background .15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.20)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <LogOut style={{ width: 16, height: 16 }} /><span>Déconnexion</span>
                 </button>
               </div>
             </div>

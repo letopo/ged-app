@@ -218,6 +218,7 @@ export const documentsAPI = {
   updateMetadata: (documentId, data) => api.patch(`/documents/${documentId}/metadata`, data),
   getValidatedOrdreMission: () => api.get('/documents/ordres-mission/valides'),
   getValidatedForPC: () => api.get('/documents/valides-pour-pc'),
+  getPieceDeCaisseHistory: (params = {}) => api.get('/documents/piece-de-caisse-history', { params }),
   getValidatedDemandesTravaux: () => api.get('/documents/demandes-travaux/valides'),
   getNextNumero: (category) => api.get(`/documents/next-numero?category=${encodeURIComponent(category)}`),
   getArchives: () => api.get('/documents/archives'),
@@ -280,6 +281,7 @@ export const usersAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   getProfile: () => api.get('/users/profile'),
+  setAbsence: (userId, isAbsent) => api.put(`/users/${userId}/absence`, { isAbsent }),
 };
 
 // ============================================
@@ -290,6 +292,7 @@ export const workflowAPI = {
   submitWorkflow: (workflowData) => api.post('/workflows', workflowData),
   // Aperçu du circuit d'un ordre de mission (postes + titulaires + choix requis)
   getOrdreMissionPreview: (documentId) => api.get(`/workflows/document/${documentId}/ordre-mission-preview`),
+  getPieceDeCaisseChainPreview: (documentId) => api.get(`/workflows/document/${documentId}/piece-de-caisse-preview`),
   
   // ✅ AJOUT IMPORTANT : La fonction qui manquait
   submitForValidation: (documentId, validatorIds) => api.post('/workflows', { documentId, validatorIds }),
@@ -335,6 +338,7 @@ export const employeesAPI = {
   update: (employeeId, data) => api.put(`/employees/${employeeId}`, data),
   delete: (employeeId) => api.delete(`/employees/${employeeId}`),
   getByService: (serviceId) => api.get(`/employees/service/${serviceId}`),
+  getMissionCandidates: (params = {}) => api.get('/employees/mission-candidates', { params }),
   getServicesWithEmployees: () => api.get('/employees/services/with-employees'),
   exportCSV: () => api.get('/employees/export/csv', {
     responseType: 'blob'
@@ -593,11 +597,20 @@ export const formsAPI = {
 };
 
 // Postes organisationnels assignables (comptable, DG, DDS…)
+export const missionMealAPI = {
+  get: () => api.get('/mission-meal-rates'),
+  upsertRate: (data) => api.post('/mission-meal-rates/rates', data),
+  deleteRate: (id) => api.delete(`/mission-meal-rates/rates/${id}`),
+  updateThresholds: (data) => api.put('/mission-meal-rates/thresholds', data),
+  calculate: (data) => api.post('/mission-meal-rates/calculate', data),
+};
+
 export const postesAPI = {
-  getAll:              ()              => api.get('/postes'),
-  getOrdreMissionTypes:()              => api.get('/postes/ordre-mission-types'),
-  assignHolder:        (code, userId)  => api.post(`/postes/${code}/holders`, { userId }),
-  removeHolder:        (code, userId)  => api.delete(`/postes/${code}/holders/${userId}`),
+  getAll:              ()                          => api.get('/postes'),
+  getOrdreMissionTypes:()                          => api.get('/postes/ordre-mission-types'),
+  create:              (code, label, description)  => api.post('/postes', { code, label, description }),
+  assignHolder:        (code, userId)              => api.post(`/postes/${code}/holders`, { userId }),
+  removeHolder:        (code, userId)              => api.delete(`/postes/${code}/holders/${userId}`),
 };
 
 export default api;

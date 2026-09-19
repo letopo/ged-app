@@ -8,20 +8,15 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
     const [loadingServices, setLoadingServices] = useState(true);
     const [dynamicData, setDynamicData] = useState({});
 
-    // Charger les données dynamiques (services, etc.)
     useEffect(() => {
         const fetchDynamicData = async () => {
             try {
-                // Charger les services si nécessaire
-                const needsServices = templateConfig.fields?.some(field => 
+                const needsServices = templateConfig.fields?.some(field =>
                     field.dataSource === 'services'
                 );
-                
                 if (needsServices) {
                     const servicesResponse = await servicesAPI.getAll();
                     setServices(servicesResponse.data.data || []);
-                    
-                    // Auto-remplir le service de l'utilisateur si configuré
                     const userServiceResponse = await servicesAPI.getMyService();
                     if (userServiceResponse.data.success && userServiceResponse.data.service) {
                         setFormData(prev => ({
@@ -36,19 +31,15 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
                 setLoadingServices(false);
             }
         };
-
         fetchDynamicData();
     }, [templateConfig, setFormData]);
 
-    // Gestionnaire de changement de champ
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         const finalValue = type === 'checkbox' ? checked : value;
-        
         setFormData(prev => ({ ...prev, [name]: finalValue }));
     };
 
-    // Gestionnaire pour les champs de ligne (tableaux)
     const handleLineChange = (fieldName, index, subField, value) => {
         setFormData(prev => {
             const newLines = [...(prev[fieldName] || [])];
@@ -58,7 +49,6 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
         });
     };
 
-    // Ajouter une ligne à un champ tableau
     const addLine = (fieldName, defaultLine = {}) => {
         setFormData(prev => ({
             ...prev,
@@ -66,7 +56,6 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
         }));
     };
 
-    // Supprimer une ligne d'un champ tableau
     const removeLine = (fieldName, index) => {
         setFormData(prev => ({
             ...prev,
@@ -74,7 +63,12 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
         }));
     };
 
-    // Rendu d'un champ individuel
+    const inputStyle = {
+        width: '100%', padding: '6px 10px', borderRadius: 'var(--radius-2)',
+        border: '1.5px solid var(--border)', background: 'var(--surface)',
+        color: 'var(--fg)', fontSize: 13, outline: 'none',
+    };
+
     const renderField = (field) => {
         if (field.conditional) {
             const shouldShow = formData[field.conditional.field] === field.conditional.value;
@@ -86,12 +80,10 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
             name: field.name,
             value: formData[field.name] || '',
             onChange: handleChange,
-            className: `not-printable w-full px-3 py-2 border-2 border-blue-300 dark:border-blue-700 rounded focus:outline-none focus:border-blue-500 dark:bg-dark-surface dark:text-dark-text ${field.className || ''}`,
             placeholder: field.placeholder,
-            required: field.required
+            required: field.required,
         };
 
-        // Styles pour le rendu PDF
         const staticFieldStyle = {
             borderBottom: '2px dotted #9CA3AF',
             padding: '8px 4px',
@@ -100,129 +92,116 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
             fontWeight: '600',
             color: '#000000',
             lineHeight: '1.5',
-            display: 'none' // Caché par défaut, affiché en PDF
+            display: 'none'
         };
 
         switch (field.type) {
             case 'text':
                 return (
-                    <div className="mb-4">
-                        <label className="font-semibold block mb-2 text-gray-900 dark:text-dark-text">
+                    <div key={field.name} style={{ marginBottom: 16 }}>
+                        <label style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--fg)' }}>
                             {field.label}
                         </label>
-                        <input type="text" {...commonProps} />
-                        <div className="print-only" style={staticFieldStyle}>
-                            {formData[field.name] || '\u00A0'}
-                        </div>
+                        <input type="text" {...commonProps} className="not-printable" style={inputStyle} />
+                        <div className="print-only" style={staticFieldStyle}>{formData[field.name] || ' '}</div>
                     </div>
                 );
 
             case 'textarea':
                 return (
-                    <div className="mb-4">
-                        <label className="font-semibold block mb-2 text-gray-900 dark:text-dark-text">
+                    <div key={field.name} style={{ marginBottom: 16 }}>
+                        <label style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--fg)' }}>
                             {field.label}
                         </label>
-                        <textarea 
+                        <textarea
                             {...commonProps}
                             rows={field.rows || 3}
-                            className={`${commonProps.className} resize-vertical`}
+                            className="not-printable"
+                            style={{ ...inputStyle, resize: 'vertical' }}
                         />
-                        <div className="print-only" style={staticFieldStyle}>
-                            {formData[field.name] || '\u00A0'}
-                        </div>
+                        <div className="print-only" style={staticFieldStyle}>{formData[field.name] || ' '}</div>
                     </div>
                 );
 
-            case 'select':
+            case 'select': {
                 let options = [];
-                
                 if (field.dataSource === 'services') {
-                    options = services.map(service => ({
-                        value: service.name,
-                        label: service.name
-                    }));
+                    options = services.map(service => ({ value: service.name, label: service.name }));
                 } else if (field.options) {
-                    options = field.options.map(opt => 
+                    options = field.options.map(opt =>
                         typeof opt === 'string' ? { value: opt, label: opt } : opt
                     );
                 }
-
                 return (
-                    <div className="mb-4">
-                        <label className="font-semibold block mb-2 text-gray-900 dark:text-dark-text">
+                    <div key={field.name} style={{ marginBottom: 16 }}>
+                        <label style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--fg)' }}>
                             {field.label}
                         </label>
-                        <select {...commonProps}>
+                        <select {...commonProps} className="not-printable" style={inputStyle}>
                             <option value="">-- {field.placeholder || 'Sélectionner'} --</option>
                             {options.map(opt => (
-                                <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </option>
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
                         </select>
                         <div className="print-only" style={staticFieldStyle}>
-                            {options.find(opt => opt.value === formData[field.name])?.label || '\u00A0'}
+                            {options.find(opt => opt.value === formData[field.name])?.label || ' '}
                         </div>
                     </div>
                 );
+            }
 
             case 'date':
                 return (
-                    <div className="mb-4">
-                        <label className="font-semibold block mb-2 text-gray-900 dark:text-dark-text">
+                    <div key={field.name} style={{ marginBottom: 16 }}>
+                        <label style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--fg)' }}>
                             {field.label}
                         </label>
-                        <input type="date" {...commonProps} />
+                        <input type="date" {...commonProps} className="not-printable" style={inputStyle} />
                         <div className="print-only" style={staticFieldStyle}>
-                            {formData[field.name] ? new Date(formData[field.name]).toLocaleDateString('fr-FR') : '\u00A0'}
+                            {formData[field.name] ? new Date(formData[field.name]).toLocaleDateString('fr-FR') : ' '}
                         </div>
                     </div>
                 );
 
             case 'time':
                 return (
-                    <div className="mb-4">
-                        <label className="font-semibold block mb-2 text-gray-900 dark:text-dark-text">
+                    <div key={field.name} style={{ marginBottom: 16 }}>
+                        <label style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--fg)' }}>
                             {field.label}
                         </label>
-                        <input type="time" {...commonProps} />
-                        <div className="print-only" style={staticFieldStyle}>
-                            {formData[field.name] || '\u00A0'}
-                        </div>
+                        <input type="time" {...commonProps} className="not-printable" style={inputStyle} />
+                        <div className="print-only" style={staticFieldStyle}>{formData[field.name] || ' '}</div>
                     </div>
                 );
 
             case 'number':
                 return (
-                    <div className="mb-4">
-                        <label className="font-semibold block mb-2 text-gray-900 dark:text-dark-text">
+                    <div key={field.name} style={{ marginBottom: 16 }}>
+                        <label style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--fg)' }}>
                             {field.label}
                         </label>
-                        <input 
-                            type="number" 
+                        <input
+                            type="number"
                             {...commonProps}
                             min={field.min}
                             max={field.max}
+                            className="not-printable"
+                            style={inputStyle}
                         />
-                        <div className="print-only" style={staticFieldStyle}>
-                            {formData[field.name] || '\u00A0'}
-                        </div>
+                        <div className="print-only" style={staticFieldStyle}>{formData[field.name] || ' '}</div>
                     </div>
                 );
 
             case 'checkbox':
                 return (
-                    <div className="mb-4 flex items-center">
-                        <input 
-                            type="checkbox" 
+                    <div key={field.name} style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                            type="checkbox"
                             {...commonProps}
                             checked={formData[field.name] || false}
-                            className="w-4 h-4 mr-2"
+                            style={{ width: 16, height: 16 }}
                         />
-                        <label className="font-semibold text-gray-900 dark:text-dark-text">
-                            {field.label}
-                        </label>
+                        <label style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)' }}>{field.label}</label>
                     </div>
                 );
 
@@ -231,18 +210,11 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
         }
     };
 
-    // Rendu du contenu dynamique avec variables
     const renderDynamicContent = (content) => {
         if (!content) return '';
-        
         return content.replace(/\{\{([^}]+)\}\}/g, (match, variable) => {
             const trimmedVar = variable.trim();
-            
-            // Variables spéciales
-            if (trimmedVar === 'currentDate') {
-                return new Date().toLocaleDateString('fr-FR');
-            }
-            
+            if (trimmedVar === 'currentDate') return new Date().toLocaleDateString('fr-FR');
             if (trimmedVar === 'nombreDeJours' && formData.date_debut && formData.date_fin) {
                 const start = new Date(formData.date_debut);
                 const end = new Date(formData.date_fin);
@@ -253,24 +225,24 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
                 }
                 return '...';
             }
-            
             if (trimmedVar.startsWith('formatDate ')) {
                 const dateField = trimmedVar.replace('formatDate ', '').trim();
                 const dateValue = formData[dateField];
                 return dateValue ? new Date(dateValue).toLocaleDateString('fr-FR') : '____________________';
             }
-            
-            // Variables normales du formData
             return formData[trimmedVar] || '____________________';
         });
     };
 
-    // Rendu du template principal
     return (
-        <div 
+        <div
             ref={pdfContainerRef}
-            className="bg-white p-12 shadow-lg mx-auto relative"
-            style={{ 
+            style={{
+                background: '#ffffff',
+                padding: '48px',
+                boxShadow: 'var(--shadow-3)',
+                margin: '0 auto',
+                position: 'relative',
                 width: templateConfig.layout?.width || '210mm',
                 minHeight: templateConfig.layout?.minHeight || '297mm',
                 fontFamily: 'Arial, sans-serif',
@@ -278,12 +250,12 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
                 color: '#000000'
             }}
         >
-            {/* En-tête du document */}
-            <header className="flex items-center justify-between mb-12">
+            {/* En-tête */}
+            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 48 }}>
                 {templateConfig.template?.header?.logo && (
                     <img src={logo} alt="Logo" style={{ width: '80px' }} />
                 )}
-                <h1 className="text-center">
+                <h1 style={{ textAlign: 'center', margin: 0 }}>
                     <span style={{ fontSize: '20px', fontWeight: 'bold', display: 'block', color: '#000000' }}>
                         {templateConfig.template?.header?.title || 'ORDRE DE MALTE'}
                     </span>
@@ -295,8 +267,8 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
                 </h1>
             </header>
 
-            {/* Section des champs d'en-tête */}
-            <div className="flex justify-between mb-10">
+            {/* Champs en-tête */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 40 }}>
                 {templateConfig.fields
                     ?.filter(field => field.position?.section === 'header')
                     .map(field => (
@@ -307,74 +279,74 @@ const TemplateEngine = ({ templateConfig, formData, setFormData, pdfContainerRef
                 }
             </div>
 
-            {/* Contenu principal du template */}
-            <div className="mb-8">
+            {/* Contenu principal */}
+            <div style={{ marginBottom: 32 }}>
                 {templateConfig.template?.content?.map((section, index) => {
                     switch (section.type) {
                         case 'text':
                             return (
-                                <p 
-                                    key={index}
-                                    className="mb-4"
-                                    style={{ 
-                                        textAlign: section.align,
-                                        color: '#000000'
-                                    }}
-                                >
+                                <p key={index} style={{ marginBottom: 16, textAlign: section.align, color: '#000000' }}>
                                     {section.content}
                                 </p>
                             );
-
                         case 'section':
                             return (
-                                <div key={index} className="mb-6">
-                                    <label className="font-bold text-gray-900 dark:text-dark-text" style={{ color: '#000000' }}>
-                                        {section.title}
-                                    </label>
+                                <div key={index} style={{ marginBottom: 24 }}>
+                                    <label style={{ fontWeight: 'bold', color: '#000000' }}>{section.title}</label>
                                     {section.field && renderField(
-                                        templateConfig.fields?.find(f => f.name === section.field) || 
+                                        templateConfig.fields?.find(f => f.name === section.field) ||
                                         { name: section.field, type: 'text' }
                                     )}
                                 </div>
                             );
-
                         case 'dynamic':
                             return (
-                                <p key={index} className="mb-4" style={{ color: '#000000' }}>
+                                <p key={index} style={{ marginBottom: 16, color: '#000000' }}>
                                     {renderDynamicContent(section.content)}
                                 </p>
                             );
-
-                        case 'field':
+                        case 'field': {
                             const fieldConfig = templateConfig.fields?.find(f => f.name === section.field);
                             if (fieldConfig) {
                                 return (
-                                    <div key={index} className={`mb-4 ${section.style === 'italic' ? 'italic' : ''}`}>
+                                    <div key={index} style={{ marginBottom: 16, fontStyle: section.style === 'italic' ? 'italic' : 'normal' }}>
                                         {renderField(fieldConfig)}
                                     </div>
                                 );
                             }
                             return null;
-
+                        }
                         default:
                             return null;
                     }
                 })}
             </div>
 
-            {/* Pied de page avec signatures */}
+            {/* Signatures pied de page */}
             {templateConfig.template?.footer?.signatures && (
-                <div className="absolute bottom-24 left-12 right-12 grid grid-cols-3 gap-8 text-center" style={{ color: '#000000' }}>
+                <div style={{
+                    position: 'absolute', bottom: 96, left: 48, right: 48,
+                    display: 'grid', gridTemplateColumns: `repeat(${templateConfig.template.footer.signatures.length}, 1fr)`,
+                    gap: 32, textAlign: 'center', color: '#000000'
+                }}>
                     {templateConfig.template.footer.signatures.map((signature, index) => (
                         <div key={index}>
-                            <p className="font-semibold">{signature.label}</p>
+                            <p style={{ fontWeight: 600 }}>{signature.label}</p>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* Zone d'édition des champs non-positionnés */}
-            <div className="not-printable my-6 p-4 bg-blue-50 dark:bg-blue-900/10 border-2 border-blue-200 dark:border-blue-700 rounded">
+            {/* Zone d'édition non imprimée */}
+            <div
+                className="not-printable"
+                style={{
+                    margin: '24px 0', padding: 16,
+                    background: 'var(--brand-soft)',
+                    border: '2px solid var(--brand)',
+                    borderRadius: 'var(--radius-3)',
+                }}
+            >
                 {templateConfig.fields
                     ?.filter(field => !field.position || field.position.section !== 'header')
                     .map(renderField)

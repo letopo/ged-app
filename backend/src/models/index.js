@@ -1,6 +1,7 @@
 // backend/src/models/index.js - VERSION AVEC MODULE PHP
 
 import sequelize from '../config/database.js';
+import Tenant from './Tenant.js';
 
 // Imports existants
 import User from './User.js';
@@ -45,6 +46,8 @@ import ReposPHP from './ReposPHP.js';
 import OperationPHP from './OperationPHP.js';
 import DecesTransfertPHP from './DecesTransfertPHP.js';
 import RendezVousPHP from './RendezVousPHP.js';
+import PhpFacture from './PhpFacture.js'; // ✅ Module factures PHP (secrétaire)
+import ComptaDoc from './ComptaDoc.js';   // ✅ Module Comptabilité (pièces de caisse)
 
 // Imports TRELLO
 import TrelloBoard from './TrelloBoard.js';
@@ -54,6 +57,8 @@ import TrelloComment from './TrelloComment.js';
 import TrelloAttachment from './TrelloAttachment.js';
 import TrelloActivityLog from './TrelloActivityLog.js';
 import TemplatePermission from './TemplatePermission.js';
+import MissionMealRate from './MissionMealRate.js';
+import MissionMealThreshold from './MissionMealThreshold.js';
 // ── MODULE FORM BUILDER ───────────────────────────────────────────────────────
 import Form from './Form.js';
 import FormPermission from './FormPermission.js';
@@ -65,11 +70,18 @@ import WorkflowComment from './WorkflowComment.js';
 import Poste from './Poste.js';
 import UserPoste from './UserPoste.js';
 import OrdreMissionType from './OrdreMissionType.js';
+import Conversation from './Conversation.js';
+import ChatMessage from './ChatMessage.js';
+import ChatMember from './ChatMember.js';
 
 const db = {
+  Tenant,
   Poste,
   UserPoste,
   OrdreMissionType,
+  Conversation,
+  ChatMessage,
+  ChatMember,
   User,
   Document,
   Workflow,
@@ -113,8 +125,12 @@ const db = {
   OperationPHP,
   DecesTransfertPHP,
   RendezVousPHP,
+  PhpFacture,
+  ComptaDoc,
   TemplatePermission,
   WorkflowComment,
+  MissionMealRate,
+  MissionMealThreshold,
 };
 
 // Associations automatiques
@@ -233,9 +249,13 @@ User.hasMany(DecesTransfertPHP, { as: 'decesEnregistres', foreignKey: 'enregistr
 db.sequelize = sequelize;
 
 export {
+  Tenant,
   Poste,
   UserPoste,
   OrdreMissionType,
+  Conversation,
+  ChatMessage,
+  ChatMember,
   User,
   Document,
   Workflow,
@@ -280,7 +300,11 @@ export {
   ReposPHP,
   OperationPHP,
   DecesTransfertPHP,
+  PhpFacture,
+  ComptaDoc,
   TemplatePermission,
+  MissionMealRate,
+  MissionMealThreshold,
   NotificationPreference,
   AuditLog,
   WorkflowTemplate,
@@ -290,6 +314,20 @@ export {
   FormPermission,
   FormResponse,
 };
+
+// ── Associations Chat ─────────────────────────────────────────────────────────
+Conversation.hasMany(ChatMessage, { as: 'messages', foreignKey: 'conversation_id', onDelete: 'CASCADE' });
+ChatMessage.belongsTo(Conversation, { as: 'conversation', foreignKey: 'conversation_id' });
+ChatMessage.belongsTo(User, { as: 'author', foreignKey: 'author_id' });
+User.hasMany(ChatMessage, { as: 'chatMessages', foreignKey: 'author_id' });
+
+Conversation.hasMany(ChatMember, { as: 'members', foreignKey: 'conversation_id', onDelete: 'CASCADE' });
+ChatMember.belongsTo(Conversation, { as: 'conversation', foreignKey: 'conversation_id' });
+ChatMember.belongsTo(User, { as: 'user', foreignKey: 'user_id' });
+User.hasMany(ChatMember, { as: 'chatMemberships', foreignKey: 'user_id' });
+
+Conversation.belongsToMany(User, { through: ChatMember, foreignKey: 'conversation_id', otherKey: 'user_id', as: 'chatParticipants' });
+User.belongsToMany(Conversation, { through: ChatMember, foreignKey: 'user_id', otherKey: 'conversation_id', as: 'conversations' });
 
 // ── Associations Form Builder ─────────────────────────────────────────────────
 Form.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });

@@ -1,6 +1,7 @@
 // frontend/src/pages/InvoiceDashboard.jsx - VERSION AVEC SUPPRESSION DOSSIERS
 
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { invoiceAPI, documentsAPI, usersAPI, workflowAPI } from '../services/api';
 import { Eye, Upload as UploadIcon, FileText, Send, X, Filter, CheckSquare, Square, FolderOpen, FolderInput, ChevronRight, Plus, Trash2 } from 'lucide-react'; // ✅ Trash2 ajouté
@@ -12,7 +13,7 @@ import { PageSkeleton } from '../components/SkeletonLoader';
 const InvoiceDashboard = () => {
   const [boardData, setBoardData] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Filtres & Sélection
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedDocs, setSelectedDocs] = useState([]);
@@ -25,7 +26,7 @@ const InvoiceDashboard = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadTitle, setUploadTitle] = useState('');
-  
+
   // Actions
   const [previewDoc, setPreviewDoc] = useState(null);
   const [submittingDoc, setSubmittingDoc] = useState(null);
@@ -59,7 +60,7 @@ const InvoiceDashboard = () => {
         const res = await usersAPI.getAll();
         const usersList = res.data.users || res.data;
         if (Array.isArray(usersList)) {
-            setValidators(usersList.filter(u => ['validator', 'director', 'admin'].includes(u.role)));
+            setValidators(usersList.filter(u => ['validator', 'director', 'admin', 'superadmin'].includes(u.role)));
         }
     } catch (err) { console.error(err); }
   };
@@ -160,26 +161,36 @@ const InvoiceDashboard = () => {
                 ref={provided.innerRef}
                 {...provided.draggableProps}
                 {...provided.dragHandleProps}
-                className={`mb-1.5 p-2 bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-all group ${
-                    snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-500 rotate-1 z-50' : ''
-                } ${selectedDocs.includes(doc.id) ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30' : ''}`}
+                style={{
+                  background: selectedDocs.includes(doc.id) ? 'var(--brand-soft)' : 'var(--surface)',
+                  border: `1px solid ${selectedDocs.includes(doc.id) ? 'var(--brand)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius-2)',
+                  boxShadow: snapshot.isDragging ? 'var(--shadow-3)' : 'var(--shadow-1)',
+                  transform: snapshot.isDragging ? 'rotate(1deg)' : 'none',
+                }}
             >
                 <div className="flex justify-between items-start mb-1">
-                    <button onClick={(e) => { e.stopPropagation(); toggleDocSelection(doc.id); }} className="text-gray-400 hover:text-blue-500">
-                        {selectedDocs.includes(doc.id) ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5" />}
+                    <button onClick={(e) => { e.stopPropagation(); toggleDocSelection(doc.id); }} style={{ color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+                        {selectedDocs.includes(doc.id)
+                          ? <CheckSquare style={{ width: 14, height: 14, color: 'var(--brand)' }} />
+                          : <Square style={{ width: 14, height: 14 }} />}
                     </button>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => setPreviewDoc(doc)} className="p-1 hover:bg-blue-50 dark:hover:bg-gray-600 rounded text-blue-600" title="Voir"><Eye className="w-3 h-3" /></button>
-                        <button onClick={() => { setDocToMove(doc); setShowMoveModal(true); }} className="p-1 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded text-purple-600" title="Déplacer vers..."><FolderInput className="w-3 h-3" /></button>
+                        <button onClick={() => setPreviewDoc(doc)} style={{ padding: 3, borderRadius: 4, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--brand)' }} title="Voir"><Eye style={{ width: 12, height: 12 }} /></button>
+                        <button onClick={() => { setDocToMove(doc); setShowMoveModal(true); }} style={{ padding: 3, borderRadius: 4, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--fg-muted)' }} title="Déplacer"><FolderInput style={{ width: 12, height: 12 }} /></button>
                         {['draft', 'rejected'].includes(doc.status) && (
-                            <button onClick={() => setSubmittingDoc(doc)} className="p-1 hover:bg-green-50 dark:hover:bg-green-900/30 rounded text-green-600" title="Soumettre"><Send className="w-3 h-3" /></button>
+                            <button onClick={() => setSubmittingDoc(doc)} style={{ padding: 3, borderRadius: 4, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--success)' }} title="Soumettre"><Send style={{ width: 12, height: 12 }} /></button>
                         )}
                     </div>
                 </div>
-                <h4 className="text-[11px] font-medium text-gray-800 dark:text-gray-200 truncate" title={doc.title}>{doc.title}</h4>
-                <div className="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5 flex justify-between">
+                <h4 style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }} title={doc.title}>{doc.title}</h4>
+                <div style={{ fontSize: 10, color: 'var(--fg-muted)', marginTop: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{new Date(doc.createdAt).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
-                    <span className={`px-1 rounded ${doc.status === 'validated' ? 'bg-green-100 text-green-800' : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300'}`}>{doc.status}</span>
+                    <span style={{
+                      padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 500,
+                      background: doc.status === 'validated' ? 'var(--success-soft)' : doc.status === 'rejected' ? 'var(--danger-soft)' : 'var(--surface-3)',
+                      color: doc.status === 'validated' ? 'var(--success)' : doc.status === 'rejected' ? 'var(--danger)' : 'var(--fg-muted)',
+                    }}>{doc.status}</span>
                 </div>
             </div>
         )}
@@ -188,23 +199,26 @@ const InvoiceDashboard = () => {
 
   // ✅ MODIFICATION ICI : Ajout du bouton Trash dans l'en-tête du FolderBox
   const FolderBox = ({ folder, heightClass = "h-64" }) => (
-    <div className={`flex flex-col bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm ${heightClass}`}>
-        <div className="p-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 rounded-t-lg group">
-            <h3 className="font-bold text-gray-700 dark:text-gray-200 text-xs truncate flex items-center gap-1.5" title={folder.name}>
-                {folder.type === 'inbox' && <div className="w-2 h-2 rounded-full bg-red-500"></div>}
+    <div className={`flex flex-col rounded-lg shadow-sm ${heightClass}`} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+        <div className="p-2 border-b flex justify-between items-center rounded-t-lg group" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+            <h3 className="font-bold text-xs truncate flex items-center gap-1.5" style={{ color: 'var(--fg)' }} title={folder.name}>
+                {folder.type === 'inbox' && <div className="w-2 h-2 rounded-full" style={{ background: 'var(--danger)' }}></div>}
                 {folder.name}
             </h3>
-            
+
             <div className="flex items-center gap-2">
-                <span className="text-[10px] bg-gray-200 dark:bg-gray-700 dark:text-gray-300 px-1.5 rounded-full font-medium">
+                <span className="text-[10px] px-1.5 rounded-full font-medium" style={{ background: 'var(--surface-3)', color: 'var(--fg-muted)' }}>
                     {folder.documents?.length || 0}
                 </span>
                 {/* Bouton supprimer (caché pour Inbox) */}
                 {folder.type !== 'inbox' && (
-                    <button 
+                    <button
                         onClick={() => handleDeleteFolder(folder.id, folder.name)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 2 }}
                         title="Supprimer le dossier"
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--fg-muted)'}
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -216,9 +230,8 @@ const InvoiceDashboard = () => {
                 <div
                     {...provided.droppableProps}
                     ref={provided.innerRef}
-                    className={`flex-1 p-1.5 overflow-y-auto transition-colors scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 ${
-                        snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                    }`}
+                    className="flex-1 p-1.5 overflow-y-auto transition-colors scrollbar-thin"
+                    style={{ background: snapshot.isDraggingOver ? 'var(--brand-soft)' : 'transparent' }}
                 >
                     {folder.documents?.map((doc, index) => (
                         <DocumentCard key={doc.id} doc={doc} index={index} />
@@ -237,27 +250,60 @@ const InvoiceDashboard = () => {
   if (loading) return <PageSkeleton rows={5} title />;
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 pb-20"> 
-      
-      {/* HEADER */}
-      <div className="sticky top-0 z-40 px-6 py-3 bg-white dark:bg-gray-800 shadow-sm flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-        <h1 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2"><FileText className="text-blue-600" /> Factures Hôpital</h1>
-        
-        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg border border-gray-200 dark:border-gray-600">
-            <Filter className="w-3.5 h-3.5 text-gray-500" />
-            <input type="date" className="bg-transparent text-xs border-none outline-none dark:text-white" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} />
-            <span className="text-gray-400 text-xs">-</span>
-            <input type="date" className="bg-transparent text-xs border-none outline-none dark:text-white" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} />
-            {(dateRange.start || dateRange.end) && <button onClick={() => setDateRange({start: '', end: ''})} className="text-xs text-red-500 hover:underline px-1"><X className="w-3 h-3" /></button>}
+    <div style={{ background: 'var(--bg)', minHeight: '100%', paddingBottom: 80 }}>
+
+      {/* Barre d'actions */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 24px', background: 'var(--surface)',
+        borderBottom: '1px solid var(--border)', gap: 12, flexWrap: 'wrap',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Filter size={14} style={{ color: 'var(--fg-muted)' }} />
+          <input
+            type="date"
+            style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 12, color: 'var(--fg)' }}
+            value={dateRange.start}
+            onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+          />
+          <span style={{ color: 'var(--fg-muted)', fontSize: 12 }}>–</span>
+          <input
+            type="date"
+            style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 12, color: 'var(--fg)' }}
+            value={dateRange.end}
+            onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+          />
+          {(dateRange.start || dateRange.end) && (
+            <button onClick={() => setDateRange({start: '', end: ''})} style={{ padding: '2px 6px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', fontSize: 11 }}>
+              <X size={12} />
+            </button>
+          )}
         </div>
 
-        <div className="flex gap-2">
-            <button onClick={() => setShowNewFolderModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded shadow-sm">
-                <Plus className="w-3.5 h-3.5" /> Dossier
-            </button>
-            <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded shadow-sm">
-                <UploadIcon className="w-3.5 h-3.5" /> Facture
-            </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => setShowNewFolderModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 13px', borderRadius: 'var(--radius-2)',
+              border: '1px solid var(--border)',
+              background: 'var(--surface)', color: 'var(--fg)',
+              fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}
+          >
+            <Plus size={14} /> Dossier
+          </button>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 13px', borderRadius: 'var(--radius-2)',
+              border: 'none', background: 'var(--brand)', color: '#fff',
+              fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}
+          >
+            <UploadIcon size={14} /> Importer
+          </button>
         </div>
       </div>
 
@@ -265,12 +311,12 @@ const InvoiceDashboard = () => {
       <div className="p-4">
         <DragDropContext onDragEnd={onDragEnd}>
             <div className="space-y-6">
-                
+
                 {/* 1. SECTION HAUTE : Inbox + Simples */}
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                     {inbox && (
                         <div className="xl:col-span-1">
-                            <FolderBox folder={inbox} heightClass="h-72 ring-2 ring-red-100 dark:ring-red-900/30" />
+                            <FolderBox folder={inbox} heightClass="h-72" />
                         </div>
                     )}
                     {simpleFolders.map(folder => (
@@ -280,30 +326,33 @@ const InvoiceDashboard = () => {
 
                 {/* 2. SECTION BASSE : Conteneurs (PHP) */}
                 {containerFolders.map(container => (
-                    <div key={container.id} className="bg-white dark:bg-gray-900 rounded-lg border border-blue-200 dark:border-blue-900 shadow-sm p-3 group/container">
-                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100 dark:border-gray-800">
+                    <div key={container.id} className="rounded-lg p-3 group/container" style={{ background: 'var(--surface)', border: '1px solid var(--brand-soft)', boxShadow: 'var(--shadow-1)' }}>
+                        <div className="flex items-center justify-between mb-3 pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
                             <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-md">
-                                    <FolderOpen className="w-4 h-4 text-blue-700 dark:text-blue-400" />
+                                <div className="p-1.5 rounded-md" style={{ background: 'var(--brand-soft)' }}>
+                                    <FolderOpen className="w-4 h-4" style={{ color: 'var(--brand)' }} />
                                 </div>
-                                <h2 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wide">
+                                <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--fg)' }}>
                                     {container.name}
                                 </h2>
                             </div>
-                            
+
                             {/* ✅ Bouton Supprimer le Groupe */}
-                            <button 
+                            <button
                                 onClick={() => handleDeleteFolder(container.id, container.name)}
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md opacity-0 group-hover/container:opacity-100 transition-opacity"
+                                className="p-1.5 rounded-md opacity-0 group-hover/container:opacity-100 transition-opacity"
+                                style={{ color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
                                 title="Supprimer le groupe et ses dossiers"
+                                onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.background = 'var(--danger-soft)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--fg-muted)'; e.currentTarget.style.background = 'none'; }}
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                             {container.children?.map(subFolder => (
-                                <FolderBox key={subFolder.id} folder={subFolder} heightClass="h-64 bg-blue-50/30 dark:bg-gray-800/30" />
+                                <FolderBox key={subFolder.id} folder={subFolder} heightClass="h-64" />
                             ))}
                         </div>
                     </div>
@@ -313,52 +362,78 @@ const InvoiceDashboard = () => {
         </DragDropContext>
       </div>
 
-      {/* BULK ACTION BAR - Idem */}
+      {/* BULK ACTION BAR */}
       {selectedDocs.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 px-5 py-2.5 rounded-full shadow-xl border border-blue-200 dark:border-gray-700 z-50 flex items-center gap-4 animate-bounce-in">
-            <span className="font-bold text-sm text-blue-600 dark:text-blue-400">{selectedDocs.length} sélectionnés</span>
-            <button onClick={() => setShowBulkSubmitModal(true)} className="flex items-center gap-2 text-green-600 hover:text-green-700 font-medium text-sm"><Send className="w-3.5 h-3.5" /> Soumettre</button>
-            <button onClick={() => setSelectedDocs([])} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 px-5 py-2.5 rounded-full z-50 flex items-center gap-4 animate-bounce-in" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-3)', border: '1px solid var(--brand-soft)' }}>
+            <span className="font-bold text-sm" style={{ color: 'var(--brand)' }}>{selectedDocs.length} sélectionnés</span>
+            <button onClick={() => setShowBulkSubmitModal(true)} className="flex items-center gap-2 font-medium text-sm" style={{ color: 'var(--success)', background: 'none', border: 'none', cursor: 'pointer' }}><Send className="w-3.5 h-3.5" /> Soumettre</button>
+            <button onClick={() => setSelectedDocs([])} style={{ color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--fg-muted)'}
+            ><X className="w-4 h-4" /></button>
         </div>
       )}
 
-      {/* MODALS - Idem */}
-      {showNewFolderModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-96 shadow-2xl border dark:border-gray-700">
-                <h3 className="text-lg font-bold mb-4 dark:text-white">Nouveau Dossier</h3>
-                <div className="space-y-4">
+      {/* MODALS */}
+      {showNewFolderModal && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,27,45,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, backdropFilter: 'blur(4px)' }}>
+            <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)', padding: 24, width: 384, boxShadow: 'var(--shadow-3)', border: '1px solid var(--border)' }}>
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)', marginBottom: 16 }}>Nouveau dossier</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div>
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nom du dossier</label>
-                        <input className="w-full border p-2 rounded text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-blue-500" placeholder="Ex: Assurances..." value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} autoFocus />
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--fg)', marginBottom: 6 }}>Nom du dossier</label>
+                        <input
+                          style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', padding: '8px 12px', fontSize: 13, color: 'var(--fg)', background: 'var(--surface)', outline: 'none' }}
+                          placeholder="Ex: Assurances…"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          autoFocus
+                        />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Emplacement</label>
-                        <select className="w-full border p-2 rounded text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-blue-500" value={newFolderParentId} onChange={(e) => setNewFolderParentId(e.target.value)}>
-                            <option value="">📁 Racine (Nouvelle entreprise)</option>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--fg)', marginBottom: 6 }}>Emplacement</label>
+                        <select
+                          style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', padding: '8px 12px', fontSize: 13, color: 'var(--fg)', background: 'var(--surface)', outline: 'none' }}
+                          value={newFolderParentId}
+                          onChange={(e) => setNewFolderParentId(e.target.value)}
+                        >
+                            <option value="">📁 Racine (Niveau entreprise)</option>
                             {containerFolders.map(c => (<option key={c.id} value={c.id}>↳ Dans {c.name}</option>))}
                         </select>
                     </div>
                 </div>
-                <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={() => setShowNewFolderModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-lg text-sm">Annuler</button>
-                    <button onClick={handleCreateFolder} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Créer</button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+                    <button onClick={() => setShowNewFolderModal(false)} style={{ padding: '8px 16px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg-muted)', fontSize: 13, cursor: 'pointer' }}>Annuler</button>
+                    <button onClick={handleCreateFolder} style={{ padding: '8px 16px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Créer</button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Autres modals (Upload, Move, Submit...) inchangés */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-96 shadow-2xl">
-                <h3 className="font-bold mb-4 dark:text-white">Importer Facture</h3>
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+            <div className="p-6 rounded-xl w-96" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-3)' }}>
+                <h3 className="font-bold mb-4" style={{ color: 'var(--fg)' }}>Importer Facture</h3>
                 <form onSubmit={handleUpload} className="space-y-4">
-                    <input className="w-full border p-2 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600" placeholder="Titre..." value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} required />
-                    <input type="file" className="w-full text-sm dark:text-gray-300" onChange={(e) => {if(e.target.files[0]) {setSelectedFile(e.target.files[0]); if(!uploadTitle) setUploadTitle(e.target.files[0].name.split('.')[0]);}}} required />
+                    <input
+                      className="w-full p-2 rounded"
+                      style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)' }}
+                      placeholder="Titre..."
+                      value={uploadTitle}
+                      onChange={(e) => setUploadTitle(e.target.value)}
+                      required
+                    />
+                    <input
+                      type="file"
+                      className="w-full text-sm"
+                      style={{ color: 'var(--fg-muted)' }}
+                      onChange={(e) => {if(e.target.files[0]) {setSelectedFile(e.target.files[0]); if(!uploadTitle) setUploadTitle(e.target.files[0].name.split('.')[0]);}}}
+                      required
+                    />
                     <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => setShowUploadModal(false)} className="px-3 py-1 text-gray-500">Annuler</button>
-                        <button type="submit" className="px-3 py-1 bg-green-600 text-white rounded">Importer</button>
+                        <button type="button" onClick={() => setShowUploadModal(false)} className="px-3 py-1" style={{ color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Annuler</button>
+                        <button type="submit" className="px-3 py-1 rounded" style={{ background: 'var(--success)', color: '#fff', border: 'none', cursor: 'pointer' }}>Importer</button>
                     </div>
                 </form>
             </div>
@@ -366,59 +441,80 @@ const InvoiceDashboard = () => {
       )}
 
       {showMoveModal && docToMove && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-[400px] shadow-2xl border dark:border-gray-700">
-                <h3 className="font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2"><FolderInput className="w-5 h-5 text-purple-600" /> Déplacer vers...</h3>
-                <p className="text-xs text-gray-500 mb-4 truncate">Doc: {docToMove.title}</p>
-                <div className="max-h-64 overflow-y-auto border rounded-lg dark:border-gray-600 scrollbar-thin">
-                    {inbox && <button onClick={() => handleManualMove(inbox.id)} className="w-full text-left p-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 border-b dark:border-gray-700 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div><span className="text-sm font-medium dark:text-gray-200">Boîte de réception</span></button>}
-                    <div className="p-2 bg-gray-50 dark:bg-gray-800/50 text-xs font-bold text-gray-500 uppercase">Entreprises</div>
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+            <div className="p-6 rounded-xl w-[400px]" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-3)', border: '1px solid var(--border)' }}>
+                <h3 className="font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--fg)' }}><FolderInput className="w-5 h-5" style={{ color: 'var(--brand)' }} /> Déplacer vers...</h3>
+                <p className="text-xs mb-4 truncate" style={{ color: 'var(--fg-muted)' }}>Doc: {docToMove.title}</p>
+                <div className="max-h-64 overflow-y-auto rounded-lg scrollbar-thin" style={{ border: '1px solid var(--border)' }}>
+                    {inbox && (
+                      <button onClick={() => handleManualMove(inbox.id)} className="w-full text-left p-2.5 flex items-center gap-2" style={{ borderBottom: '1px solid var(--border)', background: 'none', color: 'var(--fg)', cursor: 'pointer' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                      >
+                        <div className="w-2 h-2 rounded-full" style={{ background: 'var(--danger)' }}></div>
+                        <span className="text-sm font-medium">Boîte de réception</span>
+                      </button>
+                    )}
+                    <div className="p-2 text-xs font-bold uppercase" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>Entreprises</div>
                     {simpleFolders.map(folder => (
-                        <button key={folder.id} onClick={() => handleManualMove(folder.id)} className="w-full text-left p-2 hover:bg-blue-50 dark:hover:bg-gray-700 pl-4 text-sm text-gray-700 dark:text-gray-300">{folder.name}</button>
+                        <button key={folder.id} onClick={() => handleManualMove(folder.id)} className="w-full text-left p-2 pl-4 text-sm" style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                        >{folder.name}</button>
                     ))}
                     {containerFolders.map(container => (
                         <div key={container.id}>
-                            <div className="p-2 bg-gray-50 dark:bg-gray-800/50 text-xs font-bold text-gray-500 uppercase mt-2">{container.name}</div>
+                            <div className="p-2 text-xs font-bold uppercase mt-2" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>{container.name}</div>
                             {container.children?.map(sub => (
-                                <button key={sub.id} onClick={() => handleManualMove(sub.id)} className="w-full text-left p-2 hover:bg-blue-50 dark:hover:bg-gray-700 pl-4 text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2"><ChevronRight className="w-3 h-3 text-gray-400" /> {sub.name}</button>
+                                <button key={sub.id} onClick={() => handleManualMove(sub.id)} className="w-full text-left p-2 pl-4 text-sm flex items-center gap-2" style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer' }}
+                                  onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
+                                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                ><ChevronRight className="w-3 h-3" style={{ color: 'var(--fg-muted)' }} /> {sub.name}</button>
                             ))}
                         </div>
                     ))}
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
-                    <button onClick={() => setShowMoveModal(false)} className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm">Annuler</button>
+                    <button onClick={() => setShowMoveModal(false)} className="px-3 py-1.5 rounded text-sm" style={{ color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >Annuler</button>
                 </div>
             </div>
         </div>
       )}
 
       {previewDoc && <DocumentViewer document={previewDoc} onClose={() => setPreviewDoc(null)} />}
-      
+
       {submittingDoc && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-[600px] relative">
-                <button onClick={() => setSubmittingDoc(null)} className="absolute top-4 right-4 text-gray-500"><X className="w-6 h-6" /></button>
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(0,0,0,0.5)' }}>
+            <div className="p-6 rounded-xl w-[600px] relative" style={{ background: 'var(--surface)' }}>
+                <button onClick={() => setSubmittingDoc(null)} className="absolute top-4 right-4" style={{ color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer' }}><X className="w-6 h-6" /></button>
                 <WorkflowSubmission document={submittingDoc} onClose={() => setSubmittingDoc(null)} onSuccess={() => { setSubmittingDoc(null); fetchBoard(); }} />
             </div>
         </div>
       )}
 
       {showBulkSubmitModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-[500px] shadow-2xl border dark:border-gray-700">
-                <h3 className="font-bold mb-2 dark:text-white">Soumission groupée</h3>
-                <p className="text-sm text-gray-500 mb-4">{selectedDocs.length} documents à envoyer.</p>
-                <div className="max-h-48 overflow-y-auto border rounded p-2 mb-4 dark:border-gray-600">
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(0,0,0,0.5)' }}>
+            <div className="p-6 rounded-xl w-[500px]" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-3)', border: '1px solid var(--border)' }}>
+                <h3 className="font-bold mb-2" style={{ color: 'var(--fg)' }}>Soumission groupée</h3>
+                <p className="text-sm mb-4" style={{ color: 'var(--fg-muted)' }}>{selectedDocs.length} documents à envoyer.</p>
+                <div className="max-h-48 overflow-y-auto rounded p-2 mb-4" style={{ border: '1px solid var(--border)' }}>
                     {validators.map(u => (
-                        <div key={u.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onClick={() => setSelectedValidators(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}>
-                            <div className={`w-4 h-4 border rounded flex items-center justify-center ${selectedValidators.includes(u.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>{selectedValidators.includes(u.id) && <CheckSquare className="w-3 h-3 text-white" />}</div>
-                            <span className="text-sm dark:text-gray-200">{u.username} ({u.role})</span>
+                        <div key={u.id} className="flex items-center gap-2 p-2 cursor-pointer" style={{ borderRadius: 4 }}
+                          onClick={() => setSelectedValidators(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                        >
+                            <div className="w-4 h-4 border rounded flex items-center justify-center" style={{ background: selectedValidators.includes(u.id) ? 'var(--brand)' : 'transparent', borderColor: selectedValidators.includes(u.id) ? 'var(--brand)' : 'var(--border)' }}>{selectedValidators.includes(u.id) && <CheckSquare className="w-3 h-3" style={{ color: '#fff' }} />}</div>
+                            <span className="text-sm" style={{ color: 'var(--fg)' }}>{u.username} ({u.role})</span>
                         </div>
                     ))}
                 </div>
                 <div className="flex justify-end gap-2">
-                    <button onClick={() => setShowBulkSubmitModal(false)} className="px-3 py-1 text-gray-500 dark:text-gray-400">Annuler</button>
-                    <button onClick={handleBulkSubmit} disabled={isBulkSubmitting} className="px-3 py-1 bg-blue-600 text-white rounded">{isBulkSubmitting ? '...' : 'Envoyer'}</button>
+                    <button onClick={() => setShowBulkSubmitModal(false)} className="px-3 py-1" style={{ color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Annuler</button>
+                    <button onClick={handleBulkSubmit} disabled={isBulkSubmitting} className="px-3 py-1 rounded" style={{ background: 'var(--brand)', color: '#fff', border: 'none', cursor: isBulkSubmitting ? 'not-allowed' : 'pointer' }}>{isBulkSubmitting ? '...' : 'Envoyer'}</button>
                 </div>
             </div>
         </div>

@@ -45,13 +45,24 @@ services:
       UPLOAD_DIR: /app/uploads
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-52428800}
       TESSERACT_PATH: /usr/bin/tesseract
+      # Extraction IA des factures (module factures PHP)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://192.168.1.186}
       WORKFLOW_ENABLE_NOTIFICATIONS: ${WORKFLOW_ENABLE_NOTIFICATIONS:-false}
       WORKFLOW_DEFAULT_TIMEOUT_DAYS: ${WORKFLOW_DEFAULT_TIMEOUT_DAYS:-7}
+      # OnlyOffice
+      ONLYOFFICE_URL: ${ONLYOFFICE_URL:-http://localhost:8080}
+      ONLYOFFICE_INTERNAL_URL: http://ged-onlyoffice:80
+      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-onlyoffice_jwt_secret_change_me}
+      BACKEND_INTERNAL_URL: http://ged-backend:3000
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:3000}
+      BASE_DOMAIN: ${BASE_DOMAIN:-hsjmcam.net}
     volumes:
       - uploads_data:/app/uploads
       - signatures_data:/app/signatures
@@ -83,17 +94,53 @@ services:
       - "80:80"      # HTTP (redirige vers HTTPS)
       - "443:443"    # HTTPS
     volumes:
-      # 🔒 AJOUT : Montage des certificats SSL
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      - letsencrypt_data:/etc/letsencrypt:ro
     networks:
       - ged-network
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost/ -o /dev/null -w '%{http_code}' | grep -q '200'"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' http://localhost/ | grep -qE '^(200|301)$'"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # ── Certbot (Let's Encrypt via DNS OVH) ─────────────────────────
+  # Usage : docker compose run --rm certbot certonly  (voir ssl-renew.sh)
+  certbot:
+    image: certbot/dns-ovh
+    container_name: ged-certbot
+    volumes:
+      - letsencrypt_data:/etc/letsencrypt
+      - ./ovh.conf:/etc/letsencrypt/ovh.conf:ro
+    profiles:
+      - certbot
+
+  # ── OnlyOffice Document Server ──────────────────────────────────
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: ged-onlyoffice
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-onlyoffice_jwt_secret_change_me}
+      JWT_HEADER: Authorization
+      JWT_IN_BODY: "true"
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_cache:/var/lib/onlyoffice
+    ports:
+      - "8080:80"
+    networks:
+      - ged-network
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
 volumes:
   postgres_data:
@@ -101,6 +148,14 @@ volumes:
   uploads_data:
     driver: local
   signatures_data:
+    driver: local
+  letsencrypt_data:
+    driver: local
+  onlyoffice_data:
+    driver: local
+  onlyoffice_logs:
+    driver: local
+  onlyoffice_cache:
     driver: local
 
 networks:

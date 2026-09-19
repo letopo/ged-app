@@ -57,6 +57,7 @@ import verificationRoutes from './routes/verificationRoutes.js';
 import onlyofficeRoutes from './routes/onlyoffice.js';
 import formRoutes from './routes/forms.js'; // ✅ Form Builder
 import postesRoutes from './routes/postes.js'; // ✅ Postes organisationnels
+import missionMealRoutes from './routes/missionMeal.js'; // ✅ Indemnités de repas de mission
 import chatRoutes from './routes/chat.js';     // ✅ Module Discussion
 import tenantBrandingRoutes from './routes/tenantBrandingRoutes.js'; // ✅ Branding tenant
 import { startPHPAutoCloseScheduler, cloturerConsultationsPassees } from './utils/phpAutoClose.js';
@@ -233,6 +234,7 @@ app.use('/api/verify', verificationRoutes);
 app.use('/api/forms', formRoutes); // ✅ Form Builder
 app.use('/api/onlyoffice', onlyofficeRoutes);
 app.use('/api/postes', postesRoutes); // ✅ Postes organisationnels
+app.use('/api/mission-meal-rates', missionMealRoutes); // ✅ Indemnités de repas de mission
 app.use('/api/chat',   chatRoutes);   // ✅ Module Discussion
 app.use('/api/tenant', tenantBrandingRoutes); // ✅ Branding tenant (logo + couleur)
 app.use('/api/super-admin', superAdminRoutes);
@@ -349,6 +351,7 @@ const startServer = async () => {
           date_mise_en_service DATE,
           statut VARCHAR(20) NOT NULL DEFAULT 'actif' CHECK (statut IN ('actif','en_reparation','hors_service')),
           notes TEXT,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -380,6 +383,7 @@ const startServer = async () => {
           technicien_id UUID REFERENCES users(id) ON DELETE SET NULL,
           notes TEXT,
           actif BOOLEAN NOT NULL DEFAULT TRUE,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -407,6 +411,7 @@ const startServer = async () => {
           duree_reelle FLOAT,
           observations TEXT,
           signale_par VARCHAR(255),
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -427,6 +432,7 @@ const startServer = async () => {
           responsable VARCHAR(255),
           telephone VARCHAR(20),
           is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -442,6 +448,7 @@ const startServer = async () => {
           nom VARCHAR(255) NOT NULL,
           infirmerie_id UUID REFERENCES php_infirmeries(id) ON DELETE SET NULL,
           is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -465,6 +472,7 @@ const startServer = async () => {
           status VARCHAR(20) NOT NULL DEFAULT 'actif' CHECK (status IN ('actif','decede','transfere','inactif')),
           created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
           notes TEXT,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -637,6 +645,8 @@ const startServer = async () => {
           allowed_user_ids JSONB DEFAULT '[]',
           is_restricted BOOLEAN DEFAULT FALSE,
           description VARCHAR(255),
+          default_visibility VARCHAR(255) NOT NULL DEFAULT 'personal',
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -655,6 +665,7 @@ const startServer = async () => {
           email_on_rejection BOOLEAN DEFAULT TRUE,
           email_on_comment BOOLEAN DEFAULT TRUE,
           push_enabled BOOLEAN DEFAULT TRUE,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -676,6 +687,7 @@ const startServer = async () => {
           details JSONB,
           ip_address VARCHAR(100),
           user_agent TEXT,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
@@ -697,6 +709,7 @@ const startServer = async () => {
           validators JSONB NOT NULL DEFAULT '[]',
           created_by UUID NOT NULL REFERENCES users(id),
           is_active BOOLEAN DEFAULT true,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -734,6 +747,8 @@ const startServer = async () => {
           created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
           published_at  TIMESTAMP,
           version       INTEGER DEFAULT 1,
+          workflow_template_id UUID REFERENCES workflow_templates(id) ON DELETE SET NULL,
+          tenant_id     UUID,
           created_at    TIMESTAMP DEFAULT NOW(),
           updated_at    TIMESTAMP DEFAULT NOW()
         );
@@ -776,6 +791,10 @@ const startServer = async () => {
           status       VARCHAR(20) DEFAULT 'submitted',
           ip_address   VARCHAR(45),
           submitted_at TIMESTAMP DEFAULT NOW(),
+          workflow_status       VARCHAR(30),
+          workflow_current_step INTEGER,
+          workflow_data         JSONB,
+          tenant_id    UUID,
           created_at   TIMESTAMP DEFAULT NOW(),
           updated_at   TIMESTAMP DEFAULT NOW()
         );
@@ -783,6 +802,7 @@ const startServer = async () => {
         CREATE INDEX IF NOT EXISTS idx_form_responses_submitted_by ON form_responses(submitted_by);
         CREATE INDEX IF NOT EXISTS idx_form_responses_status       ON form_responses(status);
         CREATE INDEX IF NOT EXISTS idx_form_responses_submitted_at ON form_responses(submitted_at);
+        CREATE INDEX IF NOT EXISTS idx_form_responses_workflow_status ON form_responses(workflow_status);
       `);
       console.log('✅ Table form_responses verifiee/creee.');
     } catch (e) { console.warn('⚠️ form_responses:', e.message); }
@@ -804,6 +824,7 @@ const startServer = async () => {
           statut           VARCHAR(20) NOT NULL DEFAULT 'valide',
           extraction       JSONB,
           saisi_par        UUID REFERENCES users(id) ON DELETE SET NULL,
+          tenant_id        UUID,
           created_at       TIMESTAMP DEFAULT NOW(),
           updated_at       TIMESTAMP DEFAULT NOW()
         );
@@ -832,6 +853,7 @@ const startServer = async () => {
           created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
           is_archived   BOOLEAN NOT NULL DEFAULT false,
           last_message_at TIMESTAMP WITH TIME ZONE,
+          tenant_id     UUID,
           created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );

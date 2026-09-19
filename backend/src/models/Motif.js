@@ -17,7 +17,11 @@ const Motif = sequelize.define('Motif', {
   type: {
     type: DataTypes.STRING,
     allowNull: false,
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'motifs',
   timestamps: true,

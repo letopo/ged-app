@@ -8,7 +8,7 @@ import { userHasPoste } from '../utils/posteResolver.js';
 
 // Vérifier si l'utilisateur est RH ou admin (RH = titulaire du poste 'rh')
 const isRHOrAdmin = async (user) => {
-  return user.role === 'admin' || await userHasPoste(user.id, 'rh');
+  return ['admin','superadmin'].includes(user.role) || await userHasPoste(user.id, 'rh');
 };
 
 // @desc    Récupérer tous les employés (avec pagination et filtres)
@@ -306,6 +306,70 @@ export const getServicesWithEmployees = async (req, res, next) => {
     });
 
     res.json({ success: true, services });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Liste fusionnée Employee + User (dédupliquée) pour les listes déroulantes
+//          missionnaire/conducteur d'un Ordre de Mission — recherche + filtre par pôle.
+// @route   GET /api/employees/mission-candidates?serviceId=&q=
+// @access  Private (tout utilisateur connecté)
+export const getMissionCandidates = async (req, res, next) => {
+  try {
+    const { serviceId, q } = req.query;
+    const { ServiceMember, User } = await import('../models/index.js');
+
+    const nameSearch = q ? {
+      [Op.or]: [
+        { firstName: { [Op.iLike]: `%${q}%` } },
+        { lastName: { [Op.iLike]: `%${q}%` } },
+      ],
+    } : {};
+
+    const employees = await Employee.findAll({
+      where: { isActive: true, ...(serviceId ? { serviceId } : {}), ...nameSearch },
+      attributes: ['id', 'firstName', 'lastName', 'categorie', 'userId'],
+      order: [['lastName', 'ASC'], ['firstName', 'ASC']],
+      limit: 50,
+    });
+
+    const coveredUserIds = new Set(employees.filter(e => e.userId).map(e => e.userId));
+
+    let users;
+    if (serviceId) {
+      const members = await ServiceMember.findAll({
+        where: { serviceId, isActive: true },
+        include: [{ model: User, as: 'user', where: { isActive: true, ...nameSearch }, attributes: ['id', 'firstName', 'lastName'] }],
+      });
+      users = members.map(m => m.user).filter(Boolean);
+    } else {
+      users = await User.findAll({
+        where: { isActive: true, ...nameSearch },
+        attributes: ['id', 'firstName', 'lastName'],
+        limit: 50,
+      });
+    }
+
+    const candidates = [
+      ...employees.map(e => ({
+        id: e.id,
+        label: `${e.firstName} ${e.lastName}`,
+        source: 'employee',
+        categorie: e.categorie || null,
+        userId: e.userId || null,
+      })),
+      ...users
+        .filter(u => !coveredUserIds.has(u.id))
+        .map(u => ({
+          id: u.id,
+          label: `${u.firstName} ${u.lastName}`,
+          source: 'user',
+          categorie: null,
+        })),
+    ].sort((a, b) => a.label.localeCompare(b.label));
+
+    res.json({ success: true, data: candidates.slice(0, 50) });
   } catch (error) {
     next(error);
   }

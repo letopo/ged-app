@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 
 const THEMES = {
-  blue:   { bg: 'bg-blue-600/95 dark:bg-gray-900/95', pill: 'bg-white/10 dark:bg-white/5', label: 'Bleu', dot: 'bg-blue-500' },
-  indigo: { bg: 'bg-indigo-600/95 dark:bg-gray-900/95', pill: 'bg-white/10 dark:bg-white/5', label: 'Indigo', dot: 'bg-indigo-500' },
-  violet: { bg: 'bg-violet-600/95 dark:bg-gray-900/95', pill: 'bg-white/10 dark:bg-white/5', label: 'Violet', dot: 'bg-violet-500' },
-  emerald:{ bg: 'bg-emerald-700/95 dark:bg-gray-900/95', pill: 'bg-white/10 dark:bg-white/5', label: 'Émeraude', dot: 'bg-emerald-500' },
-  slate:  { bg: 'bg-slate-800/95 dark:bg-gray-900/95', pill: 'bg-white/10 dark:bg-white/5', label: 'Sombre', dot: 'bg-slate-700' },
-  rose:   { bg: 'bg-rose-600/95 dark:bg-gray-900/95', pill: 'bg-white/10 dark:bg-white/5', label: 'Rose', dot: 'bg-rose-500' },
+  blue:    { bg: '#2563eb', label: 'Bleu',     dot: '#3b82f6' },
+  indigo:  { bg: '#4338ca', label: 'Indigo',   dot: '#6366f1' },
+  violet:  { bg: '#7c3aed', label: 'Violet',   dot: '#8b5cf6' },
+  emerald: { bg: '#047857', label: 'Émeraude', dot: '#10b981' },
+  slate:   { bg: '#1e293b', label: 'Sombre',   dot: '#475569' },
+  rose:    { bg: '#be123c', label: 'Rose',      dot: '#f43f5e' },
 };
 
 const STORAGE_KEY = 'ged-navbar-theme';

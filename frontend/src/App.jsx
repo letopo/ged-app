@@ -45,14 +45,20 @@ import GMAOPage from './pages/GMAOPage';
 // ── MODULE FORM BUILDER ────────────────────────────────────────────────────────
 import FormsListPage  from './pages/FormBuilder/index.jsx';
 import FormDesigner   from './pages/FormBuilder/FormDesigner.jsx';
-import FormFill       from './pages/FormBuilder/FormFill.jsx';
-import FormResponses  from './pages/FormBuilder/FormResponses.jsx';
+import FormFill           from './pages/FormBuilder/FormFill.jsx';
+import FormResponses      from './pages/FormBuilder/FormResponses.jsx';
+import FormApprovalsPage  from './pages/FormApprovalsPage.jsx';
 // ── MODULE PHP ─────────────────────────────────────────────────────────────────
 import PHPModule from './pages/PHPModule';
 import PHPPatients from './pages/PHPPatients';
 import PHPStatistiques from './pages/PHPStatistiques';
 import PHPConsultations from './pages/PHPConsultations';
 import PHPReposHospit from './pages/PHPReposHospit';
+import PhpFactures from './pages/PhpFactures';
+import ComptaDocuments from './pages/ComptaDocuments';
+import AccessControlPage from './pages/AccessControlPage';
+import ChatPage from './pages/ChatPage';
+import SuperAdminPage from './pages/SuperAdminPage';
 import OfflineBanner from './components/OfflineBanner';
 import SessionWarning from './components/SessionWarning';
 import useSessionTimeout from './hooks/useSessionTimeout';
@@ -80,31 +86,36 @@ const ProtectedRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
+const isAdminOrSuper = (role) => role === 'admin' || role === 'superadmin';
+
 const AdminRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return user?.role === 'admin' ? children : <Navigate to="/dashboard" replace />;
+  return isAdminOrSuper(user?.role) ? children : <Navigate to="/dashboard" replace />;
 };
 
 const RHOrAdminRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return (user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com')
+  return (isAdminOrSuper(user?.role) || (user?.postes || []).includes('rh'))
     ? children : <Navigate to="/dashboard" replace />;
 };
 
-const GMAO_EMAILS = [
-  'hsjm.cellulebiomedicale@gmail.com',
-  'hsjm.pharma@gmail.com',
-  'hopitalcameroun@ordredemaltefrance.org',
-];
 const GMAORoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return (user?.role === 'admin' || GMAO_EMAILS.includes(user?.email))
+  return (isAdminOrSuper(user?.role) || (user?.postes || []).includes('gmao'))
+    ? children : <Navigate to="/dashboard" replace />;
+};
+
+const KanbanRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <RouteLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return (isAdminOrSuper(user?.role) || (user?.postes || []).includes('kanban'))
     ? children : <Navigate to="/dashboard" replace />;
 };
 
@@ -112,7 +123,7 @@ const PortailRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return (user?.role === 'admin' || user?.role === 'gardien')
+  return (isAdminOrSuper(user?.role) || user?.role === 'gardien')
     ? children : <Navigate to="/dashboard" replace />;
 };
 
@@ -120,7 +131,7 @@ const PHPRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return (user?.role === 'admin' || user?.role === 'agent_accueil_php')
+  return (isAdminOrSuper(user?.role) || user?.role === 'agent_accueil_php')
     ? children : <Navigate to="/dashboard" replace />;
 };
 
@@ -128,7 +139,7 @@ const AccueilRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return (user?.role === 'admin' || ['agent_accueil_php', 'agent_accueil_normal'].includes(user?.role))
+  return (isAdminOrSuper(user?.role) || ['agent_accueil_php', 'agent_accueil_normal'].includes(user?.role))
     ? children : <Navigate to="/dashboard" replace />;
 };
 
@@ -136,11 +147,89 @@ const CaisseRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return (user?.role === 'admin' || user?.role === 'caissier')
+  return (isAdminOrSuper(user?.role) || user?.role === 'caissier')
+    ? children : <Navigate to="/dashboard" replace />;
+};
+
+const SuperAdminRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <RouteLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return user?.role === 'superadmin' ? children : <Navigate to="/dashboard" replace />;
+};
+
+const ComptaRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <RouteLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return (isAdminOrSuper(user?.role) || (user?.postes || []).includes('comptable'))
     ? children : <Navigate to="/dashboard" replace />;
 };
 
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
+import { useEffect, useState } from 'react';
+
+// Bannière discrète affichée quand un admin modifie les droits de l'utilisateur connecté
+function RightsBanner() {
+  const [visible, setVisible] = useState(false);
+  const [detail, setDetail] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      setDetail(e.detail);
+      setVisible(true);
+    };
+    window.addEventListener('rightsChanged', handler);
+    return () => window.removeEventListener('rightsChanged', handler);
+  }, []);
+
+  if (!visible) return null;
+
+  const msg = detail?.type === 'role'
+    ? `Votre rôle a été modifié → ${detail.newRole}.`
+    : detail?.type === 'poste_assigned'
+      ? `Poste «${detail.posteLabel}» ajouté à votre profil.`
+      : detail?.type === 'poste_removed'
+        ? `Poste «${detail.posteLabel}» retiré de votre profil.`
+        : 'Vos droits d\'accès ont été mis à jour.';
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+      background: '#1e40af', color: '#fff',
+      padding: '10px 20px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      fontSize: 13, fontWeight: 500,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+      animation: 'slideDown 0.3s ease',
+    }}>
+      <span>🔐 {msg} Rechargez la page pour appliquer les changements.</span>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            padding: '4px 12px', borderRadius: 6,
+            background: '#fff', color: '#1e40af',
+            border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: 12,
+          }}
+        >
+          Recharger
+        </button>
+        <button
+          onClick={() => setVisible(false)}
+          style={{
+            padding: '4px 8px', borderRadius: 6,
+            background: 'transparent', color: '#fff',
+            border: '1px solid rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 12,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+      <style>{`@keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }`}</style>
+    </div>
+  );
+}
 
 // Wrapper animation par route
 const PageWrapper = ({ children }) => {
@@ -190,6 +279,7 @@ function App() {
 
       {/* Afficher debug seulement en développement */}
       {isAuthenticated && import.meta.env.DEV && <NotificationDebug />}
+      <RightsBanner />
       <OfflineBanner />
       {showWarning && (
         <SessionWarning
@@ -231,7 +321,7 @@ function App() {
           <Route path="/create-work-request"  element={<PageWrapper><CreateWorkRequest /></PageWrapper>} />
           <Route path="/demandes-achat"       element={<PageWrapper><DemandeAchatDashboard /></PageWrapper>} />
           <Route path="/invoices"             element={<PageWrapper><InvoiceDashboard /></PageWrapper>} />
-          <Route path="/kanban/:serviceType"  element={<PageWrapper><TrelloBoard /></PageWrapper>} />
+          <Route path="/kanban/:serviceType"  element={<KanbanRoute><PageWrapper><TrelloBoard /></PageWrapper></KanbanRoute>} />
           <Route path="/settings"             element={<PageWrapper><Settings /></PageWrapper>} />
           <Route path="/parametres/notifications" element={<PageWrapper><NotificationSettings /></PageWrapper>} />
 
@@ -254,6 +344,7 @@ function App() {
           {/* ── Form Builder ── */}
           <Route path="/forms"                element={<PageWrapper><FormsListPage /></PageWrapper>} />
           <Route path="/forms/:id/responses"  element={<PageWrapper><FormResponses /></PageWrapper>} />
+          <Route path="/forms/approvals"      element={<PageWrapper><FormApprovalsPage /></PageWrapper>} />
           <Route path="/portail"         element={<PortailRoute><PageWrapper><PortailDashboard /></PageWrapper></PortailRoute>} />
           <Route path="/accueil"         element={<AccueilRoute><PageWrapper><AccueilDashboard /></PageWrapper></AccueilRoute>} />
           <Route path="/caisse"          element={<CaisseRoute><PageWrapper><CaisseDashboard /></PageWrapper></CaisseRoute>} />
@@ -264,6 +355,14 @@ function App() {
           <Route path="/php/consultations" element={<PHPRoute><PageWrapper><PHPConsultations /></PageWrapper></PHPRoute>} />
           <Route path="/php/statistiques"  element={<PHPRoute><PageWrapper><PHPStatistiques /></PageWrapper></PHPRoute>} />
           <Route path="/php/repos"         element={<PHPRoute><PageWrapper><PHPReposHospit /></PageWrapper></PHPRoute>} />
+          <Route path="/php/factures"      element={<PHPRoute><PageWrapper><PhpFactures /></PageWrapper></PHPRoute>} />
+          <Route path="/compta"            element={<ComptaRoute><PageWrapper><ComptaDocuments /></PageWrapper></ComptaRoute>} />
+          <Route path="/admin/droits-acces" element={<AdminRoute><PageWrapper><AccessControlPage /></PageWrapper></AdminRoute>} />
+          {/* Module Discussion */}
+          <Route path="/chat"       element={<ChatPage />} />
+          <Route path="/chat/:convId" element={<ChatPage />} />
+          {/* Super Admin */}
+          <Route path="/super-admin" element={<SuperAdminRoute><PageWrapper><SuperAdminPage /></PageWrapper></SuperAdminRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />

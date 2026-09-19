@@ -33,10 +33,25 @@ const OrdreMissionType = sequelize.define('OrdreMissionType', {
     defaultValue: true,
     field: 'is_active',
   },
+  // Pôle (Service) lié à ce type d'OM — restreint la liste de missionnaires
+  // proposée à ce pôle. Null = pas de restriction (tout le personnel actif).
+  serviceId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'service_id',
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'ordre_mission_types',
   timestamps: true,
   underscored: true,
 });
+
+OrdreMissionType.associate = function(models) {
+  this.belongsTo(models.Service, { foreignKey: 'serviceId', as: 'service' });
+};
 
 export default OrdreMissionType;

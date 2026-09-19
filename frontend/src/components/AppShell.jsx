@@ -12,11 +12,13 @@ import {
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
   MessageSquare,
 } from 'lucide-react';
-import { workflowAPI, tenantBrandingAPI } from '../services/api';
+import { workflowAPI, tenantBrandingAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import GlobalSearch from './GlobalSearch';
+import GlobalChatBubble from './GlobalChatBubble';
 import useChatUnread from '../hooks/useChatUnread';
+import toast from 'react-hot-toast';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
 
@@ -343,10 +345,30 @@ const Topbar = ({ onToggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user, updateUser } = useAuth();
   const [search, setSearch] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState([]);
+  const [togglingAbsence, setTogglingAbsence] = useState(false);
   const notifRef = useRef(null);
+
+  const handleToggleMyAbsence = async () => {
+    if (!user?.id) return;
+    if (!user.isAbsent && !user.substituteId) {
+      toast.error('Aucun remplaçant configuré sur votre compte — demandez à un administrateur d\'en désigner un avant de vous mettre absent.');
+      return;
+    }
+    setTogglingAbsence(true);
+    try {
+      const res = await usersAPI.setAbsence(user.id, !user.isAbsent);
+      updateUser({ ...user, isAbsent: !user.isAbsent });
+      toast.success(res.data.message);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Erreur lors du changement de statut.');
+    } finally {
+      setTogglingAbsence(false);
+    }
+  };
 
   // Charge les tâches en attente de validation (= notifications actionnables)
   useEffect(() => {
@@ -460,6 +482,27 @@ const Topbar = ({ onToggleSidebar }) => {
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
         {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
+      </button>
+
+      {/* Statut présence */}
+      <button
+        onClick={handleToggleMyAbsence}
+        disabled={togglingAbsence}
+        title={user?.isAbsent ? 'Absent — cliquer pour repasser en ligne' : 'En ligne — cliquer pour se mettre absent'}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          height: 32, padding: '0 10px', borderRadius: 'var(--radius-2)',
+          border: '1px solid var(--border)', cursor: togglingAbsence ? 'not-allowed' : 'pointer',
+          background: user?.isAbsent ? 'var(--warning-soft)' : 'var(--surface-2)',
+          color: user?.isAbsent ? 'var(--warning)' : 'var(--fg-muted)',
+          fontSize: 12, fontWeight: 600, opacity: togglingAbsence ? 0.6 : 1,
+        }}
+      >
+        <span style={{
+          width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+          background: user?.isAbsent ? 'var(--warning)' : 'var(--success, #2e9e5b)',
+        }} />
+        <span className="hidden md:inline">{user?.isAbsent ? 'Absent' : 'En ligne'}</span>
       </button>
 
       {/* Notifications */}
@@ -664,7 +707,7 @@ const MoreSheet = ({ onClose }) => {
 
 export default function AppShell({ onLogout }) {
   const { user } = useAuth();
-  const { unreadCount: chatUnread } = useChatUnread();
+  const { unreadCount: chatUnread, refresh: refreshChatUnread } = useChatUnread();
   const [pendingCount,    setPendingCount]    = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -759,6 +802,9 @@ export default function AppShell({ onLogout }) {
 
       {/* ── Recherche globale (⌘K + déclenchée par la barre sidebar) ── */}
       <GlobalSearch hideTrigger />
+
+      {/* ── Bulle de discussion globale ── */}
+      <GlobalChatBubble unreadCount={chatUnread} onUnreadChange={refreshChatUnread} />
     </div>
   );
 }

@@ -25,7 +25,7 @@ const ScheduleDetail = () => {
     try {
       setLoading(true);
       const data = await scheduleService.getScheduleById(id);
-      
+
       // ✅ CORRECTION: Garantir que assignments et validations sont des tableaux
       if (!data.assignments || !Array.isArray(data.assignments)) {
         data.assignments = [];
@@ -33,13 +33,13 @@ const ScheduleDetail = () => {
       if (!data.validations || !Array.isArray(data.validations)) {
         data.validations = [];
       }
-      
+
       setSchedule(data);
-      
+
       // Générer les dates
       const monthDates = scheduleService.generateMonthDates(data.year, data.month);
       setDates(monthDates);
-      
+
       // Organiser les affectations par employé
       organizeAssignments(data.assignments, monthDates);
     } catch (error) {
@@ -70,14 +70,14 @@ const ScheduleDetail = () => {
 
     // Grouper par employé
     const employeeMap = {};
-    
+
     assignments
       .filter(assignment => assignment != null)
       .forEach(assignment => {
         const empId = assignment.employeeId || assignment.userId;
-        const empName = assignment.employeeName || 
+        const empName = assignment.employeeName ||
                        `${assignment.user?.firstName || ''} ${assignment.user?.lastName || ''}`;
-        
+
         if (!employeeMap[empId]) {
           employeeMap[empId] = {
             id: empId,
@@ -85,15 +85,15 @@ const ScheduleDetail = () => {
             assignments: {}
           };
         }
-        
+
         employeeMap[empId].assignments[assignment.assignmentDate] = assignment.shiftCode;
       });
-    
+
     // Convertir en array et trier par nom
-    const employeeList = Object.values(employeeMap).sort((a, b) => 
+    const employeeList = Object.values(employeeMap).sort((a, b) =>
       a.name.localeCompare(b.name)
     );
-    
+
     setEmployeeAssignments(employeeList);
   };
 
@@ -134,8 +134,8 @@ const ScheduleDetail = () => {
 
   if (loading || !schedule) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div className="animate-spin" style={{ width: 48, height: 48, borderRadius: '50%', borderBottom: '2px solid var(--brand)' }}></div>
       </div>
     );
   }
@@ -144,35 +144,37 @@ const ScheduleDetail = () => {
   const statusLabels = scheduleService.getStatusLabels();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: '100vh', background: 'var(--surface-2)' }}>
       {/* Barre d'actions (non imprimée) */}
-      <div className="no-print bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="w-full px-4 py-3 flex items-center justify-between">
+      <div className="no-print" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 50, boxShadow: 'var(--shadow-1)' }}>
+        <div style={{ width: '100%', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button
             onClick={() => navigate('/schedules')}
-            className="flex items-center text-gray-600 hover:text-gray-800"
+            style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 14 }}
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg style={{ width: 20, height: 20, marginRight: 8 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Retour
           </button>
 
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {schedule.status === 'draft' && (
               <button
                 onClick={() => navigate(`/schedules/${id}/edit`)}
-                className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors"
+                style={{ padding: '7px 16px', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-2)', fontSize: 14, fontWeight: 500 }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'none'}
               >
                 Modifier
               </button>
             )}
-            
+
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 16px', background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-2)', fontSize: 14, fontWeight: 500 }}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
               Imprimer
@@ -182,73 +184,77 @@ const ScheduleDetail = () => {
       </div>
 
       {/* Contenu imprimable */}
-      <div ref={printRef} className="bg-white">
+      <div ref={printRef} style={{ background: 'var(--surface)' }}>
         {/* En-tête du planning */}
-        <div className="border-b-2 border-gray-800 p-6">
-          <div className="flex items-start justify-between mb-4">
+        <div style={{ borderBottom: '2px solid var(--fg)', padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
             {/* Logo et informations hôpital */}
             <div>
-              <h1 className="text-xl font-bold text-gray-900 mb-1">
+              <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>
                 HOPITAL ST-JEAN DE MALTE
               </h1>
-              <p className="text-sm text-gray-600">ORDRE DE MALTE</p>
-              <p className="text-sm text-gray-600">BP 56 NJOMBE</p>
+              <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>ORDRE DE MALTE</p>
+              <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>BP 56 NJOMBE</p>
             </div>
 
             {/* Date du document */}
-            <div className="text-right">
-              <p className="text-sm text-gray-600">
-                {new Date().toLocaleDateString('fr-FR', { 
-                  day: '2-digit', 
-                  month: '2-digit', 
-                  year: 'numeric' 
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>
+                {new Date().toLocaleDateString('fr-FR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric'
                 })}
               </p>
             </div>
           </div>
 
           {/* Titre du planning */}
-          <div className="text-center mt-4">
-            <h2 className="text-lg font-bold text-gray-900 uppercase mb-2">
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', textTransform: 'uppercase', marginBottom: 8 }}>
               {scheduleTypeLabels[schedule.scheduleType]}
             </h2>
-            <h3 className="text-base font-semibold text-gray-800">
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>
               MOIS DE {scheduleService.getMonthName(schedule.month).toUpperCase()} {schedule.year}
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>
               ROT/{schedule.scheduleType.toUpperCase()}/{schedule.month}-{schedule.year.toString().slice(-2)}
             </p>
           </div>
 
           {/* Statut */}
-          <div className="text-center mt-3">
-            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${scheduleService.getStatusColor(schedule.status)}`}>
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <span style={{
+              display: 'inline-block',
+              padding: '4px 12px',
+              borderRadius: 9999,
+              fontSize: 13,
+              fontWeight: 500,
+              background: schedule.status === 'published' ? 'var(--success-soft)' : schedule.status === 'rejected' ? 'var(--danger-soft)' : schedule.status === 'pending_validation' ? 'var(--warning-soft)' : 'var(--surface-3)',
+              color: schedule.status === 'published' ? 'var(--success)' : schedule.status === 'rejected' ? 'var(--danger)' : schedule.status === 'pending_validation' ? 'var(--warning)' : 'var(--fg-muted)',
+            }}>
               {statusLabels[schedule.status]}
             </span>
           </div>
         </div>
 
         {/* Tableau du planning */}
-        <div className="p-6">
+        <div style={{ padding: 24 }}>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border-2 border-gray-800">
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid var(--fg)' }}>
               {/* En-tête avec les jours */}
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border-2 border-gray-800 px-3 py-2 text-left font-bold text-sm">
+                <tr style={{ background: 'var(--surface-2)' }}>
+                  <th style={{ border: '2px solid var(--fg)', padding: '8px 12px', textAlign: 'left', fontWeight: 700, fontSize: 13 }}>
                     Noms
                   </th>
                   {dates.map((dateInfo, index) => (
                     <th
                       key={index}
-                      className={`border-2 border-gray-800 px-1 py-2 text-center text-xs font-bold ${
-                        dateInfo.dayOfWeek === 0 || dateInfo.dayOfWeek === 6
-                          ? 'bg-gray-200'
-                          : ''
-                      }`}
+                      style={{ border: '2px solid var(--fg)', padding: '6px 4px', textAlign: 'center', fontSize: 11, fontWeight: 700, background: (dateInfo.dayOfWeek === 0 || dateInfo.dayOfWeek === 6) ? 'var(--surface-3)' : undefined }}
                     >
-                      <div className="font-bold text-gray-900">{dateInfo.day}</div>
-                      <div className="text-gray-600 text-xs">{dateInfo.dayName}</div>
+                      <div style={{ fontWeight: 700, color: 'var(--fg)' }}>{dateInfo.day}</div>
+                      <div style={{ color: 'var(--fg-muted)', fontSize: 10 }}>{dateInfo.dayName}</div>
                     </th>
                   ))}
                 </tr>
@@ -259,10 +265,10 @@ const ScheduleDetail = () => {
                 {employeeAssignments.map((employee, empIndex) => (
                   <tr
                     key={employee.id}
-                    className={empIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    style={{ background: empIndex % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}
                   >
                     {/* Nom de l'employé */}
-                    <td className="border-2 border-gray-800 px-3 py-2 font-semibold text-sm text-gray-900">
+                    <td style={{ border: '2px solid var(--fg)', padding: '8px 12px', fontWeight: 600, fontSize: 13, color: 'var(--fg)' }}>
                       {employee.name}
                     </td>
 
@@ -274,14 +280,16 @@ const ScheduleDetail = () => {
                       return (
                         <td
                           key={dateIndex}
-                          className={`border-2 border-gray-800 p-0 text-center ${
-                            isWeekend ? 'bg-gray-100' : ''
-                          }`}
+                          style={{ border: '2px solid var(--fg)', padding: 0, textAlign: 'center', background: isWeekend ? 'var(--surface-3)' : undefined }}
                         >
                           {shiftCode ? (
                             <div
-                              className="w-full h-full px-2 py-3 font-bold text-sm"
                               style={{
+                                width: '100%',
+                                height: '100%',
+                                padding: '10px 6px',
+                                fontWeight: 700,
+                                fontSize: 13,
                                 backgroundColor: getShiftColor(shiftCode),
                                 color: getShiftTextColor(shiftCode)
                               }}
@@ -289,7 +297,7 @@ const ScheduleDetail = () => {
                               {shiftCode}
                             </div>
                           ) : (
-                            <div className="px-2 py-3 text-gray-400 text-sm">
+                            <div style={{ padding: '10px 6px', color: 'var(--fg-subtle)', fontSize: 13 }}>
                               -
                             </div>
                           )}
@@ -303,21 +311,29 @@ const ScheduleDetail = () => {
           </div>
 
           {/* Légende */}
-          <div className="mt-6 p-4 border-2 border-gray-300 rounded">
-            <h4 className="font-bold text-sm text-gray-900 mb-3">Légende:</h4>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+          <div style={{ marginTop: 24, padding: 16, border: '2px solid var(--border)', borderRadius: 'var(--radius-2)' }}>
+            <h4 style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)', marginBottom: 10 }}>Légende:</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 }}>
               {shiftTypes.map(shift => (
-                <div key={shift.id} className="flex items-center gap-2 text-xs">
+                <div key={shift.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
                   <div
-                    className="w-8 h-8 rounded flex items-center justify-center font-bold border border-gray-400"
                     style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 'var(--radius-2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      border: '1px solid var(--border)',
                       backgroundColor: shift.color,
-                      color: getShiftTextColor(shift.code)
+                      color: getShiftTextColor(shift.code),
+                      flexShrink: 0
                     }}
                   >
                     {shift.code}
                   </div>
-                  <span className="text-gray-700">{shift.name}</span>
+                  <span style={{ color: 'var(--fg-muted)' }}>{shift.name}</span>
                 </div>
               ))}
             </div>
@@ -325,81 +341,80 @@ const ScheduleDetail = () => {
 
           {/* Notes */}
           {schedule.notes && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-              <p className="text-xs font-semibold text-gray-700 mb-1">Notes:</p>
-              <p className="text-xs text-gray-600 whitespace-pre-wrap">{schedule.notes}</p>
+            <div style={{ marginTop: 16, padding: 12, background: 'var(--warning-soft)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-2)' }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>Notes:</p>
+              <p style={{ fontSize: 11, color: 'var(--fg-muted)', whiteSpace: 'pre-wrap', margin: 0 }}>{schedule.notes}</p>
             </div>
           )}
 
           {/* Workflow de validation */}
           {schedule.validations && Array.isArray(schedule.validations) && schedule.validations.length > 0 && (
-            <div className="mt-6 border-t-2 border-gray-300 pt-4">
-              <h4 className="font-bold text-sm text-gray-900 mb-3">Validations:</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div style={{ marginTop: 24, borderTop: '2px solid var(--border)', paddingTop: 16 }}>
+              <h4 style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)', marginBottom: 10 }}>Validations:</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                 {schedule.validations
                   .filter(validation => validation != null)
                   .map((validation, index) => (
-                    <div key={validation.id} className="border border-gray-300 rounded p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-gray-700">
+                    <div key={validation.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', padding: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg)' }}>
                           {validation.validatorRole === 'dds' && 'Directrice des Soins'}
                           {validation.validatorRole === 'medical_chief' && 'Médecin Chef'}
                           {validation.validatorRole === 'dg' && 'Directeur Général'}
                         </span>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          validation.status === 'approved'
-                            ? 'bg-green-100 text-green-800'
-                            : validation.status === 'rejected'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-2)',
+                          fontSize: 11,
+                          fontWeight: 500,
+                          background: validation.status === 'approved' ? 'var(--success-soft)' : validation.status === 'rejected' ? 'var(--danger-soft)' : 'var(--surface-3)',
+                          color: validation.status === 'approved' ? 'var(--success)' : validation.status === 'rejected' ? 'var(--danger)' : 'var(--fg-muted)'
+                        }}>
                           {validation.status === 'approved' && '✓ Approuvé'}
                           {validation.status === 'rejected' && '✗ Rejeté'}
                           {validation.status === 'pending' && 'En attente'}
                         </span>
                       </div>
-                      
+
                       {validation.validator && (
-                        <p className="text-xs text-gray-600">
+                        <p style={{ fontSize: 11, color: 'var(--fg-muted)', margin: 0 }}>
                           {validation.validator.firstName} {validation.validator.lastName}
                         </p>
                       )}
-                      
+
                       {validation.validatedAt && (
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 4 }}>
                           Le {new Date(validation.validatedAt).toLocaleDateString('fr-FR')}
                         </p>
                       )}
-                      
+
                       {validation.comments && (
-                        <p className="text-xs text-gray-600 mt-2 italic">
+                        <p style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 8, fontStyle: 'italic' }}>
                           "{validation.comments}"
                         </p>
                       )}
 
                       {/* Signature et cachet */}
                       {validation.status === 'approved' && validation.validator && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <p className="text-xs text-gray-500 mb-2">Signature:</p>
-                          
-                          {/* ✅ Afficher la signature si elle existe */}
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                          <p style={{ fontSize: 11, color: 'var(--fg-subtle)', marginBottom: 8 }}>Signature:</p>
+
                           {validation.validator.signaturePath ? (
-                            <div className="flex items-end justify-between gap-2">
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
                               <img
                                 src={`/api/${validation.validator.signaturePath}`}
                                 alt="Signature"
-                                className="h-16 object-contain"
+                                style={{ height: 64, objectFit: 'contain' }}
                                 onError={(e) => {
                                   console.warn('Erreur chargement signature:', validation.validator.signaturePath);
                                   e.target.style.display = 'none';
                                 }}
                               />
-                              
-                              {/* ✅ Afficher le cachet si il existe */}
+
                               {validation.validator.stampPath && (
                                 <img
                                   src={`/api/${validation.validator.stampPath}`}
-                                  className="h-16 object-contain"
+                                  style={{ height: 64, objectFit: 'contain' }}
                                   onError={(e) => {
                                     console.warn('Erreur chargement cachet:', validation.validator.stampPath);
                                     e.target.style.display = 'none';
@@ -408,7 +423,7 @@ const ScheduleDetail = () => {
                               )}
                             </div>
                           ) : (
-                            <div className="h-12 border-b border-gray-400"></div>
+                            <div style={{ height: 48, borderBottom: '1px solid var(--border)' }}></div>
                           )}
                         </div>
                       )}
@@ -419,29 +434,29 @@ const ScheduleDetail = () => {
           )}
 
           {/* Pied de page avec signatures */}
-          <div className="mt-8 pt-6 border-t-2 border-gray-800">
-            <div className="grid grid-cols-2 gap-8">
+          <div style={{ marginTop: 32, paddingTop: 24, borderTop: '2px solid var(--fg)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
               {/* Directrice des Soins */}
               <div>
-                <p className="text-sm font-semibold text-gray-900 mb-1">
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>
                   La Directrice des Soins
                 </p>
                 {(() => {
-                  const ddsValidation = schedule.validations?.find(v => 
+                  const ddsValidation = schedule.validations?.find(v =>
                     v.validatorRole === 'dds' && v.status === 'approved' && v.validator
                   );
-                  
+
                   return ddsValidation?.validator ? (
-                    <div className="mt-4">
-                      <p className="text-sm text-gray-700">
+                    <div style={{ marginTop: 16 }}>
+                      <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
                         {ddsValidation.validator.firstName} {ddsValidation.validator.lastName}
                       </p>
-                      <div className="mt-2 flex items-center gap-4">
+                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 16 }}>
                         {ddsValidation.validator.signaturePath && (
                           <img
                             src={`/api/${ddsValidation.validator.signaturePath}`}
                             alt="Signature DDS"
-                            className="h-16 object-contain"
+                            style={{ height: 64, objectFit: 'contain' }}
                             onError={(e) => e.target.style.display = 'none'}
                           />
                         )}
@@ -449,41 +464,41 @@ const ScheduleDetail = () => {
                           <img
                             src={`/api/${ddsValidation.validator.stampPath}`}
                             alt="Cachet DDS"
-                            className="h-16 object-contain"
+                            style={{ height: 64, objectFit: 'contain' }}
                             onError={(e) => e.target.style.display = 'none'}
                           />
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-8 pt-12 border-t border-gray-400"></div>
+                    <div style={{ marginTop: 32, paddingTop: 48, borderTop: '1px solid var(--border)' }}></div>
                   );
                 })()}
               </div>
 
               {/* Directeur Général */}
               <div>
-                <p className="text-sm font-semibold text-gray-900 mb-1">
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>
                   Le Directeur Général
                 </p>
                 {(() => {
-                  const dgValidation = schedule.validations?.find(v => 
+                  const dgValidation = schedule.validations?.find(v =>
                     v.validatorRole === 'dg' && v.status === 'approved' && v.validator
                   );
-                  
+
                   return dgValidation?.validator ? (
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-700">
+                    <div style={{ marginTop: 8 }}>
+                      <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
                         {dgValidation.validator.firstName} {dgValidation.validator.lastName}
                       </p>
-                      <p className="text-xs text-gray-600">BP 56 NJOMBE - C.MEROUN Tél: (237)657.593.103</p>
-                      <p className="text-xs text-gray-600">Directeur Général HSJM</p>
-                      <p className="text-xs text-gray-600">{dgValidation.validator.email}</p>
-                      <div className="mt-2 flex items-center gap-4">
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>BP 56 NJOMBE - C.MEROUN Tél: (237)657.593.103</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Directeur Général HSJM</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{dgValidation.validator.email}</p>
+                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 16 }}>
                         {dgValidation.validator.signaturePath && (
                           <img
                             src={`/api/${dgValidation.validator.signaturePath}`}
-                            className="h-20 object-contain"
+                            style={{ height: 80, objectFit: 'contain' }}
                             onError={(e) => e.target.style.display = 'none'}
                           />
                         )}
@@ -491,19 +506,19 @@ const ScheduleDetail = () => {
                           <img
                             src={`/api/${dgValidation.validator.stampPath}`}
                             alt="Cachet DG"
-                            className="h-20 object-contain"
+                            style={{ height: 80, objectFit: 'contain' }}
                             onError={(e) => e.target.style.display = 'none'}
                           />
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-8">
-                      <p className="text-sm text-gray-700">Michel VAUTROT</p>
-                      <p className="text-xs text-gray-600">BP 56 NJOMBE - C.MEROUN Tél: (237)657.593.103</p>
-                      <p className="text-xs text-gray-600">Directeur Général HSJM</p>
-                      <p className="text-xs text-gray-600">hopitalcameroun@ordredemaltefrance.org</p>
-                      <div className="mt-4 border-t border-gray-400"></div>
+                    <div style={{ marginTop: 32 }}>
+                      <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Michel VAUTROT</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>BP 56 NJOMBE - C.MEROUN Tél: (237)657.593.103</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Directeur Général HSJM</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>hopitalcameroun@ordredemaltefrance.org</p>
+                      <div style={{ marginTop: 16, borderTop: '1px solid var(--border)' }}></div>
                     </div>
                   );
                 })()}
@@ -512,12 +527,12 @@ const ScheduleDetail = () => {
           </div>
 
           {/* Note de bas de page */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <p style={{ fontSize: 11, color: 'var(--fg-subtle)', margin: 0 }}>
               (1 heure de pause par jour)
             </p>
             {schedule.publishedAt && (
-              <p className="text-xs text-gray-500 mt-2">
+              <p style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 8 }}>
                 Document publié le {new Date(schedule.publishedAt).toLocaleDateString('fr-FR')}
               </p>
             )}
@@ -526,35 +541,35 @@ const ScheduleDetail = () => {
       </div>
 
       {/* Statistiques (non imprimées) */}
-      <div className="no-print w-full px-4 py-6">
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistiques du planning</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-3xl font-bold text-blue-600">
+      <div className="no-print" style={{ width: '100%', padding: '24px 16px' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-1)', padding: 24 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)', marginBottom: 16 }}>Statistiques du planning</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+            <div style={{ textAlign: 'center', padding: 16, background: 'var(--brand-soft)', borderRadius: 'var(--radius-2)' }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--brand)' }}>
                 {employeeAssignments.length}
               </div>
-              <div className="text-sm text-gray-600 mt-1">Employés</div>
+              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>Employés</div>
             </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-3xl font-bold text-green-600">
+            <div style={{ textAlign: 'center', padding: 16, background: 'var(--success-soft)', borderRadius: 'var(--radius-2)' }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--success)' }}>
                 {schedule.assignments?.length || 0}
               </div>
-              <div className="text-sm text-gray-600 mt-1">Affectations</div>
+              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>Affectations</div>
             </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="text-3xl font-bold text-purple-600">
+            <div style={{ textAlign: 'center', padding: 16, background: 'var(--surface-3)', borderRadius: 'var(--radius-2)' }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--fg)' }}>
                 {dates.length}
               </div>
-              <div className="text-sm text-gray-600 mt-1">Jours</div>
+              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>Jours</div>
             </div>
-            <div className="text-center p-4 bg-orange-50 rounded-lg">
-              <div className="text-3xl font-bold text-orange-600">
-                {employeeAssignments.length > 0 
+            <div style={{ textAlign: 'center', padding: 16, background: 'var(--warning-soft)', borderRadius: 'var(--radius-2)' }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--warning)' }}>
+                {employeeAssignments.length > 0
                   ? Math.round((schedule.assignments?.length || 0) / (employeeAssignments.length * dates.length) * 100)
                   : 0}%
               </div>
-              <div className="text-sm text-gray-600 mt-1">Complété</div>
+              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>Complété</div>
             </div>
           </div>
         </div>

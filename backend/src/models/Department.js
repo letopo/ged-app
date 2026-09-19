@@ -38,7 +38,11 @@ const Department = sequelize.define('Department', {
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'departments',
   timestamps: true,

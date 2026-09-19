@@ -107,7 +107,11 @@ const Schedule = sequelize.define('Schedule', {
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'schedules',
   timestamps: true,

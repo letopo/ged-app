@@ -28,12 +28,13 @@ export const activateLicense = async (req, res) => {
     }
     
     // 3. Nettoyage et Sauvegarde
-    await License.destroy({ where: {}, truncate: true });
-    
-    await License.create({ 
+    await License.destroy({ where: { tenantId: req.tenantId } });
+
+    await License.create({
       key: licenseKey,
       clientName: decoded.clientName,
-      expiresAt: decoded.expiresAt ? new Date(decoded.expiresAt) : null
+      expiresAt: decoded.expiresAt ? new Date(decoded.expiresAt) : null,
+      tenantId: req.tenantId
     });
 
     res.json({ 
@@ -63,7 +64,7 @@ export const getLicenseStatus = async (req, res) => {
     }
 
     // 2. Récupération BDD
-    const license = await License.findOne({ order: [['createdAt', 'DESC']] });
+    const license = await License.findOne({ where: { tenantId: req.tenantId }, order: [['createdAt', 'DESC']] });
     
     if (!license) {
         console.log("ℹ️ Aucune licence trouvée en base de données.");

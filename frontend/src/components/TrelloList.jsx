@@ -1,25 +1,23 @@
+// frontend/src/components/TrelloList.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Droppable } from '@hello-pangea/dnd';
 import TrelloCard from './TrelloCard';
 import { Plus, MoreHorizontal, X, ArrowLeftToLine, ArrowRightToLine, Copy, Archive, ArrowRight } from 'lucide-react';
 
-const TrelloList = ({ list, cards, onCardClick, onAddCard }) => {
-  const [isAdding, setIsAdding] = useState(false);
-  const [newCardTitle, setNewCardTitle] = useState("");
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [showMenu, setShowMenu] = useState(false); // État pour le menu
-  const menuRef = useRef(null);
+export default function TrelloList({ list, cards, onCardClick, onAddCard }) {
+  const [isAdding, setIsAdding]         = useState(false);
+  const [newCardTitle, setNewCardTitle] = useState('');
+  const [isCollapsed, setIsCollapsed]   = useState(false);
+  const [showMenu, setShowMenu]         = useState(false);
+  const menuRef    = useRef(null);
   const textareaRef = useRef(null);
 
-  // Fermer le menu si on clique ailleurs
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowMenu(false);
-      }
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -38,152 +36,185 @@ const TrelloList = ({ list, cards, onCardClick, onAddCard }) => {
   const handleSubmit = async () => {
     if (!newCardTitle.trim()) return;
     await onAddCard(list.id, newCardTitle);
-    setNewCardTitle("");
+    setNewCardTitle('');
     setIsAdding(true);
     if (textareaRef.current) textareaRef.current.focus();
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
     if (e.key === 'Escape') setIsAdding(false);
   };
 
-  // --- RENDU RÉDUIT ---
+  const iconBtnStyle = {
+    padding: '5px', background: 'none', border: 'none', cursor: 'pointer',
+    color: 'var(--fg-muted)', borderRadius: 'var(--radius-2)', display: 'flex',
+  };
+
+  // ── Collapsed ──
   if (isCollapsed) {
     return (
-      <div className="flex flex-col w-12 h-full bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex-shrink-0 cursor-pointer transition-all hover:bg-gray-200 dark:hover:bg-gray-700">
-        <div onClick={() => setIsCollapsed(false)} className="flex-1 flex flex-col items-center py-4 gap-4">
-            <ArrowRightToLine size={20} className="text-gray-600 dark:text-gray-300" />
-            <div className="flex-1 w-full flex items-center justify-center">
-                <span className="font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap text-lg" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
-                    {list.name}
-                </span>
-            </div>
-            <span className="bg-blue-100 text-blue-800 text-xs font-bold px-1.5 py-0.5 rounded-full mb-2">{cards.length}</span>
-        </div>
+      <div
+        onClick={() => setIsCollapsed(false)}
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          width: 44, flexShrink: 0, background: 'var(--surface-2)',
+          border: '1px solid var(--border)', borderRadius: 'var(--radius-3)',
+          padding: '10px 0', cursor: 'pointer', gap: 8,
+        }}
+      >
+        <ArrowRightToLine size={18} color="var(--fg-muted)" />
+        <span style={{
+          fontWeight: 600, fontSize: 13, color: 'var(--fg)',
+          writingMode: 'vertical-rl', textOrientation: 'mixed', flex: 1,
+        }}>
+          {list.name}
+        </span>
+        <span style={{
+          background: 'var(--brand-soft)', color: 'var(--brand)',
+          fontSize: 11, fontWeight: 700, padding: '2px 5px', borderRadius: 999,
+        }}>
+          {cards.length}
+        </span>
       </div>
     );
   }
 
-  // --- RENDU COMPLET ---
+  // ── Full ──
   return (
-    <div className="flex flex-col w-72 max-h-full bg-[#f1f2f4] dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex-shrink-0 relative">
-      
+    <div style={{
+      display: 'flex', flexDirection: 'column', width: 272, flexShrink: 0,
+      maxHeight: '100%', background: 'var(--surface-2)',
+      border: '1px solid var(--border)', borderRadius: 'var(--radius-3)',
+      position: 'relative',
+    }}>
+
       {/* Header */}
-      <div className="px-3 py-3 flex items-center justify-between gap-2 cursor-pointer group relative">
-        <div className="flex-1 font-semibold text-sm text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 truncate">
+      <div style={{ padding: '10px 10px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+        <div style={{ flex: 1, fontWeight: 600, fontSize: 13, color: 'var(--fg)', padding: '4px 6px', borderRadius: 'var(--radius-2)' }}>
           {list.name}
         </div>
-        
-        <div className="flex items-center gap-1">
-            {/* Bouton Réduire */}
-            <button onClick={() => setIsCollapsed(true)} className="p-1.5 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition">
-                <ArrowLeftToLine size={16} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <button onClick={() => setIsCollapsed(true)} style={iconBtnStyle} title="Réduire">
+            <ArrowLeftToLine size={14} />
+          </button>
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button onClick={() => setShowMenu(v => !v)} style={iconBtnStyle}>
+              <MoreHorizontal size={14} />
             </button>
-            
-            {/* Bouton Menu Actions */}
-            <div className="relative" ref={menuRef}>
-                <button 
-                    onClick={() => setShowMenu(!showMenu)}
-                    className="p-1.5 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition"
-                >
-                    <MoreHorizontal size={16} />
-                </button>
-
-                {/* MENU DÉROULANT TYPE TRELLO */}
-                {showMenu && (
-                    <div className="absolute right-0 top-8 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-2">
-                        <div className="flex items-center justify-between px-4 pb-2 border-b border-gray-100 dark:border-gray-700 mb-2">
-                            <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">Liste des actions</span>
-                            <button onClick={() => setShowMenu(false)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
-                        </div>
-                        
-                        <ul className="text-sm text-gray-700 dark:text-gray-300">
-                            <li>
-                                <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2" onClick={() => { setIsAdding(true); setShowMenu(false); }}>
-                                    <Plus size={14} /> Ajouter une carte
-                                </button>
-                            </li>
-                            <li>
-                                <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
-                                    <Copy size={14} /> Copier la liste
-                                </button>
-                            </li>
-                            <li>
-                                <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
-                                    <ArrowRight size={14} /> Déplacer la liste
-                                </button>
-                            </li>
-                            <li className="border-t border-gray-100 dark:border-gray-700 my-1"></li>
-                            <li>
-                                <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-red-600">
-                                    <Archive size={14} /> Archiver cette liste
-                                </button>
-                            </li>
-                        </ul>
-                    </div>
-                )}
-            </div>
+            {showMenu && (
+              <div style={{
+                position: 'absolute', right: 0, top: 28, width: 220, zIndex: 50,
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', overflow: 'hidden',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)' }}>Actions</span>
+                  <button onClick={() => setShowMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-subtle)', display: 'flex' }}><X size={12} /></button>
+                </div>
+                {[
+                  { Icon: Plus,    label: 'Ajouter une carte',  action: () => { setIsAdding(true); setShowMenu(false); }, danger: false },
+                  { Icon: Copy,    label: 'Copier la liste',    action: () => setShowMenu(false), danger: false },
+                  { Icon: ArrowRight, label: 'Déplacer la liste', action: () => setShowMenu(false), danger: false },
+                  { Icon: Archive, label: 'Archiver cette liste', action: () => setShowMenu(false), danger: true },
+                ].map(({ Icon, label, action, danger }) => (
+                  <button
+                    key={label} onClick={action}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 13, color: danger ? 'var(--danger)' : 'var(--fg)', textAlign: 'left',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    <Icon size={13} /> {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Cartes */}
+      {/* Cards */}
       <Droppable droppableId={list.id}>
         {(provided, snapshot) => (
           <div
             {...provided.droppableProps}
             ref={provided.innerRef}
-            className={`flex-1 px-2 py-1 overflow-y-auto min-h-[50px] custom-scrollbar ${snapshot.isDraggingOver ? 'bg-gray-200/50 dark:bg-gray-700/50' : ''}`}
-            style={{ maxHeight: 'calc(100vh - 200px)' }}
+            style={{
+              flex: 1, padding: '0 6px', overflowY: 'auto', minHeight: 50,
+              maxHeight: 'calc(100vh - 200px)',
+              background: snapshot.isDraggingOver ? 'var(--brand-soft)' : 'transparent',
+              transition: 'background .15s',
+            }}
           >
             {cards.map((card, index) => (
-              <TrelloCard key={card.id} card={{...card, listName: list.name}} index={index} onClick={onCardClick} />
+              <TrelloCard key={card.id} card={{ ...card, listName: list.name }} index={index} onClick={onCardClick} />
             ))}
             {provided.placeholder}
-            
-            {/* Input Ajout Carte */}
+
             {isAdding && (
-                <div className="mb-2">
-                    <div className="bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-300 dark:border-gray-600 p-2 mb-2">
-                        <textarea
-                            ref={textareaRef}
-                            value={newCardTitle}
-                            onChange={handleInput}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Saisissez un titre pour cette carte..."
-                            className="w-full resize-none text-sm bg-transparent border-none focus:ring-0 p-0 text-gray-800 dark:text-gray-100 placeholder-gray-400 min-h-[60px] overflow-hidden"
-                            rows={1}
-                        />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={handleSubmit} className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 transition shadow-sm">
-                            Ajouter une carte
-                        </button>
-                        <button onClick={() => setIsAdding(false)} className="text-gray-500 hover:text-gray-800 p-1.5 hover:bg-gray-200 rounded transition">
-                            <X size={20} />
-                        </button>
-                    </div>
+              <div style={{ marginBottom: 6 }}>
+                <div style={{
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-2)', padding: 8, marginBottom: 6,
+                }}>
+                  <textarea
+                    ref={textareaRef}
+                    value={newCardTitle}
+                    onChange={handleInput}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Saisissez un titre…"
+                    style={{
+                      width: '100%', resize: 'none', background: 'transparent',
+                      border: 'none', outline: 'none', fontSize: 13, color: 'var(--fg)',
+                      minHeight: 60, overflow: 'hidden', lineHeight: 1.5,
+                    }}
+                    rows={1}
+                  />
                 </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    onClick={handleSubmit}
+                    style={{
+                      height: 30, padding: '0 12px', borderRadius: 'var(--radius-2)', border: 'none',
+                      background: 'var(--brand)', color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    }}
+                  >
+                    Ajouter une carte
+                  </button>
+                  <button
+                    onClick={() => setIsAdding(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 4 }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         )}
       </Droppable>
 
       {!isAdding && (
-        <div className="p-2 pt-1">
-          <button 
+        <div style={{ padding: '4px 6px 8px' }}>
+          <button
             onClick={() => setIsAdding(true)}
-            className="w-full text-left px-2 py-1.5 flex items-center gap-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium"
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 8px', background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius-2)',
+              textAlign: 'left',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
-            <Plus size={16} /> Ajouter une carte
+            <Plus size={14} /> Ajouter une carte
           </button>
         </div>
       )}
     </div>
   );
-};
-
-export default TrelloList;
+}

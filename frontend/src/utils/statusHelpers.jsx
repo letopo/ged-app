@@ -12,29 +12,37 @@ export const STATUS_LABELS = {
   cancelled:          'Annulé',
 };
 
-export const STATUS_COLORS = {
-  draft:              'bg-gray-100 text-gray-700 dark:bg-gray-700/50 dark:text-gray-300',
-  pending_validation: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-  in_progress:        'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  approved:           'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  rejected:           'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  archived:           'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  pending:            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-  completed:          'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  cancelled:          'bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-400',
+export const STATUS_STYLES = {
+  draft:              { background: 'var(--surface-2)',    color: 'var(--fg-muted)'  },
+  pending_validation: { background: 'var(--warning-soft)', color: 'var(--warning)'   },
+  in_progress:        { background: 'var(--brand-soft)',   color: 'var(--brand)'     },
+  approved:           { background: 'var(--success-soft)', color: 'var(--success)'   },
+  rejected:           { background: 'var(--danger-soft)',  color: 'var(--danger)'    },
+  archived:           { background: 'rgba(139,92,246,0.12)', color: '#7c3aed'        },
+  pending:            { background: 'var(--warning-soft)', color: 'var(--warning)'   },
+  completed:          { background: 'var(--success-soft)', color: 'var(--success)'   },
+  cancelled:          { background: 'var(--surface-2)',    color: 'var(--fg-subtle)' },
 };
 
 /** Retourne le label français d'un statut */
 export const getStatusLabel = (status) =>
   STATUS_LABELS[status] ?? status?.replace(/_/g, ' ') ?? '—';
 
-/** Retourne les classes Tailwind de couleur pour un statut */
-export const getStatusColor = (status) =>
-  STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-700';
+/** Retourne l'objet style CSS vars pour un statut */
+export const getStatusStyle = (status) =>
+  STATUS_STYLES[status] ?? { background: 'var(--surface-2)', color: 'var(--fg-muted)' };
 
 /** Badge complet : label + couleur */
-export const StatusBadge = ({ status, className = '' }) => (
-  <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(status)} ${className}`}>
+export const StatusBadge = ({ status, style: extraStyle = {} }) => (
+  <span style={{
+    display: 'inline-block',
+    padding: '2px 8px',
+    borderRadius: 'var(--radius-2)',
+    fontSize: 12,
+    fontWeight: 500,
+    ...getStatusStyle(status),
+    ...extraStyle,
+  }}>
     {getStatusLabel(status)}
   </span>
 );

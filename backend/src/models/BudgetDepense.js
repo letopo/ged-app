@@ -27,6 +27,7 @@ const BudgetDepense = sequelize.define('BudgetDepense', {
     validate: { isIn: [['en_attente','payee','contestee', null]] }
   },
   created_by: { type: DataTypes.UUID, allowNull: true },
+  tenantId: { type: DataTypes.UUID, allowNull: false },
 }, {
   tableName: 'gmao_budget_depenses',
   timestamps: true,

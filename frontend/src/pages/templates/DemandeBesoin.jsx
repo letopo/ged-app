@@ -1,4 +1,4 @@
-// frontend/src/pages/templates/DemandeBesoin.jsx - TEMPLATE COMPLET
+// frontend/src/pages/templates/DemandeBesoin.jsx
 import React from 'react';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import logo from '../../assets/logo-ordre-malte.png';
@@ -7,6 +7,7 @@ import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const DemandeBesoin = ({ formData, setFormData, pdfContainerRef }) => {
     const { user } = useAuth();
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -15,8 +16,7 @@ const DemandeBesoin = ({ formData, setFormData, pdfContainerRef }) => {
     const handleLineChange = (index, field, value) => {
         const newLines = [...formData.lines];
         newLines[index][field] = value;
-        // Auto-calculate total when quantity or price changes
-        if(field === 'quantite' || field === 'prixUnitaire') {
+        if (field === 'quantite' || field === 'prixUnitaire') {
             const qty = Number(newLines[index].quantite) || 0;
             const price = Number(newLines[index].prixUnitaire) || 0;
             newLines[index].montantTotal = qty * price;
@@ -24,66 +24,100 @@ const DemandeBesoin = ({ formData, setFormData, pdfContainerRef }) => {
         setFormData({ ...formData, lines: newLines });
     };
 
-    const addLine = () => { setFormData({ ...formData, lines: [...formData.lines, { designation: '', quantite: '', prixUnitaire: '', montantTotal: '' }] }); };
-    const removeLine = (index) => { const newLines = formData.lines.filter((_, i) => i !== index); setFormData({ ...formData, lines: newLines }); };
+    const addLine = () => setFormData({ ...formData, lines: [...formData.lines, { designation: '', quantite: '', prixUnitaire: '', montantTotal: '' }] });
+    const removeLine = (index) => setFormData({ ...formData, lines: formData.lines.filter((_, i) => i !== index) });
     const grandTotal = formData.lines.reduce((acc, line) => acc + (Number(line.montantTotal) || 0), 0);
 
+    const cellIn = { background: 'none', border: 'none', outline: 'none', width: '100%', padding: 8, height: 40, fontSize: 12 };
+
     return (
-        <div ref={pdfContainerRef} className="bg-white p-12 shadow-lg mx-auto" style={{ width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
-            <div className="flex items-center justify-between mb-6"><img src={logo} alt="Logo" className="h-20" /><div className="text-right"><h1 className="text-xl font-bold">HÔPITAL SAINT JEAN DE MALTE</h1><p className="text-sm">Njombé - Cameroun</p></div></div>
-            <div className="border-t-2 border-b-2 border-gray-800 py-3 mb-8 text-center"><h2 className="text-2xl font-bold">DEMANDE DE BESOIN</h2></div>
-            
-            <div className="mb-6 space-y-3 text-sm">
-                <div className="flex items-end"><span className="font-semibold w-48">Date de la demande :</span><div className="flex-1"><input name="date_demande" value={formData.date_demande || ''} onChange={handleChange} className="not-printable w-full border-b border-gray-400 px-2" /><div className="print-only static-field">{formData.date_demande || '\u00A0'}</div></div></div>
-                <div className="flex items-end"><span className="font-semibold w-48">Service demandeur :</span><div className="flex-1"><input name="service" value={formData.service || ''} onChange={handleChange} className="not-printable w-full border-b border-gray-400 px-2" /><div className="print-only static-field">{formData.service || '\u00A0'}</div></div></div>
-                <div className="flex items-end"><span className="font-semibold w-48">Référence demande :</span><div className="flex-1"><input name="reference" value={formData.reference || ''} onChange={handleChange} className="not-printable w-full border-b border-gray-400 px-2" /><div className="print-only static-field">{formData.reference || '\u00A0'}</div></div></div>
+        <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                <img src={logo} alt="Logo" style={{ height: 80 }} />
+                <div style={{ textAlign: 'right' }}>
+                    <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>HÔPITAL SAINT JEAN DE MALTE</h1>
+                    <p style={{ fontSize: 13, margin: '4px 0 0' }}>Njombé - Cameroun</p>
+                </div>
             </div>
-            
-            <div className="mb-6">
-                <h3 className="font-bold text-base mb-3 border-b border-gray-400 pb-1">Liste des besoins :</h3>
-                <table className="w-full border-collapse border border-black text-sm">
-                    <thead><tr className="bg-gray-100"><th className="border border-black p-2 w-[45%]">Désignation</th><th className="border border-black p-2 w-[15%]">Quantité</th><th className="border border-black p-2 w-[20%]">P.U. (FCFA)</th><th className="border border-black p-2 w-[20%]">Montant (FCFA)</th></tr></thead>
+
+            <div style={{ borderTop: '2px solid #1f2937', borderBottom: '2px solid #1f2937', padding: '12px 0', marginBottom: 32, textAlign: 'center' }}>
+                <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>DEMANDE DE BESOIN</h2>
+            </div>
+
+            <div style={{ marginBottom: 24, fontSize: 13 }}>
+                {[['date_demande','Date de la demande'], ['service','Service demandeur'], ['reference','Référence demande']].map(([name, label]) => (
+                    <div key={name} style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 12 }}>
+                        <span style={{ fontWeight: 600, width: 180 }}>{label} :</span>
+                        <div style={{ flex: 1 }}>
+                            <input name={name} value={formData[name] || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', borderBottom: '1px solid #9ca3af', outline: 'none', padding: '0 8px', fontSize: 13 }} />
+                            <div className="print-only static-field">{formData[name] || ' '}</div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, borderBottom: '1px solid #9ca3af', paddingBottom: 4 }}>Liste des besoins :</h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: 12 }}>
+                    <thead>
+                        <tr style={{ background: '#f3f4f6' }}>
+                            <th style={{ border: '1px solid #000', padding: 8, width: '45%' }}>Désignation</th>
+                            <th style={{ border: '1px solid #000', padding: 8, width: '15%' }}>Quantité</th>
+                            <th style={{ border: '1px solid #000', padding: 8, width: '20%' }}>P.U. (FCFA)</th>
+                            <th style={{ border: '1px solid #000', padding: 8, width: '20%' }}>Montant (FCFA)</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {formData.lines.map((line, index) => (
                             <tr key={index}>
-                                <td className="border border-black">
-                                    <input value={line.designation || ''} onChange={(e) => handleLineChange(index, 'designation', e.target.value)} className="not-printable w-full p-2 h-10" />
-                                    <div className="print-only p-2 h-10">{line.designation}</div>
+                                <td style={{ border: '1px solid #000' }}>
+                                    <input value={line.designation || ''} onChange={(e) => handleLineChange(index, 'designation', e.target.value)} className="not-printable" style={cellIn} />
+                                    <div className="print-only" style={{ padding: 8, height: 40 }}>{line.designation}</div>
                                 </td>
-                                <td className="border border-black">
-                                    <input type="number" value={line.quantite || ''} onChange={(e) => handleLineChange(index, 'quantite', e.target.value)} className="not-printable w-full p-2 h-10 text-center" />
-                                    <div className="print-only p-2 h-10 text-center">{line.quantite}</div>
+                                <td style={{ border: '1px solid #000' }}>
+                                    <input type="number" value={line.quantite || ''} onChange={(e) => handleLineChange(index, 'quantite', e.target.value)} className="not-printable" style={{ ...cellIn, textAlign: 'center' }} />
+                                    <div className="print-only" style={{ padding: 8, height: 40, textAlign: 'center' }}>{line.quantite}</div>
                                 </td>
-                                <td className="border border-black">
-                                    <input type="number" value={line.prixUnitaire || ''} onChange={(e) => handleLineChange(index, 'prixUnitaire', e.target.value)} className="not-printable w-full p-2 h-10 text-right" />
-                                    <div className="print-only p-2 h-10 text-right">{Number(line.prixUnitaire || 0).toLocaleString('fr-FR')}</div>
+                                <td style={{ border: '1px solid #000' }}>
+                                    <input type="number" value={line.prixUnitaire || ''} onChange={(e) => handleLineChange(index, 'prixUnitaire', e.target.value)} className="not-printable" style={{ ...cellIn, textAlign: 'right' }} />
+                                    <div className="print-only" style={{ padding: 8, height: 40, textAlign: 'right' }}>{Number(line.prixUnitaire || 0).toLocaleString('fr-FR')}</div>
                                 </td>
-                                <td className="border border-black">
-                                    <div className="flex items-center justify-between p-2 h-10">
-                                        <span className="flex-1 text-right">{Number(line.montantTotal || 0).toLocaleString('fr-FR')}</span>
-                                        <button type="button" onClick={() => removeLine(index)} className="text-red-500 hover:text-red-700 ml-2 not-printable"><Trash2 size={16} /></button>
+                                <td style={{ border: '1px solid #000' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 8, height: 40 }}>
+                                        <span style={{ flex: 1, textAlign: 'right' }}>{Number(line.montantTotal || 0).toLocaleString('fr-FR')}</span>
+                                        <button type="button" onClick={() => removeLine(index)} className="not-printable" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', marginLeft: 8 }}><Trash2 size={16} /></button>
                                     </div>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
-                    <tfoot><tr className="bg-gray-100 font-bold"><td colSpan="3" className="border border-black p-2 text-right">TOTAL GÉNÉRAL :</td><td className="border border-black p-2 text-right">{grandTotal.toLocaleString('fr-FR')} FCFA</td></tr></tfoot>
+                    <tfoot>
+                        <tr style={{ background: '#f3f4f6', fontWeight: 700 }}>
+                            <td colSpan={3} style={{ border: '1px solid #000', padding: 8, textAlign: 'right' }}>TOTAL GÉNÉRAL :</td>
+                            <td style={{ border: '1px solid #000', padding: 8, textAlign: 'right' }}>{grandTotal.toLocaleString('fr-FR')} FCFA</td>
+                        </tr>
+                    </tfoot>
                 </table>
-                <button type="button" onClick={addLine} className="mt-3 flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm not-printable"><PlusCircle size={16}/> Ajouter une ligne</button>
+                <button type="button" onClick={addLine} className="not-printable" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontSize: 13 }}>
+                    <PlusCircle size={16}/> Ajouter une ligne
+                </button>
             </div>
 
-            <div className="mb-6">
-                <h3 className="font-bold text-base mb-3 border-b border-gray-400 pb-1">Justification de la demande :</h3>
-                <textarea value={formData.justification || ''} onChange={handleChange} name="justification" className="not-printable w-full border border-gray-400 p-3 min-h-[100px] text-sm" placeholder="Expliquez la raison de cette demande..." />
-                <div className="print-only static-field min-h-[100px]">{formData.justification || '\u00A0'}</div>
+            <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, borderBottom: '1px solid #9ca3af', paddingBottom: 4 }}>Justification de la demande :</h3>
+                <textarea value={formData.justification || ''} onChange={handleChange} name="justification" className="not-printable" style={{ width: '100%', border: '1px solid #9ca3af', padding: 12, minHeight: 100, fontSize: 13, outline: 'none', resize: 'vertical' }} placeholder="Expliquez la raison de cette demande..." />
+                <div className="print-only static-field" style={{ minHeight: 100 }}>{formData.justification || ' '}</div>
             </div>
 
-            <div className="mt-16 grid grid-cols-3 gap-8">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32, marginTop: 64 }}>
                 <SignatureFrame label="Demandeur" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
                 <SignatureFrame label="Responsable achats" signatureUrl={null} stampUrl={null} zoneIndex={2} />
                 <SignatureFrame label="Directeur du Soutient" signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>
-            <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-600 text-center not-printable">Document généré le {new Date().toLocaleDateString('fr-FR')}</div>
+
+            <div className="not-printable" style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid #d1d5db', fontSize: 10, color: 'var(--fg-muted)', textAlign: 'center' }}>
+                Document généré le {new Date().toLocaleDateString('fr-FR')}
+            </div>
         </div>
     );
 };

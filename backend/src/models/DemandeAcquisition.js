@@ -36,6 +36,7 @@ const DemandeAcquisition = sequelize.define('DemandeAcquisition', {
   equipement_id: { type: DataTypes.INTEGER, allowNull: true },        // FK equipements (set when affecte)
   motif_rejet: { type: DataTypes.TEXT, allowNull: true },
   notes: { type: DataTypes.TEXT, allowNull: true },
+  tenantId: { type: DataTypes.UUID, allowNull: false },
 }, {
   tableName: 'gmao_acquisitions',
   timestamps: true,

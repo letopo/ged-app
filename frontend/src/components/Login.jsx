@@ -4,147 +4,145 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { LogIn, Mail, Lock, Loader, AlertCircle } from 'lucide-react';
+import TwoFactorVerify from './TwoFactorVerify';
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [show2FA, setShow2FA] = useState(false);
+  const [tempToken, setTempToken] = useState('');
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const redirectByRole = (role) => {
+    if (role === 'gardien') navigate('/portail');
+    else if (role === 'agent_accueil_php' || role === 'agent_accueil_normal') navigate('/accueil');
+    else if (role === 'caissier') navigate('/caisse');
+    else navigate('/dashboard');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    if (!formData.username || !formData.password) {
-      setError('Veuillez remplir tous les champs');
-      return;
-    }
+    if (!formData.username || !formData.password) { setError('Veuillez remplir tous les champs'); return; }
 
     try {
       setLoading(true);
       const response = await authAPI.login(formData);
-      
-      if (onLogin) {
-        onLogin(response.data.token, response.data.user);
+      const data = response.data;
+
+      if (data.requires2FA) {
+        setTempToken(data.tempToken);
+        setShow2FA(true);
+        return;
       }
-      
-      // ✅ NOUVEAU : Rediriger selon le rôle de l'utilisateur
-      const userRole = response.data.user.role;
-      
-      console.log('🔐 Connexion réussie - Rôle:', userRole);
-      
-      if (userRole === 'gardien') {
-        console.log('➡️ Redirection vers /portail');
-        navigate('/portail');
-      } else if (userRole === 'agent_accueil_php' || userRole === 'agent_accueil_normal') {
-        console.log('➡️ Redirection vers /accueil');
-        navigate('/accueil');
-      } else if (userRole === 'caissier') {
-        console.log('➡️ Redirection vers /caisse');
-        navigate('/caisse');
-      } else {
-        console.log('➡️ Redirection vers /dashboard');
-        navigate('/dashboard');
-      }
-      
+
+      if (onLogin) onLogin(data.token, data.user);
+      redirectByRole(data.user.role);
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur lors de la connexion');
-      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const handle2FASuccess = (data) => {
+    if (onLogin) onLogin(data.token, data.user);
+    redirectByRole(data.user.role);
+  };
+
+  if (show2FA) {
+    return (
+      <TwoFactorVerify
+        tempToken={tempToken}
+        onSuccess={handle2FASuccess}
+        onBack={() => { setShow2FA(false); setTempToken(''); }}
+      />
+    );
+  }
+
+  const inputStyle = {
+    width: '100%', paddingLeft: 40, paddingRight: 16, paddingTop: 12, paddingBottom: 12,
+    border: '1.5px solid var(--border)', borderRadius: 'var(--radius-3)',
+    background: 'var(--surface)', color: 'var(--fg)', fontSize: 14, outline: 'none',
+    boxSizing: 'border-box',
+  };
+  const labelStyle = { display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-dark-bg dark:to-gray-900 px-4 transition-colors duration-200">
-      <div className="max-w-md w-full">
-        <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-xl dark:shadow-none dark:border dark:border-dark-border p-8">
-          
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4">
-              <LogIn className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(135deg, var(--brand-soft) 0%, var(--surface-2) 100%)',
+      padding: '0 16px',
+    }}>
+      <div style={{ maxWidth: 440, width: '100%' }}>
+        <div style={{
+          background: 'var(--surface)', borderRadius: 'var(--radius-4)',
+          boxShadow: 'var(--shadow-3)', border: '1px solid var(--border)', padding: 32,
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 64, height: 64, background: 'var(--brand-soft)', borderRadius: '50%', marginBottom: 16,
+            }}>
+              <LogIn size={30} style={{ color: 'var(--brand)' }} />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-dark-text">Connexion</h2>
-            <p className="text-gray-600 dark:text-dark-text-secondary mt-2">Accédez à votre espace GED</p>
+            <h2 style={{ fontSize: 26, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Connexion</h2>
+            <p style={{ color: 'var(--fg-muted)', marginTop: 8, fontSize: 14 }}>Accédez à votre espace GED</p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-700 rounded-lg flex items-start">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mr-2 flex-shrink-0 mt-0.5" />
-              <span className="text-red-700 dark:text-red-300 text-sm">{error}</span>
+            <div style={{
+              marginBottom: 24, padding: 16,
+              background: 'var(--danger-soft)', border: '1px solid var(--danger)',
+              borderRadius: 'var(--radius-3)', display: 'flex', alignItems: 'flex-start', gap: 8,
+            }}>
+              <AlertCircle size={18} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: 1 }} />
+              <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
-                Nom d'utilisateur
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Entrez votre nom d'utilisateur"
-                  disabled={loading}
-                />
+              <label style={labelStyle}>Nom d'utilisateur</label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
+                <input type="text" name="username" value={formData.username} onChange={handleChange}
+                  style={inputStyle} placeholder="Entrez votre nom d'utilisateur" disabled={loading} />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
-                Mot de passe
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Entrez votre mot de passe"
-                  disabled={loading}
-                />
+              <label style={labelStyle}>Mot de passe</label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
+                <input type="password" name="password" value={formData.password} onChange={handleChange}
+                  style={inputStyle} placeholder="Entrez votre mot de passe" disabled={loading} />
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center dark:bg-blue-700 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+            <button type="submit" disabled={loading} style={{
+              width: '100%', padding: '12px 16px',
+              background: 'var(--brand)', color: '#fff',
+              border: 'none', borderRadius: 'var(--radius-3)', fontSize: 14, fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.7 : 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'background .15s',
+            }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--brand-active)'; }}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
             >
-              {loading ? (
-                <>
-                  <Loader className="w-5 h-5 animate-spin mr-2" />
-                  Connexion en cours...
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-5 h-5 mr-2" />
-                  Se connecter
-                </>
-              )}
+              {loading ? <><Loader size={18} className="animate-spin" />Connexion en cours...</> : <><LogIn size={18} />Se connecter</>}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-600 dark:text-dark-text-secondary">
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <p style={{ color: 'var(--fg-muted)', fontSize: 13 }}>
               Pas encore de compte ?{' '}
-              <Link to="/register" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+              <Link to="/register" style={{ color: 'var(--brand)', fontWeight: 500, textDecoration: 'none' }}>
                 Créer un compte
               </Link>
             </p>

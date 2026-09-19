@@ -59,6 +59,7 @@ export const login = async (req, res, next) => {
 
     const user = await User.scope('withPassword').findOne({
       where: {
+        tenantId: req.tenantId,
         [Op.or]: [
           { email:    { [Op.iLike]: username } },
           { username: { [Op.iLike]: username } },
@@ -75,11 +76,27 @@ export const login = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Ce compte a été désactivé' });
     }
 
+    // ── 2FA : si activée, émettre un token temporaire (5 min) ────────────────
+    if (user.totpEnabled) {
+      const tempToken = jwt.sign(
+        { id: user.id, type: '2fa_pending' },
+        process.env.JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+      return res.json({
+        success: true,
+        requires2FA: true,
+        tempToken,
+        message: 'Code 2FA requis'
+      });
+    }
+
     await user.update({ lastLogin: new Date() });
     const token = generateToken(user);
     const userResult = user.toJSON();
     delete userResult.password;
-    userResult.postes = await getUserPosteCodes(user.id); // ex: ['comptable']
+    delete userResult.totpSecret;
+    userResult.postes = await getUserPosteCodes(user.id);
 
     // Audit login
     const { AuditLog } = await import('../models/index.js');

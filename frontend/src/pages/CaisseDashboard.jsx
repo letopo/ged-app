@@ -1,7 +1,7 @@
 // frontend/src/pages/CaisseDashboard.jsx
 
 import { useState, useEffect } from 'react';
-import { 
+import {
   DollarSign,
   Users,
   CheckCircle,
@@ -14,6 +14,7 @@ import {
   Calculator
 } from 'lucide-react';
 import { ticketAPI } from '../services/api';
+import PieceDeCaisseHistoryPanel from '../components/PieceDeCaisseHistoryPanel';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getSocket,
@@ -29,7 +30,7 @@ import toast from 'react-hot-toast';
 export default function CaisseDashboard() {
   const { user } = useAuth();
   const queueType = 'caisse';
-  
+
   // États
   const [isOnline, setIsOnline] = useState(false);
   const [queueData, setQueueData] = useState({ tickets: [], stats: {} });
@@ -42,7 +43,7 @@ export default function CaisseDashboard() {
   useEffect(() => {
     loadQueueData();
     loadPosition();
-    
+
     const interval = setInterval(() => {
       loadQueueData();
     }, 10000);
@@ -95,12 +96,12 @@ export default function CaisseDashboard() {
     try {
       const response = await ticketAPI.getQueuePositions(queueType);
       const position = response.data.data[0]; // Il n'y a qu'une seule position caisse
-      
+
       if (position && position.userId === user?.id) {
         setIsOnline(true);
         setPositionId(position.id);
       }
-      
+
       setLoading(false);
     } catch (error) {
       console.error('Erreur chargement position:', error);
@@ -118,7 +119,7 @@ export default function CaisseDashboard() {
 
       setIsOnline(true);
       joinPosition(queueType, 1);
-      
+
       loadPosition();
       toast.success('Vous êtes maintenant en ligne');
     } catch (error) {
@@ -132,12 +133,12 @@ export default function CaisseDashboard() {
 
     try {
       await ticketAPI.unassignFromPosition(positionId);
-      
+
       leavePosition(queueType, 1);
       setIsOnline(false);
       setPositionId(null);
       setCurrentTicket(null);
-      
+
       loadPosition();
       toast.success('Vous êtes maintenant hors ligne');
     } catch (error) {
@@ -162,7 +163,7 @@ export default function CaisseDashboard() {
       const ticket = response.data.data;
       setCurrentTicket(ticket);
       setAmount('');
-      
+
       loadQueueData();
       toast(`📢 Ticket ${ticket.ticketNumber} appelé !`);
     } catch (error) {
@@ -188,7 +189,7 @@ export default function CaisseDashboard() {
 
       setCurrentTicket(null);
       setAmount('');
-      
+
       loadQueueData();
       toast.success('Paiement enregistré avec succès');
     } catch (error) {
@@ -208,7 +209,7 @@ export default function CaisseDashboard() {
 
       setCurrentTicket(null);
       setAmount('');
-      
+
       loadQueueData();
       toast.success('Ticket annulé');
     } catch (error) {
@@ -230,10 +231,10 @@ export default function CaisseDashboard() {
     const created = new Date(createdAt);
     const diffMs = now - created;
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 1) return 'Moins d\'1 min';
     if (diffMins < 60) return `${diffMins} min`;
-    
+
     const hours = Math.floor(diffMins / 60);
     const mins = diffMins % 60;
     return `${hours}h ${mins}min`;
@@ -243,25 +244,25 @@ export default function CaisseDashboard() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Chargement...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--brand)' }}></div>
+          <p style={{ color: 'var(--fg-muted)' }}>Chargement...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen p-6" style={{ background: 'var(--surface-2)' }}>
       <div className="max-w-7xl mx-auto">
-        
+
         {/* Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+        <div className="rounded-lg shadow-lg p-6 mb-6" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-2)' }}>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--fg)' }}>
                 💰 Caisse
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p style={{ color: 'var(--fg-muted)' }}>
                 Caissier : {user?.firstName} {user?.lastName}
               </p>
             </div>
@@ -271,7 +272,8 @@ export default function CaisseDashboard() {
               {!isOnline ? (
                 <button
                   onClick={handleGoOnline}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold flex items-center gap-2"
+                  className="px-6 py-3 rounded-lg font-bold flex items-center gap-2"
+                  style={{ background: 'var(--success)', color: '#fff' }}
                 >
                   <Wifi className="w-5 h-5" />
                   Se connecter
@@ -279,15 +281,16 @@ export default function CaisseDashboard() {
               ) : (
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Statut</p>
+                    <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>Statut</p>
                     <div className="flex items-center gap-2">
-                      <Wifi className="w-5 h-5 text-green-500" />
-                      <span className="text-lg font-bold text-green-600">En ligne</span>
+                      <Wifi className="w-5 h-5" style={{ color: 'var(--success)' }} />
+                      <span className="text-lg font-bold" style={{ color: 'var(--success)' }}>En ligne</span>
                     </div>
                   </div>
                   <button
                     onClick={handleGoOffline}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center gap-2"
+                    className="px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+                    style={{ background: 'var(--danger)', color: '#fff' }}
                   >
                     <WifiOff className="w-5 h-5" />
                     Se déconnecter
@@ -303,7 +306,8 @@ export default function CaisseDashboard() {
               <button
                 onClick={handleCallNext}
                 disabled={queueData.stats.waiting === 0}
-                className="px-12 py-6 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-2xl font-bold text-2xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all hover:scale-105 shadow-xl"
+                className="px-12 py-6 rounded-2xl font-bold text-2xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: '#7c3aed', color: '#fff', boxShadow: 'var(--shadow-3)' }}
               >
                 <Phone className="w-8 h-8" />
                 Appeler le prochain
@@ -314,52 +318,52 @@ export default function CaisseDashboard() {
 
         {/* Statistiques */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="rounded-lg shadow p-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">En attente</p>
-                <p className="text-3xl font-bold text-yellow-600">{queueData.stats.waiting || 0}</p>
+                <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>En attente</p>
+                <p className="text-3xl font-bold" style={{ color: 'var(--warning)' }}>{queueData.stats.waiting || 0}</p>
               </div>
-              <Clock className="w-12 h-12 text-yellow-600 opacity-20" />
+              <Clock className="w-12 h-12 opacity-20" style={{ color: 'var(--warning)' }} />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="rounded-lg shadow p-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">En cours</p>
-                <p className="text-3xl font-bold text-blue-600">{queueData.stats.inProgress || 0}</p>
+                <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>En cours</p>
+                <p className="text-3xl font-bold" style={{ color: 'var(--brand)' }}>{queueData.stats.inProgress || 0}</p>
               </div>
-              <DollarSign className="w-12 h-12 text-blue-600 opacity-20" />
+              <DollarSign className="w-12 h-12 opacity-20" style={{ color: 'var(--brand)' }} />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="rounded-lg shadow p-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Traités</p>
-                <p className="text-3xl font-bold text-green-600">{queueData.stats.completed || 0}</p>
+                <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>Traités</p>
+                <p className="text-3xl font-bold" style={{ color: 'var(--success)' }}>{queueData.stats.completed || 0}</p>
               </div>
-              <CheckCircle className="w-12 h-12 text-green-600 opacity-20" />
+              <CheckCircle className="w-12 h-12 opacity-20" style={{ color: 'var(--success)' }} />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="rounded-lg shadow p-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
-                <p className="text-3xl font-bold text-purple-600">{queueData.stats.total || 0}</p>
+                <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>Total</p>
+                <p className="text-3xl font-bold" style={{ color: '#7c3aed' }}>{queueData.stats.total || 0}</p>
               </div>
-              <TrendingUp className="w-12 h-12 text-purple-600 opacity-20" />
+              <TrendingUp className="w-12 h-12 opacity-20" style={{ color: '#7c3aed' }} />
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
+
           {/* File d'attente */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <div className="rounded-lg shadow-lg p-6" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-2)' }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
               <Users className="w-6 h-6" />
               Patients à la caisse ({queueData.tickets.filter(t => t.status === 'waiting').length})
             </h2>
@@ -367,8 +371,8 @@ export default function CaisseDashboard() {
             <div className="space-y-3 max-h-[600px] overflow-y-auto">
               {queueData.tickets.filter(t => t.status === 'waiting').length === 0 ? (
                 <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">Aucun patient en attente</p>
+                  <Users className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--border)' }} />
+                  <p style={{ color: 'var(--fg-muted)' }}>Aucun patient en attente</p>
                 </div>
               ) : (
                 queueData.tickets
@@ -376,26 +380,27 @@ export default function CaisseDashboard() {
                   .map((ticket, index) => (
                     <div
                       key={ticket.id}
-                      className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/10 rounded-lg border-2 border-purple-200 dark:border-purple-700"
+                      className="flex items-center justify-between p-4 rounded-lg"
+                      style={{ background: 'var(--surface-2)', border: '2px solid var(--border)' }}
                     >
                       <div className="flex items-center gap-4">
                         <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
-                            <span className="text-xl font-bold text-purple-600 dark:text-purple-300">
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.1)' }}>
+                            <span className="text-xl font-bold" style={{ color: '#7c3aed' }}>
                               {index + 1}
                             </span>
                           </div>
                         </div>
                         <div>
-                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                          <p className="text-2xl font-bold" style={{ color: 'var(--fg)' }}>
                             {ticket.ticketNumber}
                           </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>
                             {getVisitTypeLabel(ticket.visitType)}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <Clock className="w-4 h-4 text-orange-500" />
-                            <span className="text-xs text-orange-600 font-semibold">
+                            <Clock className="w-4 h-4" style={{ color: 'var(--warning)' }} />
+                            <span className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>
                               {getWaitingTime(ticket.createdAt)}
                             </span>
                           </div>
@@ -408,39 +413,39 @@ export default function CaisseDashboard() {
           </div>
 
           {/* Paiement en cours */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <div className="rounded-lg shadow-lg p-6" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-2)' }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
               <Calculator className="w-6 h-6" />
               Paiement en cours
             </h2>
 
             {!currentTicket ? (
               <div className="text-center py-12">
-                <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Aucun paiement en cours</p>
-                <p className="text-sm text-gray-400 mt-2">
+                <DollarSign className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--border)' }} />
+                <p style={{ color: 'var(--fg-muted)' }}>Aucun paiement en cours</p>
+                <p className="text-sm mt-2" style={{ color: 'var(--fg-subtle)' }}>
                   Cliquez sur "Appeler le prochain" pour commencer
                 </p>
               </div>
             ) : (
               <div className="space-y-6">
                 {/* Numéro de ticket */}
-                <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl p-8 text-center">
+                <div className="rounded-xl p-8 text-center" style={{ background: '#7c3aed', color: '#fff' }}>
                   <p className="text-sm opacity-90 mb-2">Numéro de ticket</p>
                   <p className="text-6xl font-bold">{currentTicket.ticketNumber}</p>
                 </div>
 
                 {/* Informations */}
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
+                <div className="rounded-lg p-4 space-y-2" style={{ background: 'var(--surface-2)' }}>
                   <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Type de visite :</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
+                    <span style={{ color: 'var(--fg-muted)' }}>Type de visite :</span>
+                    <span className="font-semibold" style={{ color: 'var(--fg)' }}>
                       {getVisitTypeLabel(currentTicket.visitType)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Temps total :</span>
-                    <span className="font-semibold text-orange-600">
+                    <span style={{ color: 'var(--fg-muted)' }}>Temps total :</span>
+                    <span className="font-semibold" style={{ color: 'var(--warning)' }}>
                       {getWaitingTime(currentTicket.createdAt)}
                     </span>
                   </div>
@@ -448,7 +453,7 @@ export default function CaisseDashboard() {
 
                 {/* Saisie du montant */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--fg-muted)' }}>
                     Montant à payer (FCFA)
                   </label>
                   <input
@@ -458,7 +463,13 @@ export default function CaisseDashboard() {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="Saisir le montant"
-                    className="w-full px-4 py-4 text-2xl font-bold border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-4 text-2xl font-bold rounded-lg"
+                    style={{
+                      border: '2px solid var(--border)',
+                      background: 'var(--surface)',
+                      color: 'var(--fg)',
+                      outline: 'none'
+                    }}
                   />
                 </div>
 
@@ -467,7 +478,8 @@ export default function CaisseDashboard() {
                   <button
                     onClick={handleCompletePayment}
                     disabled={!amount || parseFloat(amount) <= 0}
-                    className="w-full px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-6 py-4 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: 'var(--success)', color: '#fff' }}
                   >
                     <CheckCircle className="w-5 h-5" />
                     Valider le paiement
@@ -475,7 +487,8 @@ export default function CaisseDashboard() {
 
                   <button
                     onClick={handleCancelTicket}
-                    className="w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
+                    className="w-full px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+                    style={{ background: 'var(--danger)', color: '#fff' }}
                   >
                     <XCircle className="w-5 h-5" />
                     Annuler
@@ -485,6 +498,8 @@ export default function CaisseDashboard() {
             )}
           </div>
         </div>
+
+        <PieceDeCaisseHistoryPanel />
       </div>
     </div>
   );

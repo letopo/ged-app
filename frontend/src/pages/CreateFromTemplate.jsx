@@ -1,7 +1,7 @@
 // frontend/src/pages/CreateFromTemplate.jsx - VERSION HYBRIDE AVEC TEMPLATE ENGINE
 import React, { useState, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { documentsAPI, postesAPI } from '../services/api';
+import { documentsAPI, postesAPI, workflowAPI } from '../services/api';
 import { Loader, Send, Save, RotateCcw, X } from 'lucide-react';
 import useDraftAutoSave from '../hooks/useDraftAutoSave';
 import html2canvas from 'html2canvas';
@@ -504,6 +504,16 @@ const CreateFromTemplate = () => {
             toast('Document créé, mais la fusion a échoué:\n' + response.data.data.metadata.fusionError, { icon: '⚠️' });
         } else {
             toast('Document généré et sauvegardé avec succès !');
+        }
+
+        // Pièce de caisse : démarre immédiatement le circuit DG → Comptable →
+        // Bénéficiaire (si compte) → Caissière, sans étape manuelle supplémentaire.
+        if (templateName === 'Pièce de caisse' && response.data.data?.id) {
+            try {
+                await workflowAPI.create({ documentId: response.data.data.id });
+            } catch (wfErr) {
+                toast(`⚠️ Pièce de caisse créée mais circuit non démarré : ${wfErr.response?.data?.message || 'erreur inconnue'}. Utilisez "Soumettre" depuis Documents.`, { icon: '⚠️' });
+            }
         }
 
         clearDraft();

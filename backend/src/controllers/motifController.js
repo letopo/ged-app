@@ -7,10 +7,10 @@ import { Op } from 'sequelize';
 export const getMotifs = async (req, res, next) => {
   try {
     const { type } = req.query;
-    if (!type || !['MG', 'Biomedical'].includes(type)) {
+    if (!type || !['MG', 'Biomedical', 'Informatique'].includes(type)) {
       return res.status(400).json({
         success: false,
-        message: "Le type ('MG' ou 'Biomedical') est requis."
+        message: "Le type ('MG', 'Biomedical' ou 'Informatique') est requis."
       });
     }
     const motifs = await Motif.findAll({
@@ -27,7 +27,7 @@ export const getMotifs = async (req, res, next) => {
 export const createMotif = async (req, res, next) => {
   try {
     const { name, type } = req.body;
-    if (!name || !type || !['MG', 'Biomedical'].includes(type)) {
+    if (!name || !type || !['MG', 'Biomedical', 'Informatique'].includes(type)) {
       return res.status(400).json({
         success: false,
         message: "Le nom et le type sont requis."

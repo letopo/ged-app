@@ -35,7 +35,11 @@ const TrelloBoard = sequelize.define('TrelloBoard', {
     type: DataTypes.JSONB,
     defaultValue: {},
     comment: 'Paramètres du tableau (couleurs, règles, etc.)'
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'trello_boards',
   timestamps: true,

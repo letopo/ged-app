@@ -3,6 +3,7 @@ import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import {
   listPostes,
+  createPoste,
   assignHolder,
   removeHolder,
   listOrdreMissionTypes,
@@ -18,6 +19,9 @@ router.get('/ordre-mission-types', listOrdreMissionTypes);
 
 // Catalogue des postes + titulaires
 router.get('/', listPostes);
+
+// Création d'un poste — admin uniquement
+router.post('/', authorize('admin'), createPoste);
 
 // Gestion des titulaires — admin uniquement
 router.post('/:code/holders', authorize('admin'), assignHolder);

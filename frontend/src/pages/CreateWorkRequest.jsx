@@ -115,20 +115,20 @@ const CreateWorkRequest = () => {
             // Directeur du Soutien - TOUJOURS EN DERNIER
             'hsjm.directeurdusoutien@gmail.com': 999,
             'hsjm.directeursoutien@gmail.com': 999,
-            
+
             // MG et SécuLog - Milieu
             'hsjm.moyengeneraux@gmail.com': 2,
             'hsjm.securitelogistique@gmail.com': 3,
             'hsjm.chefseculog@gmail.com': 3,
-            
+
             // Biomédical
             'hsjm.cellulebiomedicale@gmail.com': 2,
             'hsjm.pharma@gmail.com': 3,
-            
+
             // Chef de Service - TOUJOURS EN PREMIER
             'default': 1
         };
-        
+
         return orderMap[email] || orderMap['default'];
     };
 
@@ -153,61 +153,81 @@ const CreateWorkRequest = () => {
             // 2. Ajouter les validateurs selon le type
             if (formData.type === 'MG') {
                 // MG → Chef de Service → MG → SecuLog → Directeur du Soutien
-                const mgValidators = availableValidators.filter(v => 
+                const mgValidators = availableValidators.filter(v =>
                     v.email === 'hsjm.moyengeneraux@gmail.com' ||
                     v.email === 'hsjm.chefseculog@gmail.com' ||
                     v.email === 'hsjm.securitelogistique@gmail.com' ||
                     v.email === 'hsjm.directeurdusoutien@gmail.com' ||
                     v.email === 'hsjm.directeursoutien@gmail.com'
                 );
-                
+
                 // ✅ MODIFIÉ : Assigner l'ordre selon la fonction
                 mgValidators.forEach(v => {
-                    validators.push({ 
-                        ...v, 
+                    validators.push({
+                        ...v,
                         ordre: getValidatorOrder(v.email)
                     });
                 });
             } else if (formData.type === 'Biomedical') {
                 // Biomédical → Chef de Service → Cellule Biomédical → Directrice Adjointe
-                const bioValidators = availableValidators.filter(v => 
+                const bioValidators = availableValidators.filter(v =>
                     v.email === 'hsjm.cellulebiomedicale@gmail.com' ||
                     v.email === 'hsjm.pharma@gmail.com'
                 );
-                
+
                 bioValidators.forEach(v => {
-                    validators.push({ 
-                        ...v, 
+                    validators.push({
+                        ...v,
                         ordre: getValidatorOrder(v.email)
+                    });
+                });
+            } else if (formData.type === 'Informatique') {
+                // Informatique → Chef de Service demandeur (déjà ajouté ci-dessus) →
+                // tout le personnel actif du service Informatique (pas une personne fixe :
+                // n'importe quel membre de ce service peut prendre en charge la DT).
+                const itService = services.find(s => s.name === 'Informatique');
+                const itMembers = (itService?.members || []).filter(m => m.isActive !== false && m.user);
+                const alreadyAdded = new Set(validators.map(v => v.id));
+
+                itMembers.forEach(m => {
+                    if (alreadyAdded.has(m.user.id)) return; // évite un doublon si le demandeur est de l'IT
+                    alreadyAdded.add(m.user.id);
+                    validators.push({
+                        id: m.user.id,
+                        firstName: m.user.firstName,
+                        lastName: m.user.lastName,
+                        email: m.user.email,
+                        position: `Service Informatique - ${m.fonction}`,
+                        ordre: 2,
                     });
                 });
             }
 
             // ✅ CRITIQUE : Trier par ordre (le Directeur du Soutien sera automatiquement à la fin)
             validators.sort((a, b) => a.ordre - b.ordre);
-            
+
             // ✅ NOUVEAU : Réassigner les ordres d'affichage après tri
             const sortedValidators = validators.map((v, index) => ({
                 ...v,
                 displayOrder: index + 1 // Pour l'affichage dans l'UI
             }));
-            
+
             setDynamicValidators(sortedValidators);
 
             // Présélectionner automatiquement tous les validateurs
             setSelectedValidators(sortedValidators.map(v => v.id));
-            
+
             // ✅ NOUVEAU : Log pour debug
             console.log('📋 Ordre des validateurs construit:');
             sortedValidators.forEach((v, i) => {
                 console.log(`   Étape ${i + 1}: ${v.firstName} ${v.lastName} (${v.email})`);
             });
         }
-    }, [formData.type, chefDeService, availableValidators, formData.service]);
+    }, [formData.type, chefDeService, availableValidators, formData.service, services]);
 
     const handleNextStep = (stepNumber) => {
         setError('');
-        
+
         // Validations par étape
         if (step === 1 && !formData.service) {
             return setError("Veuillez choisir un service.");
@@ -224,7 +244,7 @@ const CreateWorkRequest = () => {
         if (step === 4 && selectedValidators.length === 0) {
             return setError("Veuillez sélectionner au moins un validateur.");
         }
-        
+
         setStep(stepNumber);
     };
 
@@ -237,7 +257,7 @@ const CreateWorkRequest = () => {
             service: selectedService ? selectedService.name : ''
         }));
     };
-    
+
     const handleMotifChange = (e) => {
         const selectedId = e.target.value;
         const selectedMotif = motifs.find(m => m.id === selectedId);
@@ -276,10 +296,10 @@ const CreateWorkRequest = () => {
             // Étape 2: Générer le PDF
             const nonPrintableElements = pdfContainerRef.current?.querySelectorAll('.not-printable');
             nonPrintableElements?.forEach(el => el.style.display = 'none');
-            
+
             const canvas = await html2canvas(pdfContainerRef.current, { scale: 2 });
             nonPrintableElements?.forEach(el => el.style.display = 'block');
-            
+
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
             pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
@@ -330,47 +350,59 @@ const CreateWorkRequest = () => {
             setSubmitting(false);
         }
     };
-    
+
     // Données pour le template
     const templateData = {
         date_demande: new Date().toLocaleDateString('fr-FR'),
         service: formData.service,
         demandeur: formData.demandeur,
         description_travaux: formData.motifId === 'autre' ? formData.customMotif : formData.motifText,
-        [formData.type?.toLowerCase()]: true 
+        [formData.type?.toLowerCase()]: true
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-8 bg-gray-50 min-h-screen">
-            <h1 className="text-3xl font-bold mb-2">Nouvelle Demande de Travaux</h1>
-            <p className="text-gray-600 mb-8">Suivez les étapes pour compléter votre demande.</p>
-            
+        <div className="max-w-4xl mx-auto p-8 min-h-screen" style={{ background: 'var(--surface-2)' }}>
+            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--fg)' }}>Nouvelle Demande de Travaux</h1>
+            <p className="mb-8" style={{ color: 'var(--fg-muted)' }}>Suivez les étapes pour compléter votre demande.</p>
+
             {/* Indicateur de progression */}
             <div className="mb-8 flex items-center justify-center gap-2">
                 {[1, 2, 3, 4, 5].map(num => (
                     <div key={num} className="flex items-center">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${step >= num ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+                        <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center font-bold"
+                            style={step >= num
+                                ? { background: 'var(--brand)', color: '#fff' }
+                                : { background: 'var(--surface-3)', color: 'var(--fg-muted)' }
+                            }
+                        >
                             {num}
                         </div>
-                        {num < 5 && <div className={`w-12 h-1 ${step > num ? 'bg-blue-600' : 'bg-gray-300'}`}></div>}
+                        {num < 5 && (
+                            <div
+                                className="w-12 h-1"
+                                style={{ background: step > num ? 'var(--brand)' : 'var(--surface-3)' }}
+                            />
+                        )}
                     </div>
                 ))}
             </div>
 
             {step < 5 && (
-                <div className="bg-white p-8 rounded-lg shadow-md space-y-6">
-                    
+                <div className="p-8 rounded-lg space-y-6" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-2)' }}>
+
                     {/* Étape 1: Service */}
                     {step === 1 && (
                         <div>
-                            <h2 className="text-xl font-semibold mb-4">Étape 1 : Quel est votre service ?</h2>
+                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>Étape 1 : Quel est votre service ?</h2>
                             {loading ? (
                                 <Loader className="animate-spin mx-auto" />
                             ) : (
-                                <select 
-                                    value={formData.serviceId} 
-                                    onChange={handleServiceChange} 
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                <select
+                                    value={formData.serviceId}
+                                    onChange={handleServiceChange}
+                                    className="w-full p-3 rounded-lg"
+                                    style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)' }}
                                 >
                                     <option value="">-- Sélectionnez un service --</option>
                                     {services.map(s => (
@@ -384,21 +416,40 @@ const CreateWorkRequest = () => {
                     {/* Étape 2: Type */}
                     {step === 2 && (
                         <div>
-                            <h2 className="text-xl font-semibold mb-4">Étape 2 : Type de problème</h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <button 
-                                    onClick={() => setFormData({...formData, type: 'MG'})} 
-                                    className={`p-6 border-2 rounded-lg text-center transition ${formData.type === 'MG' ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>Étape 2 : Type de problème</h2>
+                            <div className="grid grid-cols-3 gap-4">
+                                <button
+                                    onClick={() => setFormData({...formData, type: 'MG'})}
+                                    className="p-6 rounded-lg text-center transition"
+                                    style={formData.type === 'MG'
+                                        ? { border: '2px solid var(--brand)', background: 'var(--brand-soft)' }
+                                        : { border: '2px solid var(--border)', background: 'var(--surface)' }
+                                    }
                                 >
-                                    <p className="font-bold text-lg">Moyens Généraux</p>
-                                    <p className="text-sm text-gray-600 mt-2">Plomberie, électricité, bâtiment...</p>
+                                    <p className="font-bold text-lg" style={{ color: 'var(--fg)' }}>Moyens Généraux</p>
+                                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>Plomberie, électricité, bâtiment...</p>
                                 </button>
-                                <button 
-                                    onClick={() => setFormData({...formData, type: 'Biomedical'})} 
-                                    className={`p-6 border-2 rounded-lg text-center transition ${formData.type === 'Biomedical' ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+                                <button
+                                    onClick={() => setFormData({...formData, type: 'Biomedical'})}
+                                    className="p-6 rounded-lg text-center transition"
+                                    style={formData.type === 'Biomedical'
+                                        ? { border: '2px solid var(--brand)', background: 'var(--brand-soft)' }
+                                        : { border: '2px solid var(--border)', background: 'var(--surface)' }
+                                    }
                                 >
-                                    <p className="font-bold text-lg">Biomédical</p>
-                                    <p className="text-sm text-gray-600 mt-2">Équipements médicaux</p>
+                                    <p className="font-bold text-lg" style={{ color: 'var(--fg)' }}>Biomédical</p>
+                                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>Équipements médicaux</p>
+                                </button>
+                                <button
+                                    onClick={() => setFormData({...formData, type: 'Informatique'})}
+                                    className="p-6 rounded-lg text-center transition"
+                                    style={formData.type === 'Informatique'
+                                        ? { border: '2px solid var(--brand)', background: 'var(--brand-soft)' }
+                                        : { border: '2px solid var(--border)', background: 'var(--surface)' }
+                                    }
+                                >
+                                    <p className="font-bold text-lg" style={{ color: 'var(--fg)' }}>Informatique</p>
+                                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>Matériel, réseau, logiciels...</p>
                                 </button>
                             </div>
                         </div>
@@ -407,15 +458,16 @@ const CreateWorkRequest = () => {
                     {/* Étape 3: Motif */}
                     {step === 3 && (
                         <div>
-                            <h2 className="text-xl font-semibold mb-4">Étape 3 : Motif de la demande</h2>
+                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>Étape 3 : Motif de la demande</h2>
                             {loading ? (
                                 <Loader className="animate-spin mx-auto" />
                             ) : (
                                 <div className="space-y-4">
-                                    <select 
-                                        value={formData.motifId} 
-                                        onChange={handleMotifChange} 
-                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    <select
+                                        value={formData.motifId}
+                                        onChange={handleMotifChange}
+                                        className="w-full p-3 rounded-lg"
+                                        style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)' }}
                                     >
                                         <option value="">-- Choisissez un motif --</option>
                                         {motifs.map(m => (
@@ -428,7 +480,8 @@ const CreateWorkRequest = () => {
                                             value={formData.customMotif}
                                             onChange={(e) => setFormData({...formData, customMotif: e.target.value})}
                                             placeholder="Décrivez précisément le problème..."
-                                            className="w-full p-3 border rounded-lg h-32 focus:ring-2 focus:ring-blue-500"
+                                            className="w-full p-3 rounded-lg h-32"
+                                            style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)' }}
                                         />
                                     )}
                                 </div>
@@ -439,13 +492,13 @@ const CreateWorkRequest = () => {
                     {/* Étape 4: Sélection des validateurs */}
                     {step === 4 && (
                         <div>
-                            <h2 className="text-xl font-semibold mb-4">Étape 4 : Sélectionnez les validateurs</h2>
-                            
-                            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4 flex gap-3">
-                                <Info className="text-blue-600 flex-shrink-0 mt-1" size={20} />
-                                <div className="text-sm text-blue-800">
+                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>Étape 4 : Sélectionnez les validateurs</h2>
+
+                            <div className="p-4 rounded-lg mb-4 flex gap-3" style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
+                                <Info className="flex-shrink-0 mt-1" size={20} style={{ color: 'var(--brand)' }} />
+                                <div className="text-sm" style={{ color: 'var(--brand)' }}>
                                     {formData.type === 'MG' ? (
-                                        <p><strong>Demande Moyens Généraux :</strong> Chef de Service → MG → SécuLog → <strong className="text-red-600">Directeur du Soutien (EN DERNIER)</strong></p>
+                                        <p><strong>Demande Moyens Généraux :</strong> Chef de Service → MG → SécuLog → <strong style={{ color: 'var(--danger)' }}>Directeur du Soutien (EN DERNIER)</strong></p>
                                     ) : (
                                         <p><strong>Demande Biomédical :</strong> Chef de Service → Cellule Biomédical → Directrice Adjointe</p>
                                     )}
@@ -453,9 +506,9 @@ const CreateWorkRequest = () => {
                             </div>
 
                             {!chefDeService && formData.serviceId && (
-                                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4 flex gap-3">
-                                    <Users className="text-yellow-600 flex-shrink-0 mt-1" size={20} />
-                                    <div className="text-sm text-yellow-800">
+                                <div className="p-4 rounded-lg mb-4 flex gap-3" style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning)' }}>
+                                    <Users className="flex-shrink-0 mt-1" size={20} style={{ color: 'var(--warning)' }} />
+                                    <div className="text-sm" style={{ color: 'var(--warning)' }}>
                                         <p><strong>Aucun Chef de Service disponible pour ce service.</strong></p>
                                         <p className="mt-1">Veuillez contacter l'administrateur pour configurer un Chef de Service pour <strong>{formData.service}</strong>.</p>
                                     </div>
@@ -464,75 +517,81 @@ const CreateWorkRequest = () => {
 
                             <div className="space-y-3">
                                 {dynamicValidators.length === 0 ? (
-                                    <p className="text-gray-500 text-center py-4">
+                                    <p className="text-center py-4" style={{ color: 'var(--fg-muted)' }}>
                                         Aucun validateur disponible pour ce type de demande.
                                     </p>
                                 ) : (
-                                    dynamicValidators.map((validator, index) => (
-                                        <label 
-                                            key={validator.id} 
-                                            className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
-                                                selectedValidators.includes(validator.id) ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
-                                            } ${
-                                                validator.email === 'hsjm.directeurdusoutien@gmail.com' || validator.email === 'hsjm.directeursoutien@gmail.com' 
-                                                    ? 'border-red-300 bg-red-50' 
-                                                    : ''
-                                            }`}
-                                        >
-                                            <input 
-                                                type="checkbox" 
-                                                checked={selectedValidators.includes(validator.id)}
-                                                onChange={() => toggleValidator(validator.id)}
-                                                className="w-5 h-5"
-                                            />
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                                        Étape {index + 1}
-                                                    </span>
-                                                    <p className="font-semibold">
-                                                        {validator.firstName} {validator.lastName}
+                                    dynamicValidators.map((validator, index) => {
+                                        const isDirecteur = validator.email === 'hsjm.directeurdusoutien@gmail.com' || validator.email === 'hsjm.directeursoutien@gmail.com';
+                                        const isSelected = selectedValidators.includes(validator.id);
+                                        return (
+                                            <label
+                                                key={validator.id}
+                                                className="flex items-center gap-3 p-4 rounded-lg cursor-pointer transition"
+                                                style={isDirecteur
+                                                    ? { border: '2px solid var(--danger)', background: 'var(--danger-soft)' }
+                                                    : isSelected
+                                                        ? { border: '2px solid var(--brand)', background: 'var(--brand-soft)' }
+                                                        : { border: '2px solid var(--border)', background: 'var(--surface)' }
+                                                }
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleValidator(validator.id)}
+                                                    className="w-5 h-5"
+                                                />
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold px-2 py-1 rounded" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>
+                                                            Étape {index + 1}
+                                                        </span>
+                                                        <p className="font-semibold" style={{ color: 'var(--fg)' }}>
+                                                            {validator.firstName} {validator.lastName}
+                                                        </p>
+                                                        {validator.isChefService && (
+                                                            <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
+                                                                Chef de Service
+                                                            </span>
+                                                        )}
+                                                        {isDirecteur && (
+                                                            <span className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
+                                                                ⚠️ EN DERNIER
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm mt-1" style={{ color: 'var(--fg-muted)' }}>
+                                                        {validator.position || validator.email}
                                                     </p>
-                                                    {validator.isChefService && (
-                                                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                                            Chef de Service
-                                                        </span>
-                                                    )}
-                                                    {(validator.email === 'hsjm.directeurdusoutien@gmail.com' || validator.email === 'hsjm.directeursoutien@gmail.com') && (
-                                                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded font-bold">
-                                                            ⚠️ EN DERNIER
-                                                        </span>
-                                                    )}
                                                 </div>
-                                                <p className="text-sm text-gray-600 mt-1">
-                                                    {validator.position || validator.email}
-                                                </p>
-                                            </div>
-                                        </label>
-                                    ))
+                                            </label>
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>
                     )}
 
                     {error && (
-                        <div className="bg-red-50 border border-red-300 text-red-700 p-4 rounded-lg">
+                        <div className="p-4 rounded-lg" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
                             {error}
                         </div>
                     )}
-                    
+
                     <div className="flex justify-between pt-4">
                         {step > 1 && (
-                            <button 
-                                onClick={() => setStep(step - 1)} 
-                                className="px-6 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+                            <button
+                                onClick={() => setStep(step - 1)}
+                                className="px-6 py-2 rounded-lg transition"
+                                style={{ background: 'var(--surface-3)', color: 'var(--fg)' }}
                             >
                                 Retour
                             </button>
                         )}
-                        <button 
-                            onClick={() => handleNextStep(step + 1)} 
-                            className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 flex items-center gap-2 ml-auto transition"
+                        <button
+                            onClick={() => handleNextStep(step + 1)}
+                            className="px-6 py-2 font-semibold rounded-lg flex items-center gap-2 ml-auto transition"
+                            style={{ background: 'var(--brand)', color: '#fff' }}
                         >
                             Suivant <ArrowRight size={18}/>
                         </button>
@@ -543,44 +602,46 @@ const CreateWorkRequest = () => {
             {/* Étape 5: Prévisualisation */}
             {step === 5 && (
                 <div>
-                    <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-                        <CheckCircle className="text-green-500"/> Prévisualisation du document
+                    <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+                        <CheckCircle style={{ color: 'var(--success)' }}/> Prévisualisation du document
                     </h2>
-                    
-                    <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-                        <DemandeTravaux 
-                            formData={templateData} 
-                            setFormData={() => {}} 
-                            pdfContainerRef={pdfContainerRef} 
+
+                    <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-2)' }}>
+                        <DemandeTravaux
+                            formData={templateData}
+                            setFormData={() => {}}
+                            pdfContainerRef={pdfContainerRef}
                         />
                     </div>
-                    
+
                     {error && (
-                        <div className="bg-red-50 border border-red-300 text-red-700 p-4 rounded-lg mb-4 text-center">
+                        <div className="p-4 rounded-lg mb-4 text-center" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
                             {error}
                         </div>
                     )}
 
                     <div className="flex justify-between items-center">
-                        <button 
-                            onClick={() => setStep(4)} 
-                            className="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+                        <button
+                            onClick={() => setStep(4)}
+                            className="px-6 py-3 rounded-lg transition"
+                            style={{ background: 'var(--surface-3)', color: 'var(--fg)' }}
                         >
                             Retour
                         </button>
-                        <button 
-                            onClick={handleFinalSubmit} 
-                            disabled={submitting} 
-                            className="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition"
+                        <button
+                            onClick={handleFinalSubmit}
+                            disabled={submitting}
+                            className="px-8 py-3 font-semibold rounded-lg flex items-center justify-center gap-2 transition"
+                            style={{ background: submitting ? 'var(--surface-3)' : 'var(--success)', color: submitting ? 'var(--fg-muted)' : '#fff' }}
                         >
                             {submitting ? (
                                 <>
-                                    <Loader className="animate-spin w-5 h-5" /> 
+                                    <Loader className="animate-spin w-5 h-5" />
                                     Génération en cours...
                                 </>
                             ) : (
                                 <>
-                                    <Send size={18}/> 
+                                    <Send size={18}/>
                                     Générer et Soumettre
                                 </>
                             )}

@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import documentRoutes from './routes/documents.js';
 import workflowRoutes from './routes/workflow.js';
+import onlyofficeRoutes from './routes/onlyoffice.js';
 import Service from './Service.js';
 import Motif from './Motif.js';
 
@@ -47,13 +48,25 @@ console.log('📁 Dossier uploads configuré:', uploadsPath);
 
 app.use('/uploads', express.static(uploadsPath, {
   setHeaders: (res, filePath) => {
-    // Permettre l'affichage dans les iframes
+    // Permettre l'affichage dans les iframes (PDF viewer + OnlyOffice)
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
-    
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self' *");
+    // Permettre à OnlyOffice (autre origine Docker) de télécharger les fichiers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
     // Type MIME correct pour les PDFs
     if (filePath.endsWith('.pdf')) {
       res.setHeader('Content-Type', 'application/pdf');
+    }
+    // Types MIME Office
+    if (filePath.endsWith('.docx')) {
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+    if (filePath.endsWith('.xlsx')) {
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+    if (filePath.endsWith('.pptx')) {
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
     }
   }
 }));
@@ -70,6 +83,7 @@ app.use('/uploads', (req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/workflow', workflowRoutes);
+app.use('/api/onlyoffice', onlyofficeRoutes);
 
 // Route de test
 app.get('/api/health', (req, res) => {

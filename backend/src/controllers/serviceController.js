@@ -138,6 +138,7 @@ export const createService = async (req, res) => {
 
     const service = await Service.create({
       name: name.trim(),
+      tenantId: req.tenantId,
     });
 
     res.status(201).json({

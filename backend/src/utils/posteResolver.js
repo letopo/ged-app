@@ -14,7 +14,7 @@ export const getPosteHolders = async (code) => {
     include: [{
       model: User,
       as: 'holders',
-      attributes: ['id', 'firstName', 'lastName', 'email', 'isActive'],
+      attributes: ['id', 'firstName', 'lastName', 'email', 'isActive', 'isAbsent', 'substituteId'],
       through: { attributes: ['assignedAt'] },
     }],
   });
@@ -23,6 +23,41 @@ export const getPosteHolders = async (code) => {
     .filter(u => u.isActive !== false)
     // Ordre déterministe : le plus ancien titulaire en premier (= titulaire principal)
     .sort((a, b) => new Date(a.UserPoste?.assignedAt || 0) - new Date(b.UserPoste?.assignedAt || 0));
+};
+
+/**
+ * Comme getPosteHolders, mais pour la CONSTRUCTION d'un nouveau circuit de
+ * signature (OM, Pièce de caisse) : un titulaire absent est remplacé par son
+ * remplaçant fixe (en suivant la chaîne sur quelques niveaux si celui-ci est
+ * lui aussi absent), pour qu'un nouveau document ne propose jamais quelqu'un
+ * d'absent comme signataire à choisir.
+ * Volontairement séparée de getPosteHolders : cette dernière sert aussi aux
+ * vérifications de droits (userHasPoste, accès RH/Compta...), où l'absence ne
+ * doit PAS faire perdre les droits associés au poste.
+ * @param {string} code
+ * @returns {Promise<User[]>}
+ */
+export const getPosteHoldersForAssignment = async (code) => {
+  const holders = await getPosteHolders(code);
+  const resolved = [];
+  const seen = new Set();
+  for (const holder of holders) {
+    let current = holder;
+    let hops = 0;
+    while (current?.isAbsent && current.substituteId && hops < 5) {
+      const next = await User.findByPk(current.substituteId, {
+        attributes: ['id', 'firstName', 'lastName', 'email', 'isActive', 'isAbsent', 'substituteId'],
+      });
+      if (!next || next.isActive === false) break;
+      current = next;
+      hops += 1;
+    }
+    if (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      resolved.push(current);
+    }
+  }
+  return resolved;
 };
 
 /**

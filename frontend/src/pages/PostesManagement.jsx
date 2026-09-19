@@ -11,6 +11,8 @@ const PostesManagement = () => {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(null); // code du poste en cours d'ajout
   const [picked, setPicked] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [newPoste, setNewPoste] = useState({ code: '', label: '', description: '' });
 
   const load = async () => {
     try {
@@ -51,6 +53,19 @@ const PostesManagement = () => {
     }
   };
 
+  const handleCreatePoste = async () => {
+    if (!newPoste.code.trim() || !newPoste.label.trim()) return;
+    try {
+      await postesAPI.create(newPoste.code.trim(), newPoste.label.trim(), newPoste.description.trim());
+      toast.success('Poste créé');
+      setCreating(false);
+      setNewPoste({ code: '', label: '', description: '' });
+      load();
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Échec de la création du poste');
+    }
+  };
+
   const fullName = (u) => u ? `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email : '—';
 
   if (loading) {
@@ -67,6 +82,37 @@ const PostesManagement = () => {
         Assignez les titulaires des postes qui pilotent les circuits de validation (comptable, DG, DDS…).
         Plus besoin de modifier un email dans le code : changez le titulaire ici.
       </p>
+
+      <div style={{ marginBottom: 20 }}>
+        {creating ? (
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', padding: 16, display: 'grid', gap: 10 }}>
+            <input placeholder="Code (ex: gmao)" value={newPoste.code}
+              onChange={e => setNewPoste(s => ({ ...s, code: e.target.value }))}
+              style={{ height: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, padding: '0 8px' }} />
+            <input placeholder="Libellé (ex: Responsable GMAO)" value={newPoste.label}
+              onChange={e => setNewPoste(s => ({ ...s, label: e.target.value }))}
+              style={{ height: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, padding: '0 8px' }} />
+            <input placeholder="Description (optionnel)" value={newPoste.description}
+              onChange={e => setNewPoste(s => ({ ...s, description: e.target.value }))}
+              style={{ height: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, padding: '0 8px' }} />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={handleCreatePoste} disabled={!newPoste.code.trim() || !newPoste.label.trim()}
+                style={{ height: 32, padding: '0 12px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Créer le poste
+              </button>
+              <button onClick={() => { setCreating(false); setNewPoste({ code: '', label: '', description: '' }); }}
+                style={{ height: 32, padding: '0 12px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg)', fontSize: 13, cursor: 'pointer' }}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setCreating(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            <Plus size={15} /> Nouveau poste
+          </button>
+        )}
+      </div>
 
       <div style={{ display: 'grid', gap: 14 }}>
         {postes.map(p => (

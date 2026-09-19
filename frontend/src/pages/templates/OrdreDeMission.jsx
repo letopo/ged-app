@@ -1,7 +1,68 @@
-import { useEffect } from 'react';
-import { documentsAPI } from '../../services/api';
+import { useEffect, useState } from 'react';
+import { documentsAPI, postesAPI, servicesAPI, missionMealAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
+import PersonAutocomplete from '../../components/PersonAutocomplete';
+
+// Aperçu (lecture seule) des indemnités de repas calculées pour le missionnaire et
+// le conducteur — sert de référence à la comptable pour la pièce de caisse.
+function MissionMealsPreview({ formData }) {
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const ready = formData.heure_depart && formData.heure_retour && (formData.missionnaire_id || formData.conducteur_id);
+    if (!ready) { setResult(null); return undefined; }
+    setLoading(true);
+    const t = setTimeout(() => {
+      missionMealAPI.calculate({
+        missionnaireId: formData.missionnaire_id, missionnaireSource: formData.missionnaire_source,
+        conducteurId: formData.conducteur_id, conducteurSource: formData.conducteur_source,
+        heureDepart: formData.heure_depart, heureRetour: formData.heure_retour,
+        dateDepart: formData.date_depart, dateRetour: formData.date_retour,
+      }).then(r => setResult(r.data.data)).catch(() => setResult(null)).finally(() => setLoading(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [formData.missionnaire_id, formData.conducteur_id, formData.heure_depart, formData.heure_retour, formData.date_depart, formData.date_retour]);
+
+  if (!formData.heure_depart || !formData.heure_retour) return null;
+
+  const Row = ({ label, data }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
+      <span style={{ color: 'var(--fg-muted)' }}>{label}</span>
+      {!data || data.categorieInconnue ? (
+        <span style={{ color: 'var(--fg-subtle)' }}>Catégorie inconnue — pas de calcul</span>
+      ) : (
+        <span style={{ color: 'var(--fg)' }}>
+          {data.petitDejeuner && 'Petit-déj '}{data.dejeuner && 'Déjeuner '}{data.diner && 'Dîner '}
+          {!data.petitDejeuner && !data.dejeuner && !data.diner && '—'}
+          {' · '}<strong>{Number(data.total).toLocaleString('fr-FR')} FCFA</strong>
+        </span>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', marginBottom: 4 }}>
+        Indemnités estimées (référence pour la pièce de caisse)
+      </div>
+      {loading ? (
+        <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>Calcul…</div>
+      ) : !result ? (
+        <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>Sélectionnez le missionnaire et/ou le conducteur pour voir le calcul.</div>
+      ) : (
+        <>
+          <Row label="Missionnaire" data={result.missionnaire} />
+          <Row label="Conducteur" data={result.conducteur} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>
+            <span>Total</span><span>{Number(result.total).toLocaleString('fr-FR')} FCFA</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 const inputStyle = {
   width: '100%', padding: '6px 10px', borderRadius: 'var(--radius-2)',
@@ -11,16 +72,24 @@ const inputStyle = {
 const labelStyle = { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 4 };
 
 // Espaces de validation (signature) du PDF selon le type d'ordre de mission.
-// La 1re zone (Service Demandeur) est toujours présente ; suivent les postes
-// du circuit puis le Directeur Général. Doit rester cohérent avec ordre_mission_types.
+// La 1re zone (Service Demandeur) est en général toujours présente ; suivent
+// les postes du circuit puis le Directeur Général. Doit rester cohérent avec
+// ordre_mission_types.
+// Exception RO SAU : la cheffe de pôle RO SAU est elle-même toujours la
+// personne qui soumet ces OM, donc la zone "Service Demandeur" (qui ne
+// ferait que redupliquer sa propre signature) est supprimée — il ne reste
+// que ses deux vrais signataires (elle-même comme chef de pôle, puis le DG).
 const VALIDATION_ZONES = {
   paramedical:   ['Service Demandeur', 'D.D.S', 'D.S', 'Directeur Général'],
   administratif: ['Service Demandeur', 'Chef de pôle', 'Directeur Général'],
   strategie:     ['Service Demandeur', 'Médecin Chef', 'Directeur Général'],
+  ro_sau:        ['Chef de pôle RO SAU', 'Directeur Général'],
 };
 
 const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
   const { user } = useAuth();
+  const [missionServiceId, setMissionServiceId] = useState(null);
+  const [chauffeursServiceId, setChauffeursServiceId] = useState(null);
 
   const zones = VALIDATION_ZONES[formData.type_mission] || VALIDATION_ZONES.paramedical;
 
@@ -29,6 +98,28 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
     documentsAPI.getNextNumero('Ordre de mission')
       .then(res => setFormData(prev => ({ ...prev, numero_ordre: res.data.numero })))
       .catch(err => console.error('Erreur récupération numéro OM:', err));
+  }, []);
+
+  // Pôle lié au type d'OM choisi (ex: RO SAU) — restreint la liste de missionnaires proposée.
+  useEffect(() => {
+    postesAPI.getOrdreMissionTypes()
+      .then(res => {
+        const types = res.data?.data || [];
+        const match = types.find(t => t.code === formData.type_mission);
+        setMissionServiceId(match?.serviceId || null);
+      })
+      .catch(() => setMissionServiceId(null));
+  }, [formData.type_mission]);
+
+  // Pôle "Chauffeurs" — restreint la liste de conducteurs proposée, quel que soit le type d'OM.
+  useEffect(() => {
+    servicesAPI.getAll()
+      .then(res => {
+        const list = res.data?.data || res.data || [];
+        const chauffeurs = list.find(s => (s.name || '').trim().toLowerCase() === 'chauffeurs');
+        setChauffeursServiceId(chauffeurs?.id || null);
+      })
+      .catch(() => setChauffeursServiceId(null));
   }, []);
 
   // Aligne le nombre de signataires (placement des signatures à la validation)
@@ -63,6 +154,14 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
             <input type="date" name="date_retour" value={formData.date_retour || ''} onChange={handleChange} min={formData.date_depart || ''} style={inputStyle} required />
           </div>
           <div>
+            <label style={labelStyle}>🕐 Heure de Départ *</label>
+            <input type="time" name="heure_depart" value={formData.heure_depart || ''} onChange={handleChange} style={inputStyle} required />
+          </div>
+          <div>
+            <label style={labelStyle}>🕐 Heure de Retour *</label>
+            <input type="time" name="heure_retour" value={formData.heure_retour || ''} onChange={handleChange} style={inputStyle} required />
+          </div>
+          <div>
             <label style={labelStyle}>🏢 Service Demandeur *</label>
             <input type="text" name="service_demandeur" value={formData.service_demandeur || ''} onChange={handleChange} placeholder="Ex: Direction" style={inputStyle} required />
           </div>
@@ -76,11 +175,27 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
           </div>
           <div>
             <label style={labelStyle}>👤 Nom du Missionnaire *</label>
-            <input type="text" name="nom_missionnaire" value={formData.nom_missionnaire || ''} onChange={handleChange} placeholder="Nom complet" style={inputStyle} required />
+            <PersonAutocomplete
+              value={formData.nom_missionnaire || ''}
+              serviceId={missionServiceId}
+              placeholder="Rechercher un nom..."
+              required
+              onSelect={(c) => setFormData(prev => ({
+                ...prev, nom_missionnaire: c.label, missionnaire_id: c.id, missionnaire_source: c.source,
+              }))}
+            />
           </div>
           <div>
             <label style={labelStyle}>🚗 Nom du Conducteur *</label>
-            <input type="text" name="nom_conducteur" value={formData.nom_conducteur || ''} onChange={handleChange} placeholder="Nom complet" style={inputStyle} required />
+            <PersonAutocomplete
+              value={formData.nom_conducteur || ''}
+              serviceId={chauffeursServiceId}
+              placeholder="Rechercher un nom..."
+              required
+              onSelect={(c) => setFormData(prev => ({
+                ...prev, nom_conducteur: c.label, conducteur_id: c.id, conducteur_source: c.source,
+              }))}
+            />
           </div>
           <div>
             <label style={labelStyle}>🚙 Immatriculation du Véhicule *</label>
@@ -93,6 +208,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
             </label>
           </div>
         </div>
+        {formData.frais_mission && <MissionMealsPreview formData={formData} />}
       </div>
 
       {/* Prévisualisation PDF */}
@@ -208,14 +324,18 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
           </table>
         </div>
 
-        {/* Signatures — espaces de validation dynamiques selon le type d'OM */}
+        {/* Signatures — espaces de validation dynamiques selon le type d'OM.
+            Seule la zone "Service Demandeur" est pré-remplie avec la signature
+            du soumetteur ; les autres zones (dont "Chef de pôle RO SAU" pour le
+            type RO SAU) restent vides et sont signées via le vrai circuit de
+            validation (Mes tâches), même si le titulaire est la même personne. */}
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${zones.length}, 1fr)`, gap: 16, marginTop: 32 }}>
           {zones.map((label, i) => (
             <SignatureFrame
               key={label}
               label={label}
-              signatureUrl={i === 0 ? getImageUrl(user?.signaturePath) : null}
-              stampUrl={i === 0 ? getImageUrl(user?.stampPath) : null}
+              signatureUrl={label === 'Service Demandeur' ? getImageUrl(user?.signaturePath) : null}
+              stampUrl={label === 'Service Demandeur' ? getImageUrl(user?.stampPath) : null}
               zoneIndex={i + 1}
             />
           ))}

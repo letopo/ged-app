@@ -31,7 +31,7 @@ COPY . .
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=2048" npm run build
 
 # Stage 3: Production avec Nginx
 FROM nginx:alpine AS production
@@ -57,6 +57,6 @@ EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -sf http://localhost/ -o /dev/null -w '%{http_code}' | grep -q '200' || exit 1
+  CMD curl -s -o /dev/null -w '%{http_code}' http://localhost/ | grep -qE '^(200|301)$' || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

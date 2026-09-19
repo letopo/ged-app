@@ -33,6 +33,10 @@ const Intervention = sequelize.define('Intervention', {
   duree_reelle: { type: DataTypes.FLOAT, allowNull: true },
   observations: { type: DataTypes.TEXT, allowNull: true },
   signale_par: { type: DataTypes.STRING(255), allowNull: true },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'interventions',
   timestamps: true,

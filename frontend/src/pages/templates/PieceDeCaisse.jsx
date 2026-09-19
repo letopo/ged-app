@@ -5,6 +5,7 @@ import { documentsAPI } from '../../services/api';
 import DocumentViewer from '../../components/DocumentViewer';
 import { useAuth } from '../../contexts/AuthContext';
 import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
+import PersonAutocomplete from '../../components/PersonAutocomplete';
 
 const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissionSelector = true }) => {
     const { user } = useAuth();
@@ -141,7 +142,15 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, fontSize: 13 }}>
                         <div style={{ width: '65%' }}>
-                            <input name="nom" value={formData.nom || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid #999', outline: 'none', fontSize: 13 }} placeholder="NOM..." />
+                            <div className="not-printable">
+                                <PersonAutocomplete
+                                    value={formData.nom || ''}
+                                    placeholder="NOM du bénéficiaire..."
+                                    onSelect={(c) => setFormData(prev => ({
+                                        ...prev, nom: c.label, beneficiaire_id: c.id, beneficiaire_source: c.source,
+                                    }))}
+                                />
+                            </div>
                             <div className="print-only static-field">{formData.nom || ' '}</div>
                         </div>
                         <div style={{ width: '25%' }}>

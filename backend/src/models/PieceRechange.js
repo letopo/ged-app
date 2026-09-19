@@ -14,6 +14,7 @@ const PieceRechange = sequelize.define('PieceRechange', {
   fournisseur: { type: DataTypes.STRING(255), allowNull: true },
   localisation: { type: DataTypes.STRING(100), allowNull: true }, // storage location
   notes: { type: DataTypes.TEXT, allowNull: true },
+  tenantId: { type: DataTypes.UUID, allowNull: false },
 }, {
   tableName: 'gmao_pieces_rechange',
   timestamps: true,

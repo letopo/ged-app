@@ -4,8 +4,9 @@ import express from 'express';
 import multer from 'multer';
 import { protect } from '../middleware/auth.js'; // ✅ C'est "protect" pas "authenticate"
 import {
-  getEmployees, 
+  getEmployees,
   getAllEmployees,
+  getMissionCandidates,
   getEmployeeById,
   createEmployee,
   updateEmployee,
@@ -27,6 +28,7 @@ const csvUpload = multer({
 
 // ✅ Route pour obtenir TOUS les employés (pour les plannings) - DOIT être AVANT /:id
 router.get('/all', protect, getAllEmployees);
+router.get('/mission-candidates', protect, getMissionCandidates);
 
 // Routes existantes
 router.get('/', protect, getEmployees);

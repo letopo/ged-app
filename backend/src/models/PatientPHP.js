@@ -79,7 +79,11 @@ const PatientPHP = sequelize.define('PatientPHP', {
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'php_patients',
   timestamps: true,

@@ -80,16 +80,43 @@ const Workflow = sequelize.define('Workflow', {
       const hoursDiff = (now - assigned) / (1000 * 60 * 60);
       return Math.max(0, Math.floor(hoursDiff - 8));
     }
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
+  // Vrai titulaire de cette étape quand elle est actuellement portée par son
+  // remplaçant (absence) — permet le retour automatique si non encore traitée.
+  originalValidatorId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'original_validator_id',
+  },
+  // Vrai tant que validatorId pointe vers un remplaçant plutôt que le titulaire
+  // habituel — pilote le retour automatique et le tampon "P.O." sur le PDF.
+  isSubstituted: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_substituted',
+  },
 }, {
   tableName: 'workflows',
   timestamps: true,
   underscored: true,
+  indexes: [
+    { fields: ['validator_id'] },
+    { fields: ['document_id'] },
+    { fields: ['status'] },
+    { fields: ['validator_id', 'status'] },
+    { fields: ['document_id', 'status'] },
+    { fields: ['created_at'] },
+  ],
 });
 
 Workflow.associate = function(models) {
   this.belongsTo(models.Document, { foreignKey: 'documentId', as: 'document' });
   this.belongsTo(models.User, { foreignKey: 'validatorId', as: 'validator' });
+  this.belongsTo(models.User, { foreignKey: 'originalValidatorId', as: 'originalValidator' });
 };
 
 export default Workflow;

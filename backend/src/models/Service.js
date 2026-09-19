@@ -14,6 +14,10 @@ const Service = sequelize.define('Service', {
     allowNull: false,
     unique: true,
   },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'services',
   timestamps: true,

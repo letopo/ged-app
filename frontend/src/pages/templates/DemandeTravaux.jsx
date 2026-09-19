@@ -1,4 +1,4 @@
-// frontend/src/pages/templates/DemandeTravaux.jsx - TEMPLATE COMPLET
+// frontend/src/pages/templates/DemandeTravaux.jsx
 import React from 'react';
 import logo from '../../assets/logo-ordre-malte.png';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,73 +8,66 @@ const DemandeTravaux = ({ formData, setFormData, pdfContainerRef }) => {
     const { user } = useAuth();
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
     return (
-        <div ref={pdfContainerRef} className="bg-white p-12 shadow-lg mx-auto" style={{ width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
-            <div className="flex items-center justify-between mb-6">
-                <img src={logo} alt="Logo" className="h-20" />
-                <div className="text-right">
-                    <h1 className="text-xl font-bold">HÔPITAL SAINT JEAN DE MALTE</h1>
-                    <p className="text-sm">Njombé - Cameroun</p>
+        <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                <img src={logo} alt="Logo" style={{ height: 80 }} />
+                <div style={{ textAlign: 'right' }}>
+                    <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>HÔPITAL SAINT JEAN DE MALTE</h1>
+                    <p style={{ fontSize: 13, margin: '4px 0 0' }}>Njombé - Cameroun</p>
                 </div>
             </div>
-            <div className="border-t-2 border-b-2 border-gray-800 py-3 mb-8 text-center">
-                <h2 className="text-2xl font-bold">DEMANDE DE TRAVAUX</h2>
+
+            <div style={{ borderTop: '2px solid #1f2937', borderBottom: '2px solid #1f2937', padding: '12px 0', marginBottom: 32, textAlign: 'center' }}>
+                <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>DEMANDE DE TRAVAUX</h2>
             </div>
-            <div className="mb-6 space-y-3 text-sm">
-                <div className="flex items-end">
-                    <span className="font-semibold w-48">Date de la demande :</span>
-                    <div className="flex-1">
-                        <input name="date_demande" value={formData.date_demande || ''} onChange={handleChange} className="not-printable w-full border-b border-gray-400 px-2" />
-                        <div className="print-only static-field">{formData.date_demande || '\u00A0'}</div>
+
+            <div style={{ marginBottom: 24, fontSize: 13 }}>
+                {[['date_demande','Date de la demande'], ['service','Service demandeur'], ['demandeur','Demandeur']].map(([name, label]) => (
+                    <div key={name} style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 12 }}>
+                        <span style={{ fontWeight: 600, width: 180 }}>{label} :</span>
+                        <div style={{ flex: 1 }}>
+                            <input name={name} value={formData[name] || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', borderBottom: '1px solid #9ca3af', outline: 'none', padding: '0 8px', fontSize: 13 }} />
+                            <div className="print-only static-field">{formData[name] || ' '}</div>
+                        </div>
                     </div>
-                </div>
-                <div className="flex items-end">
-                    <span className="font-semibold w-48">Service demandeur :</span>
-                    <div className="flex-1">
-                        <input name="service" value={formData.service || ''} onChange={handleChange} className="not-printable w-full border-b border-gray-400 px-2" />
-                        <div className="print-only static-field">{formData.service || '\u00A0'}</div>
-                    </div>
-                </div>
-                <div className="flex items-end">
-                    <span className="font-semibold w-48">Demandeur :</span>
-                    <div className="flex-1">
-                        <input name="demandeur" value={formData.demandeur || ''} onChange={handleChange} className="not-printable w-full border-b border-gray-400 px-2" />
-                        <div className="print-only static-field">{formData.demandeur || '\u00A0'}</div>
-                    </div>
-                </div>
+                ))}
             </div>
-            <div className="mb-6">
-                <h3 className="font-bold text-base mb-3 border-b border-gray-400 pb-1">Type de demande :</h3>
-                <div className="flex gap-8 text-sm">
-                    <label className="flex items-center gap-2">
-                        <input type="checkbox" name="mg" checked={formData.mg || false} onChange={handleChange} className="w-4 h-4" />
+
+            <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, borderBottom: '1px solid #9ca3af', paddingBottom: 4 }}>Type de demande :</h3>
+                <div style={{ display: 'flex', gap: 32, fontSize: 13 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input type="checkbox" name="mg" checked={formData.mg || false} onChange={handleChange} style={{ width: 16, height: 16 }} />
                         <span>Moyens Généraux (MG)</span>
                     </label>
-                    <label className="flex items-center gap-2">
-                        <input type="checkbox" name="biomedical" checked={formData.biomedical || false} onChange={handleChange} className="w-4 h-4" />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input type="checkbox" name="biomedical" checked={formData.biomedical || false} onChange={handleChange} style={{ width: 16, height: 16 }} />
                         <span>Biomédical</span>
                     </label>
                 </div>
             </div>
-            <div className="mb-6">
-                <h3 className="font-bold text-base mb-3 border-b border-gray-400 pb-1">Description des travaux demandés :</h3>
+
+            <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, borderBottom: '1px solid #9ca3af', paddingBottom: 4 }}>Description des travaux demandés :</h3>
                 <div>
-                    <textarea name="description_travaux" value={formData.description_travaux || ''} onChange={handleChange} className="not-printable w-full border border-gray-400 p-4 min-h-[200px] text-sm" />
-                    <div className="print-only border border-gray-400 p-4 min-h-[200px] text-sm whitespace-pre-wrap">{formData.description_travaux || 'Aucune description fournie'}</div>
+                    <textarea name="description_travaux" value={formData.description_travaux || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', border: '1px solid #9ca3af', padding: 16, minHeight: 200, fontSize: 13, outline: 'none', resize: 'vertical' }} />
+                    <div className="print-only" style={{ border: '1px solid #9ca3af', padding: 16, minHeight: 200, fontSize: 13, whiteSpace: 'pre-wrap' }}>{formData.description_travaux || 'Aucune description fournie'}</div>
                 </div>
             </div>
-            <div className="mt-16 grid grid-cols-3 gap-8">
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32, marginTop: 64 }}>
                 <SignatureFrame label="Demandeur" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
                 <SignatureFrame label="Technicien" signatureUrl={null} stampUrl={null} zoneIndex={2} />
                 <SignatureFrame label="Validation Finale" signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>
-            <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-600 text-center not-printable">Document généré le {new Date().toLocaleDateString('fr-FR')}</div>
+
+            <div className="not-printable" style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid #d1d5db', fontSize: 10, color: 'var(--fg-muted)', textAlign: 'center' }}>
+                Document généré le {new Date().toLocaleDateString('fr-FR')}
+            </div>
         </div>
     );
 };

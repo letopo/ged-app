@@ -232,37 +232,33 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-1)', padding: 24 }}>
       {/* Sélection du shift */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Shift sélectionné: {selectedShift ? (
-              <span className="ml-2 px-3 py-1 rounded text-sm font-bold" style={{
-                backgroundColor: getShiftColor(selectedShift),
-                color: getShiftTextColor(selectedShift)
-              }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>
+            Shift sélectionné:{' '}
+            {selectedShift ? (
+              <span style={{ marginLeft: 8, padding: '2px 12px', borderRadius: 'var(--radius-2)', fontSize: 13, fontWeight: 700, backgroundColor: getShiftColor(selectedShift), color: getShiftTextColor(selectedShift) }}>
                 {selectedShift}
               </span>
             ) : (
-              <span className="ml-2 text-gray-400 text-sm">Aucun</span>
+              <span style={{ marginLeft: 8, color: 'var(--fg-muted)', fontSize: 13 }}>Aucun</span>
             )}
           </h3>
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={handleClearAll}
-              className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+              style={{ padding: '8px 16px', color: 'var(--danger)', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', fontWeight: 500, cursor: 'pointer', fontSize: 13 }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-soft)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               Tout effacer
             </button>
             <button
               onClick={handleSave}
               disabled={!hasChanges || saving}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                hasChanges && !saving
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
+              style={{ padding: '8px 24px', background: hasChanges && !saving ? 'var(--brand)' : 'var(--surface-3)', color: hasChanges && !saving ? '#fff' : 'var(--fg-muted)', border: 'none', borderRadius: 'var(--radius-2)', fontWeight: 500, cursor: hasChanges && !saving ? 'pointer' : 'not-allowed', fontSize: 13 }}
             >
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
@@ -270,19 +266,17 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
         </div>
 
         {/* Grille de sélection des shifts */}
-        <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {shiftTypes.map(shift => (
             <button
               key={shift.id}
               onClick={() => setSelectedShift(shift.code)}
-              className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${
-                selectedShift === shift.code
-                  ? 'ring-4 ring-blue-500 ring-offset-2 transform scale-105'
-                  : 'hover:ring-2 ring-gray-300'
-              }`}
               style={{
-                backgroundColor: shift.color,
-                color: getShiftTextColor(shift.code)
+                padding: '8px 12px', borderRadius: 'var(--radius-2)', fontWeight: 700, fontSize: 13,
+                backgroundColor: shift.color, color: getShiftTextColor(shift.code),
+                border: selectedShift === shift.code ? '3px solid var(--brand)' : '2px solid transparent',
+                cursor: 'pointer', outline: 'none', transform: selectedShift === shift.code ? 'scale(1.05)' : 'scale(1)',
+                transition: 'transform .1s',
               }}
             >
               {shift.code} - {shift.name}
@@ -290,59 +284,54 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
           ))}
           <button
             onClick={() => setSelectedShift(null)}
-            className={`px-3 py-2 rounded-lg font-bold text-sm transition-all border-2 ${
-              selectedShift === null
-                ? 'ring-4 ring-blue-500 ring-offset-2 transform scale-105 border-blue-500'
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
+            style={{
+              padding: '8px 12px', borderRadius: 'var(--radius-2)', fontWeight: 700, fontSize: 13,
+              background: 'var(--surface)', color: 'var(--fg)',
+              border: selectedShift === null ? '3px solid var(--brand)' : '2px solid var(--border)',
+              cursor: 'pointer',
+            }}
           >
             ❌ Effacer
           </button>
         </div>
 
-        {/* 🆕 Instructions complètes */}
-        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
-            <strong>Instructions:</strong> Cliquez sur un shift pour le sélectionner. 
-            Ensuite : <strong>cliquez et glissez</strong> sur les cellules du calendrier pour remplir rapidement • 
-            <strong>Clic droit</strong> pour effacer une cellule • 
+        <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--brand-soft)', border: '1px solid var(--brand)', borderRadius: 'var(--radius-2)' }}>
+          <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>
+            <strong>Instructions:</strong> Cliquez sur un shift pour le sélectionner.
+            Ensuite : <strong>cliquez et glissez</strong> sur les cellules du calendrier pour remplir rapidement •
+            <strong>Clic droit</strong> pour effacer une cellule •
             <strong>Double-clic sur un nom</strong> pour remplir toute la ligne de cet employé
           </p>
         </div>
       </div>
 
       {/* Grille du planning */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse border-2 border-gray-800">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid #374151' }}>
           <thead>
-            <tr className="bg-gray-100">
-              <th className="border-2 border-gray-800 px-3 py-2 text-left font-bold sticky left-0 bg-gray-100 z-10">
+            <tr style={{ background: '#f3f4f6' }}>
+              <th style={{ border: '2px solid #374151', padding: '8px 12px', textAlign: 'left', fontWeight: 700, position: 'sticky', left: 0, background: '#f3f4f6', zIndex: 10, fontSize: 13 }}>
                 Employé
               </th>
               {dates.map((dateInfo, index) => (
                 <th
                   key={index}
-                  className={`border-2 border-gray-800 px-2 py-2 text-center text-xs ${
-                    dateInfo.dayOfWeek === 0 || dateInfo.dayOfWeek === 6
-                      ? 'bg-gray-200'
-                      : ''
-                  }`}
+                  style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center', fontSize: 11, background: (dateInfo.dayOfWeek === 0 || dateInfo.dayOfWeek === 6) ? '#e5e7eb' : '#f3f4f6' }}
                 >
-                  <div className="font-bold">{dateInfo.day}</div>
-                  <div className="text-gray-600 text-xs">{dateInfo.dayName}</div>
+                  <div style={{ fontWeight: 700 }}>{dateInfo.day}</div>
+                  <div style={{ color: '#6b7280', fontSize: 10 }}>{dateInfo.dayName}</div>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {employees.map((employee, empIndex) => (
-              <tr
-                key={employee.id}
-                className={empIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-              >
-                <td 
-                  className="border-2 border-gray-800 px-3 py-2 font-semibold sticky left-0 bg-inherit z-10 cursor-pointer hover:bg-blue-50 transition-colors"
+              <tr key={employee.id} style={{ background: empIndex % 2 === 0 ? '#ffffff' : '#f9fafb' }}>
+                <td
+                  style={{ border: '2px solid #374151', padding: '8px 12px', fontWeight: 600, position: 'sticky', left: 0, background: 'inherit', zIndex: 10, cursor: 'pointer', fontSize: 13 }}
                   onDoubleClick={() => handleEmployeeDoubleClick(employee.id)}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'inherit'}
                   title="Double-cliquer pour remplir toute la ligne"
                 >
                   {employee.firstName} {employee.lastName}
@@ -351,13 +340,10 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
                   const key = `${employee.id}-${dateInfo.date}`;
                   const shiftCode = assignments[key];
                   const isWeekend = dateInfo.dayOfWeek === 0 || dateInfo.dayOfWeek === 6;
-
                   return (
                     <td
                       key={dateIndex}
-                      className={`border-2 border-gray-800 p-0 text-center cursor-pointer select-none ${
-                        isWeekend ? 'bg-gray-100' : ''
-                      } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                      style={{ border: '2px solid #374151', padding: 0, textAlign: 'center', cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none', background: isWeekend ? '#f3f4f6' : 'inherit' }}
                       onMouseDown={() => handleMouseDown(employee.id, dateInfo.date)}
                       onMouseEnter={() => handleMouseEnter(employee.id, dateInfo.date)}
                       onMouseUp={handleMouseUp}
@@ -366,16 +352,16 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
                     >
                       {shiftCode ? (
                         <div
-                          className="w-full h-full px-2 py-3 font-bold text-sm"
-                          style={{
-                            backgroundColor: getShiftColor(shiftCode),
-                            color: getShiftTextColor(shiftCode)
-                          }}
+                          style={{ width: '100%', height: '100%', padding: '10px 8px', fontWeight: 700, fontSize: 13, backgroundColor: getShiftColor(shiftCode), color: getShiftTextColor(shiftCode) }}
                         >
                           {shiftCode}
                         </div>
                       ) : (
-                        <div className="px-2 py-3 text-gray-400 text-sm hover:bg-blue-50">
+                        <div
+                          style={{ padding: '10px 8px', color: 'var(--fg-subtle)', fontSize: 13 }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
                           -
                         </div>
                       )}
@@ -389,21 +375,17 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
       </div>
 
       {/* Légende */}
-      <div className="mt-6 p-4 border-2 border-gray-300 rounded">
-        <h4 className="font-bold text-sm text-gray-900 mb-3">Légende des shifts:</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div style={{ marginTop: 24, padding: 16, border: '2px solid var(--border)', borderRadius: 'var(--radius-2)' }}>
+        <p style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)', marginBottom: 12 }}>Légende des shifts :</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
           {shiftTypes.map(shift => (
-            <div key={shift.id} className="flex items-center gap-2">
+            <div key={shift.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div
-                className="w-8 h-8 rounded flex items-center justify-center font-bold text-xs border border-gray-400"
-                style={{
-                  backgroundColor: shift.color,
-                  color: getShiftTextColor(shift.code)
-                }}
+                style={{ width: 32, height: 32, borderRadius: 'var(--radius-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, border: '1px solid #9ca3af', backgroundColor: shift.color, color: getShiftTextColor(shift.code) }}
               >
                 {shift.code}
               </div>
-              <span className="text-sm text-gray-700">{shift.name}</span>
+              <span style={{ fontSize: 13, color: 'var(--fg)' }}>{shift.name}</span>
             </div>
           ))}
         </div>

@@ -24,6 +24,10 @@ const Poste = sequelize.define('Poste', {
     type: DataTypes.STRING(255),
     allowNull: true,
   },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'postes',
   timestamps: true,

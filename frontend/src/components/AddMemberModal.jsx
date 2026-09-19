@@ -1,13 +1,26 @@
+// frontend/src/components/AddMemberModal.jsx
 import React, { useState, useEffect } from 'react';
-import { X, UserPlus, Search } from 'lucide-react';
+import { X, UserPlus, Search, Check } from 'lucide-react';
 import { usersAPI } from '../services/api';
 
-const AddMemberModal = ({ service, fonctions, onAdd, onClose }) => {
+const inputStyle = {
+  width: '100%', height: 34, padding: '0 10px', boxSizing: 'border-box',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none',
+};
+const selectStyle = {
+  width: '100%', height: 34, padding: '0 8px', boxSizing: 'border-box',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none',
+};
+const labelStyle = { fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)', display: 'block', marginBottom: 5 };
+
+export default function AddMemberModal({ service, fonctions, onAdd, onClose }) {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedFonction, setSelectedFonction] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [fonctionSearch, setFonctionSearch] = useState(''); // ← NOUVEAU : recherche de fonction
+  const [fonctionSearch, setFonctionSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -16,11 +29,9 @@ const AddMemberModal = ({ service, fonctions, onAdd, onClose }) => {
       try {
         setLoading(true);
         const response = await usersAPI.getAll();
-        const usersData = response.data.users || response.data.data || [];
-        setUsers(usersData);
+        setUsers(response.data.users || response.data.data || []);
         setError('');
-      } catch (err) {
-        console.error('Erreur chargement utilisateurs:', err);
+      } catch {
         setError('Impossible de charger les utilisateurs');
       } finally {
         setLoading(false);
@@ -35,184 +46,176 @@ const AddMemberModal = ({ service, fonctions, onAdd, onClose }) => {
       setError('Veuillez sélectionner un utilisateur et une fonction');
       return;
     }
-    onAdd(service.id, {
-      userId: selectedUser,
-      fonction: selectedFonction,
-    });
+    onAdd(service.id, { userId: selectedUser, fonction: selectedFonction });
   };
 
-  const filteredUsers = users.filter((user) => {
-    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
-    const email = user.email.toLowerCase();
-    const query = searchQuery.toLowerCase();
-    return fullName.includes(query) || email.includes(query);
+  const filteredUsers = users.filter(u => {
+    const q = searchQuery.toLowerCase();
+    return `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
   });
 
-  // ✨ NOUVEAU : Filtrer les fonctions selon la recherche
-  const filteredFonctions = fonctions.filter((fonction) =>
-    fonction.toLowerCase().includes(fonctionSearch.toLowerCase())
-  );
+  const filteredFonctions = fonctions.filter(f => f.toLowerCase().includes(fonctionSearch.toLowerCase()));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        {/* En-tête */}
-        <div className="bg-blue-600 p-6 text-white flex items-center justify-between rounded-t-lg sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <UserPlus size={24} />
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16,
+    }}>
+      <div className="animate-fadeIn" style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)',
+        width: '100%', maxWidth: 440, maxHeight: '90vh',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+
+        {/* Header */}
+        <div style={{
+          background: 'var(--brand)', padding: '14px 18px', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <UserPlus size={18} color="#fff" />
             <div>
-              <h2 className="text-xl font-bold">Ajouter un membre</h2>
-              <p className="text-blue-100 text-sm">{service.name}</p>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Ajouter un membre</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>{service.name}</div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition"
-          >
-            <X size={20} />
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex' }}>
+            <X size={16} />
           </button>
         </div>
 
-        {/* Corps */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Recherche utilisateur */}
+        {/* Body */}
+        <form onSubmit={handleSubmit} style={{ padding: '16px 18px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* User search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Rechercher un utilisateur
-            </label>
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={18}
-              />
+            <label style={labelStyle}>Rechercher un utilisateur</label>
+            <div style={{ position: 'relative' }}>
+              <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)' }} />
               <input
+                style={{ ...inputStyle, paddingLeft: 30 }}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Nom, prénom ou email..."
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Nom, prénom ou email…"
               />
             </div>
           </div>
 
-          {/* Sélection utilisateur */}
+          {/* User select */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Utilisateur *
-            </label>
+            <label style={labelStyle}>Utilisateur *</label>
             {loading ? (
-              <p className="text-sm text-gray-500">Chargement...</p>
+              <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>Chargement…</div>
             ) : (
               <select
+                style={selectStyle}
                 value={selectedUser}
-                onChange={(e) => setSelectedUser(e.target.value)}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                onChange={e => setSelectedUser(e.target.value)}
                 required
               >
-                <option value="">-- Sélectionnez un utilisateur --</option>
-                {filteredUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.firstName} {user.lastName} ({user.email})
-                  </option>
+                <option value="">— Sélectionnez un utilisateur —</option>
+                {filteredUsers.map(u => (
+                  <option key={u.id} value={u.id}>{u.firstName} {u.lastName} ({u.email})</option>
                 ))}
               </select>
             )}
           </div>
 
-          {/* ✨ NOUVEAU : Sélection fonction avec RECHERCHE */}
+          {/* Fonction with search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fonction * 
-              <span className="text-xs text-gray-500 font-normal ml-2">
-                ({fonctions.length} fonctions disponibles)
-              </span>
+            <label style={labelStyle}>
+              Fonction *{' '}
+              <span style={{ fontWeight: 400, color: 'var(--fg-subtle)' }}>({fonctions.length} disponibles)</span>
             </label>
-            
-            {/* Champ de recherche pour filtrer les fonctions */}
-            <div className="relative mb-2">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={18}
-              />
+
+            <div style={{ position: 'relative', marginBottom: 6 }}>
+              <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)' }} />
               <input
+                style={{ ...inputStyle, paddingLeft: 30 }}
                 type="text"
-                placeholder="🔍 Rechercher une fonction..."
+                placeholder="Rechercher une fonction…"
                 value={fonctionSearch}
-                onChange={(e) => setFonctionSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                onChange={e => setFonctionSearch(e.target.value)}
               />
             </div>
-            
-            {/* Liste scrollable des fonctions filtrées */}
-            <div className="border rounded-lg max-h-60 overflow-y-auto bg-gray-50">
+
+            <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', maxHeight: 180, overflowY: 'auto', background: 'var(--surface-2)' }}>
               {filteredFonctions.length === 0 ? (
-                <div className="p-4 text-center text-gray-500 text-sm">
-                  Aucune fonction trouvée pour "{fonctionSearch}"
+                <div style={{ padding: '12px', textAlign: 'center', fontSize: 12, color: 'var(--fg-muted)' }}>
+                  Aucune fonction trouvée pour « {fonctionSearch} »
                 </div>
-              ) : (
-                filteredFonctions.map((fonction) => (
+              ) : filteredFonctions.map(fonction => {
+                const isSelected = selectedFonction === fonction;
+                return (
                   <div
                     key={fonction}
-                    onClick={() => {
-                      setSelectedFonction(fonction);
-                      setFonctionSearch(''); // Réinitialiser la recherche après sélection
+                    onClick={() => { setSelectedFonction(fonction); setFonctionSearch(''); }}
+                    style={{
+                      padding: '8px 12px', cursor: 'pointer',
+                      borderBottom: '1px solid var(--border)',
+                      background: isSelected ? 'var(--brand-soft)' : 'transparent',
+                      color: isSelected ? 'var(--brand)' : 'var(--fg)',
+                      fontWeight: isSelected ? 500 : 400,
+                      fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      transition: 'background .1s',
                     }}
-                    className={`p-3 cursor-pointer border-b last:border-b-0 transition ${
-                      selectedFonction === fonction
-                        ? 'bg-blue-100 text-blue-900 font-semibold'
-                        : 'hover:bg-blue-50 text-gray-700'
-                    }`}
+                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-3)'; }}
+                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                   >
-                    <div className="flex items-center justify-between">
-                      <span>{fonction}</span>
-                      {selectedFonction === fonction && (
-                        <span className="text-blue-600">✓</span>
-                      )}
-                    </div>
+                    {fonction}
+                    {isSelected && <Check size={13} color="var(--brand)" />}
                   </div>
-                ))
-              )}
+                );
+              })}
             </div>
-            
-            {/* Affichage de la sélection */}
+
+            {/* Selected fonction display */}
             {selectedFonction && (
-              <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-green-600 font-bold">✓</span>
-                  <span className="text-green-800">
-                    Sélectionné : <strong>{selectedFonction}</strong>
-                  </span>
-                </div>
+              <div style={{
+                marginTop: 6, padding: '7px 10px', borderRadius: 'var(--radius-2)',
+                background: 'var(--success-soft)', border: '1px solid var(--success)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12,
+              }}>
+                <span style={{ color: 'var(--success)', fontWeight: 500 }}>
+                  ✓ {selectedFonction}
+                </span>
                 <button
                   type="button"
                   onClick={() => setSelectedFonction('')}
-                  className="text-red-600 hover:text-red-800 text-xs font-medium"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontSize: 11 }}
                 >
-                  ✕ Annuler
+                  Annuler
                 </button>
               </div>
             )}
           </div>
 
+          {/* Error */}
           {error && (
-            <div className="bg-red-50 border border-red-300 text-red-700 p-3 rounded-lg text-sm">
+            <div style={{ padding: '8px 10px', borderRadius: 'var(--radius-2)', background: 'var(--danger-soft)', color: 'var(--danger)', fontSize: 12, border: '1px solid var(--danger)' }}>
               {error}
             </div>
           )}
 
-          {/* Boutons */}
-          <div className="flex gap-3 pt-4">
+          {/* Footer buttons */}
+          <div style={{ display: 'flex', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
             <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+              type="button" onClick={onClose}
+              style={{ flex: 1, height: 34, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 13, cursor: 'pointer' }}
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={!selectedUser || !selectedFonction}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+              style={{
+                flex: 1, height: 34, borderRadius: 'var(--radius-2)', border: 'none',
+                background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 500,
+                cursor: (!selectedUser || !selectedFonction) ? 'not-allowed' : 'pointer',
+                opacity: (!selectedUser || !selectedFonction) ? 0.5 : 1,
+              }}
             >
               Ajouter
             </button>
@@ -221,6 +224,4 @@ const AddMemberModal = ({ service, fonctions, onAdd, onClose }) => {
       </div>
     </div>
   );
-};
-
-export default AddMemberModal;
+}

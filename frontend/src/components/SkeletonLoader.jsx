@@ -1,60 +1,58 @@
 // Composant skeleton loader réutilisable
 
-const Pulse = ({ className = '' }) => (
-  <div className={`animate-pulse bg-gray-200 dark:bg-gray-700 rounded ${className}`} />
+const Pulse = ({ style = {} }) => (
+  <div className="animate-pulse" style={{ background: 'var(--surface-3)', borderRadius: 'var(--radius-2)', ...style }} />
 );
 
 /** Carte document (grid view) */
 export const DocumentCardSkeleton = () => (
-  <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm border border-gray-200 dark:border-dark-border flex flex-col">
-    <div className="p-4 border-b border-gray-200 dark:border-dark-border">
-      <div className="flex items-start justify-between mb-3">
-        <Pulse className="w-6 h-6 rounded" />
-        <Pulse className="w-20 h-5 rounded-full" />
+  <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-1)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: 16, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+        <Pulse style={{ width: 24, height: 24, borderRadius: 'var(--radius-2)' }} />
+        <Pulse style={{ width: 80, height: 20, borderRadius: 999 }} />
       </div>
-      <Pulse className="w-3/4 h-4 mb-2" />
-      <Pulse className="w-16 h-3 rounded-full" />
+      <Pulse style={{ width: '75%', height: 16, marginBottom: 8 }} />
+      <Pulse style={{ width: 64, height: 12, borderRadius: 999 }} />
     </div>
-    <div className="p-4 space-y-3 flex-grow">
-      <Pulse className="w-full h-3" />
-      <Pulse className="w-2/3 h-3" />
+    <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Pulse style={{ width: '100%', height: 12 }} />
+      <Pulse style={{ width: '66%', height: 12 }} />
     </div>
-    <div className="p-4 border-t border-gray-200 dark:border-dark-border flex gap-2">
-      <Pulse className="flex-1 h-9 rounded-lg" />
-      <Pulse className="w-9 h-9 rounded-lg" />
-      <Pulse className="w-9 h-9 rounded-lg" />
+    <div style={{ padding: 16, borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
+      <Pulse style={{ flex: 1, height: 36, borderRadius: 'var(--radius-2)' }} />
+      <Pulse style={{ width: 36, height: 36, borderRadius: 'var(--radius-2)' }} />
+      <Pulse style={{ width: 36, height: 36, borderRadius: 'var(--radius-2)' }} />
     </div>
   </div>
 );
 
 /** Grille de n cartes document */
 export const DocumentGridSkeleton = ({ count = 6 }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-    {Array.from({ length: count }).map((_, i) => (
-      <DocumentCardSkeleton key={i} />
-    ))}
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
+    {Array.from({ length: count }).map((_, i) => <DocumentCardSkeleton key={i} />)}
   </div>
 );
 
 /** Ligne tableau (list view) */
 export const DocumentRowSkeleton = () => (
   <tr>
-    <td className="px-6 py-4">
-      <div className="flex items-center gap-3">
-        <Pulse className="w-5 h-5 rounded" />
-        <div className="flex-1 space-y-1.5">
-          <Pulse className="w-2/3 h-3.5" />
-          <Pulse className="w-1/3 h-3" />
+    <td style={{ padding: '16px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Pulse style={{ width: 20, height: 20, borderRadius: 'var(--radius-2)' }} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Pulse style={{ width: '66%', height: 14 }} />
+          <Pulse style={{ width: '33%', height: 12 }} />
         </div>
       </div>
     </td>
-    <td className="px-6 py-4"><Pulse className="w-24 h-5 rounded-full" /></td>
-    <td className="px-6 py-4"><Pulse className="w-20 h-3" /></td>
-    <td className="px-6 py-4">
-      <div className="flex justify-end gap-2">
-        <Pulse className="w-7 h-7 rounded" />
-        <Pulse className="w-7 h-7 rounded" />
-        <Pulse className="w-7 h-7 rounded" />
+    <td style={{ padding: '16px 24px' }}><Pulse style={{ width: 96, height: 20, borderRadius: 999 }} /></td>
+    <td style={{ padding: '16px 24px' }}><Pulse style={{ width: 80, height: 12 }} /></td>
+    <td style={{ padding: '16px 24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <Pulse style={{ width: 28, height: 28, borderRadius: 'var(--radius-2)' }} />
+        <Pulse style={{ width: 28, height: 28, borderRadius: 'var(--radius-2)' }} />
+        <Pulse style={{ width: 28, height: 28, borderRadius: 'var(--radius-2)' }} />
       </div>
     </td>
   </tr>
@@ -62,42 +60,38 @@ export const DocumentRowSkeleton = () => (
 
 /** Table complète skeleton */
 export const DocumentTableSkeleton = ({ count = 8 }) => (
-  <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm border border-gray-200 dark:border-dark-border overflow-hidden">
-    <table className="min-w-full">
-      <thead className="bg-gray-50 dark:bg-dark-bg">
+  <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-1)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+    <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
+      <thead style={{ background: 'var(--surface-2)' }}>
         <tr>
           {['Document', 'Statut', 'Date', 'Actions'].map(h => (
-            <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase">{h}</th>
+            <th key={h} style={{ padding: '12px 24px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
           ))}
         </tr>
       </thead>
-      <tbody className="divide-y divide-gray-200 dark:divide-dark-border">
-        {Array.from({ length: count }).map((_, i) => (
-          <DocumentRowSkeleton key={i} />
-        ))}
+      <tbody>
+        {Array.from({ length: count }).map((_, i) => <DocumentRowSkeleton key={i} />)}
       </tbody>
     </table>
   </div>
 );
 
-/** Page entière centrée — pour les pages de grande taille */
+/** Page entière centrée */
 export const PageSkeleton = ({ rows = 5, title }) => (
-  <div className="w-full px-4 py-8 space-y-6">
-    {title && <Pulse className="w-56 h-8 mb-2" />}
-    <div className="bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border p-4 space-y-4">
-      <div className="flex gap-4">
-        <Pulse className="flex-1 h-10 rounded-lg" />
-        <Pulse className="w-40 h-10 rounded-lg" />
-        <Pulse className="w-32 h-10 rounded-lg" />
-      </div>
+  <div style={{ width: '100%', padding: '32px 16px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+    {title && <Pulse style={{ width: 224, height: 32, marginBottom: 8 }} />}
+    <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', border: '1px solid var(--border)', padding: 16, display: 'flex', gap: 16 }}>
+      <Pulse style={{ flex: 1, height: 40, borderRadius: 'var(--radius-2)' }} />
+      <Pulse style={{ width: 160, height: 40, borderRadius: 'var(--radius-2)' }} />
+      <Pulse style={{ width: 128, height: 40, borderRadius: 'var(--radius-2)' }} />
     </div>
-    <div className="space-y-3">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border p-4 flex items-center gap-4">
-          <Pulse className="w-8 h-8 rounded" />
-          <Pulse className="flex-1 h-4" />
-          <Pulse className="w-24 h-4" />
-          <Pulse className="w-20 h-4" />
+        <div key={i} style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', border: '1px solid var(--border)', padding: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <Pulse style={{ width: 32, height: 32, borderRadius: 'var(--radius-2)' }} />
+          <Pulse style={{ flex: 1, height: 16 }} />
+          <Pulse style={{ width: 96, height: 16 }} />
+          <Pulse style={{ width: 80, height: 16 }} />
         </div>
       ))}
     </div>

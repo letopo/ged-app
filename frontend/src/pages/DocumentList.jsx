@@ -4,18 +4,19 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import ReactDOM from 'react-dom';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI, formsAPI } from '../services/api';
+import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI, formsAPI, postesAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import WorkflowProgress from '../components/WorkflowProgress';
 import { DocumentGridSkeleton, DocumentTableSkeleton } from '../components/SkeletonLoader';
 import { StatusBadge } from '../utils/statusHelpers.jsx';
 import { useConfirm } from '../components/ConfirmModal';
-import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive, Star, Download, Shield, Settings, ChevronDown, GitBranch } from 'lucide-react';
+import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive, Star, Download, Shield, Settings, ChevronDown, GitBranch, Coffee } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
 import DocumentDiscussion from '../components/DocumentDiscussion';
 import { useFavorites } from '../hooks/useFavorites';
 import TemplatePermissionsModal from '../components/TemplatePermissionsModal';
+import MissionMealRatesModal from '../components/MissionMealRatesModal';
 
 const DocumentList = () => {
   const { user } = useAuth();
@@ -134,6 +135,8 @@ const DocumentList = () => {
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [publishedForms, setPublishedForms] = useState([]);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [showMissionMealModal, setShowMissionMealModal] = useState(false);
+  const [canManageMissionMeals, setCanManageMissionMeals] = useState(false);
 
   // Mapping icones par template
   const TEMPLATE_ICONS = {
@@ -208,6 +211,20 @@ const DocumentList = () => {
     loadDocuments(currentPage);
   }, [currentPage, searchTerm, filterStatus, filterCategory, filterDateFrom, filterDateTo]);
 
+  // Le bouton de réglage des indemnités de mission n'est visible que pour
+  // admin/superadmin ou un titulaire des postes comptable/dg (vérifié aussi côté serveur).
+  useEffect(() => {
+    if (['admin', 'superadmin'].includes(user?.role)) { setCanManageMissionMeals(true); return; }
+    postesAPI.getAll()
+      .then(res => {
+        const postes = res.data?.data || [];
+        const relevant = postes.filter(p => ['comptable', 'dg'].includes(p.code));
+        const isHolder = relevant.some(p => (p.holders || []).some(h => h.id === user?.id));
+        setCanManageMissionMeals(isHolder);
+      })
+      .catch(() => setCanManageMissionMeals(false));
+  }, [user?.id, user?.role]);
+
   const loadTemplatePermissions = async () => {
     try {
       const res = await templatePermissionsAPI.getMyTemplates();
@@ -279,14 +296,16 @@ const DocumentList = () => {
     setOmPreview(null);
     setOmSelections({});
 
-    // Ordre de mission : circuit construit côté serveur → on charge l'aperçu
-    // (postes + titulaires) au lieu de la sélection manuelle des validateurs.
-    if (document.category === 'Ordre de mission') {
+    // Ordre de mission / Pièce de caisse : circuit construit côté serveur → on charge
+    // l'aperçu (postes + titulaires) au lieu de la sélection manuelle des validateurs.
+    if (document.category === 'Ordre de mission' || document.category === 'Pièce de caisse') {
       setWorkflowTemplates([]);
       setAvailableUsers([]);
       setLoadingUsers(true);
       try {
-        const res = await workflowAPI.getOrdreMissionPreview(document.id);
+        const res = document.category === 'Ordre de mission'
+          ? await workflowAPI.getOrdreMissionPreview(document.id)
+          : await workflowAPI.getPieceDeCaisseChainPreview(document.id);
         const steps = res.data?.steps || [];
         setOmPreview({ steps });
         // Pré-remplir les postes à 1 titulaire
@@ -311,7 +330,7 @@ const DocumentList = () => {
       ]);
 
       const usersList = usersRes.data?.users || [];
-      setAvailableUsers(usersList.filter(u => ['validator', 'director', 'admin'].includes(u.role)));
+      setAvailableUsers(usersList.filter(u => ['validator', 'director', 'admin', 'superadmin'].includes(u.role)));
 
       const templates = templatesRes.data?.data || [];
       const filtered = templates.filter(t =>
@@ -340,7 +359,7 @@ const DocumentList = () => {
       try {
         const res = await usersAPI.getAll();
         const users = res.data?.users || [];
-        setReassignValidators(users.filter(u => ['validator', 'director', 'admin'].includes(u.role)));
+        setReassignValidators(users.filter(u => ['validator', 'director', 'admin', 'superadmin'].includes(u.role)));
       } catch (e) {
         toast.error('Erreur chargement des validateurs');
       }
@@ -388,9 +407,10 @@ const DocumentList = () => {
 
   const handleSubmitWorkflow = async () => {
     const isOM = documentToSubmit?.category === 'Ordre de mission';
+    const isPC = documentToSubmit?.category === 'Pièce de caisse';
 
     let workflowData;
-    if (isOM) {
+    if (isOM || isPC) {
       // Vérifier que chaque poste multi-titulaires a bien un titulaire choisi
       const steps = omPreview?.steps || [];
       const missing = steps.find(s => s.posteCode && !omSelections[s.posteCode]);
@@ -594,6 +614,10 @@ const DocumentList = () => {
     rejected:           { dot: 'var(--danger)',      label: 'Rejeté',        cls: 'ged-badge-danger'  },
     in_progress:        { dot: 'var(--brand)',       label: 'En cours',      cls: 'ged-badge-brand'   },
   };
+  const VISIBILITY_CFG = {
+    personal: { label: 'Personnel', cls: 'ged-badge-neutral' },
+    service:  { label: 'Service',   cls: 'ged-badge-brand'   },
+  };
   const btnPrimary = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 'var(--radius-2)', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', textDecoration: 'none' };
   const btnOutline = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, border: '1px solid var(--border)', cursor: 'pointer' };
   const btnDanger  = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 'var(--radius-2)', background: 'var(--danger-soft)', color: 'var(--danger)', fontSize: 13, border: '1px solid var(--danger-soft)', cursor: 'pointer' };
@@ -748,6 +772,11 @@ const DocumentList = () => {
                           </td>
                           <td style={tdStyle}>
                             {doc.category && <span className="ged-badge ged-badge-neutral" style={{ fontSize: 11 }}>{doc.category}</span>}
+                            {doc.visibility && (
+                              <span className={`ged-badge ${VISIBILITY_CFG[doc.visibility]?.cls || 'ged-badge-neutral'}`} style={{ fontSize: 11, marginLeft: 4 }}>
+                                {VISIBILITY_CFG[doc.visibility]?.label || doc.visibility}
+                              </span>
+                            )}
                           </td>
                           <td style={tdStyle}>
                             <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -843,10 +872,17 @@ const DocumentList = () => {
                         {doc.category ? `${doc.category} · ` : ''}{formatDate(doc.createdAt)}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.dot, display: 'inline-block' }} />
-                          {st.label}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                          <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.dot, display: 'inline-block' }} />
+                            {st.label}
+                          </span>
+                          {doc.visibility && (
+                            <span className={`ged-badge ${VISIBILITY_CFG[doc.visibility]?.cls || 'ged-badge-neutral'}`} style={{ fontSize: 11 }}>
+                              {VISIBILITY_CFG[doc.visibility]?.label || doc.visibility}
+                            </span>
+                          )}
+                        </div>
                         <button onClick={e => { e.stopPropagation(); toggleFav(doc.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFav(doc.id) ? '#FBBF24' : 'var(--fg-subtle)', padding: 0 }}>
                           <Star size={13} fill={isFav(doc.id) ? '#FBBF24' : 'none'} />
                         </button>
@@ -924,11 +960,18 @@ const DocumentList = () => {
               <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FilePlus size={14} color="var(--brand)" /> Nouveau document
               </h3>
-              {['admin','superadmin'].includes(user?.role) && (
-                <button onClick={() => setShowPermissionsModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4 }} title="Gérer les permissions">
-                  <Settings size={13} />
-                </button>
-              )}
+              <div style={{ display: 'flex', gap: 2 }}>
+                {['admin','superadmin'].includes(user?.role) && (
+                  <button onClick={() => setShowPermissionsModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4 }} title="Gérer les permissions">
+                    <Settings size={13} />
+                  </button>
+                )}
+                {canManageMissionMeals && (
+                  <button onClick={() => setShowMissionMealModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4 }} title="Indemnités de mission">
+                    <Coffee size={13} />
+                  </button>
+                )}
+              </div>
             </div>
             <div style={{ position: 'relative' }}>
               <Search size={12} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} />
@@ -1010,8 +1053,8 @@ const DocumentList = () => {
             <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
               <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>Document : <span style={{ fontWeight: 500 }}>{documentToSubmit?.title}</span></p>
 
-              {/* Ordre de mission : circuit auto + choix du titulaire si plusieurs */}
-              {documentToSubmit?.category === 'Ordre de mission' && (
+              {/* Ordre de mission / Pièce de caisse : circuit auto + choix du titulaire si plusieurs */}
+              {(documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse') && (
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>Circuit de validation</label>
                   {loadingUsers ? (
@@ -1065,7 +1108,7 @@ const DocumentList = () => {
                   </div>
                 </div>
               )}
-              <div style={{ display: documentToSubmit?.category === 'Ordre de mission' ? 'none' : undefined }}>
+              <div style={{ display: (documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse') ? 'none' : undefined }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>Sélectionnez les validateurs (dans l'ordre)</label>
                 {loadingUsers
                   ? <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}><Loader className="animate-spin" style={{ color: 'var(--brand)' }} /></div>
@@ -1146,8 +1189,8 @@ const DocumentList = () => {
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={handleCloseSubmitModal} disabled={submitLoading} style={{ padding: '7px 16px', background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
               {(() => {
-                const isOMSubmit = documentToSubmit?.category === 'Ordre de mission';
-                const submitDisabled = submitLoading || (isOMSubmit ? (!omPreview || !!omPreview.error) : selectedValidators.length === 0);
+                const isServerChainSubmit = documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse';
+                const submitDisabled = submitLoading || (isServerChainSubmit ? (!omPreview || !!omPreview.error) : selectedValidators.length === 0);
                 return (
               <button onClick={handleSubmitWorkflow} disabled={submitDisabled} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: submitDisabled ? 0.5 : 1 }}>
                 {submitLoading ? <><Loader className="animate-spin" size={14} />Soumission...</> : <><Send size={14} />Soumettre</>}
@@ -1240,6 +1283,10 @@ const DocumentList = () => {
       <TemplatePermissionsModal
         isOpen={showPermissionsModal}
         onClose={() => { setShowPermissionsModal(false); loadTemplatePermissions(); }}
+      />
+      <MissionMealRatesModal
+        isOpen={showMissionMealModal}
+        onClose={() => setShowMissionMealModal(false)}
       />
     </div>
   );

@@ -29,6 +29,10 @@ const storage = multer.diskStorage({
 
 // Filtre pour n'accepter que certains types de fichiers
 const fileFilter = (req, file, cb) => {
+  // Autoriser les réponses de formulaire HTML (blobs internes)
+  if (file.mimetype === 'application/x-form-response' || path.extname(file.originalname).toLowerCase() === '.form') {
+    return cb(null, true);
+  }
   const allowedTypes = /pdf|doc|docx|jpeg|jpg|png/;
   const mimetype = allowedTypes.test(file.mimetype);
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());

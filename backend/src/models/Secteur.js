@@ -34,7 +34,11 @@ const Secteur = sequelize.define('Secteur', {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
     field: 'is_active'
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'php_secteurs',
   timestamps: true,

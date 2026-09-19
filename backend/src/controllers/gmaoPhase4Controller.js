@@ -1,6 +1,7 @@
 // backend/src/controllers/gmaoPhase4Controller.js
 // Phase 4: Contrats, Pièces, Acquisitions, Budget
 import { Op } from 'sequelize';
+import sequelize from '../config/database.js';
 import Contrat from '../models/Contrat.js';
 import PieceRechange from '../models/PieceRechange.js';
 import MouvementPiece from '../models/MouvementPiece.js';
@@ -9,6 +10,7 @@ import BudgetLigne from '../models/BudgetLigne.js';
 import BudgetDepense from '../models/BudgetDepense.js';
 import Equipement from '../models/Equipement.js';
 import User from '../models/User.js';
+import { sanitizeBody } from '../utils/sanitizeBody.js';
 
 // ─── CONTRATS ─────────────────────────────────────────────────────────────────
 
@@ -41,7 +43,7 @@ export const getContrats = async (req, res) => {
 
 export const createContrat = async (req, res) => {
   try {
-    const contrat = await Contrat.create({ ...req.body, created_by: req.user?.id });
+    const contrat = await Contrat.create({ ...sanitizeBody(req.body), created_by: req.user?.id, tenantId: req.tenantId });
     res.status(201).json({ success: true, data: contrat });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -52,7 +54,7 @@ export const updateContrat = async (req, res) => {
   try {
     const contrat = await Contrat.findByPk(req.params.id);
     if (!contrat) return res.status(404).json({ success: false, message: 'Contrat introuvable' });
-    await contrat.update(req.body);
+    await contrat.update(sanitizeBody(req.body, ['created_by']));
     res.json({ success: true, data: contrat });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -101,7 +103,7 @@ export const getPieces = async (req, res) => {
 
 export const createPiece = async (req, res) => {
   try {
-    const piece = await PieceRechange.create(req.body);
+    const piece = await PieceRechange.create({ ...sanitizeBody(req.body), tenantId: req.tenantId });
     res.status(201).json({ success: true, data: piece });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -112,7 +114,7 @@ export const updatePiece = async (req, res) => {
   try {
     const piece = await PieceRechange.findByPk(req.params.id);
     if (!piece) return res.status(404).json({ success: false, message: 'Pièce introuvable' });
-    await piece.update(req.body);
+    await piece.update(sanitizeBody(req.body));
     res.json({ success: true, data: piece });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -161,38 +163,51 @@ export const getMouvements = async (req, res) => {
 
 export const createMouvement = async (req, res) => {
   try {
-    const { piece_id, type, quantite, date, motif, prix_unitaire, intervention_id } = req.body;
+    const { piece_id, type, quantite, date, motif } = req.body;
+    const prix_unitaire = req.body.prix_unitaire === '' ? null : req.body.prix_unitaire;
+    const intervention_id = req.body.intervention_id === '' ? null : req.body.intervention_id;
     if (!piece_id || !type || !quantite || !date) {
       return res.status(400).json({ success: false, message: 'piece_id, type, quantite, date requis' });
     }
 
-    const piece = await PieceRechange.findByPk(piece_id);
-    if (!piece) return res.status(404).json({ success: false, message: 'Pièce introuvable' });
-
-    // Update stock
-    let newStock = piece.quantite_stock;
-    if (type === 'entree' || type === 'retour') newStock += parseInt(quantite);
-    else if (type === 'sortie') {
-      if (piece.quantite_stock < parseInt(quantite)) {
-        return res.status(400).json({ success: false, message: 'Stock insuffisant' });
+    // Transaction + verrou de ligne : évite qu'un mouvement concurrent lise
+    // le même quantite_stock avant que l'autre n'ait écrit (write skew).
+    const result = await sequelize.transaction(async (t) => {
+      const piece = await PieceRechange.findByPk(piece_id, { transaction: t, lock: t.LOCK.UPDATE });
+      if (!piece) {
+        const err = new Error('Pièce introuvable');
+        err.statusCode = 404;
+        throw err;
       }
-      newStock -= parseInt(quantite);
-    } else if (type === 'ajustement') {
-      newStock = parseInt(quantite); // absolute value for adjustment
-    }
 
-    await piece.update({ quantite_stock: newStock });
+      let newStock = piece.quantite_stock;
+      if (type === 'entree' || type === 'retour') newStock += parseInt(quantite);
+      else if (type === 'sortie') {
+        if (piece.quantite_stock < parseInt(quantite)) {
+          const err = new Error('Stock insuffisant');
+          err.statusCode = 400;
+          throw err;
+        }
+        newStock -= parseInt(quantite);
+      } else if (type === 'ajustement') {
+        newStock = parseInt(quantite); // absolute value for adjustment
+      }
 
-    const mouvement = await MouvementPiece.create({
-      piece_id, type,
-      quantite: parseInt(quantite),
-      date, motif, prix_unitaire, intervention_id,
-      created_by: req.user?.id,
+      await piece.update({ quantite_stock: newStock }, { transaction: t });
+
+      const mouvement = await MouvementPiece.create({
+        piece_id, type,
+        quantite: parseInt(quantite),
+        date, motif, prix_unitaire, intervention_id,
+        created_by: req.user?.id, tenantId: req.tenantId,
+      }, { transaction: t });
+
+      return { mouvement, newStock };
     });
 
-    res.status(201).json({ success: true, data: { mouvement, newStock } });
+    res.status(201).json({ success: true, data: result });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(err.statusCode || 400).json({ success: false, message: err.message });
   }
 };
 
@@ -226,11 +241,12 @@ export const createAcquisition = async (req, res) => {
     const count = await DemandeAcquisition.count();
     const reference = `ACQ-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
     const acquisition = await DemandeAcquisition.create({
-      ...req.body,
+      ...sanitizeBody(req.body),
       reference,
       date_demande: req.body.date_demande || new Date().toISOString().split('T')[0],
       demandeur_id: req.user?.id,
       demandeur_nom: req.body.demandeur_nom || `${req.user?.firstName || ''} ${req.user?.lastName || ''}`.trim(),
+      tenantId: req.tenantId,
     });
     res.status(201).json({ success: true, data: acquisition });
   } catch (err) {
@@ -244,7 +260,7 @@ export const updateAcquisition = async (req, res) => {
     if (!acq) return res.status(404).json({ success: false, message: 'Demande introuvable' });
 
     // Auto-set dates based on statut changes
-    const updates = { ...req.body };
+    const updates = sanitizeBody(req.body, ['demandeur_id', 'reference']);
     const today = new Date().toISOString().split('T')[0];
     if (updates.statut === 'approuvee' && !acq.date_approbation) updates.date_approbation = today;
     if (updates.statut === 'commandee' && !acq.date_commande) updates.date_commande = today;
@@ -287,7 +303,7 @@ export const getBudget = async (req, res) => {
 
 export const createBudgetLigne = async (req, res) => {
   try {
-    const ligne = await BudgetLigne.create({ ...req.body, created_by: req.user?.id });
+    const ligne = await BudgetLigne.create({ ...sanitizeBody(req.body), created_by: req.user?.id, tenantId: req.tenantId });
     res.status(201).json({ success: true, data: ligne });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -307,7 +323,7 @@ export const deleteBudgetLigne = async (req, res) => {
 
 export const createBudgetDepense = async (req, res) => {
   try {
-    const depense = await BudgetDepense.create({ ...req.body, created_by: req.user?.id });
+    const depense = await BudgetDepense.create({ ...sanitizeBody(req.body), created_by: req.user?.id, tenantId: req.tenantId });
     res.status(201).json({ success: true, data: depense });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -332,45 +348,54 @@ export const migrateBudget = async (req, res) => {
     const { annee, lignes = [], achats = [], factures = [] } = req.body;
     if (!annee) return res.status(400).json({ success: false, message: 'annee requis' });
 
-    // Clear existing data for this year before reimporting
-    await BudgetLigne.destroy({ where: { annee } });
-    await BudgetDepense.destroy({ where: { annee } });
-
-    // Import lignes
-    if (lignes.length > 0) {
-      await BudgetLigne.bulkCreate(lignes.map(l => ({
-        annee, categorie: l.categorie, montant: parseFloat(l.montant) || 0,
-        description: l.description || null, created_by: req.user?.id
-      })));
+    // Payload vide = très probablement une erreur d'appel : on refuse plutôt
+    // que d'effacer silencieusement tout l'historique budgétaire de l'année.
+    if (lignes.length === 0 && achats.length === 0 && factures.length === 0) {
+      return res.status(400).json({ success: false, message: 'Aucune donnée à migrer : payload vide refusé pour éviter un effacement accidentel.' });
     }
 
-    // Import achats
-    if (achats.length > 0) {
-      await BudgetDepense.bulkCreate(achats.map(a => ({
-        annee, type: 'achat',
-        date: a.date || new Date().toISOString().split('T')[0],
-        description: a.description, categorie: a.categorie,
-        montant: parseFloat(a.montant) || 0, fournisseur: a.fournisseur || null,
-        created_by: req.user?.id
-      })));
-    }
+    const totalImported = await sequelize.transaction(async (t) => {
+      // Clear existing data for this year before reimporting
+      await BudgetLigne.destroy({ where: { annee }, transaction: t });
+      await BudgetDepense.destroy({ where: { annee }, transaction: t });
 
-    // Import factures
-    if (factures.length > 0) {
-      await BudgetDepense.bulkCreate(factures.map(f => ({
-        annee, type: 'facture',
-        date: f.date_facture || new Date().toISOString().split('T')[0],
-        description: f.prestataire, fournisseur: f.prestataire,
-        numero_facture: f.numero || null,
-        montant: parseFloat(f.montant_ttc) || 0,
-        montant_ht: parseFloat(f.montant_ht) || null,
-        tva: parseFloat(f.tva) || null,
-        statut_facture: f.statut || 'en_attente',
-        created_by: req.user?.id
-      })));
-    }
+      // Import lignes
+      if (lignes.length > 0) {
+        await BudgetLigne.bulkCreate(lignes.map(l => ({
+          annee, categorie: l.categorie, montant: parseFloat(l.montant) || 0,
+          description: l.description || null, created_by: req.user?.id, tenantId: req.tenantId
+        })), { transaction: t });
+      }
 
-    const totalImported = lignes.length + achats.length + factures.length;
+      // Import achats
+      if (achats.length > 0) {
+        await BudgetDepense.bulkCreate(achats.map(a => ({
+          annee, type: 'achat',
+          date: a.date || new Date().toISOString().split('T')[0],
+          description: a.description, categorie: a.categorie,
+          montant: parseFloat(a.montant) || 0, fournisseur: a.fournisseur || null,
+          created_by: req.user?.id, tenantId: req.tenantId
+        })), { transaction: t });
+      }
+
+      // Import factures
+      if (factures.length > 0) {
+        await BudgetDepense.bulkCreate(factures.map(f => ({
+          annee, type: 'facture',
+          date: f.date_facture || new Date().toISOString().split('T')[0],
+          description: f.prestataire, fournisseur: f.prestataire,
+          numero_facture: f.numero || null,
+          montant: parseFloat(f.montant_ttc) || 0,
+          montant_ht: parseFloat(f.montant_ht) || null,
+          tva: parseFloat(f.tva) || null,
+          statut_facture: f.statut || 'en_attente',
+          created_by: req.user?.id, tenantId: req.tenantId
+        })), { transaction: t });
+      }
+
+      return lignes.length + achats.length + factures.length;
+    });
+
     res.json({ success: true, message: `Migration OK : ${totalImported} entrées importées pour ${annee}` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

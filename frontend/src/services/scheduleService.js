@@ -204,17 +204,17 @@ const scheduleService = {
   /**
    * Obtenir la couleur du badge de statut
    */
-  getStatusColor: (status) => {
-    const colors = {
-      'draft': 'bg-gray-100 text-gray-800',
-      'pending_dds': 'bg-blue-100 text-blue-800',
-      'pending_medical': 'bg-purple-100 text-purple-800',
-      'pending_dg': 'bg-yellow-100 text-yellow-800',
-      'approved': 'bg-green-100 text-green-800',
-      'rejected': 'bg-red-100 text-red-800',
-      'archived': 'bg-gray-100 text-gray-600'
+  getStatusStyle: (status) => {
+    const styles = {
+      'draft':           { background: 'var(--surface-2)',    color: 'var(--fg-muted)'  },
+      'pending_dds':     { background: 'var(--brand-soft)',   color: 'var(--brand)'     },
+      'pending_medical': { background: 'rgba(139,92,246,0.12)', color: '#7c3aed'        },
+      'pending_dg':      { background: 'var(--warning-soft)', color: 'var(--warning)'   },
+      'approved':        { background: 'var(--success-soft)', color: 'var(--success)'   },
+      'rejected':        { background: 'var(--danger-soft)',  color: 'var(--danger)'    },
+      'archived':        { background: 'var(--surface-2)',    color: 'var(--fg-subtle)' },
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return styles[status] || { background: 'var(--surface-2)', color: 'var(--fg-muted)' };
   },
   
   /**

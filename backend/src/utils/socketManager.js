@@ -1,6 +1,7 @@
 // backend/src/utils/socketManager.js
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import os from 'os';
 
 let io = null;
 const userSockets = new Map(); // Map<userId, Set<socketId>>
@@ -11,15 +12,26 @@ const userSockets = new Map(); // Map<userId, Set<socketId>>
 export const initializeSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: [
-        'http://localhost',
-        'http://localhost:80',
-        'http://localhost:3001',
-        'http://localhost:5173',
-        'http://192.168.1.186',
-        process.env.CORS_ORIGIN
-      ].filter(Boolean),
-      credentials: true
+      // Même logique que server.js : accepte toutes les IPs privées
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        try {
+          const host = new URL(origin).hostname;
+          const isPrivate = (
+            /^192\.168\.\d+\.\d+$/.test(host) ||
+            /^10\.\d+\.\d+\.\d+$/.test(host) ||
+            /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host) ||
+            host === 'localhost' || host === '127.0.0.1'
+          );
+          if (isPrivate) return callback(null, true);
+          // Domaines fixes
+          const fixed = ['ged.hsjm.net', process.env.CORS_ORIGIN].filter(Boolean);
+          if (fixed.some(d => origin.includes(d))) return callback(null, true);
+        } catch (_) {}
+        callback(null, true); // Socket.IO tolère plus largement que HTTP
+      },
+      credentials: true,
+      methods: ['GET', 'POST']
     }
   });
 
@@ -53,7 +65,15 @@ export const initializeSocket = (server) => {
     userSockets.set(userId, new Set());
   }
   userSockets.get(userId).add(socket.id);
-  
+
+  // Première connexion de cet utilisateur → notifier tout le monde
+  if (userSockets.get(userId).size === 1) {
+    io.emit('user:online', { userId });
+  }
+
+  // Envoyer la liste des utilisateurs en ligne au nouveau connecté
+  socket.emit('users:online', { userIds: Array.from(userSockets.keys()) });
+
   console.log(`🔌 User ${userId} connecté (Socket: ${socket.id})`);
   console.log(`📊 Total connexions actives: ${io.engine.clientsCount}`);
 
@@ -134,6 +154,32 @@ export const initializeSocket = (server) => {
   });
 
   // ============================================
+  // GESTIONNAIRES CHAT
+  // ============================================
+
+  socket.on('chat:join', (conversationId) => {
+    if (typeof conversationId === 'string' && conversationId.length < 100) {
+      socket.join(`conv:${conversationId}`);
+    }
+  });
+
+  socket.on('chat:leave', (conversationId) => {
+    if (typeof conversationId === 'string') {
+      socket.leave(`conv:${conversationId}`);
+    }
+  });
+
+  socket.on('chat:typing', ({ conversationId }) => {
+    if (typeof conversationId === 'string' && conversationId.length < 100) {
+      socket.to(`conv:${conversationId}`).emit('chat:typing', {
+        userId,
+        conversationId,
+        timestamp: Date.now(),
+      });
+    }
+  });
+
+  // ============================================
   // GESTIONNAIRES EXISTANTS
   // ============================================
 
@@ -144,6 +190,7 @@ export const initializeSocket = (server) => {
       userSocketSet.delete(socket.id);
       if (userSocketSet.size === 0) {
         userSockets.delete(userId);
+        io.emit('user:offline', { userId });
       }
     }
     console.log(`🔌 User ${userId} déconnecté (Socket: ${socket.id})`);
@@ -249,6 +296,18 @@ export const getSocketStats = () => {
 };
 
 export const getIO = () => io;
+
+/**
+ * Notifie un utilisateur que ses droits d'accès ont changé.
+ * Le frontend écoute 'rights_changed' et recharge le profil.
+ */
+export const emitRightsChanged = (targetUserId, details = {}) => {
+  if (!io) return;
+  io.to(`user:${targetUserId}`).emit('rights_changed', {
+    timestamp: new Date().toISOString(),
+    ...details,
+  });
+};
 
 export default {
   initializeSocket,

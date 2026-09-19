@@ -4,6 +4,12 @@
 
 import { Infirmerie, Secteur } from '../models/index.js';
 
+// Ce seeder tourne au démarrage de l'app, hors d'une requête HTTP — le hook
+// global CLS qui injecte tenantId automatiquement n'a donc pas de contexte
+// tenant actif ici (il ne s'active que via le middleware resolveTenant sur
+// une vraie requête). On force explicitement le tenant par défaut.
+const HSJM_TENANT_ID = 'a1b2c3d4-e5f6-4a7b-8c9d-e0f1a2b3c4d5';
+
 const INFIRMERIES = [
   { code: 'INF_NYOMBE',   nom: 'Infirmerie Nyombe',        localisation: 'NYOMBE' },
   { code: 'INF_BOUBA',    nom: 'Infirmerie Bouba',         localisation: 'BOUBA' },
@@ -105,7 +111,7 @@ const seedPHPData = async () => {
     // Créer les infirmeries
     const infirmeriesCreees = {};
     for (const inf of INFIRMERIES) {
-      const created = await Infirmerie.create(inf);
+      const created = await Infirmerie.create({ ...inf, tenantId: HSJM_TENANT_ID });
       infirmeriesCreees[inf.code] = created.id;
     }
     console.log(`  ✅ ${INFIRMERIES.length} infirmeries créées.`);
@@ -122,7 +128,8 @@ const seedPHPData = async () => {
       await Secteur.create({
         code: `SEC_${code}`,
         nom: s.nom,
-        infirmerieId: infId
+        infirmerieId: infId,
+        tenantId: HSJM_TENANT_ID,
       });
       secteursCount++;
     }

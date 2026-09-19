@@ -7,7 +7,7 @@
 // soumetteur choisit le titulaire à la soumission (selections[posteCode]).
 
 import { OrdreMissionType, Poste } from '../models/index.js';
-import { getPosteHolders } from './posteResolver.js';
+import { getPosteHoldersForAssignment } from './posteResolver.js';
 
 const fullName = (u) => `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
 
@@ -41,7 +41,7 @@ export async function resolveOrdreMissionChain(document, selections = {}) {
   const labelByCode = Object.fromEntries(posteRecords.map(p => [p.code, p.label]));
 
   const addPosteStep = async (code) => {
-    const holders = await getPosteHolders(code);
+    const holders = await getPosteHoldersForAssignment(code);
     if (holders.length === 0) {
       return `Aucun titulaire pour le poste « ${labelByCode[code] || code} ». Assignez-en un dans Admin → Postes & Fonctions.`;
     }

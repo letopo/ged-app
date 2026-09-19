@@ -1,228 +1,134 @@
-// frontend/src/components/Calendar.jsx - VERSION AVEC NAVIGATION MOIS & JOURS FÉRIÉS CAMEROUNAIS
+// frontend/src/components/Calendar.jsx
 import React, { useState, useEffect } from 'react';
 import { calendarAPI } from '../services/api';
-import { Calendar as CalendarIcon, Flag, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Flag, ChevronLeft, ChevronRight, Loader } from 'lucide-react';
 import { isHoliday, getHolidayColor } from '../utils/cameroonHolidays';
 
-const Calendar = ({ month: initialMonth, year: initialYear }) => {
+// Permission dot colors (CSS-var based)
+const DOT_COLORS = ['#1B3A6B','#1A7A4A','#8A2BE2','#E07B00','#C0392B','#1557A0','#00897B','#D32F2F'];
+
+export default function Calendar({ month: initialMonth, year: initialYear }) {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
-  const [currentYear, setCurrentYear] = useState(initialYear);
-  const [permissions, setPermissions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [currentYear,  setCurrentYear]  = useState(initialYear);
+  const [permissions,  setPermissions]  = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(null);
 
-  // Navigation mois
-  const goToPrevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(prev => prev - 1);
-    } else {
-      setCurrentMonth(prev => prev - 1);
-    }
-  };
-
-  const goToNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(prev => prev + 1);
-    } else {
-      setCurrentMonth(prev => prev + 1);
-    }
-  };
-
-  const goToToday = () => {
-    const now = new Date();
-    setCurrentMonth(now.getMonth());
-    setCurrentYear(now.getFullYear());
-  };
-
-  // Alias pour compatibilité avec le code existant
   const month = currentMonth;
-  const year = currentYear;
+  const year  = currentYear;
 
-  useEffect(() => {
-    loadPermissions();
-  }, [month, year]);
+  const goToPrevMonth = () => {
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
+    else setCurrentMonth(m => m - 1);
+  };
+  const goToNextMonth = () => {
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
+    else setCurrentMonth(m => m + 1);
+  };
+  const goToToday = () => { const n = new Date(); setCurrentMonth(n.getMonth()); setCurrentYear(n.getFullYear()); };
+
+  useEffect(() => { loadPermissions(); }, [month, year]);
 
   const loadPermissions = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
+      setLoading(true); setError(null);
       const startDate = new Date(year, month, 1);
-      const endDate = new Date(year, month + 1, 0);
-      
+      const endDate   = new Date(year, month + 1, 0);
       const response = await calendarAPI.getPermissions(
         startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0]
+        endDate.toISOString().split('T')[0],
       );
-      
       setPermissions(response.data.data || []);
-    } catch (error) {
-      console.error('Erreur chargement permissions:', error);
+    } catch {
       setError('Erreur de chargement');
     } finally {
       setLoading(false);
     }
   };
 
-  const getDaysInMonth = () => {
-    return new Date(year, month + 1, 0).getDate();
-  };
+  const getDaysInMonth = () => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = () => new Date(year, month, 1).getDay();
+  const getMonthName = () => new Date(year, month, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const isSunday = (day) => new Date(year, month, day).getDay() === 0;
 
-  const getFirstDayOfMonth = () => {
-    // getDay() retourne 0 pour dimanche, 1 pour lundi...
-    return new Date(year, month, 1).getDay();
-  };
-
-  const getMonthName = () => {
-    const date = new Date(year, month, 1);
-    return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-  };
-
-  const isDateInRange = (day, permission) => {
+  const isDateInRange = (day, perm) => {
     try {
-      const currentDate = new Date(year, month, day);
-      const startDate = new Date(permission.dateDebut);
-      const endDate = new Date(permission.dateFin);
-      
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        return false;
-      }
-      
-      // Réinitialiser les heures pour une comparaison jour-par-jour
-      currentDate.setHours(0, 0, 0, 0);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(0, 0, 0, 0);
-      
-      return currentDate >= startDate && currentDate <= endDate;
-    } catch (error) {
-      console.error('Erreur comparaison dates:', error);
-      return false;
-    }
+      const cur   = new Date(year, month, day);
+      const start = new Date(perm.dateDebut);
+      const end   = new Date(perm.dateFin);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return false;
+      cur.setHours(0,0,0,0); start.setHours(0,0,0,0); end.setHours(0,0,0,0);
+      return cur >= start && cur <= end;
+    } catch { return false; }
   };
 
-  const getPermissionsForDay = (day) => {
-    return permissions.filter(permission => isDateInRange(day, permission));
-  };
-
-  const getColorForPermission = (index) => {
-    // Les couleurs des points de permission n'ont pas de dark: variant ici
-    const colors = [
-      'bg-blue-500',
-      'bg-green-500',
-      'bg-purple-500',
-      'bg-orange-500',
-      'bg-pink-500',
-      'bg-indigo-500',
-      'bg-teal-500',
-      'bg-red-500',
-    ];
-    return colors[index % colors.length];
-  };
-
-  const getRequesterName = (permission) => {
-    if (permission.metadata?.nomsDemandeur) {
-      return permission.metadata.nomsDemandeur;
-    }
-    if (permission.uploadedBy) {
-      return `${permission.uploadedBy.firstName || ''} ${permission.uploadedBy.lastName || ''}`.trim();
-    }
+  const getPermissionsForDay = (day) => permissions.filter(p => isDateInRange(day, p));
+  const getRequesterName = (perm) => {
+    if (perm.metadata?.nomsDemandeur) return perm.metadata.nomsDemandeur;
+    if (perm.uploadedBy) return `${perm.uploadedBy.firstName || ''} ${perm.uploadedBy.lastName || ''}`.trim();
     return 'N/A';
   };
 
-  // Vérifier si c'est un dimanche
-  const isSunday = (day) => {
-    const date = new Date(year, month, day);
-    return date.getDay() === 0;
-  };
+  const today = new Date();
 
-  const renderCalendarDays = () => {
+  const renderDays = () => {
     const daysInMonth = getDaysInMonth();
-    const firstDay = getFirstDayOfMonth();
-    // Le getDay() de JS est 0=Dimanche, 1=Lundi... donc on utilise l'index directement
+    const firstDay    = getFirstDayOfMonth();
     const days = [];
 
-    // Cases vides avant le 1er du mois
     for (let i = 0; i < firstDay; i++) {
-      // Styles Dark Mode pour les cases vides
       days.push(
-        <div key={`empty-${i}`} className="h-24 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border"></div>
+        <div key={`e${i}`} style={{ height: 64, background: 'var(--surface-2)', border: '1px solid var(--border)' }} />
       );
     }
 
-    // Jours du mois
     for (let day = 1; day <= daysInMonth; day++) {
-      const dayPermissions = getPermissionsForDay(day);
-      const today = new Date();
-      const isToday = today.getDate() === day && 
-                      today.getMonth() === month && 
-                      today.getFullYear() === year;
+      const dayPerms = getPermissionsForDay(day);
+      const isToday  = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
+      const holiday  = isHoliday(year, month, day);
+      const isSun    = isSunday(day);
 
-      // Vérifier si c'est un jour férié
-      const holiday = isHoliday(year, month, day);
-      const isSundayDay = isSunday(day);
+      let bg     = 'var(--surface)';
+      let border = '1px solid var(--border)';
+      let numColor = 'var(--fg)';
 
-      // Classes CSS dynamiques selon le type de jour
-      let dayClasses = 'h-24 border border-gray-200 dark:border-dark-border p-2 relative transition-all hover:shadow-md';
-      let numberClasses = 'text-sm font-semibold';
-      
       if (isToday) {
-        // Aujourd'hui (bleu)
-        dayClasses += ' bg-blue-50 border-blue-400 border-2 ring-2 ring-blue-200 dark:bg-blue-900/20 dark:border-blue-700 dark:ring-blue-700/50';
-        numberClasses += ' text-blue-600 dark:text-blue-400';
+        bg = 'var(--brand-soft)'; border = '2px solid var(--brand)'; numColor = 'var(--brand)';
       } else if (holiday) {
-        // Jours fériés (utilise la fonction getHolidayColor)
-        const holidayColorClass = getHolidayColor(holiday.type); // Ex: bg-red-50 border-red-200
         const isCivil = holiday.type === 'civil';
-        const darkColorClass = isCivil ? 'bg-red-900/10 border-red-700' : 'bg-green-900/10 border-green-700'; // Simplifié pour le Dark Mode
-        
-        dayClasses += ` ${holidayColorClass} border-2 dark:${darkColorClass}`;
-        numberClasses += ' text-red-600 dark:text-red-400';
-      } else if (isSundayDay) {
-        // Dimanche (rouge clair)
-        dayClasses += ' bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-700';
-        numberClasses += ' text-red-500 dark:text-red-400';
-      } else {
-        // Jours normaux (blanc/surface)
-        dayClasses += ' bg-white dark:bg-dark-surface';
-        numberClasses += ' text-gray-700 dark:text-dark-text';
+        bg = isCivil ? '#FFF1F0' : '#F0FFF4';
+        border = `1px solid ${isCivil ? '#FFCCC7' : '#B7EB8F'}`;
+        numColor = 'var(--danger)';
+      } else if (isSun) {
+        bg = '#FFF2F0'; border = '1px solid #FFCCC7'; numColor = 'var(--danger)';
       }
 
       days.push(
-        <div key={day} className={dayClasses}>
-          {/* En-tête du jour */}
-          <div className="flex items-center justify-between mb-1">
-            <div className={numberClasses}>
-              {day}
-            </div>
-            
-            {/* Icône pour les jours fériés */}
-            {holiday && (
-              <Flag className="w-3 h-3 text-red-600 dark:text-red-400" title={holiday.title} />
-            )}
+        <div
+          key={day}
+          style={{
+            height: 64, padding: '4px 5px',
+            background: bg, border, position: 'relative',
+            transition: 'box-shadow .12s',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: numColor }}>{day}</span>
+            {holiday && <Flag size={9} color="var(--danger)" title={holiday.title} />}
           </div>
-
-          {/* Nom du jour férié */}
           {holiday && (
-            <div className="text-[9px] font-semibold text-red-700 dark:text-red-300 mb-1 leading-tight">
+            <div style={{ fontSize: 8, color: 'var(--danger)', fontWeight: 600, lineHeight: 1.2, marginTop: 1 }}>
               🇨🇲 {holiday.title}
             </div>
           )}
-
-          {/* Points des permissions */}
-          <div className="flex flex-wrap gap-1">
-            {dayPermissions.map((permission, index) => {
-              const userName = getRequesterName(permission);
-              
-              return (
-                <div
-                  key={`${permission.id}-${index}`}
-                  className={`w-2 h-2 rounded-full ${getColorForPermission(index)}`}
-                  title={`${userName} - ${permission.title || 'Permission'}`}
-                ></div>
-              );
-            })}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 2 }}>
+            {dayPerms.map((perm, idx) => (
+              <div
+                key={`${perm.id}-${idx}`}
+                title={`${getRequesterName(perm)} — ${perm.title || 'Permission'}`}
+                style={{ width: 6, height: 6, borderRadius: '50%', background: DOT_COLORS[idx % DOT_COLORS.length] }}
+              />
+            ))}
           </div>
         </div>
       );
@@ -231,119 +137,104 @@ const Calendar = ({ month: initialMonth, year: initialYear }) => {
     return days;
   };
 
-  if (error) {
-    return (
-      // Support Dark Mode pour le message d'erreur
-      <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm dark:shadow-none border border-gray-200 dark:border-dark-border p-4">
-        <p className="text-red-600 dark:text-red-400 text-sm">Erreur de chargement du calendrier</p>
-      </div>
-    );
-  }
+  const navBtn = {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 28, height: 28, borderRadius: 'var(--radius-2)',
+    border: '1px solid var(--border)', background: 'transparent',
+    color: 'var(--fg-muted)', cursor: 'pointer', transition: 'background .12s',
+  };
+
+  if (error) return (
+    <div style={{ padding: 16, fontSize: 12, color: 'var(--danger)' }}>Erreur de chargement du calendrier</div>
+  );
 
   return (
-    // Support Dark Mode pour le conteneur principal
-    <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm dark:shadow-none border border-gray-200 dark:border-dark-border p-4">
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={goToPrevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition">
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-2">
-          <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text capitalize">{getMonthName()}</h3>
-          <button onClick={goToToday} className="ml-1 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition">
-            Aujourd'hui
+    <div style={{ padding: 14, height: '100%', display: 'flex', flexDirection: 'column' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <button style={navBtn} onClick={goToPrevMonth}><ChevronLeft size={14} /></button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <CalendarIcon size={14} color="var(--brand)" />
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', textTransform: 'capitalize' }}>
+            {getMonthName()}
+          </span>
+          <button
+            onClick={goToToday}
+            style={{
+              height: 18, padding: '0 6px', borderRadius: 999, border: '1px solid var(--brand)',
+              background: 'var(--brand-soft)', color: 'var(--brand)',
+              fontSize: 10, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            Auj.
           </button>
         </div>
-        <button onClick={goToNextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition">
-          <ChevronRight className="w-5 h-5" />
-        </button>
+
+        <button style={navBtn} onClick={goToNextMonth}><ChevronRight size={14} /></button>
       </div>
 
+      {/* Day names */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 2 }}>
+        {['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'].map((d, i) => (
+          <div key={d} style={{
+            textAlign: 'center', fontSize: 10, fontWeight: 600, padding: '3px 0',
+            color: i === 0 ? 'var(--danger)' : 'var(--fg-subtle)',
+          }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Grid */}
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Loader size={20} color="var(--fg-subtle)" className="animate-spin" />
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-7 gap-0 mb-2">
-            {/* Jours de la semaine - Support Dark Mode pour le texte */}
-            {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map((day, index) => (
-              <div 
-                key={day} 
-                className={`text-center text-xs font-semibold py-2 ${
-                  index === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-dark-text-secondary'
-                }`}
-              >
-                {day}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1 }}>
+          {renderDays()}
+        </div>
+      )}
+
+      {/* Legend */}
+      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 12px', marginBottom: permissions.length ? 8 : 0 }}>
+          {[
+            { bg: '#FFF1F0', border: '#FFCCC7', label: 'Jours fériés civils' },
+            { bg: '#F0FFF4', border: '#B7EB8F', label: 'Fête Nationale' },
+            { bg: '#F9F0FF', border: '#D3ADF7', label: 'Fériés chrétiens' },
+            { bg: '#E6FFFB', border: '#87E8DE', label: 'Fériés musulmans' },
+          ].map(item => (
+            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: item.bg, border: `1px solid ${item.border}`, flexShrink: 0 }} />
+              <span style={{ fontSize: 10, color: 'var(--fg-muted)' }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {permissions.length > 0 && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)', marginBottom: 4 }}>
+              Permissions en cours :
+            </div>
+            {permissions.slice(0, 3).map((perm, idx) => (
+              <div key={perm.id} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: DOT_COLORS[idx % DOT_COLORS.length], flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: 'var(--fg-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {getRequesterName(perm)} — {new Date(perm.dateDebut).toLocaleDateString('fr-FR')} au {new Date(perm.dateFin).toLocaleDateString('fr-FR')}
+                </span>
               </div>
             ))}
-          </div>
-          
-          <div className="grid grid-cols-7 gap-0">
-            {renderCalendarDays()}
-          </div>
-
-          {/* Légende - Support Dark Mode */}
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-dark-border">
-            <h4 className="text-sm font-semibold text-gray-700 dark:text-dark-text mb-3 flex items-center gap-2">
-              <Flag className="w-4 h-4" />
-              Légende :
-            </h4>
-            
-            {/* Légende des types de jours - Support Dark Mode pour le texte et les couleurs des blocs */}
-            <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-100 border-2 border-red-300 dark:bg-red-900/30 dark:border-red-700 rounded"></div>
-                <span className="text-gray-700 dark:text-dark-text">Jours fériés civils</span>
+            {permissions.length > 3 && (
+              <div style={{ fontSize: 10, color: 'var(--fg-subtle)', fontStyle: 'italic' }}>
+                … et {permissions.length - 3} autre(s)
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-100 border-2 border-green-300 dark:bg-green-900/30 dark:border-green-700 rounded"></div>
-                <span className="text-gray-700 dark:text-dark-text">Fête Nationale</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-purple-100 border-2 border-purple-300 dark:bg-purple-900/30 dark:border-purple-700 rounded"></div>
-                <span className="text-gray-700 dark:text-dark-text">Fériés chrétiens</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-teal-100 border-2 border-teal-300 dark:bg-teal-900/30 dark:border-teal-700 rounded"></div>
-                <span className="text-gray-700 dark:text-dark-text">Fériés musulmans</span>
-              </div>
-            </div>
-
-            {/* Légende des permissions */}
-            {permissions.length > 0 && (
-              <>
-                <div className="border-t border-gray-200 dark:border-dark-border pt-3 mb-2">
-                  <p className="text-xs font-semibold text-gray-600 dark:text-dark-text-secondary mb-2">Permissions en cours :</p>
-                </div>
-                <div className="space-y-1">
-                  {permissions.slice(0, 3).map((permission, index) => {
-                    const userName = getRequesterName(permission);
-                    const startDate = new Date(permission.dateDebut);
-                    const endDate = new Date(permission.dateFin);
-                    
-                    return (
-                      <div key={permission.id} className="flex items-center gap-2 text-xs">
-                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${getColorForPermission(index)}`}></div>
-                        <span className="text-gray-700 dark:text-dark-text truncate">
-                          {userName} - {startDate.toLocaleDateString('fr-FR')} au {endDate.toLocaleDateString('fr-FR')}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  {permissions.length > 3 && (
-                    <div className="text-xs text-gray-500 dark:text-dark-text-secondary italic">
-                      ... et {permissions.length - 3} autre(s)
-                    </div>
-                  )}
-                </div>
-              </>
             )}
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
-};
-
-export default Calendar;
+}

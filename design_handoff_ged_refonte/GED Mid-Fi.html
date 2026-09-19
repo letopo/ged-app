@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>GED · Mid-fi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="midfi-styles.css" />
+  <link rel="stylesheet" href="midfi-responsive.css" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="midfi-shell.jsx"></script>
+  <script type="text/babel" src="midfi-interactions.jsx"></script>
+  <script type="text/babel" src="midfi-page-home.jsx"></script>
+  <script type="text/babel" src="midfi-pages-docs.jsx"></script>
+  <script type="text/babel" src="midfi-pages-tasks-workflow.jsx"></script>
+  <script type="text/babel" src="midfi-pages-arch-srv.jsx"></script>
+  <script type="text/babel" src="midfi-pages-users-stats-set.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <script type="text/babel" data-presets="env,react">
+    const { useState, useEffect } = React;
+
+    const ACTIVE_BY_PAGE = {
+      home: 'home', docs: 'docs', 'doc-detail': 'docs', upload: 'docs',
+      tasks: 'tasks', workflow: 'workflow', archives: 'archives',
+      services: 'services', users: 'users', stats: 'stats', settings: 'settings',
+    };
+
+    const PROTO_PAGES = [
+      { id: 'home', label: 'Accueil' },
+      { id: 'docs', label: 'Documents' },
+      { id: 'doc-detail', label: 'Aperçu' },
+      { id: 'upload', label: 'Upload' },
+      { id: 'tasks', label: 'Tâches' },
+      { id: 'workflow', label: 'Workflow' },
+      { id: 'archives', label: 'Archives' },
+      { id: 'services', label: 'Services' },
+      { id: 'users', label: 'Utilisateurs' },
+      { id: 'stats', label: 'Stats' },
+      { id: 'settings', label: 'Paramètres' },
+    ];
+
+    const MORE_PAGES = [
+      { id: 'upload', label: 'Upload', icon: 'upload' },
+      { id: 'workflow', label: 'Workflow', icon: 'workflow' },
+      { id: 'archives', label: 'Archives', icon: 'archive' },
+      { id: 'services', label: 'Services', icon: 'services' },
+      { id: 'users', label: 'Utilisateurs', icon: 'users' },
+      { id: 'settings', label: 'Paramètres', icon: 'settings' },
+    ];
+
+    const BRANDS = {
+      'Marine': { brand: '#1B3A6B', hover: '#152E55' },
+      'Profond': { brand: '#14315C', hover: '#0F2340' },
+      'Vif': { brand: '#21498A', hover: '#1A3A70' },
+    };
+
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "theme": "Sombre",
+      "density": "Compact",
+      "brand": "Vif",
+      "nav": "Rail"
+    }/*EDITMODE-END*/;
+
+    function App() {
+      const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+      const [page, setPageRaw] = useState(() => localStorage.getItem('ged_midfi_page') || 'home');
+      const [activeDoc, setActiveDoc] = useState(null);
+      const [sheetOpen, setSheetOpen] = useState(false);
+      useEffect(() => { localStorage.setItem('ged_midfi_page', page); }, [page]);
+
+      // Apply theme to the document root
+      useEffect(() => {
+        document.documentElement.setAttribute('data-theme', t.theme === 'Sombre' ? 'dark' : 'light');
+      }, [t.theme]);
+
+      // Navigate; optional second arg sets the document to open in the detail view
+      const setPage = (next, doc) => {
+        if (doc !== undefined) setActiveDoc(doc);
+        setPageRaw(next);
+        setSheetOpen(false);
+        window.scrollTo({ top: 0 });
+      };
+
+      const brandVars = BRANDS[t.brand] || BRANDS['Marine'];
+      const shellStyle = { '--c-brand': brandVars.brand, '--c-brand-hover': brandVars.hover };
+
+      const COMPS = {
+        home: window.PageHome, docs: window.PageDocs, 'doc-detail': window.PageDocDetail,
+        upload: window.PageUpload, tasks: window.PageTasks, workflow: window.PageWorkflow,
+        archives: window.PageArchives, services: window.PageServices, users: window.PageUsers,
+        stats: window.PageStats, settings: window.PageSettings,
+      };
+      const Comp = COMPS[page];
+
+      return (
+        <div className={"app-shell" + (t.density === 'Compact' ? ' density-compact' : '')} data-screen-label={page} data-rail={t.nav === 'Rail' ? 'true' : 'false'} style={shellStyle}>
+          <window.Sidebar active={ACTIVE_BY_PAGE[page]} onGo={setPage} />
+          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <div key={page} className="page-fade" style={{ minWidth: 0, display: 'flex', flexDirection: 'column', flex: 1 }}>
+              {Comp && <Comp onGo={setPage} activeDoc={activeDoc} />}
+            </div>
+          </div>
+          <div className="proto-nav">
+            {PROTO_PAGES.map(p => (
+              <button key={p.id} className={page === p.id ? 'active' : ''} onClick={() => setPage(p.id)}>{p.label}</button>
+            ))}
+          </div>
+
+          {/* Mobile bottom tab bar */}
+          <nav className="mobile-tabbar">
+            {[
+              { id: 'home', label: 'Accueil', icon: 'home' },
+              { id: 'docs', label: 'Documents', icon: 'docs' },
+              { id: 'tasks', label: 'Tâches', icon: 'tasks', badge: '3' },
+              { id: 'stats', label: 'Stats', icon: 'stats' },
+            ].map(t => (
+              <button key={t.id} className={page === t.id ? 'active' : ''} onClick={() => setPage(t.id)}>
+                <window.Icon name={t.icon} size={20} />
+                {t.badge && <span className="tb-badge">{t.badge}</span>}
+                <span>{t.label}</span>
+              </button>
+            ))}
+            <button className={MORE_PAGES.some(p => p.id === page) ? 'active' : ''} onClick={() => setSheetOpen(true)}>
+              <window.Icon name="more" size={20} />
+              <span>Plus</span>
+            </button>
+          </nav>
+
+          {/* Mobile “more” sheet */}
+          {sheetOpen && (
+            <div className="mobile-sheet-backdrop" onClick={() => setSheetOpen(false)}>
+              <div className="mobile-sheet" onClick={e => e.stopPropagation()}>
+                <div className="grabber"></div>
+                {MORE_PAGES.map(p => (
+                  <div key={p.id} className={"sheet-item" + (page === p.id ? ' active' : '')} onClick={() => setPage(p.id)}>
+                    <window.Icon name={p.icon} size={18} />
+                    <span>{p.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <window.ToastHost />
+
+          <window.TweaksPanel title="Tweaks">
+            <window.TweakSection label="Apparence" />
+            <window.TweakRadio label="Thème" value={t.theme} options={['Clair', 'Sombre']} onChange={(v) => setTweak('theme', v)} />
+            <window.TweakRadio label="Densité" value={t.density} options={['Aéré', 'Compact']} onChange={(v) => setTweak('density', v)} />
+            <window.TweakSection label="Marque" />
+            <window.TweakRadio label="Marine" value={t.brand} options={['Marine', 'Profond', 'Vif']} onChange={(v) => setTweak('brand', v)} />
+            <window.TweakSection label="Navigation (desktop)" />
+            <window.TweakRadio label="Sidebar" value={t.nav} options={['Complète', 'Rail']} onChange={(v) => setTweak('nav', v)} />
+          </window.TweaksPanel>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

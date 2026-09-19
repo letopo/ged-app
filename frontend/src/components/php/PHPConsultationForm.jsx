@@ -6,6 +6,13 @@ import { useState, useEffect } from 'react';
 import { X, Stethoscope, Clock, AlertCircle, Loader, CheckCircle } from 'lucide-react';
 import { phpConsultationAPI, phpReferenceAPI } from '../../services/phpService';
 
+const inputStyle = {
+  width: '100%', padding: '8px 12px', fontSize: 13,
+  border: '1.5px solid var(--border)', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface)', color: 'var(--fg)', outline: 'none', boxSizing: 'border-box',
+};
+const labelStyle = { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 4 };
+
 export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
   const [loading, setLoading]             = useState(false);
   const [error,   setError]               = useState(null);
@@ -47,7 +54,6 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
         notes:               form.notes,
       });
       setSuccess(true);
-      // Fermeture auto après 1,5 s pour laisser voir le succès
       setTimeout(() => onSuccess(), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
@@ -56,50 +62,45 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
     }
   };
 
-  const inp = 'w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500';
-  const lbl = 'block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1';
-
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md">
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 448 }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2">
-            <Stethoscope className="text-green-600" size={20} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Stethoscope size={20} style={{ color: 'var(--success)' }} />
             <div>
-              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+              <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg)', margin: '0 0 2px' }}>
                 Enregistrer l'arrivée en consultation
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: 0 }}>
                 {patient.nom} {patient.prenom || ''} •{' '}
-                <span className="font-mono">{patient.matricule}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{patient.matricule}</span>
                 {patient.infirmerie && ` • ${patient.infirmerie.nom}`}
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          <button onClick={onClose} style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', borderRadius: 'var(--radius-2)', display: 'flex' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="p-4">
+        <div style={{ padding: 16 }}>
           {/* Succès */}
           {success && (
-            <div className="flex flex-col items-center gap-3 py-6 text-center">
-              <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <CheckCircle size={32} className="text-green-600" />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '24px 0', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--success-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={32} style={{ color: 'var(--success)' }} />
               </div>
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                Arrivée enregistrée !
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>Arrivée enregistrée !</p>
+              <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: 0 }}>
                 {patient.nom} est en attente de consultation — service {form.serviceName}
               </p>
-              <p className="text-xs text-green-600 dark:text-green-400">
+              <p style={{ fontSize: 12, color: 'var(--success)', margin: 0 }}>
                 La clôture se fera depuis la liste des consultations
               </p>
             </div>
@@ -107,38 +108,29 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
 
           {/* Formulaire */}
           {!success && (
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {error && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-2)', color: 'var(--danger)', fontSize: 13 }}>
                   <AlertCircle size={14} />
                   {error}
                 </div>
               )}
 
-              {/* Heure + Service */}
-              <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label className={lbl}>
-                    <Clock size={11} className="inline mr-1" />
+                  <label style={labelStyle}>
+                    <Clock size={11} style={{ display: 'inline', marginRight: 4 }} />
                     Heure d'arrivée
                   </label>
-                  <input
-                    type="time"
-                    value={form.heureArrivee}
+                  <input type="time" value={form.heureArrivee}
                     onChange={e => setForm(f => ({ ...f, heureArrivee: e.target.value }))}
-                    className={inp}
-                  />
+                    style={inputStyle} />
                 </div>
                 <div>
-                  <label className={lbl}>
-                    Service <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={form.serviceName}
+                  <label style={labelStyle}>Service <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <select value={form.serviceName}
                     onChange={e => setForm(f => ({ ...f, serviceName: e.target.value }))}
-                    required
-                    className={inp}
-                  >
+                    required style={inputStyle}>
                     <option value="">-- Choisir --</option>
                     {servicesMedicaux.map(s => (
                       <option key={s.code || s.nom} value={s.nom}>{s.nom}</option>
@@ -147,59 +139,41 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
                 </div>
               </div>
 
-              {/* Motif — obligatoire */}
               <div>
-                <label className={lbl}>
-                  Motif de consultation <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.motif}
+                <label style={labelStyle}>Motif de consultation <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input type="text" value={form.motif}
                   onChange={e => setForm(f => ({ ...f, motif: e.target.value }))}
                   placeholder="Ex: Fièvre, céphalées, douleur abdominale..."
-                  required
-                  className={inp}
-                />
+                  required style={inputStyle} />
               </div>
 
-              {/* Notes optionnelles */}
               <div>
-                <label className={lbl}>Notes <span className="text-gray-400 font-normal">(optionnel)</span></label>
-                <textarea
-                  value={form.notes}
+                <label style={labelStyle}>Notes <span style={{ color: 'var(--fg-subtle)', fontWeight: 400 }}>(optionnel)</span></label>
+                <textarea value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  rows={2}
-                  placeholder="Observations supplémentaires..."
-                  className={`${inp} resize-none`}
-                />
+                  rows={2} placeholder="Observations supplémentaires..."
+                  style={{ ...inputStyle, resize: 'none' }} />
               </div>
 
-              {/* Info auto-clôture */}
-              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                <Clock size={13} className="text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-700 dark:text-amber-400">
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 'var(--radius-2)' }}>
+                <Clock size={13} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
+                <p style={{ fontSize: 12, color: '#b45309', margin: 0 }}>
                   La consultation reste <strong>ouverte</strong> jusqu'à clôture manuelle ou clôture automatique en fin de journée (Retour au travail).
                 </p>
               </div>
 
-              {/* Boutons */}
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 px-4 py-2 text-sm border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+                <button type="button" onClick={onClose}
+                  style={{ flex: 1, padding: '8px 16px', fontSize: 13, border: '1px solid var(--border)', color: 'var(--fg)', background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', cursor: 'pointer' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
                 >
                   Annuler
                 </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-[2] flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors font-semibold"
+                <button type="submit" disabled={loading}
+                  style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 16px', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
                 >
-                  {loading
-                    ? <Loader size={15} className="animate-spin" />
-                    : <Stethoscope size={15} />
-                  }
+                  {loading ? <Loader size={15} className="animate-spin" /> : <Stethoscope size={15} />}
                   {loading ? 'Enregistrement...' : 'Enregistrer l\'arrivée'}
                 </button>
               </div>

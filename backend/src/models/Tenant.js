@@ -16,6 +16,11 @@ const Tenant = sequelize.define('Tenant', {
     allowNull: false,
     unique: true
   },
+  additionalDomains: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Domaines/IP supplémentaires autorisés, séparés par des virgules (ex: nom interne + IP LAN, en plus de `domain`)'
+  },
   subdomain: {
     type: DataTypes.STRING(100),
     allowNull: true,

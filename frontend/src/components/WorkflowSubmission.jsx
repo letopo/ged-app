@@ -1,4 +1,4 @@
-// frontend/src/components/WorkflowSubmission.jsx - VERSION CORRIGÉE FINALE
+// frontend/src/components/WorkflowSubmission.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { workflowAPI, usersAPI } from '../services/api';
 import { CheckCircle, XCircle, Loader, Users, Search } from 'lucide-react';
@@ -14,11 +14,8 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
   const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
-    // Récupérer l'ID de l'utilisateur connecté
     const currentUser = JSON.parse(localStorage.getItem('user'));
-    if (currentUser) {
-      setCurrentUserId(currentUser.id);
-    }
+    if (currentUser) setCurrentUserId(currentUser.id);
     loadUsers();
   }, []);
 
@@ -26,208 +23,170 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
     try {
       setLoadingUsers(true);
       const response = await usersAPI.getAll();
-      // ✅ NE PLUS FILTRER l'utilisateur courant
       setUsers(response.data.users);
     } catch (err) {
       setError('Erreur lors du chargement des utilisateurs');
-      console.error(err);
     } finally {
       setLoadingUsers(false);
     }
   };
 
-  // ✅ CORRECTION : Utiliser firstName + lastName au lieu de fullName
   const filteredUsers = useMemo(() => {
-    if (!searchTerm) {
-      return users;
-    }
-    const lowerCaseSearch = searchTerm.toLowerCase();
-    return users.filter(user => {
-      const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
-      const username = (user.username || '').toLowerCase();
-      const email = (user.email || '').toLowerCase();
-      
-      return fullName.includes(lowerCaseSearch) || 
-             username.includes(lowerCaseSearch) || 
-             email.includes(lowerCaseSearch);
-    });
+    if (!searchTerm) return users;
+    const q = searchTerm.toLowerCase();
+    return users.filter(u =>
+      `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) ||
+      (u.username || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q)
+    );
   }, [users, searchTerm]);
 
-  const toggleValidator = (userId) => {
-    setSelectedValidators(prev =>
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
-  };
+  const toggleValidator = (userId) =>
+    setSelectedValidators(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (selectedValidators.length === 0) {
-      setError('Veuillez sélectionner au moins un validateur');
-      return;
-    }
-
+    if (selectedValidators.length === 0) { setError('Veuillez sélectionner au moins un validateur'); return; }
     try {
-      setLoading(true);
-      setError('');
-      
+      setLoading(true); setError('');
       await workflowAPI.submitForValidation(document.id, selectedValidators);
-      
       setSuccess('Document soumis pour validation avec succès !');
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-      }, 1500);
-      
+      setTimeout(() => { if (onSuccess) onSuccess(); }, 1500);
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur lors de la soumission');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loadingUsers) {
-    return (
-      <div className="flex items-center justify-center p-8 text-gray-700 dark:text-dark-text">
-        <Loader className="w-8 h-8 animate-spin text-blue-600" />
-        <span className="ml-2">Chargement des utilisateurs...</span>
-      </div>
-    );
-  }
+  const inputStyle = {
+    width: '100%', padding: '8px 14px', paddingLeft: 40,
+    border: '1.5px solid var(--border)', borderRadius: 'var(--radius-3)',
+    background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none',
+    boxSizing: 'border-box',
+  };
+
+  if (loadingUsers) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, color: 'var(--fg)', gap: 8 }}>
+      <Loader size={28} className="animate-spin" style={{ color: 'var(--brand)' }} />
+      <span>Chargement des utilisateurs...</span>
+    </div>
+  );
 
   return (
-    <div className="bg-white dark:bg-dark-surface rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text flex items-center">
-          <Users className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" />
+    <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-2)', padding: 24, maxWidth: 640, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+          <Users size={22} style={{ color: 'var(--brand)' }} />
           Soumettre pour validation
         </h2>
         {onCancel && (
-          <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
+          <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex' }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--fg)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--fg-muted)'}
           >
-            <XCircle className="w-6 h-6" />
+            <XCircle size={22} />
           </button>
         )}
       </div>
 
-      {/* Infos du document */}
-      <div className="bg-gray-50 dark:bg-dark-bg rounded-lg p-4 mb-6 border border-gray-200 dark:border-dark-border">
-        <h3 className="font-semibold text-gray-900 dark:text-dark-text mb-2">Document</h3>
-        <p className="text-gray-700 dark:text-dark-text">{document.title}</p>
-        <p className="text-sm text-gray-500 dark:text-dark-text-secondary">{document.filename}</p>
+      {/* Infos document */}
+      <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-3)', padding: 16, marginBottom: 24, border: '1px solid var(--border)' }}>
+        <h3 style={{ fontWeight: 600, color: 'var(--fg)', marginBottom: 6, fontSize: 13, margin: '0 0 6px' }}>Document</h3>
+        <p style={{ color: 'var(--fg)', fontSize: 14, margin: 0 }}>{document.title}</p>
+        <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: '2px 0 0' }}>{document.filename}</p>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-3">
+        <div style={{ marginBottom: 24 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 12 }}>
             Sélectionner les validateurs
-            <span className="text-gray-500 dark:text-dark-text-secondary ml-2">
+            <span style={{ color: 'var(--fg-muted)', marginLeft: 8 }}>
               ({selectedValidators.length} sélectionné{selectedValidators.length > 1 ? 's' : ''})
             </span>
           </label>
-          
-          {/* Barre de recherche */}
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-            <input
-              type="text"
-              placeholder="Rechercher par nom ou email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-lg focus:ring-blue-500 focus:border-blue-500"
-            />
+
+          {/* Recherche */}
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
+            <input type="text" placeholder="Rechercher par nom ou email..." value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)} style={inputStyle} />
           </div>
 
-          {/* Liste des validateurs */}
-          <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-dark-border rounded-lg p-2">
-            {filteredUsers.length > 0 ? (
-              filteredUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedValidators.includes(user.id)
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                      : 'border-gray-200 hover:border-gray-300 dark:border-dark-border dark:hover:border-gray-600 dark:bg-dark-bg'
-                  }`}
-                  onClick={() => toggleValidator(user.id)}
+          {/* Liste */}
+          <div style={{ maxHeight: 256, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', padding: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {filteredUsers.length > 0 ? filteredUsers.map((u) => {
+              const selected = selectedValidators.includes(u.id);
+              return (
+                <div key={u.id} onClick={() => toggleValidator(u.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', padding: '10px 12px',
+                    borderRadius: 'var(--radius-2)', border: `2px solid ${selected ? 'var(--brand)' : 'var(--border)'}`,
+                    background: selected ? 'var(--brand-soft)' : 'var(--surface)',
+                    cursor: 'pointer', transition: 'border-color .15s, background .15s',
+                  }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedValidators.includes(user.id)}
-                    onChange={() => toggleValidator(user.id)}
-                    className="w-4 h-4 text-blue-600 rounded mr-3"
-                  />
-                  <div className="flex-1">
-                    {/* ✅ CORRECTION : Afficher firstName + lastName */}
-                    <div className="font-medium text-gray-900 dark:text-dark-text flex items-center gap-2">
-                      {user.firstName} {user.lastName}
-                      {/* Badge "Vous" pour l'utilisateur connecté */}
-                      {user.id === currentUserId && (
-                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded font-normal">
-                          Vous
-                        </span>
+                  <input type="checkbox" checked={selected} onChange={() => toggleValidator(u.id)}
+                    style={{ width: 14, height: 14, marginRight: 12, accentColor: 'var(--brand)', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, color: 'var(--fg)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {u.firstName} {u.lastName}
+                      {u.id === currentUserId && (
+                        <span style={{ fontSize: 10, background: 'var(--success-soft)', color: 'var(--success)', padding: '2px 6px', borderRadius: 999 }}>Vous</span>
                       )}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                      {user.email}
-                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{u.email}</div>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-4 text-gray-500 dark:text-dark-text-secondary">
-                {searchTerm 
-                  ? "Aucun utilisateur trouvé pour cette recherche." 
-                  : "Aucun utilisateur disponible pour la validation"}
+              );
+            }) : (
+              <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--fg-muted)', fontSize: 13 }}>
+                {searchTerm ? 'Aucun utilisateur trouvé pour cette recherche.' : 'Aucun utilisateur disponible.'}
               </div>
             )}
           </div>
         </div>
 
-        {/* Messages d'erreur/succès */}
         {error && (
-          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-700 rounded-lg flex items-start">
-            <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 mr-2 flex-shrink-0 mt-0.5" />
-            <span className="text-red-700 dark:text-red-300">{error}</span>
+          <div style={{ marginBottom: 16, padding: 14, background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-3)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <XCircle size={16} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 13, color: 'var(--danger)' }}>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-700 rounded-lg flex items-start">
-            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mr-2 flex-shrink-0 mt-0.5" />
-            <span className="text-green-700 dark:text-green-300">{success}</span>
+          <div style={{ marginBottom: 16, padding: 14, background: 'var(--success-soft)', border: '1px solid var(--success)', borderRadius: 'var(--radius-3)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <CheckCircle size={16} style={{ color: 'var(--success)', flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 13, color: 'var(--success)' }}>{success}</span>
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex gap-3">
+        <div style={{ display: 'flex', gap: 12 }}>
           {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              disabled={loading}
+            <button type="button" onClick={onCancel} disabled={loading} style={{
+              flex: 1, padding: '10px 16px', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-3)', background: 'var(--surface-2)', color: 'var(--fg)',
+              fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'background .15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
             >
               Annuler
             </button>
           )}
-          <button
-            type="submit"
-            disabled={loading || selectedValidators.length === 0}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center dark:bg-blue-700 dark:hover:bg-blue-600"
+          <button type="submit" disabled={loading || selectedValidators.length === 0} style={{
+            flex: 1, padding: '10px 16px',
+            background: 'var(--brand)', color: '#fff',
+            border: 'none', borderRadius: 'var(--radius-3)',
+            fontSize: 13, fontWeight: 500, cursor: (loading || selectedValidators.length === 0) ? 'not-allowed' : 'pointer',
+            opacity: (loading || selectedValidators.length === 0) ? 0.5 : 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'background .15s',
+          }}
+            onMouseEnter={e => { if (!loading && selectedValidators.length > 0) e.currentTarget.style.background = 'var(--brand-active)'; }}
+            onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
           >
-            {loading ? (
-              <>
-                <Loader className="w-4 h-4 animate-spin mr-2" />
-                Soumission...
-              </>
-            ) : (
-              'Soumettre pour validation'
-            )}
+            {loading ? <><Loader size={16} className="animate-spin" />Soumission...</> : 'Soumettre pour validation'}
           </button>
         </div>
       </form>
