@@ -2,7 +2,7 @@
 
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import upload from '../middleware/upload.js';
+import upload, { fixUploadEncoding } from '../middleware/upload.js';
 import {
   uploadDocument,
   getDocuments,
@@ -326,10 +326,10 @@ router.use(protect);
 // @route   POST /api/documents/upload
 // @desc    Upload un nouveau document
 // @access  Private
-router.post('/upload', upload.single('file'), uploadDocument);
+router.post('/upload', upload.single('file'), fixUploadEncoding, uploadDocument);
 
 // ✅ NOUVELLE ROUTE : Ajouter une page (fusionner)
-router.post('/:id/add-page', upload.single('file'), addPageToDocument);
+router.post('/:id/add-page', upload.single('file'), fixUploadEncoding, addPageToDocument);
 
 // @route   GET /api/documents
 // @desc    Récupérer tous les documents

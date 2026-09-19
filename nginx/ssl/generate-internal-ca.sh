@@ -12,7 +12,7 @@ cd "$(dirname "$0")"
 DOMAIN="ged.hsjm.local"        # nom DNS interne
 EXTRA_DOMAINS="ged.hsjmcam.net" # autres noms DNS couverts, séparés par des espaces (laisser vide "" si aucun)
 SERVER_IP="192.168.1.186"      # IP du serveur (laisser vide "" si non utilisée)
-EXTRA_IPS="192.168.219.13"     # autres IP couvertes (autres serveurs/VM), séparées par des espaces
+EXTRA_IPS="192.168.1.210"      # autres IP couvertes (autres serveurs/VM), séparées par des espaces
 
 CA_DAYS=3650                   # validité CA : 10 ans
 CERT_DAYS=825                  # validité serveur : 825 j (max accepté par les navigateurs)

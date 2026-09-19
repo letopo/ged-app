@@ -1,7 +1,7 @@
 // backend/src/routes/phpFactures.js — Module factures PHP (secrétaire)
 import express from 'express';
 import authMiddlewareObject from '../middleware/auth.js';
-import upload from '../middleware/upload.js';
+import upload, { fixUploadEncoding } from '../middleware/upload.js';
 import {
   extractFromUpload, reextract, create, list, getOne, update, remove, exportCsv,
 } from '../controllers/phpFactureController.js';
@@ -17,7 +17,7 @@ router.get('/', protect, list);
 router.get('/export.csv', protect, exportCsv);
 router.get('/:id', protect, getOne);
 
-router.post('/extract', protect, canManage, upload.single('file'), extractFromUpload);
+router.post('/extract', protect, canManage, upload.single('file'), fixUploadEncoding, extractFromUpload);
 router.post('/:documentId/reextract', protect, canManage, reextract);
 router.post('/', protect, canManage, create);
 router.put('/:id', protect, canManage, update);

@@ -2,7 +2,7 @@
 // Accès : admin (role) OU titulaire du poste « comptable »
 import express from 'express';
 import authMiddlewareObject from '../middleware/auth.js';
-import upload from '../middleware/upload.js';
+import upload, { fixUploadEncoding } from '../middleware/upload.js';
 import { getUserPosteCodes } from '../utils/posteResolver.js';
 import {
   extractFromUpload, reextract, create, list, getOne, update, remove, exportCsv,
@@ -23,7 +23,7 @@ router.get('/',           protect, canManage, list);
 router.get('/export.csv', protect, canManage, exportCsv);
 router.get('/:id',        protect, canManage, getOne);
 
-router.post('/extract',               protect, canManage, upload.single('file'), extractFromUpload);
+router.post('/extract',               protect, canManage, upload.single('file'), fixUploadEncoding, extractFromUpload);
 router.post('/:documentId/reextract', protect, canManage, reextract);
 router.post('/',                      protect, canManage, create);
 router.put('/:id',                    protect, canManage, update);
