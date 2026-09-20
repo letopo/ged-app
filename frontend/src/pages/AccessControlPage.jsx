@@ -742,9 +742,9 @@ export default function AccessControlPage() {
 
       {/* Contenu */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 60, gap: 12 }}>
           <Loader size={28} style={{ animation: 'spin 1s linear infinite', color: 'var(--brand)' }} />
-          <div style={{ marginTop: 12, color: 'var(--fg-muted)', fontSize: 14 }}>Chargement…</div>
+          <div style={{ color: 'var(--fg-muted)', fontSize: 14 }}>Chargement…</div>
         </div>
       ) : error ? (
         <div style={{

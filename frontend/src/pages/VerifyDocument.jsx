@@ -34,11 +34,9 @@ export default function VerifyDocument() {
 
   /* ── Loading ── */
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center' }}>
-        <Loader size={32} color="var(--brand)" className="animate-spin" style={{ marginBottom: 12 }} />
-        <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Vérification en cours…</div>
-      </div>
+    <div style={{ minHeight: '100vh', background: 'var(--surface-2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+      <Loader size={32} color="var(--brand)" className="animate-spin" />
+      <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Vérification en cours…</div>
     </div>
   );
 

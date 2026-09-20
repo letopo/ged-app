@@ -563,11 +563,9 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Loader size={24} color="var(--fg-muted)" style={{ marginBottom: 12 }} className="animate-spin" />
-          <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Chargement…</p>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 12 }}>
+        <Loader size={24} color="var(--fg-muted)" className="animate-spin" />
+        <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>Chargement…</p>
       </div>
     );
   }
