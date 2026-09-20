@@ -1,6 +1,6 @@
 // backend/src/controllers/workflowController.js - VERSION COMPLÈTE AVEC SOCKET.IO
 
-import { Workflow, Document, User, InvoiceFolder, NotificationPreference, WorkflowComment, WorkflowTemplate } from '../models/index.js';
+import { Workflow, Document, User, InvoiceFolder, NotificationPreference, WorkflowComment } from '../models/index.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
@@ -19,6 +19,7 @@ import { mergePDFs } from '../utils/pdfMerger.js';
 import { PDFExtract } from 'pdf.js-extract';
 import { computeDeadline } from '../utils/workflowAutoExpire.js';
 import { generateVerificationHash, generateQRCodeBuffer, buildVerificationUrl } from '../utils/qrVerification.js';
+import { notifyValidator, createWorkflowForDocument, resolveValidatorIdsFromTemplate } from '../utils/workflowEngine.js';
 
 // Helper : embarquer une image dans un PDF (tente JPG puis PNG)
 async function embedImage(pdfDoc, imageBytes) {
@@ -32,63 +33,8 @@ async function embedImage(pdfDoc, imageBytes) {
 // Le comptable, le RH et le DG ne sont plus figés par email : ils sont résolus
 // dynamiquement via les postes assignables (voir utils/posteResolver.js).
 
-// ============================================
-// FONCTION HELPER : Notifier un validateur
-// ============================================
-const notifyValidator = async (validator, document, isFirstValidator = false) => {
-  if (!validator?.email) return;
-
-  // Verifier les preferences de notification
-  try {
-    const prefs = await NotificationPreference.findOne({ where: { userId: validator.id } });
-    if (prefs?.emailOnNewTask === false) {
-      console.log(`🔕 User ${validator.id} a desactive les emails de nouvelles taches`);
-      // On envoie quand meme le WebSocket/Push, mais pas l'email
-    }
-  } catch (e) { /* continue */ }
-
-  const subject = 'Nouvelle tache de validation';
-  const body = `Vous avez une nouvelle tache de validation pour le document "${document.title}".`;
-
-  try {
-    const isConnected = isUserConnected(validator.id);
-    
-    if (isConnected) {
-      console.log(`🔌 User ${validator.id} connecté - WebSocket`);
-      emitNewTaskNotification(validator.id, {
-        taskId: document.id,
-        documentId: document.id,
-        documentTitle: document.title,
-        documentCategory: document.category,
-        submittedBy: document.uploadedBy?.firstName 
-          ? `${document.uploadedBy.firstName} ${document.uploadedBy.lastName}` 
-          : 'Inconnu'
-      });
-    } else {
-      console.log(`📧 User ${validator.id} hors ligne - Email + Push`);
-      
-      // ✅ NOUVEAU : Envoyer notification push
-      await sendNewTaskPushNotification(validator.id, {
-        taskId: document.id,
-        documentId: document.id,
-        documentTitle: document.title,
-        documentCategory: document.category,
-        submittedBy: document.uploadedBy?.firstName 
-          ? `${document.uploadedBy.firstName} ${document.uploadedBy.lastName}` 
-          : 'Inconnu'
-      });
-    }
-    
-    // Email en backup (si preference activee)
-    const emailPrefs = await NotificationPreference.findOne({ where: { userId: validator.id } }).catch(() => null);
-    if (emailPrefs?.emailOnNewTask !== false) {
-      await sendNotificationEmail(validator.email, subject, body, 'task');
-    }
-
-  } catch (emailError) {
-    console.warn('⚠️ Erreur envoi notification:', emailError.message);
-  }
-};
+// notifyValidator est désormais dans utils/workflowEngine.js (réutilisable
+// hors contexte HTTP, ex: job de synchro Sage).
 
 // ============================================
 // FONCTION HELPER : Notifier le soumetteur (approbation/rejet)
@@ -227,22 +173,12 @@ export const createWorkflow = async (req, res) => {
       }
       finalValidatorIds = built.validatorIds;
     } else if (req.body.workflowTemplateId) {
-      // Circuit depuis un modèle de workflow (formulaires Form Builder)
-      const template = await WorkflowTemplate.findByPk(req.body.workflowTemplateId);
-      if (!template) {
-        return res.status(404).json({ success: false, message: 'Modèle de workflow introuvable.' });
-      }
-      const steps = (template.validators || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      const resolved = [];
-      for (const step of steps) {
-        if (step.validatorType === 'user' && step.userId) {
-          resolved.push(step.userId);
-        } else if (step.validatorType === 'role' && step.role) {
-          try {
-            const u = await User.findOne({ where: { role: step.role, tenantId: req.tenantId }, attributes: ['id'] });
-            if (u) resolved.push(u.id);
-          } catch { /* rôle invalide ignoré */ }
-        }
+      // Circuit depuis un modèle de workflow (formulaires Form Builder, Facture PHP Sage, etc.)
+      let resolved;
+      try {
+        resolved = await resolveValidatorIdsFromTemplate(req.body.workflowTemplateId, req.tenantId);
+      } catch (e) {
+        return res.status(404).json({ success: false, message: e.message });
       }
       if (resolved.length === 0) {
         return res.status(400).json({ success: false, message: 'Aucun validateur résolu depuis le modèle.' });
@@ -256,27 +192,8 @@ export const createWorkflow = async (req, res) => {
       finalValidatorIds = [...validatorIds];
     }
     
-    const now = new Date();
-    const workflows = await Promise.all(
-      finalValidatorIds.map((validatorId, index) =>
-        Workflow.create({
-          documentId,
-          validatorId,
-          tenantId: req.tenantId,
-          step: index + 1,
-          status: index === 0 ? 'pending' : 'queued',
-          assignedAt: index === 0 ? now : null,
-          deadlineAt: index === 0 ? computeDeadline(now) : null,
-        })
-      )
-    );
-    
-    await document.update({ status: 'pending_validation' });
-    
-    // ✅ NOUVEAU : Notifier le premier validateur avec WebSocket + Email
-    const firstValidator = await User.findByPk(finalValidatorIds[0]);
-    await notifyValidator(firstValidator, document, true);
-    
+    await createWorkflowForDocument(document, finalValidatorIds, req.tenantId);
+
     const workflowsWithValidators = await Workflow.findAll({
       where: { documentId },
       include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }],

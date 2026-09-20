@@ -48,6 +48,7 @@ import phpConsultationsRoutes from './routes/phpConsultations.js';
 import phpStatsRoutes from './routes/phpStats.js';
 import phpRendezVousRoutes from './routes/phpRendezVous.js';
 import phpFacturesRoutes from './routes/phpFactures.js'; // ✅ Module factures PHP
+import sageFacturesRoutes from './routes/sageFactures.js'; // ✅ Import auto factures PHP depuis Sage
 import comptaRoutes from './routes/compta.js';           // ✅ Module Comptabilité
 import templatePermissionRoutes from './routes/templatePermissionRoutes.js';
 import notificationPreferenceRoutes from './routes/notificationPreferenceRoutes.js';
@@ -61,6 +62,7 @@ import missionMealRoutes from './routes/missionMeal.js'; // ✅ Indemnités de r
 import chatRoutes from './routes/chat.js';     // ✅ Module Discussion
 import tenantBrandingRoutes from './routes/tenantBrandingRoutes.js'; // ✅ Branding tenant
 import { startPHPAutoCloseScheduler, cloturerConsultationsPassees } from './utils/phpAutoClose.js';
+import { startSageFactureSync } from './utils/sageFactureSync.js';
 import { startWorkflowExpireScheduler, expireOverdueWorkflows } from './utils/workflowAutoExpire.js';
 import { resolveTenant } from './middleware/tenant.js';
 import superAdminRoutes from './routes/superAdmin.js';
@@ -225,6 +227,7 @@ app.use('/api/php/consultations', phpConsultationsRoutes);
 app.use('/api/php/stats', phpStatsRoutes);
 app.use('/api/php/rendez-vous', phpRendezVousRoutes);
 app.use('/api/php/factures', phpFacturesRoutes); // ✅ Factures prestataires (OCR)
+app.use('/api/sage-factures', sageFacturesRoutes); // ✅ Import auto factures PHP depuis Sage
 app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
 app.use('/api/template-permissions', templatePermissionRoutes);
 app.use('/api/notification-preferences', notificationPreferenceRoutes);
@@ -935,6 +938,9 @@ const startServer = async () => {
     // 4c. Workflow : expirer les tâches dépassées au démarrage, puis planifier chaque nuit
     await expireOverdueWorkflows();
     startWorkflowExpireScheduler();
+
+    // 4c-bis. Sage : import automatique périodique des factures PHP (no-op si SAGE_* absent)
+    startSageFactureSync();
 
     // 4d. Tenant auto-suppression : vérifier chaque nuit les tenants à supprimer
     startTenantAutoDeleteScheduler();

@@ -105,6 +105,12 @@ export const MODULES = [
     postes: [],
   },
   {
+    id: 'sage_factures_php', category: 'Applications', label: 'PHP — Factures Sage',
+    path: '/sage-factures-php', description: 'Supervision des factures patient PHP importées depuis Sage + export fichier de paiement',
+    roles: ['superadmin','admin'],
+    postes: [],
+  },
+  {
     id: 'portail', category: 'Applications', label: 'Portail Gardien',
     path: '/portail', description: 'Gestion des entrées/sorties du site',
     roles: ['superadmin','admin','gardien'],

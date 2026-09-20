@@ -10,7 +10,7 @@ import {
   ShoppingCart, Wrench, Stethoscope, Shield, Archive,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
-  MessageSquare,
+  MessageSquare, FileSpreadsheet,
 } from 'lucide-react';
 import { workflowAPI, tenantBrandingAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -164,6 +164,7 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
     { path: '/demandes-achat',  icon: ShoppingCart,label: "Demandes d'achat",   demandeAchatOnly: true },
     { path: '/php',             icon: Stethoscope, label: 'Module PHP',         phpOnly: true },
     { path: '/php/factures',    icon: Receipt,     label: 'Factures PHP',       phpOnly: true },
+    { path: '/sage-factures-php', icon: FileSpreadsheet, label: 'Factures PHP (Sage)', adminOnly: true },
     { path: '/compta',          icon: Calculator,  label: 'Comptabilité',       comptaOnly: true },
   ].filter(canAccess);
 
@@ -331,6 +332,7 @@ const ROUTE_CRUMBS = {
   '/gmao':                ['Outils', 'GMAO'],
   '/php':                 ['Module PHP'],
   '/php/factures':        ['Module PHP', 'Factures PHP'],
+  '/sage-factures-php':   ['Factures PHP (Sage)'],
 };
 
 const timeAgo = (date) => {

@@ -93,4 +93,14 @@ export const phpFactureAPI = {
   exportCsvPath: '/php/factures/export.csv',
 };
 
+// ============================================
+// FACTURES PATIENT PHP — import automatique depuis Sage (supervision)
+// À ne pas confondre avec phpFactureAPI ci-dessus (factures FOURNISSEURS
+// scannées par la secrétaire, module totalement différent).
+// ============================================
+export const sageFactureAPI = {
+  list: (params) => api.get('/sage-factures', { params }),
+  exportPaiement: (from, to) => api.get('/sage-factures/export-paiement', { params: { from, to }, responseType: 'blob' }),
+};
+
 export default { phpReferenceAPI, phpPatientAPI, phpConsultationAPI, phpStatsAPI, phpRendezVousAPI, phpFactureAPI };

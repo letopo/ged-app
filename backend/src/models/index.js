@@ -47,6 +47,7 @@ import OperationPHP from './OperationPHP.js';
 import DecesTransfertPHP from './DecesTransfertPHP.js';
 import RendezVousPHP from './RendezVousPHP.js';
 import PhpFacture from './PhpFacture.js'; // ✅ Module factures PHP (secrétaire)
+import SageFactureImport from './SageFactureImport.js'; // ✅ Import auto factures patient PHP depuis Sage
 import ComptaDoc from './ComptaDoc.js';   // ✅ Module Comptabilité (pièces de caisse)
 
 // Imports TRELLO
@@ -126,6 +127,7 @@ const db = {
   DecesTransfertPHP,
   RendezVousPHP,
   PhpFacture,
+  SageFactureImport,
   ComptaDoc,
   TemplatePermission,
   WorkflowComment,
@@ -301,6 +303,7 @@ export {
   OperationPHP,
   DecesTransfertPHP,
   PhpFacture,
+  SageFactureImport,
   ComptaDoc,
   TemplatePermission,
   MissionMealRate,

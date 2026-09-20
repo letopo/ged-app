@@ -31,6 +31,7 @@ import {
   Shield,
   Calculator,
   MessageSquare,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { workflowAPI, usersAPI } from '../services/api';
 import useChatUnread from '../hooks/useChatUnread';
@@ -173,6 +174,7 @@ export default function Navbar({ onLogout }) {
       { path: '/demandes-achat', icon: ShoppingCart, label: 'Demandes d\'Achat', desc: 'Commandes & achats', demandeAchatOnly: true },
       { path: '/php', icon: Stethoscope, label: 'Module PHP', desc: 'Gestion clinique', phpOnly: true },
       { path: '/php/factures', icon: Receipt, label: 'Factures PHP', desc: 'Factures prestataires (OCR)', phpOnly: true },
+      { path: '/sage-factures-php', icon: FileSpreadsheet, label: 'Factures PHP (Sage)', desc: 'Import automatique depuis Sage', adminOnly: true },
       { path: '/compta', icon: Calculator, label: 'Comptabilité', desc: 'Pièces de caisse (OCR)', comptaOnly: true },
     ],
     outils: [
