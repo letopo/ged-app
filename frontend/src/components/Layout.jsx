@@ -1,4 +1,4 @@
-﻿// frontend/src/components/Layout.jsx - AVEC SUPPORT DARK MODE
+// frontend/src/components/Layout.jsx
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 import Breadcrumb from './Breadcrumb';
@@ -8,27 +8,29 @@ import PageTransition from './PageTransition';
 
 const Layout = () => {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-dark-bg transition-colors duration-200">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
       <Navbar />
-      <main className="flex-1 p-5">
-        <div className="container mx-auto">
+      <main style={{ flex: 1, padding: '20px' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           <Breadcrumb />
           <PageTransition>
             <Outlet />
           </PageTransition>
         </div>
       </main>
-      <footer className="bg-gray-800 dark:bg-gray-900 text-white transition-colors duration-200">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-semibold">GED</span>
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-400">HSJM Workflow</span>
-              <span className="text-gray-400">•</span>
-              <span className="text-xs text-gray-500">v3.0</span>
+      <footer style={{ background: 'var(--surface-2)', borderTop: '1px solid var(--border)' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+              <span style={{ fontWeight: 700, color: 'var(--fg)' }}>GED</span>
+              <span style={{ color: 'var(--fg-subtle)' }}>•</span>
+              <span style={{ color: 'var(--fg-muted)' }}>HSJM Workflow</span>
+              <span style={{ color: 'var(--fg-subtle)' }}>•</span>
+              <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>v3.0</span>
             </div>
-            <p className="text-xs text-gray-500">© {new Date().getFullYear()} Gestion Électronique de Documents — Tous droits réservés</p>
+            <p style={{ fontSize: 11, color: 'var(--fg-subtle)', margin: 0 }}>
+              © {new Date().getFullYear()} Gestion Électronique de Documents — Tous droits réservés
+            </p>
           </div>
         </div>
       </footer>

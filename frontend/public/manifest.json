@@ -1,16 +1,44 @@
 {
-  "name": "GED Workflow",
+  "name": "GED - Gestion Électronique de Documents",
   "short_name": "GED",
-  "description": "Système de gestion électronique de documents avec workflow",
+  "description": "Système de gestion électronique de documents avec workflow — fonctionne hors ligne",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "theme_color": "#1B3A6B",
+  "categories": ["business", "productivity"],
+  "lang": "fr",
   "icons": [
     {
       "src": "/favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "gcm_sender_id": "103953800507"

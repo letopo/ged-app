@@ -111,7 +111,11 @@ const Ticket = sequelize.define('Ticket', {
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'tickets',
   timestamps: true,

@@ -1,5 +1,4 @@
 // frontend/src/pages/templates/DemandePermutation.jsx
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usersAPI, servicesAPI } from '../../services/api';
@@ -13,33 +12,24 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
     const [loadingData, setLoadingData] = useState(true);
 
     const fetchData = useCallback(async () => {
-        if (!user) {
-            setLoadingData(false);
-            return;
-        }
-        
+        if (!user) { setLoadingData(false); return; }
         try {
             const [servicesResponse, usersResponse, userServiceResponse] = await Promise.all([
                 servicesAPI.getAll(),
                 usersAPI.getAll(),
                 usersAPI.getMyService()
             ]);
-            
             setServices(servicesResponse.data.data || []);
             const allUsers = usersResponse.data.users || [];
             setUsersList(allUsers.filter(u => u.id !== user.id));
-
-            const serviceName = userServiceResponse.data.success && userServiceResponse.data.service 
-                ? userServiceResponse.data.service.name 
-                : '';
-                
+            const serviceName = userServiceResponse.data.success && userServiceResponse.data.service
+                ? userServiceResponse.data.service.name : '';
             setFormData(prev => ({
                 ...prev,
-                demandeur_noms_prenoms: `${user.firstName} ${user.lastName}`, 
+                demandeur_noms_prenoms: `${user.firstName} ${user.lastName}`,
                 demandeur_id: user.id,
                 service: serviceName
             }));
-
         } catch (error) {
             console.error('Erreur chargement des données:', error);
         } finally {
@@ -47,33 +37,15 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
         }
     }, [user, setFormData]);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
     useEffect(() => {
         if (formData.demandeur_noms_prenoms || formData.permute_noms_prenoms) {
             setFormData(prev => ({
                 ...prev,
                 signatureZones: [
-                    {
-                        role: 'requester',
-                        label: 'Le Demandeur',
-                        x: 40,
-                        y: 200,
-                        width: 60,
-                        height: 20,
-                        page: 1
-                    },
-                    {
-                        role: 'substitute',
-                        label: 'Le Remplaçant',
-                        x: 110,
-                        y: 200,
-                        width: 60,
-                        height: 20,
-                        page: 1
-                    }
+                    { role: 'requester', label: 'Le Demandeur', x: 40, y: 200, width: 60, height: 20, page: 1 },
+                    { role: 'substitute', label: 'Le Remplaçant', x: 110, y: 200, width: 60, height: 20, page: 1 }
                 ],
                 validationWorkflow: ['requester', 'substitute', 'major', 'chef_service', 'dds']
             }));
@@ -87,8 +59,7 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
 
     const formatDate = (dateStr) => {
         if (!dateStr) return '___________';
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     };
 
     const staticFieldStyle = {
@@ -101,258 +72,133 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
         lineHeight: '1.5'
     };
 
+    const inputCls = {
+        width: '100%',
+        borderBottom: '2px solid #9ca3af',
+        background: 'transparent',
+        outline: 'none',
+        fontSize: '15px',
+        fontWeight: '600',
+        padding: '2px 4px',
+    };
+
     if (loadingData) {
-        return <div className="p-8 text-center text-gray-500">Chargement des données...</div>;
+        return <div style={{ padding: 32, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>Chargement des données...</div>;
     }
 
     return (
-        <div 
-            ref={pdfContainerRef} 
-            className="bg-white p-12 shadow-lg mx-auto relative" 
-            style={{ 
-                width: '210mm', 
-                minHeight: '297mm', 
-                fontFamily: 'Arial, sans-serif',
-                fontSize: '15px'
-            }}
-        >
-            <header className="flex items-center justify-between mb-10">
-                <div className="flex items-center gap-3">
+        <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', position: 'relative', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif', fontSize: '15px' }}>
+
+            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <img src={logo} alt="Logo" style={{ width: '80px' }} />
-                    <h1 className="text-left">
-                        <span style={{ fontSize: '20px', fontWeight: 'bold', display: 'block' }}>
-                            ORDRE DE MALTE
-                        </span>
-                        <span style={{ fontSize: '18px', color: '#DC2626' }}>
-                            HÔPITAL SAINT JEAN DE MALTE
-                        </span>
+                    <h1 style={{ textAlign: 'left', margin: 0 }}>
+                        <span style={{ fontSize: '20px', fontWeight: 'bold', display: 'block' }}>ORDRE DE MALTE</span>
+                        <span style={{ fontSize: '18px', color: '#DC2626' }}>HÔPITAL SAINT JEAN DE MALTE</span>
                     </h1>
                 </div>
             </header>
 
-            <div className="flex justify-between mb-8">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 32 }}>
                 <div style={{ width: '50%' }}>
-                    <p className="font-semibold block mb-2" style={{ fontSize: '15px' }}>
-                        NOMS et prénom(s) du demandeur
-                    </p>
-                    <input 
-                        name="demandeur_noms_prenoms" 
-                        value={formData.demandeur_noms_prenoms || ''} 
-                        onChange={handleChange} 
-                        className="not-printable w-full border-b-2 border-gray-400 bg-transparent focus:outline-none focus:border-blue-500"
-                        style={{ ...staticFieldStyle, borderStyle: 'dotted' }}
-                    />
-                    <div className="print-only" style={{ ...staticFieldStyle, display: 'none', borderBottom: 'none' }}>
-                        {formData.demandeur_noms_prenoms || '\u00A0'}
-                    </div>
-                    
-                    <p className="font-semibold block mb-2 mt-6" style={{ fontSize: '15px' }}>
-                        Service
-                    </p>
-                    <input 
-                        name="service" 
-                        value={formData.service || ''} 
-                        onChange={handleChange} 
-                        className="not-printable w-full border-b-2 border-gray-400 bg-transparent focus:outline-none focus:border-blue-500"
-                        style={{ ...staticFieldStyle, borderStyle: 'dotted' }}
-                    />
-                    <div className="print-only" style={{ ...staticFieldStyle, display: 'none', borderBottom: 'none' }}>
-                        {formData.service || '\u00A0'}
-                    </div>
+                    <p style={{ fontWeight: 600, display: 'block', marginBottom: 8, fontSize: '15px' }}>NOMS et prénom(s) du demandeur</p>
+                    <input name="demandeur_noms_prenoms" value={formData.demandeur_noms_prenoms || ''} onChange={handleChange} className="not-printable" style={inputCls} />
+                    <div className="print-only" style={{ ...staticFieldStyle, display: 'none', borderBottom: 'none' }}>{formData.demandeur_noms_prenoms || ' '}</div>
+
+                    <p style={{ fontWeight: 600, display: 'block', marginBottom: 8, marginTop: 24, fontSize: '15px' }}>Service</p>
+                    <input name="service" value={formData.service || ''} onChange={handleChange} className="not-printable" style={inputCls} />
+                    <div className="print-only" style={{ ...staticFieldStyle, display: 'none', borderBottom: 'none' }}>{formData.service || ' '}</div>
                 </div>
                 <div style={{ width: '35%', textAlign: 'right' }}>
                     <p>
-                        Njombé le <span className="font-bold underline print-only" style={{ display: 'inline' }}>
+                        Njombé le <span className="print-only" style={{ fontWeight: 700, textDecoration: 'underline', display: 'inline' }}>
                             {formatDate(new Date())}
                         </span>
                     </p>
-                    <p className="font-semibold mt-6">A Monsieur le Directeur Général</p>
+                    <p style={{ fontWeight: 600, marginTop: 24 }}>A Monsieur le Directeur Général</p>
                     <p>De l'Hôpital Saint Jean de Malte de Njombé</p>
                 </div>
             </div>
 
-            <div className="mb-6">
-                <label className="font-bold" style={{ fontSize: '15px' }}>Objet :</label>
-                <div className="inline-block font-bold ml-2">Demande de permutation</div>
+            <div style={{ marginBottom: 24 }}>
+                <label style={{ fontWeight: 700, fontSize: '15px' }}>Objet :</label>
+                <div style={{ display: 'inline-block', fontWeight: 700, marginLeft: 8 }}>Demande de permutation</div>
             </div>
-            
-            <div className="mb-4">
-                <p className="mb-6 font-bold" style={{ fontSize: '15px' }}>Monsieur,</p>
-                
-                {/* Sélecteur de personne (Visible uniquement à l'écran pour la saisie) */}
-                <div className="not-printable mb-4 p-3 bg-gray-50 border rounded-lg">
-                    <label className="font-semibold block mb-1 text-gray-700" style={{ fontSize: '14px' }}>
+
+            <div style={{ marginBottom: 16 }}>
+                <p style={{ marginBottom: 24, fontWeight: 700, fontSize: '15px' }}>Monsieur,</p>
+
+                {/* Sélecteur personne (écran seulement) */}
+                <div className="not-printable" style={{ marginBottom: 16, padding: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)' }}>
+                    <label style={{ fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--fg)', fontSize: 14 }}>
                         Personne avec qui permuter :
                     </label>
                     <input
                         name="permute_noms_prenoms"
                         value={formData.permute_noms_prenoms || ''}
                         onChange={handleChange}
-                        className="w-full border-b-2 border-gray-400 bg-transparent focus:outline-none focus:border-blue-500"
-                        style={{ fontSize: '15px', fontWeight: '600' }}
+                        style={{ width: '100%', borderBottom: '2px solid var(--border)', background: 'transparent', outline: 'none', fontSize: '15px', fontWeight: '600', padding: '2px 4px' }}
                         placeholder="Saisir le nom et prénom"
                     />
                 </div>
 
-                {/* CORPS DE LA LETTRE - STRUCTURE "INLINE" STRICTE */}
+                {/* Corps de la lettre */}
                 <div style={{ fontSize: '15px', lineHeight: '2.5', textAlign: 'justify' }}>
-                    
-                    {/* PARAGRAPHE 1 */}
                     <span>
-                        Je viens par la présente vous solliciter respectueusement pour une permutation entre 
-                        
-                        {/* NOM REMPLAÇANT */}
-                        <span className="font-bold underline mx-1">
-                            {formData.permute_noms_prenoms || '______________________'}
-                        </span> 
-                        
-                        et 
-                        
-                        {/* NOM DEMANDEUR */}
-                        <span className="font-bold underline mx-1"> 
-                            {formData.demandeur_noms_prenoms}
-                        </span> 
-                        
-                        en date du 
-                        
-                        {/* DATE DÉBUT */}
-                        <span className="inline-block mx-1">
-                            {/* Input écran */}
-                            <input 
-                                type="date" 
-                                name="date_permutation" 
-                                value={formData.date_permutation || ''} 
-                                onChange={handleChange} 
-                                className="not-printable border-b border-gray-400 bg-transparent focus:outline-none font-bold"
-                                style={{ width: '130px', display: 'inline-block' }}
-                            />
-                            {/* Texte impression */}
-                            <span className="print-only font-bold underline" style={{ display: 'none' }}> 
-                                {formatDate(formData.date_permutation)}
-                            </span>
+                        Je viens par la présente vous solliciter respectueusement pour une permutation entre
+                        <span style={{ fontWeight: 700, textDecoration: 'underline', margin: '0 4px' }}>{formData.permute_noms_prenoms || '______________________'}</span>
+                        et
+                        <span style={{ fontWeight: 700, textDecoration: 'underline', margin: '0 4px' }}>{formData.demandeur_noms_prenoms}</span>
+                        en date du
+                        <span style={{ display: 'inline-block', margin: '0 4px' }}>
+                            <input type="date" name="date_permutation" value={formData.date_permutation || ''} onChange={handleChange} className="not-printable" style={{ borderBottom: '1px solid #9ca3af', background: 'transparent', outline: 'none', fontWeight: 700, width: 130, display: 'inline-block' }} />
+                            <span className="print-only" style={{ fontWeight: 700, textDecoration: 'underline', display: 'none' }}>{formatDate(formData.date_permutation)}</span>
                         </span>
-
                         au
-
-                        {/* DATE FIN */}
-                        <span className="inline-block mx-1">
-                            {/* Input écran */}
-                            <input 
-                                type="date" 
-                                name="date_permutation_fin" 
-                                value={formData.date_permutation_fin || ''} 
-                                onChange={handleChange} 
-                                className="not-printable border-b border-gray-400 bg-transparent focus:outline-none font-bold"
-                                style={{ width: '130px', display: 'inline-block' }}
-                            />
-                            {/* Texte impression */}
-                            <span className="print-only font-bold underline" style={{ display: 'none' }}> 
-                                {formatDate(formData.date_permutation_fin)}
-                            </span>
+                        <span style={{ display: 'inline-block', margin: '0 4px' }}>
+                            <input type="date" name="date_permutation_fin" value={formData.date_permutation_fin || ''} onChange={handleChange} className="not-printable" style={{ borderBottom: '1px solid #9ca3af', background: 'transparent', outline: 'none', fontWeight: 700, width: 130, display: 'inline-block' }} />
+                            <span className="print-only" style={{ fontWeight: 700, textDecoration: 'underline', display: 'none' }}>{formatDate(formData.date_permutation_fin)}</span>
                         </span>.
                     </span>
 
-                    <br /> {/* Saut de ligne explicite entre les paragraphes */}
+                    <br />
 
-                    {/* PARAGRAPHE 2 - CORRECTION ICI : Affichage des heures */}
-                    <span style={{ display: 'inline-block', marginTop: '10px' }}>
-                        En effet, 
-                        <span className="font-bold underline mx-1">
-                            {formData.permute_noms_prenoms || '______________________'}
-                        </span> 
-                        assurera ma plage horaire ce jour-là, de 
-                        
-                        {/* HEURE DÉBUT */}
-                        <span className="inline-block mx-1">
-                            {/* Input écran */}
-                            <input 
-                                type="time" 
-                                name="plage_horaire_debut" 
-                                value={formData.plage_horaire_debut || ''} 
-                                onChange={handleChange} 
-                                className="not-printable border-b border-gray-400 bg-transparent focus:outline-none text-center font-bold"
-                                style={{ width: '100px', display: 'inline-block', cursor: 'pointer' }}
-                            /> 
-                            {/* Texte impression - CORRECTION ICI */}
-                            <span className="print-only font-bold" style={{ display: 'none' }}> 
-                                {formData.plage_horaire_debut || '______'}
-                            </span>
+                    <span style={{ display: 'inline-block', marginTop: 10 }}>
+                        En effet,
+                        <span style={{ fontWeight: 700, textDecoration: 'underline', margin: '0 4px' }}>{formData.permute_noms_prenoms || '______________________'}</span>
+                        assurera ma plage horaire ce jour-là, de
+                        <span style={{ display: 'inline-block', margin: '0 4px' }}>
+                            <input type="time" name="plage_horaire_debut" value={formData.plage_horaire_debut || ''} onChange={handleChange} className="not-printable" style={{ borderBottom: '1px solid #9ca3af', background: 'transparent', outline: 'none', textAlign: 'center', fontWeight: 700, width: 100, display: 'inline-block', cursor: 'pointer' }} />
+                            <span className="print-only" style={{ fontWeight: 700, display: 'none' }}>{formData.plage_horaire_debut || '______'}</span>
                         </span>
-                        
-                        à 
-                        
-                        {/* HEURE FIN */}
-                        <span className="inline-block mx-1">
-                            {/* Input écran */}
-                            <input 
-                                type="time" 
-                                name="plage_horaire_fin" 
-                                value={formData.plage_horaire_fin || ''} 
-                                onChange={handleChange} 
-                                className="not-printable border-b border-gray-400 bg-transparent focus:outline-none text-center font-bold"
-                                style={{ width: '100px', display: 'inline-block', cursor: 'pointer' }}
-                            />
-                            {/* Texte impression - CORRECTION ICI */}
-                            <span className="print-only font-bold" style={{ display: 'none' }}> 
-                                {formData.plage_horaire_fin || '______'}
-                            </span>
+                        à
+                        <span style={{ display: 'inline-block', margin: '0 4px' }}>
+                            <input type="time" name="plage_horaire_fin" value={formData.plage_horaire_fin || ''} onChange={handleChange} className="not-printable" style={{ borderBottom: '1px solid #9ca3af', background: 'transparent', outline: 'none', textAlign: 'center', fontWeight: 700, width: 100, display: 'inline-block', cursor: 'pointer' }} />
+                            <span className="print-only" style={{ fontWeight: 700, display: 'none' }}>{formData.plage_horaire_fin || '______'}</span>
                         </span>,
-                        
                         laquelle sera remboursée ultérieurement, pour des raisons personnelles.
                     </span>
                 </div>
             </div>
-            
-            <p className="mt-6 mb-8" style={{ fontSize: '15px', lineHeight: '1.6' }}>
-                Dans l'attente d'une suite favorable, veuillez agréer, Monsieur, l'expression de ma
-                considération distinguée.
+
+            <p style={{ marginTop: 24, marginBottom: 32, fontSize: '15px', lineHeight: 1.6 }}>
+                Dans l'attente d'une suite favorable, veuillez agréer, Monsieur, l'expression de ma considération distinguée.
             </p>
 
-            {/* CADRES POUR SIGNATURES DEMANDEUR / REMPLAÇANT */}
-            <div className="flex justify-between items-start px-4 mb-20">
-                {/* Cadre Demandeur */}
-                <div className="flex flex-col items-center">
-                    <div 
-                        id="signature-zone-requester"
-                        style={{
-                            border: '1px solid transparent',
-                            borderRadius: '6px',
-                            width: '200px',
-                            height: '50px',
-                            marginBottom: '5px',
-                            backgroundColor: 'transparent'
-                        }}
-                    >
-                        {/* Zone vide pour la signature future */}
-                    </div>
-                    <p className="font-bold text-sm text-center">
-                        {formData.demandeur_noms_prenoms || 'Le Demandeur'}
-                    </p>
+            {/* Signatures Demandeur / Remplaçant */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0 16px', marginBottom: 80 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div id="signature-zone-requester" style={{ border: '1px solid transparent', borderRadius: 6, width: 200, height: 50, marginBottom: 5, backgroundColor: 'transparent' }}></div>
+                    <p style={{ fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{formData.demandeur_noms_prenoms || 'Le Demandeur'}</p>
                 </div>
-
-                {/* Cadre Remplaçant */}
-                <div className="flex flex-col items-center">
-                    <div 
-                        id="signature-zone-substitute"
-                        style={{
-                            border: '1px solid transparent',
-                            borderRadius: '6px',
-                            width: '200px',
-                            height: '50px',
-                            marginBottom: '5px',
-                            backgroundColor: 'transparent'
-                        }}
-                    >
-                        {/* Zone vide pour la signature future */}
-                    </div>
-                    <p className="font-bold text-sm text-center">
-                        {formData.permute_noms_prenoms || 'Le Remplaçant'}
-                    </p>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div id="signature-zone-substitute" style={{ border: '1px solid transparent', borderRadius: 6, width: 200, height: 50, marginBottom: 5, backgroundColor: 'transparent' }}></div>
+                    <p style={{ fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{formData.permute_noms_prenoms || 'Le Remplaçant'}</p>
                 </div>
             </div>
-            
-            {/* SIGNATURES ADMINISTRATIVES EN BAS */}
-            <div className="absolute bottom-16 left-12 right-12 grid grid-cols-3 gap-8">
+
+            {/* Signatures administratives */}
+            <div style={{ position: 'absolute', bottom: 64, left: 48, right: 48, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
                 <SignatureFrame label="Signature du Major" signatureUrl={null} stampUrl={null} zoneIndex={1} />
                 <SignatureFrame label="Chef de service" signatureUrl={null} stampUrl={null} zoneIndex={2} />
                 <SignatureFrame label="La Directrice Des Soins" signatureUrl={null} stampUrl={null} zoneIndex={3} />

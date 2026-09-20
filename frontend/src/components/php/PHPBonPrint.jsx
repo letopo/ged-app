@@ -20,110 +20,93 @@ export default function PHPBonPrint({ bon, patient, onClose }) {
   const heureEmission = bon?.heureEmission || new Date().toTimeString().split(' ')[0].slice(0, 5);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg">
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 512 }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2">
-            <FileText className="text-blue-600" size={20} />
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FileText size={20} style={{ color: 'var(--brand)' }} />
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>
               Bon de Prise en Charge généré
             </h2>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+          <button onClick={onClose} style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', borderRadius: 'var(--radius-2)', display: 'flex' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
             <X size={18} />
           </button>
         </div>
 
         {/* Zone à imprimer */}
-        <div className="p-4">
-          <div ref={printRef} className="border-2 border-gray-800 rounded-lg p-6 bg-white text-gray-900">
+        <div style={{ padding: 16 }}>
+          <div ref={printRef} style={{ border: '2px solid #1f2937', borderRadius: 8, padding: 24, background: '#ffffff', color: '#111827' }}>
             {/* En-tête hôpital */}
-            <div className="text-center mb-4 border-b-2 border-gray-800 pb-3">
-              <h1 className="text-lg font-bold uppercase">Hôpital Saint Jean de Malte</h1>
-              <p className="text-sm">Protection & Hygiène du Personnel (PHP)</p>
+            <div style={{ textAlign: 'center', marginBottom: 16, borderBottom: '2px solid #1f2937', paddingBottom: 12 }}>
+              <h1 style={{ fontSize: 16, fontWeight: 700, textTransform: 'uppercase', margin: '0 0 4px' }}>Hôpital Saint Jean de Malte</h1>
+              <p style={{ fontSize: 13, margin: 0 }}>Protection & Hygiène du Personnel (PHP)</p>
             </div>
 
             {/* Titre bon */}
-            <div className="text-center mb-5">
-              <h2 className="text-base font-bold uppercase border border-gray-800 inline-block px-6 py-1">
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', border: '1px solid #1f2937', display: 'inline-block', padding: '4px 24px', margin: '0 0 4px' }}>
                 BON DE PRISE EN CHARGE
               </h2>
-              <p className="text-sm text-gray-600 mt-1">N° <strong className="font-mono">{bon?.numeroBon}</strong></p>
+              <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>N° <strong style={{ fontFamily: 'monospace' }}>{bon?.numeroBon}</strong></p>
             </div>
 
             {/* Infos patient */}
-            <table className="w-full text-sm mb-4">
+            <table style={{ width: '100%', fontSize: 13, marginBottom: 16 }}>
               <tbody>
-                <tr>
-                  <td className="py-1 font-semibold w-40">Matricule :</td>
-                  <td className="py-1 font-mono font-bold">{patient?.matricule}</td>
-                </tr>
-                <tr>
-                  <td className="py-1 font-semibold">Nom et Prénoms :</td>
-                  <td className="py-1 font-bold uppercase">{patient?.nom} {patient?.prenom || ''}</td>
-                </tr>
-                <tr>
-                  <td className="py-1 font-semibold">Secteur :</td>
-                  <td className="py-1">{patient?.secteur?.nom || '–'}</td>
-                </tr>
-                <tr>
-                  <td className="py-1 font-semibold">Infirmerie :</td>
-                  <td className="py-1">{patient?.infirmerie?.nom || '–'}</td>
-                </tr>
-                <tr>
-                  <td className="py-1 font-semibold">Service consulté :</td>
-                  <td className="py-1 font-semibold">{bon?.serviceDestination || 'Consultation Médicale'}</td>
-                </tr>
+                <tr><td style={{ padding: '3px 0', fontWeight: 600, width: 160 }}>Matricule :</td><td style={{ padding: '3px 0', fontFamily: 'monospace', fontWeight: 700 }}>{patient?.matricule}</td></tr>
+                <tr><td style={{ padding: '3px 0', fontWeight: 600 }}>Nom et Prénoms :</td><td style={{ padding: '3px 0', fontWeight: 700, textTransform: 'uppercase' }}>{patient?.nom} {patient?.prenom || ''}</td></tr>
+                <tr><td style={{ padding: '3px 0', fontWeight: 600 }}>Secteur :</td><td style={{ padding: '3px 0' }}>{patient?.secteur?.nom || '–'}</td></tr>
+                <tr><td style={{ padding: '3px 0', fontWeight: 600 }}>Infirmerie :</td><td style={{ padding: '3px 0' }}>{patient?.infirmerie?.nom || '–'}</td></tr>
+                <tr><td style={{ padding: '3px 0', fontWeight: 600 }}>Service consulté :</td><td style={{ padding: '3px 0', fontWeight: 600 }}>{bon?.serviceDestination || 'Consultation Médicale'}</td></tr>
                 {bon?.motifVisite && (
-                  <tr>
-                    <td className="py-1 font-semibold">Motif :</td>
-                    <td className="py-1 italic">{bon.motifVisite}</td>
-                  </tr>
+                  <tr><td style={{ padding: '3px 0', fontWeight: 600 }}>Motif :</td><td style={{ padding: '3px 0', fontStyle: 'italic' }}>{bon.motifVisite}</td></tr>
                 )}
-                <tr>
-                  <td className="py-1 font-semibold">Date :</td>
-                  <td className="py-1">{dateEmission}</td>
-                </tr>
-                <tr>
-                  <td className="py-1 font-semibold">Heure :</td>
-                  <td className="py-1">{heureEmission}</td>
-                </tr>
+                <tr><td style={{ padding: '3px 0', fontWeight: 600 }}>Date :</td><td style={{ padding: '3px 0' }}>{dateEmission}</td></tr>
+                <tr><td style={{ padding: '3px 0', fontWeight: 600 }}>Heure :</td><td style={{ padding: '3px 0' }}>{heureEmission}</td></tr>
               </tbody>
             </table>
 
             {/* Note importante */}
-            <div className="border border-gray-600 rounded p-2 text-xs text-gray-700 mb-4">
+            <div style={{ border: '1px solid #6b7280', borderRadius: 4, padding: 8, fontSize: 11, color: '#374151', marginBottom: 16 }}>
               <strong>⚠ Important :</strong> Ce bon est valable uniquement pour la date d'émission.
               Le patient doit se présenter au service indiqué muni de ce document.
             </div>
 
             {/* Signatures */}
-            <div className="grid grid-cols-2 gap-8 mt-6">
-              <div className="text-center">
-                <p className="text-xs font-semibold mb-6">Signature Agent PHP</p>
-                <div className="border-t border-gray-400 pt-1 text-xs text-gray-500">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginTop: 24 }}>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 24 }}>Signature Agent PHP</p>
+                <div style={{ borderTop: '1px solid #9ca3af', paddingTop: 4, fontSize: 11, color: '#6b7280' }}>
                   {bon?.agentEmetteur ? `${bon.agentEmetteur.firstName} ${bon.agentEmetteur.lastName}` : ''}
                 </div>
               </div>
-              <div className="text-center">
-                <p className="text-xs font-semibold mb-6">Cachet / Visa Médecin</p>
-                <div className="border-t border-gray-400 pt-1 text-xs text-gray-500">&nbsp;</div>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 24 }}>Cachet / Visa Médecin</p>
+                <div style={{ borderTop: '1px solid #9ca3af', paddingTop: 4, fontSize: 11, color: '#6b7280' }}>&nbsp;</div>
               </div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 mt-4">
+          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              style={{ flex: 1, padding: '8px 16px', fontSize: 13, border: '1px solid var(--border)', color: 'var(--fg)', background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
             >
               Fermer
             </button>
             <button
               onClick={handlePrint}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 16px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-active)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
             >
               <Printer size={15} />
               Imprimer le bon

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 64" width="240" height="64" role="img" aria-label="GED">
+  <defs>
+    
+  </defs>
+  
+  <g transform="translate(8, 12)">
+    <rect x="0" y="6" width="34" height="40" rx="3" class="wm-brand" opacity="0.18"></rect>
+    <rect x="4" y="2" width="34" height="40" rx="3" class="wm-brand"></rect>
+    <path d="M30 2 L38 10 L30 10 Z" fill="#0F2340"></path>
+    
+    <path d="M11 28 C 16 22, 21 34, 26 28 C 28 25, 30 27, 32 25" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+  </g>
+  
+  <g transform="translate(60, 0)" class="wm-fg" font-family="Inter, system-ui, sans-serif" font-weight="600" font-size="34" letter-spacing="-0.5">
+    <text x="0" y="42">GED</text>
+  </g>
+  
+  <g transform="translate(60, 47)">
+    <text font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="500" fill="#5A6478" letter-spacing="1.2">DOCUMENTS · SIGNATURE</text>
+  </g>
+</svg>

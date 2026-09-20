@@ -55,6 +55,31 @@ export const registerServiceWorker = async () => {
       });
     }
 
+    // Detecter les mises a jour du SW
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      if (newWorker) {
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Nouvelle version disponible — activer immediatement
+            newWorker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      }
+    });
+
+    // Recharger quand le nouveau SW prend le controle
+    // ⚠️ Seulement si un SW existait déjà (= mise à jour), pas au premier install
+    // Sinon iOS Safari reload avant que les assets soient en cache → page blanche
+    const hadController = !!navigator.serviceWorker.controller;
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing && hadController) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+
     return registration;
   } catch (error) {
     console.error('❌ Erreur enregistrement Service Worker:', error);

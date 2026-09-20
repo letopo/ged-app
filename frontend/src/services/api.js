@@ -182,6 +182,14 @@ export const offSocketEvent = (eventName, callback) => {
   socket.off(eventName, callback);
 };
 
+/**
+ * Écoute les changements de droits d'accès pour l'utilisateur courant
+ */
+export const onRightsChanged = (callback) => {
+  if (!socket) return;
+  socket.on('rights_changed', callback);
+};
+
 // ============================================
 // API pour l'Authentification
 // ============================================
@@ -196,7 +204,9 @@ export const authAPI = {
 // API pour les Documents
 // ============================================
 export const documentsAPI = {
-  getAll: () => api.get('/documents'),
+  getAll: (params) => api.get('/documents', { params }),
+  getById: (id) => api.get(`/documents/${id}`),
+  getCategories: () => api.get('/documents/categories'),
   upload: (formData, onUploadProgress) => api.post('/documents/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress,
@@ -208,11 +218,14 @@ export const documentsAPI = {
   updateMetadata: (documentId, data) => api.patch(`/documents/${documentId}/metadata`, data),
   getValidatedOrdreMission: () => api.get('/documents/ordres-mission/valides'),
   getValidatedForPC: () => api.get('/documents/valides-pour-pc'),
+  getPieceDeCaisseHistory: (params = {}) => api.get('/documents/piece-de-caisse-history', { params }),
   getValidatedDemandesTravaux: () => api.get('/documents/demandes-travaux/valides'),
   getNextNumero: (category) => api.get(`/documents/next-numero?category=${encodeURIComponent(category)}`),
   getArchives: () => api.get('/documents/archives'),
   archive: (id) => api.patch(`/documents/${id}/archive`),
   unarchive: (id) => api.patch(`/documents/${id}/unarchive`),
+  // OnlyOffice
+  getOnlyOfficeConfig: (documentId) => api.get(`/onlyoffice/config/${documentId}`),
 };
 
 // ============================================
@@ -268,6 +281,7 @@ export const usersAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   getProfile: () => api.get('/users/profile'),
+  setAbsence: (userId, isAbsent) => api.put(`/users/${userId}/absence`, { isAbsent }),
 };
 
 // ============================================
@@ -276,6 +290,9 @@ export const usersAPI = {
 export const workflowAPI = {
   create: (workflowData) => api.post('/workflows', workflowData),
   submitWorkflow: (workflowData) => api.post('/workflows', workflowData),
+  // Aperçu du circuit d'un ordre de mission (postes + titulaires + choix requis)
+  getOrdreMissionPreview: (documentId) => api.get(`/workflows/document/${documentId}/ordre-mission-preview`),
+  getPieceDeCaisseChainPreview: (documentId) => api.get(`/workflows/document/${documentId}/piece-de-caisse-preview`),
   
   // ✅ AJOUT IMPORTANT : La fonction qui manquait
   submitForValidation: (documentId, validatorIds) => api.post('/workflows', { documentId, validatorIds }),
@@ -286,6 +303,10 @@ export const workflowAPI = {
   getDocumentWorkflow: (documentId) => api.get(`/workflows/document/${documentId}`),
   getValidators: () => api.get('/workflows/validators'),
   bulkValidate: (data) => api.post('/workflows/bulk-validate', data),
+  reassignTask: (taskId, newValidatorId) => api.put(`/workflows/${taskId}/reassign`, { newValidatorId }),
+  getComments: (documentId) => api.get(`/workflows/document/${documentId}/comments`),
+  addComment: (documentId, text) => api.post(`/workflows/document/${documentId}/comments`, { text }),
+  relancerValidation: (documentId, motif) => api.post(`/workflows/document/${documentId}/relancer`, { motif }),
 };
 
 // ============================================
@@ -317,6 +338,7 @@ export const employeesAPI = {
   update: (employeeId, data) => api.put(`/employees/${employeeId}`, data),
   delete: (employeeId) => api.delete(`/employees/${employeeId}`),
   getByService: (serviceId) => api.get(`/employees/service/${serviceId}`),
+  getMissionCandidates: (params = {}) => api.get('/employees/mission-candidates', { params }),
   getServicesWithEmployees: () => api.get('/employees/services/with-employees'),
   exportCSV: () => api.get('/employees/export/csv', {
     responseType: 'blob'
@@ -505,6 +527,90 @@ export const templatePermissionsAPI = {
   update: (id, data) => api.put(`/template-permissions/${id}`, data),
   seed: () => api.post('/template-permissions/seed'),
   getUsers: () => api.get('/template-permissions/users'),
+};
+
+// ============================================
+// API pour les Preferences de Notifications
+// ============================================
+export const notificationPrefsAPI = {
+  get: () => api.get('/notification-preferences/me'),
+  update: (data) => api.put('/notification-preferences/me', data),
+};
+
+// ============================================
+// API pour le Journal d'audit
+// ============================================
+export const auditLogAPI = {
+  getAll: (params) => api.get('/audit-logs', { params }),
+};
+
+// ============================================
+// API pour les Statistiques avancées
+// ============================================
+export const statisticsAPI = {
+  get: (params) => api.get('/documents/statistics', { params }),
+};
+
+// ============================================
+// API pour le Branding du Tenant
+// ============================================
+export const tenantBrandingAPI = {
+  get: () => api.get('/tenant/branding'),
+  update: (data) => api.put('/tenant/branding', data),
+  uploadLogo: (formData) => api.post('/tenant/branding/logo', formData),
+};
+
+// ============================================
+// API pour les Modeles de Workflow
+// ============================================
+export const workflowTemplatesAPI = {
+  getAll: () => api.get('/workflow-templates'),
+  create: (data) => api.post('/workflow-templates', data),
+  update: (id, data) => api.put(`/workflow-templates/${id}`, data),
+  delete: (id) => api.delete(`/workflow-templates/${id}`),
+  seed: () => api.post('/workflow-templates/seed'),
+};
+
+// ============================================
+// ✅ API Form Builder
+// ============================================
+export const formsAPI = {
+  getAll:      (params)      => api.get('/forms', { params }),
+  getById:     (id)          => api.get(`/forms/${id}`),
+  create:      (data)        => api.post('/forms', data),
+  update:      (id, data)    => api.put(`/forms/${id}`, data),
+  delete:      (id)          => api.delete(`/forms/${id}`),
+  duplicate:   (id)          => api.post(`/forms/${id}/duplicate`),
+  publish:     (id)          => api.patch(`/forms/${id}/publish`),
+  unpublish:   (id)          => api.patch(`/forms/${id}/unpublish`),
+  archive:     (id)          => api.patch(`/forms/${id}/archive`),
+  getPermissions: (id)       => api.get(`/forms/${id}/permissions`),
+  setPermissions: (id, perms)=> api.put(`/forms/${id}/permissions`, { permissions: perms }),
+  getStats:    (id)          => api.get(`/forms/${id}/stats`),
+  submitResponse:       (id, data)           => api.post(`/forms/${id}/responses`, { data }),
+  getResponses:         (id, params)         => api.get(`/forms/${id}/responses`, { params }),
+  getResponseById:      (id, rid)            => api.get(`/forms/${id}/responses/${rid}`),
+  updateResponseStatus: (id, rid, status)    => api.patch(`/forms/${id}/responses/${rid}/status`, { status }),
+  approveStep:          (id, rid, comment)   => api.post(`/forms/${id}/responses/${rid}/approve`, { comment }),
+  rejectStep:           (id, rid, comment)   => api.post(`/forms/${id}/responses/${rid}/reject`, { comment }),
+  getPendingApprovals:  ()                   => api.get('/forms/responses/pending'),
+};
+
+// Postes organisationnels assignables (comptable, DG, DDS…)
+export const missionMealAPI = {
+  get: () => api.get('/mission-meal-rates'),
+  upsertRate: (data) => api.post('/mission-meal-rates/rates', data),
+  deleteRate: (id) => api.delete(`/mission-meal-rates/rates/${id}`),
+  updateThresholds: (data) => api.put('/mission-meal-rates/thresholds', data),
+  calculate: (data) => api.post('/mission-meal-rates/calculate', data),
+};
+
+export const postesAPI = {
+  getAll:              ()                          => api.get('/postes'),
+  getOrdreMissionTypes:()                          => api.get('/postes/ordre-mission-types'),
+  create:              (code, label, description)  => api.post('/postes', { code, label, description }),
+  assignHolder:        (code, userId)              => api.post(`/postes/${code}/holders`, { userId }),
+  removeHolder:        (code, userId)              => api.delete(`/postes/${code}/holders/${userId}`),
 };
 
 export default api;

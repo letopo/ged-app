@@ -21,9 +21,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API - Image depuis GitHub
+  # Backend API - Build local (GitHub/GHCR inaccessible depuis certains FAI camerounais,
+  # voir ci-dessous : le déploiement se fait maintenant par transfert du code en local,
+  # plus par "pull" d'image pré-construite)
   backend:
-    image: ghcr.io/letopo/ged-app/ged-backend:main
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
     container_name: ged-backend
     restart: unless-stopped
     environment:
@@ -76,9 +81,13 @@ services:
       timeout: 10s
       retries: 3
 
-  # Frontend (Nginx + React build) - Image depuis GitHub
+  # Frontend (Nginx + React build) - Build local (voir note backend ci-dessus)
   frontend:
-    image: ghcr.io/letopo/ged-app/ged-frontend:main
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
     container_name: ged-frontend
     restart: unless-stopped
     ports:
@@ -92,7 +101,7 @@ services:
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--no-check-certificate", "--spider", "https://127.0.0.1/"]
       interval: 30s
       timeout: 10s
       retries: 3

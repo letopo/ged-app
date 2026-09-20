@@ -38,7 +38,11 @@ const Infirmerie = sequelize.define('Infirmerie', {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
     field: 'is_active'
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'php_infirmeries',
   timestamps: true,

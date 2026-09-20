@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
 import User from '../models/User.js';
+import { getUserPosteCodes } from '../utils/posteResolver.js';
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -13,7 +14,7 @@ const generateToken = (user) => {
 
 export const register = async (req, res, next) => {
   try {
-    const { email, password, firstName, lastName, username, role } = req.body;
+    const { email, password, firstName, lastName, username } = req.body;
 
     if (!email || !password || !username) {
       return res.status(400).json({ success: false, error: 'Email, mot de passe et nom d\'utilisateur sont requis' });
@@ -33,8 +34,9 @@ export const register = async (req, res, next) => {
 
     // Le hachage est maintenant géré par le hook du modèle User.js.
     // Il suffit de passer le mot de passe en clair.
+    // Le rôle est toujours 'user' : seul un admin peut attribuer un rôle via POST /api/users.
     const user = await User.create({
-      email, password, firstName, lastName, username, role: role || 'user'
+      email, password, firstName, lastName, username, role: 'user'
     });
     
     const token = generateToken(user);
@@ -57,6 +59,7 @@ export const login = async (req, res, next) => {
 
     const user = await User.scope('withPassword').findOne({
       where: {
+        tenantId: req.tenantId,
         [Op.or]: [
           { email:    { [Op.iLike]: username } },
           { username: { [Op.iLike]: username } },
@@ -73,10 +76,31 @@ export const login = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Ce compte a été désactivé' });
     }
 
+    // ── 2FA : si activée, émettre un token temporaire (5 min) ────────────────
+    if (user.totpEnabled) {
+      const tempToken = jwt.sign(
+        { id: user.id, type: '2fa_pending' },
+        process.env.JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+      return res.json({
+        success: true,
+        requires2FA: true,
+        tempToken,
+        message: 'Code 2FA requis'
+      });
+    }
+
     await user.update({ lastLogin: new Date() });
     const token = generateToken(user);
     const userResult = user.toJSON();
     delete userResult.password;
+    delete userResult.totpSecret;
+    userResult.postes = await getUserPosteCodes(user.id);
+
+    // Audit login
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'LOGIN', 'auth', user.id, { email: user.email });
 
     res.json({ success: true, message: 'Connexion réussie', token, user: userResult });
   } catch (error) {
@@ -89,7 +113,9 @@ export const login = async (req, res, next) => {
 
 export const getProfile = async (req, res, next) => {
     try {
-      res.json({ success: true, user: req.user });
+      const userObj = req.user?.toJSON ? req.user.toJSON() : { ...req.user };
+      userObj.postes = await getUserPosteCodes(req.user.id); // ex: ['comptable']
+      res.json({ success: true, user: userObj });
     } catch (error) {
       next(error);
     }

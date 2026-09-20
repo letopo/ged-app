@@ -1,6 +1,6 @@
 // backend/src/controllers/workflowController.js - VERSION COMPLÈTE AVEC SOCKET.IO
 
-import { Workflow, Document, User, InvoiceFolder } from '../models/index.js'; // ✅ AJOUT DE InvoiceFolder
+import { Workflow, Document, User, InvoiceFolder, NotificationPreference, WorkflowComment } from '../models/index.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
@@ -11,73 +11,92 @@ import { sequelize } from '../models/index.js';
 import { getSignatureConfig } from '../config/documentSignatureConfig.js';
 // ✅ NOUVEAU : Import du Socket Manager
 import { emitNewTaskNotification, emitTaskUpdateNotification, isUserConnected } from '../utils/socketManager.js';
+import { buildOrdreMissionChain, resolveOrdreMissionChain } from '../utils/ordreMissionChain.js';
+import { buildPieceDeCaisseChain, resolvePieceDeCaisseChain } from '../utils/pieceDeCaisseChain.js';
+import { getPosteHolders, userHasPoste } from '../utils/posteResolver.js';
 import { sendNewTaskPushNotification } from '../services/pushNotificationService.js';
 import { mergePDFs } from '../utils/pdfMerger.js';
 import { PDFExtract } from 'pdf.js-extract';
 import { computeDeadline } from '../utils/workflowAutoExpire.js';
+import { generateVerificationHash, generateQRCodeBuffer, buildVerificationUrl } from '../utils/qrVerification.js';
+import { notifyValidator, createWorkflowForDocument, resolveValidatorIdsFromTemplate } from '../utils/workflowEngine.js';
 
-
-// ✅ NOUVEAU : Email du comptable
-const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com';
-
-// ✅ NOUVEAU : Email du DG qui peut signer + cacheter en une seule fois
-const DG_EMAIL = 'hopitalcameroun@ordredemaltefrance.org';
-
-// ============================================
-// FONCTION HELPER : Notifier un validateur
-// ============================================
-const notifyValidator = async (validator, document, isFirstValidator = false) => {
-  if (!validator?.email) return;
-
-  const subject = isFirstValidator 
-    ? 'Nouvelle tâche de validation' 
-    : 'Nouvelle tâche de validation';
-  
-  const body = `Vous avez une nouvelle tâche de validation pour le document "${document.title}".`;
-
+// Helper : embarquer une image dans un PDF (tente JPG puis PNG)
+async function embedImage(pdfDoc, imageBytes) {
   try {
-    const isConnected = isUserConnected(validator.id);
-    
+    return await pdfDoc.embedJpg(imageBytes);
+  } catch (_) {
+    return await pdfDoc.embedPng(imageBytes);
+  }
+}
+
+// Le comptable, le RH et le DG ne sont plus figés par email : ils sont résolus
+// dynamiquement via les postes assignables (voir utils/posteResolver.js).
+
+// notifyValidator est désormais dans utils/workflowEngine.js (réutilisable
+// hors contexte HTTP, ex: job de synchro Sage).
+
+// ============================================
+// FONCTION HELPER : Notifier le soumetteur (approbation/rejet)
+// ============================================
+const notifySubmitter = async (document, status, validatorComment) => {
+  try {
+    const submitter = await User.findByPk(document.uploadedById || document.uploadedBy?.id);
+    if (!submitter?.email) return;
+
+    // Verifier les preferences de notification
+    const prefs = await NotificationPreference.findOne({ where: { userId: submitter.id } });
+    if (status === 'approved' && prefs?.emailOnApproval === false) return;
+    if (status === 'rejected' && prefs?.emailOnRejection === false) return;
+
+    const isApproved = status === 'approved';
+    const subject = isApproved
+      ? `Document approuve : ${document.title}`
+      : `Document rejete : ${document.title}`;
+
+    const commentLine = validatorComment ? `\n\nCommentaire du validateur : ${validatorComment}` : '';
+    const body = isApproved
+      ? `Votre document "${document.title}" a ete approuve par tous les validateurs.${commentLine}`
+      : `Votre document "${document.title}" a ete rejete.${commentLine}`;
+
+    const emailType = isApproved ? 'approved' : 'rejected';
+
+    // WebSocket si connecte
+    const isConnected = isUserConnected(submitter.id);
     if (isConnected) {
-      console.log(`🔌 User ${validator.id} connecté - WebSocket`);
-      emitNewTaskNotification(validator.id, {
-        taskId: document.id,
+      emitTaskUpdateNotification(submitter.id, {
         documentId: document.id,
         documentTitle: document.title,
-        documentCategory: document.category,
-        submittedBy: document.uploadedBy?.firstName 
-          ? `${document.uploadedBy.firstName} ${document.uploadedBy.lastName}` 
-          : 'Inconnu'
-      });
-    } else {
-      console.log(`📧 User ${validator.id} hors ligne - Email + Push`);
-      
-      // ✅ NOUVEAU : Envoyer notification push
-      await sendNewTaskPushNotification(validator.id, {
-        taskId: document.id,
-        documentId: document.id,
-        documentTitle: document.title,
-        documentCategory: document.category,
-        submittedBy: document.uploadedBy?.firstName 
-          ? `${document.uploadedBy.firstName} ${document.uploadedBy.lastName}` 
-          : 'Inconnu'
+        status,
+        comment: validatorComment,
       });
     }
-    
-    // Email en backup
-    await sendNotificationEmail(validator.email, subject, body);
-    
-  } catch (emailError) {
-    console.warn('⚠️ Erreur envoi notification:', emailError.message);
+
+    // Push notification
+    try {
+      await sendNewTaskPushNotification(submitter.id, {
+        documentId: document.id,
+        documentTitle: document.title,
+        status,
+      });
+    } catch (e) { /* push non bloquant */ }
+
+    // Email
+    await sendNotificationEmail(submitter.email, subject, body, emailType);
+    console.log(`📧 Notification ${status} envoyee au soumetteur ${submitter.email}`);
+  } catch (err) {
+    console.warn('⚠️ Erreur notifySubmitter:', err.message);
   }
 };
 
 // Créer un workflow avec ajout automatique du comptable pour Ordre de mission
 export const createWorkflow = async (req, res) => {
   try {
-    const { documentId, validatorIds } = req.body;
-    if (!documentId || !validatorIds || !Array.isArray(validatorIds) || validatorIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'documentId et validatorIds (array) sont requis.' });
+    const { documentId, validatorIds, posteSelections } = req.body;
+    // validatorIds n'est requis que pour les documents hors « Ordre de mission » :
+    // pour un OM, le circuit est construit côté serveur depuis le type + les postes.
+    if (!documentId) {
+      return res.status(400).json({ success: false, message: 'documentId requis.' });
     }
     
     const document = await Document.findByPk(documentId, {
@@ -133,48 +152,48 @@ export const createWorkflow = async (req, res) => {
 
     // La suite du code (Si c'est un Ordre de mission...) reste inchangée
 
-    // ✅ NOUVEAU : Si c'est un Ordre de mission, ajouter automatiquement le comptable
-    let finalValidatorIds = [...validatorIds];
+    // Construction du circuit de validation
+    let finalValidatorIds;
     let comptableAdded = false;
-    
+
     if (document.category === 'Ordre de mission') {
-      // Trouver le comptable par email
-      const comptable = await User.findOne({ 
-        where: { email: COMPTABLE_EMAIL }
-      });
-      
-      if (comptable) {
-        // Vérifier que le comptable n'est pas déjà dans la liste
-        if (!finalValidatorIds.includes(comptable.id)) {
-          finalValidatorIds.push(comptable.id);
-          comptableAdded = true;
-          console.log(`✅ Comptable ${COMPTABLE_EMAIL} ajouté automatiquement à l'Ordre de Mission`);
-        }
-      } else {
-        console.warn(`⚠️ Comptable introuvable - email: ${COMPTABLE_EMAIL}`);
+      // Circuit construit côté serveur : chef du service demandeur → chaîne du
+      // type (postes) → comptable si frais. Plus aucun email figé.
+      const built = await buildOrdreMissionChain(document, posteSelections || {});
+      if (built.error) {
+        return res.status(400).json({ success: false, message: built.error });
       }
+      finalValidatorIds = built.validatorIds;
+      comptableAdded = built.comptableAdded;
+    } else if (document.category === 'Pièce de caisse') {
+      // Circuit construit côté serveur : DG → Comptable → Bénéficiaire (si compte) → Caissière.
+      const built = await buildPieceDeCaisseChain(document, posteSelections || {});
+      if (built.error) {
+        return res.status(400).json({ success: false, message: built.error });
+      }
+      finalValidatorIds = built.validatorIds;
+    } else if (req.body.workflowTemplateId) {
+      // Circuit depuis un modèle de workflow (formulaires Form Builder, Facture PHP Sage, etc.)
+      let resolved;
+      try {
+        resolved = await resolveValidatorIdsFromTemplate(req.body.workflowTemplateId, req.tenantId);
+      } catch (e) {
+        return res.status(404).json({ success: false, message: e.message });
+      }
+      if (resolved.length === 0) {
+        return res.status(400).json({ success: false, message: 'Aucun validateur résolu depuis le modèle.' });
+      }
+      finalValidatorIds = resolved;
+    } else {
+      // Autres documents : validateurs choisis par l'utilisateur
+      if (!Array.isArray(validatorIds) || validatorIds.length === 0) {
+        return res.status(400).json({ success: false, message: 'validatorIds (array) requis.' });
+      }
+      finalValidatorIds = [...validatorIds];
     }
     
-    const now = new Date();
-    const workflows = await Promise.all(
-      finalValidatorIds.map((validatorId, index) =>
-        Workflow.create({
-          documentId,
-          validatorId,
-          step: index + 1,
-          status: index === 0 ? 'pending' : 'queued',
-          assignedAt: index === 0 ? now : null,
-          deadlineAt: index === 0 ? computeDeadline(now) : null,
-        })
-      )
-    );
-    
-    await document.update({ status: 'pending_validation' });
-    
-    // ✅ NOUVEAU : Notifier le premier validateur avec WebSocket + Email
-    const firstValidator = await User.findByPk(finalValidatorIds[0]);
-    await notifyValidator(firstValidator, document, true);
-    
+    await createWorkflowForDocument(document, finalValidatorIds, req.tenantId);
+
     const workflowsWithValidators = await Workflow.findAll({
       where: { documentId },
       include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }],
@@ -190,6 +209,44 @@ export const createWorkflow = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Erreur création workflow:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// Aperçu du circuit d'un ordre de mission : étapes, titulaires possibles par poste,
+// et postes nécessitant un choix (plusieurs titulaires). Sert à l'écran de soumission.
+export const getOrdreMissionPreview = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const document = await Document.findByPk(documentId);
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document introuvable.' });
+    }
+    const result = await resolveOrdreMissionChain(document, {});
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+    res.json({ success: true, steps: result.steps });
+  } catch (error) {
+    console.error('❌ Erreur aperçu OM:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+export const getPieceDeCaisseChainPreview = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const document = await Document.findByPk(documentId);
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document introuvable.' });
+    }
+    const result = await resolvePieceDeCaisseChain(document, {});
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+    res.json({ success: true, steps: result.steps });
+  } catch (error) {
+    console.error('❌ Erreur aperçu circuit Pièce de caisse:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
@@ -212,13 +269,9 @@ export const getMyTasks = async (req, res) => {
         {
           model: Document,
           as: 'document',
+          // Pas de workflows imbriqués ici — on les calcule séparément ci-dessous
           include: [
             { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
-            {
-              model: Workflow,
-              as: 'workflows',
-              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }],
-            },
           ],
         },
       ],
@@ -227,14 +280,54 @@ export const getMyTasks = async (req, res) => {
       offset,
     });
 
+    // Pour les tâches "queued" : charger uniquement l'étape précédente en attente
+    // (nécessaire pour la logique de bypass côté frontend)
+    // Une seule requête groupée au lieu d'un join N+1 pour chaque tâche
+    const queuedDocumentIds = rows
+      .filter(t => t.status === 'queued')
+      .map(t => t.documentId);
+
+    let bypassMap = {}; // documentId → étape précédente pending
+    if (queuedDocumentIds.length > 0) {
+      const prevSteps = await Workflow.findAll({
+        where: {
+          documentId: queuedDocumentIds,
+          status: 'pending',
+        },
+        attributes: ['id', 'documentId', 'step', 'status', 'assignedAt', 'deadlineAt'],
+        order: [['step', 'ASC']],
+      });
+      // Garder l'étape pending la plus basse par document
+      for (const w of prevSteps) {
+        const docId = w.documentId;
+        if (!bypassMap[docId] || w.step < bypassMap[docId].step) {
+          bypassMap[docId] = {
+            step: w.step,
+            status: w.status,
+            assignedAt: w.assignedAt,
+            deadlineAt: w.deadlineAt,
+          };
+        }
+      }
+    }
+
     // Tâches en retard (deadline dépassée) en premier, puis par date décroissante
     const now = new Date();
-    const tasks = [...rows].sort((a, b) => {
-      const aOverdue = a.status === 'pending' && a.deadlineAt && now > new Date(a.deadlineAt) ? 0 : 1;
-      const bOverdue = b.status === 'pending' && b.deadlineAt && now > new Date(b.deadlineAt) ? 0 : 1;
-      if (aOverdue !== bOverdue) return aOverdue - bOverdue;
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
+    const tasks = [...rows]
+      .map(t => {
+        const plain = t.toJSON();
+        // Attacher bypassInfo uniquement si utile (queued + étape précédente en retard)
+        if (plain.status === 'queued' && bypassMap[plain.documentId]) {
+          plain.bypassInfo = bypassMap[plain.documentId];
+        }
+        return plain;
+      })
+      .sort((a, b) => {
+        const aOverdue = a.status === 'pending' && a.deadlineAt && now > new Date(a.deadlineAt) ? 0 : 1;
+        const bOverdue = b.status === 'pending' && b.deadlineAt && now > new Date(b.deadlineAt) ? 0 : 1;
+        if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
 
     res.json({
       success: true,
@@ -400,7 +493,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       const validator = await User.findByPk(userId, { transaction: t });
 
       // --- LOGIQUE REMPLAÇANT POUR PERMISSION ---
-      if (document.category === 'Demande de permission' && remplacantName && (effectiveStatus === 'approved')) {
+      if (document.category === 'Demande de permission' && remplacantName && (effectiveStatus === 'approved') && document.fileType === 'application/pdf') {
           try {
               const pdfPath = path.resolve(process.cwd(), document.filePath);
               const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
@@ -421,7 +514,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
                       color: rgb(0, 0, 0),
                   });
               }
-              await fs.writeFile(pdfPath, await pdfDoc.save());
+              await fs.writeFile(pdfPath, await pdfDoc.save({ useObjectStreams: false }));
           } catch (error) {
               console.error('⚠️ Erreur écriture remplaçant:', error.message);
           }
@@ -430,18 +523,25 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       // ----------------------------------------------------------------
       // GESTION DES SIGNATURES
       // ----------------------------------------------------------------
-      const allWorkflows = await Workflow.findAll({ where: { documentId: document.id }, include: [{ model: User, as: 'validator', attributes: ['email'] }], order: [['step', 'ASC']], transaction: t });
+      const allWorkflows = await Workflow.findAll({ where: { documentId: document.id }, include: [{ model: User, as: 'validator', attributes: ['id', 'email'] }], order: [['step', 'ASC']], transaction: t });
       const totalSteps = allWorkflows.length;
       const lastWorkflow = allWorkflows[allWorkflows.length - 1];
-      const isLastWorkflowComptable = lastWorkflow.validator.email === COMPTABLE_EMAIL;
+      // Le dernier validateur est-il le comptable ? (résolu par poste, plus par email)
+      const comptableHolderIds = (await getPosteHolders('comptable')).map(u => u.id);
+      const isLastWorkflowComptable = comptableHolderIds.includes(lastWorkflow.validatorId);
       const totalStepsWithoutComptable = isLastWorkflowComptable ? totalSteps - 1 : totalSteps;
       
       let signatureConfig = getSignatureConfig(document.category);
-      // Pour le Bon de commande interne, respecter le nombre de signataires choisi par l'utilisateur
       const metadataNbSig = document.metadata?.nbSignataires ? parseInt(document.metadata.nbSignataires) : null;
-      const numberOfSignatures = (metadataNbSig && metadataNbSig >= 1 && metadataNbSig <= signatureConfig.numberOfSignatures)
-        ? metadataNbSig
-        : signatureConfig.numberOfSignatures;
+      // Quand le document a des signatureZones explicites (Form Builder), leur compte prime sur tout
+      const sigZonesCount = Array.isArray(document.metadata?.signatureZones)
+        ? document.metadata.signatureZones.length
+        : null;
+      const numberOfSignatures = sigZonesCount
+        ? sigZonesCount
+        : (metadataNbSig && metadataNbSig >= 1 && metadataNbSig <= signatureConfig.numberOfSignatures)
+          ? metadataNbSig
+          : signatureConfig.numberOfSignatures;
 
       // Vérification de la zone de signature
       const isInSignatureRange = task.step > (totalStepsWithoutComptable - numberOfSignatures);
@@ -529,8 +629,14 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
             }
         }
 
-        // 1. DATER (RH)
-        if (validationType === 'dater' && validator.email === 'hsjm.rh@gmail.com') {
+        // Signature "Pour Ordre" — cette étape est actuellement portée par un remplaçant
+        // (absence du titulaire habituel) : on annote qui elle représente.
+        const poOriginalUser = task.isSubstituted && task.originalValidatorId
+          ? await User.findByPk(task.originalValidatorId, { attributes: ['firstName', 'lastName'] })
+          : null;
+
+        // 1. DATER (RH) — le validateur est-il titulaire du poste RH ?
+        if (validationType === 'dater' && await userHasPoste(validator.id, 'rh')) {
           const dateText = `Reçu le : ${new Date().toLocaleDateString('fr-FR')}`;
           try {
             const specialEliteFontPath = path.resolve(process.cwd(), 'fonts/SpecialElite-Regular.ttf');
@@ -543,51 +649,106 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         }
 
         // 2. SIGNATURE
-        if ((validationType === 'signature' || validationType === 'approve_sign_stamp') && validator.signaturePath) {
-          const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
-          const signatureImageBytes = await fs.readFile(signatureImagePath);
-          const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
-          const signatureDims = signatureImage.scaleToFit(signatureConfig.signatureWidth, signatureConfig.signatureHeight);
+        if (validationType === 'signature' || validationType === 'approve_sign_stamp') {
+          const sigX = baseX + (signatureConfig.blockWidth / 2);
 
-          // Ancrage : signature dans la moitié BASSE (tous les templates)
+          let signatureImage = null;
+          let signatureDims = null;
+          if (validator.signaturePath) {
+            const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
+            const signatureImageBytes = await fs.readFile(signatureImagePath);
+            signatureImage = await embedImage(pdfDoc, signatureImageBytes);
+            signatureDims = signatureImage.scaleToFit(signatureConfig.signatureWidth, signatureConfig.signatureHeight);
+          }
+
           const sigY = activeZone
-            ? activeZone.y + (activeZone.height / 2 - signatureDims.height) / 2
+            ? activeZone.y + (activeZone.height / 2 - (signatureDims ? signatureDims.height : 36)) / 2
             : baseY;
 
-          targetPage.drawImage(signatureImage, {
-            x: baseX + (signatureConfig.blockWidth / 2) - (signatureDims.width / 2),
-            y: sigY,
-            width: signatureDims.width,
-            height: signatureDims.height
-          });
+          if (signatureImage) {
+            targetPage.drawImage(signatureImage, {
+              x: sigX - signatureDims.width / 2,
+              y: sigY,
+              width: signatureDims.width,
+              height: signatureDims.height
+            });
+          } else {
+            // Fallback texte : nom + date quand aucune image configurée
+            const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const regFont  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const name     = `${validator.firstName || ''} ${validator.lastName || ''}`.trim();
+            const dateStr  = new Date().toLocaleDateString('fr-FR');
+            const zoneW    = activeZone ? activeZone.width : signatureConfig.blockWidth;
+            const textX    = activeZone ? activeZone.x + 4 : (baseX + 4);
+
+            targetPage.drawRectangle({ x: textX - 2, y: sigY - 4, width: zoneW - 4, height: 36,
+              color: rgb(0.93, 1, 0.93), borderColor: rgb(0.2, 0.7, 0.2), borderWidth: 0.8 });
+            targetPage.drawText('Lu et approuve', { x: textX + 2, y: sigY + 22, size: 8, font: boldFont, color: rgb(0.05, 0.45, 0.05) });
+            targetPage.drawText(name,    { x: textX + 2, y: sigY + 12, size: 8, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
+            targetPage.drawText(`Le ${dateStr}`, { x: textX + 2, y: sigY + 2, size: 7, font: regFont, color: rgb(0.4, 0.4, 0.4) });
+          }
+          if (poOriginalUser) {
+            const poFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const poX = activeZone ? activeZone.x + 4 : (baseX + 4);
+            targetPage.drawText(
+              `P.O. ${poOriginalUser.firstName || ''} ${poOriginalUser.lastName || ''}`.trim(),
+              { x: poX, y: sigY - 8, size: 7, font: poFont, color: rgb(0.7, 0.2, 0.1) }
+            );
+          }
         }
 
         // 3. CACHET
-        if ((validationType === 'stamp' || validationType === 'approve_sign_stamp') && validator.stampPath) {
-          const stampImagePath = path.resolve(process.cwd(), validator.stampPath);
-          const stampImageBytes = await fs.readFile(stampImagePath);
-          const stampImage = await pdfDoc.embedPng(stampImageBytes);
-          const stampDims = stampImage.scaleToFit(signatureConfig.stampWidth, signatureConfig.stampHeight);
+        if (validationType === 'stamp' || validationType === 'approve_sign_stamp') {
+          let stampImage = null;
+          let stampDims = null;
+          if (validator.stampPath) {
+            const stampImagePath = path.resolve(process.cwd(), validator.stampPath);
+            const stampImageBytes = await fs.readFile(stampImagePath);
+            stampImage = await embedImage(pdfDoc, stampImageBytes);
+            stampDims = stampImage.scaleToFit(signatureConfig.stampWidth, signatureConfig.stampHeight);
+          }
 
-          // Ancrage : cachet dans la moitié HAUTE (tous les templates)
           const stampYAdjusted = activeZone
-            ? activeZone.y + activeZone.height / 2 + (activeZone.height / 2 - stampDims.height) / 2
+            ? activeZone.y + activeZone.height / 2 + (activeZone.height / 2 - (stampDims ? stampDims.height : 36)) / 2
             : (document.category === 'Demande de permutation' && task.step <= 2)
               ? baseY - 10
               : signatureConfig.stampY;
 
-          targetPage.drawImage(stampImage, {
-            x: baseX + (signatureConfig.blockWidth / 2) - (stampDims.width / 2),
-            y: stampYAdjusted,
-            width: stampDims.width,
-            height: stampDims.height
-          });
+          if (stampImage) {
+            targetPage.drawImage(stampImage, {
+              x: baseX + (signatureConfig.blockWidth / 2) - (stampDims.width / 2),
+              y: stampYAdjusted,
+              width: stampDims.width,
+              height: stampDims.height
+            });
+          } else {
+            // Fallback texte cachet
+            const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const regFont  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const name     = `${validator.firstName || ''} ${validator.lastName || ''}`.trim();
+            const zoneW    = activeZone ? activeZone.width : signatureConfig.blockWidth;
+            const textX    = activeZone ? activeZone.x + 4 : (baseX + 4);
+
+            targetPage.drawRectangle({ x: textX - 2, y: stampYAdjusted - 4, width: zoneW - 4, height: 36,
+              color: rgb(0.93, 0.95, 1), borderColor: rgb(0.2, 0.3, 0.8), borderWidth: 0.8 });
+            targetPage.drawText('CACHET', { x: textX + 2, y: stampYAdjusted + 22, size: 8, font: boldFont, color: rgb(0.1, 0.2, 0.7) });
+            targetPage.drawText(name, { x: textX + 2, y: stampYAdjusted + 12, size: 8, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
+            targetPage.drawText('H.S.J.M', { x: textX + 2, y: stampYAdjusted + 2, size: 7, font: regFont, color: rgb(0.4, 0.4, 0.4) });
+          }
+          if (poOriginalUser) {
+            const poFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const poX = activeZone ? activeZone.x + 4 : (baseX + 4);
+            targetPage.drawText(
+              `P.O. ${poOriginalUser.firstName || ''} ${poOriginalUser.lastName || ''}`.trim(),
+              { x: poX, y: stampYAdjusted - 8, size: 7, font: poFont, color: rgb(0.7, 0.2, 0.1) }
+            );
+          }
         }
 
         // Sauvegarde du fichier modifié
         const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
         const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
-        await fs.writeFile(newFilePath, await pdfDoc.save());
+        await fs.writeFile(newFilePath, await pdfDoc.save({ useObjectStreams: false }));
         
         await document.update({
           filePath: `uploads/${newFileName}`,
@@ -604,7 +765,17 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       // ✅ Utilisation de effectiveStatus au lieu de status
       if (effectiveStatus) {
         await task.update({ status: effectiveStatus, comment, validatedAt: new Date() }, { transaction: t });
-        
+
+        // Étape "Payer" de la caissière sur une Pièce de caisse : marque le paiement
+        // et archive le document (visible ensuite côté comptable ET caissière, cf.
+        // buildDocumentAccessWhere qui inclut déjà tout validateur de workflow).
+        if (document.category === 'Pièce de caisse' && validationType === 'payer' && effectiveStatus === 'approved') {
+          await document.update({
+            archived: true,
+            metadata: { ...document.metadata, paye: true, payeAt: new Date().toISOString(), payePar: userId },
+          }, { transaction: t });
+        }
+
         if (effectiveStatus === 'approved') {
           const nextTask = await Workflow.findOne({ where: { documentId: document.id, status: 'queued' }, order: [['step', 'ASC']], transaction: t });
           
@@ -618,22 +789,103 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
             
             console.log(`✅ Tâche ${task.id} validée. Suivante : ${nextTask.id} (User ${nextTask.validatorId})`);
           } else {
-            // FIN DU WORKFLOW
-            await document.update({ status: 'approved' }, { transaction: t });
+            // FIN DU WORKFLOW - Ajouter QR code de verification
+            const verificationHash = generateVerificationHash(document.id, task.step, task.validatorId);
+            const verificationUrl = buildVerificationUrl(verificationHash);
+
+            try {
+              const currentFilePath = path.resolve(process.cwd(), document.filePath);
+              const currentPdfBytes = await fs.readFile(currentFilePath);
+              const qrPdfDoc = await PDFDocument.load(currentPdfBytes);
+              const qrBuffer = await generateQRCodeBuffer(verificationUrl);
+              const qrImage = await qrPdfDoc.embedPng(qrBuffer);
+
+              // Ajouter le QR en bas a droite de la derniere page
+              const lastPage = qrPdfDoc.getPage(qrPdfDoc.getPageCount() - 1);
+              const { width: pageW } = lastPage.getSize();
+              const qrSize = 55;
+              const qrMargin = 15;
+
+              lastPage.drawImage(qrImage, {
+                x: pageW - qrSize - qrMargin,
+                y: qrMargin,
+                width: qrSize,
+                height: qrSize,
+              });
+
+              // Texte sous le QR
+              const font = await qrPdfDoc.embedFont(StandardFonts.Helvetica);
+              lastPage.drawText('Verifier:', {
+                x: pageW - qrSize - qrMargin,
+                y: qrMargin + qrSize + 3,
+                size: 5,
+                font,
+                color: rgb(0.4, 0.4, 0.4),
+              });
+              lastPage.drawText(verificationHash, {
+                x: pageW - qrSize - qrMargin,
+                y: qrMargin - 7,
+                size: 4.5,
+                font,
+                color: rgb(0.5, 0.5, 0.5),
+              });
+
+              const qrFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
+              const qrFilePath = path.resolve(process.cwd(), `uploads/${qrFileName}`);
+              await fs.writeFile(qrFilePath, await qrPdfDoc.save({ useObjectStreams: false }));
+
+              await document.update({
+                status: 'approved',
+                filePath: `uploads/${qrFileName}`,
+                fileName: qrFileName,
+                metadata: {
+                  ...document.metadata,
+                  verification_hash: verificationHash,
+                  verification_url: verificationUrl,
+                  verified_at: new Date().toISOString(),
+                },
+              }, { transaction: t });
+
+              console.log(`🔐 QR de verification ajoute: ${verificationHash}`);
+            } catch (qrErr) {
+              console.warn('⚠️ Erreur ajout QR (non bloquant):', qrErr.message);
+              // Continuer sans QR si erreur
+              await document.update({
+                status: 'approved',
+                metadata: {
+                  ...document.metadata,
+                  verification_hash: verificationHash,
+                },
+              }, { transaction: t });
+            }
+
             if (['Demande de besoin', "Fiche de suivi d'équipements"].includes(document.category)) {
               await reactivateLinkedWorkRequest(document, t);
             }
             console.log(`🎉 Workflow terminé pour document ${document.id}`);
+            // Notifier le soumetteur de l'approbation
+            notifySubmitter(document, 'approved', comment);
           }
         } else if (effectiveStatus === 'rejected') {
           await document.update({ status: 'rejected' }, { transaction: t });
           await Workflow.update({ status: 'rejected' }, { where: { documentId: document.id, status: 'queued' }, transaction: t });
+          // Notifier le soumetteur du rejet
+          notifySubmitter(document, 'rejected', comment);
         }
       } else {
           console.warn(`⚠️ Attention: Validation appelée sans statut effectif pour la tâche ${taskId}`);
       }
 
       await t.commit();
+
+      // Audit validation
+      const { AuditLog } = await import('../models/index.js');
+      AuditLog.log(req, effectiveStatus === 'approved' ? 'APPROVE' : 'REJECT', 'workflow', taskId, {
+        documentId: document.id,
+        documentTitle: document.title,
+        comment,
+      });
+
       const updatedTask = await Workflow.findByPk(taskId, { include: [{ model: Document, as: 'document', include: [{ model: User, as: 'uploadedBy' }] }] });
       res.json({ success: true, data: updatedTask, message: `Action '${validationType || effectiveStatus}' effectuée.` });
 
@@ -650,7 +902,10 @@ export const getDocumentWorkflow = async (req, res) => {
     const { documentId } = req.params;
     const workflows = await Workflow.findAll({
       where: { documentId },
-      include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }],
+      include: [
+        { model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] },
+        { model: User, as: 'originalValidator', attributes: ['id', 'firstName', 'lastName'] },
+      ],
       order: [['step', 'ASC']],
     });
     if (workflows.length === 0) {
@@ -779,7 +1034,7 @@ export const bulkValidateTask = async (req, res) => {
             if (isInSignatureRange) {
               const signatureImagePath = path.resolve(process.cwd(), validator.signaturePath);
               const signatureImageBytes = await fs.readFile(signatureImagePath);
-              const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+              const signatureImage = await embedImage(pdfDoc, signatureImageBytes);
               
               const signatureBlockWidth = 150;
               const margin = 40;
@@ -812,7 +1067,7 @@ export const bulkValidateTask = async (req, res) => {
 
               const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
               const newFilePath = path.resolve(process.cwd(), `uploads/${newFileName}`);
-              await fs.writeFile(newFilePath, await pdfDoc.save());
+              await fs.writeFile(newFilePath, await pdfDoc.save({ useObjectStreams: false }));
               
               await document.update({
                 filePath: `uploads/${newFileName}`,
@@ -851,11 +1106,12 @@ export const bulkValidateTask = async (req, res) => {
             
             const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
             if (nextValidator?.email) {
-              const emailSubject = nextValidator.email === COMPTABLE_EMAIL 
+              const nextIsComptable = await userHasPoste(nextValidator.id, 'comptable');
+              const emailSubject = nextIsComptable
                 ? '💰 Ordre de mission validé - Créer Pièce de caisse'
                 : 'Nouvelle tâche de validation';
-              
-              const emailBody = nextValidator.email === COMPTABLE_EMAIL
+
+              const emailBody = nextIsComptable
                 ? `L'Ordre de mission "${document.title}" a été validé. Vous devez créer la Pièce de caisse.`
                 : `Le document "${document.title}" nécessite votre validation.`;
               
@@ -879,14 +1135,40 @@ export const bulkValidateTask = async (req, res) => {
               }
             }
           } else {
-            await document.update({ status: 'approved' }, { transaction: t });
+            // FIN DU WORKFLOW (bulk) - Ajouter QR code
+            const vHash = generateVerificationHash(document.id, task.step, task.validatorId);
+            const vUrl = buildVerificationUrl(vHash);
+            try {
+              const curPath = path.resolve(process.cwd(), document.filePath);
+              const curBytes = await fs.readFile(curPath);
+              const qrDoc = await PDFDocument.load(curBytes);
+              const qrBuf = await generateQRCodeBuffer(vUrl);
+              const qrImg = await qrDoc.embedPng(qrBuf);
+              const lp = qrDoc.getPage(qrDoc.getPageCount() - 1);
+              const { width: pw } = lp.getSize();
+              lp.drawImage(qrImg, { x: pw - 70, y: 15, width: 55, height: 55 });
+              const font = await qrDoc.embedFont(StandardFonts.Helvetica);
+              lp.drawText(vHash, { x: pw - 70, y: 8, size: 4.5, font, color: rgb(0.5, 0.5, 0.5) });
+              const qrFn = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
+              await fs.writeFile(path.resolve(process.cwd(), `uploads/${qrFn}`), await qrDoc.save({ useObjectStreams: false }));
+              await document.update({
+                status: 'approved',
+                filePath: `uploads/${qrFn}`, fileName: qrFn,
+                metadata: { ...document.metadata, verification_hash: vHash, verification_url: vUrl, verified_at: new Date().toISOString() },
+              }, { transaction: t });
+            } catch (qrE) {
+              console.warn('⚠️ QR bulk error:', qrE.message);
+              await document.update({ status: 'approved', metadata: { ...document.metadata, verification_hash: vHash } }, { transaction: t });
+            }
+            notifySubmitter(document, 'approved', bulkComment);
           }
         } else if (status === 'rejected') {
           await document.update({ status: 'rejected' }, { transaction: t });
           await Workflow.update(
-            { status: 'rejected' }, 
+            { status: 'rejected' },
             { where: { documentId: document.id, status: 'queued' }, transaction: t }
           );
+          notifySubmitter(document, 'rejected', bulkComment);
         }
 
         results.push({
@@ -955,11 +1237,302 @@ function calculateSignatureX(position, config, pageWidth) {
   return x;
 }
 
+// ─── Réaffectation d'une tâche de validation (admin seulement) ───────────────
+export const reassignTask = async (req, res) => {
+  try {
+    if (!['admin','superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Réservé aux administrateurs.' });
+    }
+    const { taskId } = req.params;
+    const { newValidatorId } = req.body;
+
+    if (!newValidatorId) {
+      return res.status(400).json({ success: false, message: 'newValidatorId requis.' });
+    }
+
+    const task = await Workflow.findByPk(taskId, {
+      include: [{ model: Document, as: 'document' }],
+    });
+    if (!task) return res.status(404).json({ success: false, message: 'Tâche introuvable.' });
+
+    if (!['pending', 'queued'].includes(task.status)) {
+      return res.status(400).json({ success: false, message: 'Seules les tâches en attente ou en file peuvent être réaffectées.' });
+    }
+
+    const newValidator = await User.findByPk(newValidatorId, {
+      attributes: ['id', 'firstName', 'lastName', 'email', 'role'],
+    });
+    if (!newValidator) return res.status(404).json({ success: false, message: 'Nouveau validateur introuvable.' });
+
+    const oldValidatorId = task.validatorId;
+    await task.update({ validatorId: newValidatorId });
+
+    // Notifier le nouveau validateur s'il est sur une tâche pending (active)
+    if (task.status === 'pending') {
+      notifyValidator(newValidator, task.document);
+    }
+
+    // Audit
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'REASSIGN', 'workflow', taskId, {
+      documentId: task.documentId,
+      documentTitle: task.document?.title,
+      oldValidatorId,
+      newValidatorId,
+      newValidatorName: `${newValidator.firstName} ${newValidator.lastName}`,
+    });
+
+    const updated = await Workflow.findByPk(taskId, {
+      include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email', 'role'] }],
+    });
+    res.json({ success: true, data: updated, message: `Tâche réaffectée à ${newValidator.firstName} ${newValidator.lastName}.` });
+  } catch (error) {
+    console.error('❌ Erreur réaffectation:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// ============================================
+// PRÉSENCE / ABSENCE — redirection automatique vers le remplaçant fixe
+// ============================================
+export const toggleAbsence = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isAbsent } = req.body;
+
+    if (typeof isAbsent !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isAbsent (boolean) requis.' });
+    }
+    if (req.user.id !== id && !['admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Réservé à l\'utilisateur concerné ou à un administrateur.' });
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+
+    const { AuditLog } = await import('../models/index.js');
+
+    if (isAbsent === user.isAbsent) {
+      return res.json({ success: true, message: 'Statut déjà à jour.', redirected: 0 });
+    }
+
+    let redirected = 0;
+
+    if (isAbsent) {
+      if (!user.substituteId) {
+        return res.status(400).json({ success: false, message: 'Configurez d\'abord un remplaçant avant de passer en absent.' });
+      }
+      const substitute = await User.findByPk(user.substituteId);
+      if (!substitute) {
+        return res.status(400).json({ success: false, message: 'Le remplaçant configuré est introuvable.' });
+      }
+
+      const tasks = await Workflow.findAll({
+        where: { validatorId: id, status: ['pending', 'queued'] },
+        include: [{ model: Document, as: 'document', include: [{ model: User, as: 'uploadedBy' }] }],
+      });
+
+      for (const task of tasks) {
+        await task.update({
+          originalValidatorId: task.originalValidatorId || id,
+          validatorId: user.substituteId,
+          isSubstituted: true,
+        });
+        redirected += 1;
+        if (task.status === 'pending' && task.document) {
+          notifyValidator(substitute, task.document);
+        }
+      }
+
+      await AuditLog.log(req, 'ABSENCE_ON', 'user', id, {
+        targetUser: `${user.firstName} ${user.lastName}`,
+        substituteId: user.substituteId,
+        substituteName: `${substitute.firstName} ${substitute.lastName}`,
+        tasksRedirected: redirected,
+      });
+    } else {
+      const tasks = await Workflow.findAll({
+        where: { originalValidatorId: id, isSubstituted: true, status: ['pending', 'queued'] },
+        include: [{ model: Document, as: 'document', include: [{ model: User, as: 'uploadedBy' }] }],
+      });
+
+      for (const task of tasks) {
+        await task.update({
+          validatorId: id,
+          isSubstituted: false,
+          originalValidatorId: null,
+        });
+        redirected += 1;
+        if (task.status === 'pending' && task.document) {
+          notifyValidator(user, task.document);
+        }
+      }
+
+      await AuditLog.log(req, 'ABSENCE_OFF', 'user', id, {
+        targetUser: `${user.firstName} ${user.lastName}`,
+        tasksReturned: redirected,
+      });
+    }
+
+    await user.update({ isAbsent });
+
+    res.json({
+      success: true,
+      message: isAbsent
+        ? `${user.firstName} ${user.lastName} est absent(e) — ${redirected} tâche(s) redirigée(s).`
+        : `${user.firstName} ${user.lastName} est de retour — ${redirected} tâche(s) rendue(s).`,
+      redirected,
+    });
+  } catch (error) {
+    console.error('❌ Erreur toggleAbsence:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// ============================================
+// COMMENTAIRES SUR DOCUMENT REJETÉ
+// ============================================
+
+export const getWorkflowComments = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const document = await Document.findByPk(documentId);
+    if (!document) return res.status(404).json({ success: false, message: 'Document introuvable.' });
+
+    // Vérifier que l'utilisateur est soumetteur ou validateur du document
+    const workflows = await Workflow.findAll({ where: { documentId } });
+    const validatorIds = workflows.map(w => w.validatorId);
+    const isParticipant = document.userId === req.user.id || validatorIds.includes(req.user.id) || ['admin','superadmin'].includes(req.user.role);
+    if (!isParticipant) return res.status(403).json({ success: false, message: 'Accès refusé.' });
+
+    const comments = await WorkflowComment.findAll({
+      where: { documentId },
+      include: [{ model: User, as: 'author', attributes: ['id', 'firstName', 'lastName', 'role'] }],
+      order: [['createdAt', 'ASC']],
+    });
+    res.json({ success: true, data: comments });
+  } catch (error) {
+    console.error('❌ Erreur getWorkflowComments:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+export const addWorkflowComment = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ success: false, message: 'Le commentaire ne peut pas être vide.' });
+
+    const document = await Document.findByPk(documentId);
+    if (!document) return res.status(404).json({ success: false, message: 'Document introuvable.' });
+
+    // Vérifier participation au workflow
+    const workflows = await Workflow.findAll({ where: { documentId } });
+    const validatorIds = workflows.map(w => w.validatorId);
+    const isParticipant = document.userId === req.user.id || validatorIds.includes(req.user.id) || ['admin','superadmin'].includes(req.user.role);
+    if (!isParticipant) return res.status(403).json({ success: false, message: 'Seuls les participants du workflow peuvent commenter.' });
+
+    const comment = await WorkflowComment.create({ documentId, userId: req.user.id, text: text.trim() });
+    const full = await WorkflowComment.findByPk(comment.id, {
+      include: [{ model: User, as: 'author', attributes: ['id', 'firstName', 'lastName', 'role'] }],
+    });
+
+    // Notifier les autres participants via socket
+    const { getIO } = await import('../utils/socketManager.js');
+    try {
+      const io = getIO();
+      const recipients = [document.userId, ...validatorIds].filter(id => id && id !== req.user.id);
+      recipients.forEach(uid => io.to(`user_${uid}`).emit('workflow_comment', { documentId, comment: full }));
+    } catch (_) {}
+
+    res.status(201).json({ success: true, data: full });
+  } catch (error) {
+    console.error('❌ Erreur addWorkflowComment:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// ============================================
+// RELANCER LA VALIDATION
+// ============================================
+
+export const relancerValidation = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const { motif } = req.body;
+
+    const document = await Document.findByPk(documentId, {
+      include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName', 'email'] }],
+    });
+    if (!document) return res.status(404).json({ success: false, message: 'Document introuvable.' });
+    if (document.status !== 'rejected') return res.status(400).json({ success: false, message: 'Seuls les documents rejetés peuvent être relancés.' });
+
+    // Seul le soumetteur ou un admin peut relancer
+    const isOwner = document.userId === req.user.id;
+    if (!isOwner && !['admin','superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Seul le soumetteur ou un administrateur peut relancer la validation.' });
+    }
+
+    await sequelize.transaction(async (t) => {
+      // Remettre l'étape rejetée en pending, les suivantes en queued
+      const allSteps = await Workflow.findAll({ where: { documentId }, order: [['step', 'ASC']], transaction: t });
+      const rejectedStep = allSteps.find(s => s.status === 'rejected');
+      if (!rejectedStep) throw new Error('Aucune étape rejetée trouvée.');
+
+      await rejectedStep.update({
+        status: 'pending',
+        comment: null,
+        validatedAt: null,
+        assignedAt: new Date(),
+        deadlineAt: computeDeadline(),
+      }, { transaction: t });
+
+      // Les étapes après le rejet repassent en queued
+      const stepsAfter = allSteps.filter(s => s.step > rejectedStep.step);
+      for (const step of stepsAfter) {
+        await step.update({ status: 'queued', comment: null, validatedAt: null, assignedAt: null, deadlineAt: null }, { transaction: t });
+      }
+
+      await document.update({ status: 'pending_validation' }, { transaction: t });
+    });
+
+    // Ajouter un commentaire système pour tracer la relance
+    await WorkflowComment.create({
+      documentId,
+      userId: req.user.id,
+      text: `🔄 Validation relancée${motif ? ` — ${motif}` : ''}`,
+    });
+
+    // Notifier le validateur concerné
+    const rejectedWorkflow = await Workflow.findOne({ where: { documentId, status: 'pending' }, include: [{ model: User, as: 'validator' }] });
+    if (rejectedWorkflow?.validator) {
+      notifyValidator(rejectedWorkflow.validator, document);
+    }
+
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'RELAUNCH', 'workflow', documentId, { documentTitle: document.title, motif });
+
+    const updatedWorkflows = await Workflow.findAll({
+      where: { documentId },
+      include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email', 'role'] }],
+      order: [['step', 'ASC']],
+    });
+    res.json({ success: true, message: 'Validation relancée avec succès.', data: updatedWorkflows });
+  } catch (error) {
+    console.error('❌ Erreur relancerValidation:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
 export default {
   createWorkflow,
   getMyTasks,
   validateTask,
   getDocumentWorkflow,
   getValidators,
-  bulkValidateTask
+  bulkValidateTask,
+  reassignTask,
+  getWorkflowComments,
+  addWorkflowComment,
+  relancerValidation,
 };

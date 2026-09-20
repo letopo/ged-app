@@ -16,7 +16,11 @@ const License = sequelize.define('License', {
     type: DataTypes.DATE,
     allowNull: true,
     field: 'expires_at'
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'licenses',
   timestamps: true,

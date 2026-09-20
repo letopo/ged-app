@@ -9,6 +9,7 @@ const BudgetLigne = sequelize.define('BudgetLigne', {
   montant: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
   description: { type: DataTypes.TEXT, allowNull: true },
   created_by: { type: DataTypes.UUID, allowNull: true },
+  tenantId: { type: DataTypes.UUID, allowNull: false },
 }, {
   tableName: 'gmao_budget_lignes',
   timestamps: true,

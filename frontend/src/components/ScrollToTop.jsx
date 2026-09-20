@@ -15,10 +15,19 @@ export default function ScrollToTop() {
   return (
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      className="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1"
       title="Retour en haut"
+      style={{
+        position: 'fixed', bottom: 24, right: 24, zIndex: 50,
+        padding: 12, borderRadius: '50%',
+        background: 'var(--brand)', color: '#fff', border: 'none',
+        cursor: 'pointer', boxShadow: 'var(--shadow-3)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'transform .15s, box-shadow .15s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-3)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
     >
-      <ChevronUp className="w-5 h-5" />
+      <ChevronUp size={20} />
     </button>
   );
 }

@@ -34,7 +34,7 @@ const ScheduleEdit = () => {
   const loadSchedule = async () => {
     try {
       const data = await scheduleService.getScheduleById(id);
-      
+
       // ✅ CORRECTION CRITIQUE: S'assurer que assignments et validations sont toujours des tableaux
       if (!data.assignments || !Array.isArray(data.assignments)) {
         data.assignments = [];
@@ -42,9 +42,9 @@ const ScheduleEdit = () => {
       if (!data.validations || !Array.isArray(data.validations)) {
         data.validations = [];
       }
-      
+
       setSchedule(data);
-      
+
       // Si des affectations existent, extraire les employés uniques
       if (data.assignments.length > 0) {
         const uniqueEmployeeIds = [...new Set(
@@ -67,28 +67,28 @@ const ScheduleEdit = () => {
       setLoading(true);
       // ✅ Utiliser la nouvelle route /all au lieu de /employees
       const response = await api.get('/employees/all');
-      
+
       const employeesData = Array.isArray(response.data) ? response.data : [];
-      
+
       console.log(`👥 Total employés chargés: ${employeesData.length}`);
       if (employeesData.length > 0) {
         console.log('📋 Exemple d\'employé:', employeesData[0]);
       }
-      
+
       // ✅ FILTRER selon le service et le type de planning
       let filteredByScheduleType = employeesData;
-      
+
       if (schedule) {
         console.log(`📊 Planning type: ${schedule.scheduleType}`);
-        
+
         // Récupérer tous les noms de services uniques pour debug
         const allServices = [...new Set(employeesData.map(e => e.service?.name).filter(Boolean))];
         console.log(`📋 Services disponibles:`, allServices);
-        
+
         switch (schedule.scheduleType) {
           case 'administrative':
             // Personnel Administratif = service "Direction" ou contenant "Admin"
-            filteredByScheduleType = employeesData.filter(emp => 
+            filteredByScheduleType = employeesData.filter(emp =>
               emp.service && (
                 emp.service.name.toLowerCase().includes('direction') ||
                 emp.service.name.toLowerCase().includes('administration') ||
@@ -97,21 +97,21 @@ const ScheduleEdit = () => {
             );
             console.log(`✅ Employés administratifs: ${filteredByScheduleType.length}`);
             break;
-            
+
           case 'paramedical_services':
             // Paramédical - Services Hospitaliers
             // Exclure Direction et Administration
-            filteredByScheduleType = employeesData.filter(emp => 
-              emp.service && 
+            filteredByScheduleType = employeesData.filter(emp =>
+              emp.service &&
               !emp.service.name.toLowerCase().includes('direction') &&
               !emp.service.name.toLowerCase().includes('administration')
             );
             console.log(`✅ Employés paramédicaux: ${filteredByScheduleType.length}`);
             break;
-            
+
           case 'medical':
             // Médical = services médicaux
-            filteredByScheduleType = employeesData.filter(emp => 
+            filteredByScheduleType = employeesData.filter(emp =>
               emp.service && (
                 emp.service.name.toLowerCase().includes('médical') ||
                 emp.service.name.toLowerCase().includes('medical') ||
@@ -122,20 +122,20 @@ const ScheduleEdit = () => {
             );
             console.log(`✅ Employés médicaux: ${filteredByScheduleType.length}`);
             break;
-            
+
           default:
             // Par défaut, tous les employés
             filteredByScheduleType = employeesData;
             console.log(`✅ Tous les employés: ${filteredByScheduleType.length}`);
         }
-        
+
         // Afficher les services des employés filtrés
         const filteredServices = [...new Set(filteredByScheduleType.map(e => e.service?.name))];
         console.log(`📋 Services après filtrage:`, filteredServices);
       }
-      
+
       setEmployees(filteredByScheduleType);
-      
+
     } catch (error) {
       console.error('Erreur chargement employés:', error);
       setEmployees([]);
@@ -196,21 +196,21 @@ const ScheduleEdit = () => {
       const imgData = canvas.toDataURL('image/png');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
+
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
       const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      
+
       const finalWidth = imgWidth * ratio;
       const finalHeight = imgHeight * ratio;
       const xOffset = (pdfWidth - finalWidth) / 2;
       const yOffset = (pdfHeight - finalHeight) / 2;
-      
+
       pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
-      
+
       // 4. Convertir en Blob
       const pdfBlob = pdf.output('blob');
-      
+
       // 5. Upload
       const formData = new FormData();
       const filename = `planning-${schedule.scheduleType}-${schedule.month}-${schedule.year}-${Date.now()}.pdf`;
@@ -218,7 +218,7 @@ const ScheduleEdit = () => {
       formData.append('title', schedule.title);
       formData.append('description', `Planning ${scheduleService.getScheduleTypeLabels()[schedule.scheduleType]} - ${scheduleService.getMonthName(schedule.month)} ${schedule.year}`);
       formData.append('type', 'planning');
-      
+
       // 🆕 AJOUTER LES ZONES DE SIGNATURE
       formData.append('metadata', JSON.stringify({
         scheduleId: schedule.id,
@@ -256,7 +256,7 @@ const ScheduleEdit = () => {
       await scheduleService.submitForValidation(schedule.id);
 
       toast('PDF généré et uploadé avec succès !');
-      
+
       if (response.data.document?.id) {
         navigate(`/documents/${response.data.document.id}`);
       } else {
@@ -274,7 +274,7 @@ const ScheduleEdit = () => {
   const generateScheduleHTML = () => {
     const dates = scheduleService.generateMonthDates(schedule.year, schedule.month);
     const employeeAssignments = {};
-    
+
     if (schedule.assignments && Array.isArray(schedule.assignments)) {
       schedule.assignments.forEach(assignment => {
         const empId = assignment.employeeId;
@@ -326,9 +326,9 @@ const ScheduleEdit = () => {
           </thead>
           <tbody>
             ${selectedEmployeesList.map((emp, index) => {
-              const empData = employeeAssignments[emp.id] || { 
-                name: `${emp.firstName} ${emp.lastName}`, 
-                assignments: {} 
+              const empData = employeeAssignments[emp.id] || {
+                name: `${emp.firstName} ${emp.lastName}`,
+                assignments: {}
               };
               return `
                 <tr style="background-color: ${index % 2 === 0 ? '#fff' : '#f9f9f9'};">
@@ -373,11 +373,11 @@ const ScheduleEdit = () => {
         <!-- 🆕 ZONES DE SIGNATURE AVEC MARQUEURS -->
         <div style="margin-top: 40px; border-top: 3px solid #000; padding-top: 20px;">
           <div style="display: flex; justify-content: space-between; gap: 40px;">
-            
+
             <!-- Zone Directrice des Soins -->
             <div style="width: 45%;">
               <p style="font-weight: bold; margin-bottom: 5px; font-size: 12px;">La Directrice des Soins</p>
-              
+
               <!-- 🎯 ZONE DE SIGNATURE DDS -->
               <div id="signature-zone-dds" style="
                 width: 100%;
@@ -391,7 +391,7 @@ const ScheduleEdit = () => {
               ">
                 <span style="color: #999; font-size: 9px;">[Signature DDS]</span>
               </div>
-              
+
               <div style="margin-top: 5px;">
                 <p style="font-size: 9px; color: #666; margin: 2px 0;">Validé par:</p>
                 <p style="font-size: 9px; color: #666; margin: 2px 0;">Date:</p>
@@ -401,7 +401,7 @@ const ScheduleEdit = () => {
             <!-- Zone Directeur Général -->
             <div style="width: 45%;">
               <p style="font-weight: bold; margin-bottom: 5px; font-size: 12px;">Le Directeur Général</p>
-              
+
               <!-- 🎯 ZONE DE SIGNATURE DG -->
               <div id="signature-zone-dg" style="
                 width: 100%;
@@ -415,7 +415,7 @@ const ScheduleEdit = () => {
               ">
                 <span style="color: #999; font-size: 9px;">[Signature DG]</span>
               </div>
-              
+
               <div style="margin-top: 5px;">
                 <p style="font-size: 10px; margin: 2px 0;">Michel VAUTROT</p>
                 <p style="font-size: 9px; color: #666; margin: 2px 0;">BP 56 NJOMBE - C.MEROUN</p>
@@ -437,7 +437,7 @@ const ScheduleEdit = () => {
   };
 
   // ✅ CORRECTION: Filtrage sécurisé des employés
-  const filteredEmployees = Array.isArray(employees) 
+  const filteredEmployees = Array.isArray(employees)
     ? employees.filter(emp =>
         emp && emp.firstName && emp.lastName &&
         `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -452,7 +452,7 @@ const ScheduleEdit = () => {
   if (loading || !schedule) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12" style={{ borderBottom: '2px solid var(--brand)' }}></div>
       </div>
     );
   }
@@ -463,7 +463,8 @@ const ScheduleEdit = () => {
       <div className="mb-6">
         <button
           onClick={() => navigate('/schedules')}
-          className="flex items-center text-gray-600 hover:text-gray-800 mb-4"
+          className="flex items-center mb-4"
+          style={{ color: 'var(--fg-muted)' }}
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -472,12 +473,12 @@ const ScheduleEdit = () => {
         </button>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">{schedule.title}</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-3xl font-bold" style={{ color: 'var(--fg)' }}>{schedule.title}</h1>
+            <p className="mt-1" style={{ color: 'var(--fg-muted)' }}>
               {scheduleService.getMonthName(schedule.month)} {schedule.year}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${scheduleService.getStatusColor(schedule.status)}`}>
+          <span style={{ padding: '3px 12px', borderRadius: 999, fontSize: 13, fontWeight: 500, ...scheduleService.getStatusStyle(schedule.status) }}>
             {scheduleService.getStatusLabels()[schedule.status]}
           </span>
         </div>
@@ -485,19 +486,19 @@ const ScheduleEdit = () => {
 
       {/* Sélection des employés */}
       {showEmployeeSelector ? (
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="rounded-lg p-6 mb-6" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold" style={{ color: 'var(--fg)' }}>
               Sélection des employés ({selectedEmployees.length} sélectionné{selectedEmployees.length > 1 ? 's' : ''})
             </h2>
             <button
               onClick={handleContinue}
               disabled={selectedEmployees.length === 0}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                selectedEmployees.length === 0
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
+              className="px-6 py-2 rounded-lg font-medium transition-colors"
+              style={selectedEmployees.length === 0
+                ? { background: 'var(--surface-3)', color: 'var(--fg-muted)', cursor: 'not-allowed' }
+                : { background: 'var(--brand)', color: '#fff' }
+              }
             >
               Continuer →
             </button>
@@ -510,14 +511,15 @@ const ScheduleEdit = () => {
               placeholder="Rechercher un employé..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 rounded-lg"
+              style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)' }}
             />
           </div>
 
           {/* Info sur le filtrage */}
           {employees.length > 0 && (
-            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
+            <div className="mb-3 p-3 rounded-lg" style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
+              <p className="text-sm" style={{ color: 'var(--brand)' }}>
                 <strong>ℹ️ Filtre actif:</strong> {employees.length} employé{employees.length > 1 ? 's' : ''} correspond{employees.length > 1 ? 'ent' : ''} au type de planning "{schedule.scheduleType}"
               </p>
             </div>
@@ -528,20 +530,22 @@ const ScheduleEdit = () => {
             {filteredEmployees.map(employee => (
               <label
                 key={employee.id}
-                className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                className="flex items-center p-3 rounded-lg cursor-pointer transition-colors"
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
               >
                 <input
                   type="checkbox"
                   checked={selectedEmployees.includes(employee.id)}
                   onChange={() => toggleEmployee(employee.id)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-4 h-4 rounded"
+                  style={{ accentColor: 'var(--brand)' }}
                 />
                 <div className="ml-3 flex-1">
-                  <span className="text-sm font-medium text-gray-900 block">
+                  <span className="text-sm font-medium block" style={{ color: 'var(--fg)' }}>
                     {employee.firstName} {employee.lastName}
                   </span>
                   {employee.service && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs" style={{ color: 'var(--fg-muted)' }}>
                       {employee.service.name}
                     </span>
                   )}
@@ -553,7 +557,7 @@ const ScheduleEdit = () => {
           {filteredEmployees.length === 0 && (
             <div className="text-center py-8">
               {employees.length === 0 ? (
-                <div className="text-gray-500">
+                <div style={{ color: 'var(--fg-muted)' }}>
                   <p className="font-semibold mb-2">Aucun employé disponible pour ce type de planning</p>
                   <p className="text-sm">
                     Type de planning: <strong>{schedule.scheduleType}</strong>
@@ -563,7 +567,7 @@ const ScheduleEdit = () => {
                   </p>
                 </div>
               ) : (
-                <p className="text-gray-500">Aucun employé trouvé pour cette recherche</p>
+                <p style={{ color: 'var(--fg-muted)' }}>Aucun employé trouvé pour cette recherche</p>
               )}
             </div>
           )}
@@ -571,16 +575,17 @@ const ScheduleEdit = () => {
       ) : (
         <>
           {/* Info bar */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="rounded-lg p-4 mb-6" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setShowEmployeeSelector(true)}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  className="text-sm font-medium"
+                  style={{ color: 'var(--brand)' }}
                 >
                   ← Modifier la sélection d'employés
                 </button>
-                <span className="text-gray-600">
+                <span style={{ color: 'var(--fg-muted)' }}>
                   {selectedEmployeesList.length} employé{selectedEmployeesList.length > 1 ? 's' : ''} sélectionné{selectedEmployeesList.length > 1 ? 's' : ''}
                 </span>
               </div>
@@ -588,7 +593,8 @@ const ScheduleEdit = () => {
                 <button
                   onClick={handleGenerateAndSubmit}
                   disabled={loading}
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  style={{ background: 'var(--success)', color: '#fff', opacity: loading ? 0.5 : 1 }}
                 >
                   {loading ? (
                     <>
@@ -616,13 +622,14 @@ const ScheduleEdit = () => {
               onSave={loadSchedule}
             />
           ) : (
-            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-              <p className="text-gray-500">
+            <div className="rounded-lg p-8 text-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
+              <p style={{ color: 'var(--fg-muted)' }}>
                 Aucun employé sélectionné. Veuillez sélectionner au moins un employé pour continuer.
               </p>
               <button
                 onClick={() => setShowEmployeeSelector(true)}
-                className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                className="mt-4 px-6 py-2 rounded-lg font-medium transition-colors"
+                style={{ background: 'var(--brand)', color: '#fff' }}
               >
                 Sélectionner des employés
               </button>

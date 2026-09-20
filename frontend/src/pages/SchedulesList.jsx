@@ -1,328 +1,279 @@
 // frontend/src/pages/SchedulesList.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import scheduleService from '../services/scheduleService';
-import { useAuth } from '../contexts/AuthContext'; // ✅ Ajouter cet import
+import { useAuth } from '../contexts/AuthContext';
+import { CalendarDays, Tag, User, Loader, Plus, Trash2, Edit3, Eye, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const SchedulesList = () => {
+// ── Status badge ──────────────────────────────────────────────────────────────
+const STATUS_CFG = {
+  draft:            { cls: 'ged-badge ged-badge-neutral', dot: 'var(--fg-subtle)' },
+  pending_dds:      { cls: 'ged-badge ged-badge-warning', dot: 'var(--warning)' },
+  pending_medical:  { cls: 'ged-badge ged-badge-warning', dot: 'var(--warning)' },
+  pending_dg:       { cls: 'ged-badge ged-badge-warning', dot: 'var(--warning)' },
+  approved:         { cls: 'ged-badge ged-badge-success', dot: 'var(--success)' },
+  rejected:         { cls: 'ged-badge ged-badge-danger',  dot: 'var(--danger)'  },
+};
+
+const VALIDATION_STATUS = {
+  approved: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Approuvé', symbol: '✓' },
+  rejected: { bg: 'var(--danger-soft)',  color: 'var(--danger)',  label: 'Rejeté',   symbol: '✗' },
+  pending:  { bg: 'var(--surface-2)',    color: 'var(--fg-muted)',label: 'En attente', symbol: '·' },
+};
+
+const ROLE_LABELS = { dds: 'DDS', medical_chief: 'Médecin Chef', dg: 'DG' };
+
+// ── Style constants ───────────────────────────────────────────────────────────
+const selectStyle = {
+  width: '100%', height: 34, padding: '0 8px',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface)', color: 'var(--fg)', fontSize: 12, outline: 'none',
+};
+const labelStyle = { fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', display: 'block', marginBottom: 4 };
+const btnText = (color) => ({
+  display: 'inline-flex', alignItems: 'center', gap: 4,
+  height: 28, padding: '0 10px', borderRadius: 'var(--radius-2)',
+  border: 'none', background: 'transparent',
+  color, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+  transition: 'background .12s',
+});
+
+export default function SchedulesList() {
   const navigate = useNavigate();
-  const { user } = useAuth(); // ✅ Récupérer l'utilisateur connecté
+  const { user } = useAuth();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    scheduleType: '',
-    year: new Date().getFullYear(),
-    month: '',
-    status: ''
+    scheduleType: '', year: new Date().getFullYear(), month: '', status: '',
   });
 
   const scheduleTypeLabels = scheduleService.getScheduleTypeLabels();
   const statusLabels = scheduleService.getStatusLabels();
 
-  useEffect(() => {
-    loadSchedules();
-  }, [filters]);
+  useEffect(() => { loadSchedules(); }, [filters]);
 
   const loadSchedules = async () => {
     try {
       setLoading(true);
       const data = await scheduleService.getSchedules(filters);
       setSchedules(data);
-    } catch (error) {
-      console.error('Erreur chargement plannings:', error);
+    } catch (err) {
+      console.error('Erreur chargement plannings:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFilterChange = (field, value) => {
-    setFilters(prev => ({ ...prev, [field]: value }));
-  };
+  const handleFilterChange = (field, value) => setFilters(prev => ({ ...prev, [field]: value }));
 
-  // ✅ Fonction pour vérifier si l'utilisateur peut supprimer
   const canDeleteSchedule = (schedule) => {
     if (!user) return false;
-    
-    const isAdmin = ['admin', 'dg'].includes(user.role);
-    const isCreator = schedule.createdBy === user.id;
-    const isDraft = schedule.status === 'draft';
-
-    // Admin peut tout supprimer
-    if (isAdmin) return true;
-
-    // Créateur peut supprimer uniquement les brouillons
-    if (isCreator && isDraft) return true;
-
-    return false;
+    if (['admin', 'dg'].includes(user.role)) return true;
+    return schedule.createdBy === user.id && schedule.status === 'draft';
   };
 
   const handleDelete = async (schedule) => {
-    const statusMessage = schedule.status !== 'draft' 
-      ? '\n\n⚠️ ATTENTION: Ce planning n\'est plus en brouillon !' 
-      : '';
-    
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le planning "${schedule.title}" ?${statusMessage}\n\nCette action est irréversible et supprimera toutes les affectations associées.`)) {
-      return;
-    }
-
+    const warn = schedule.status !== 'draft' ? '\n\n⚠️ Ce planning n\'est plus en brouillon !' : '';
+    if (!window.confirm(`Supprimer "${schedule.title}" ?${warn}\n\nCette action est irréversible.`)) return;
     try {
       await scheduleService.deleteSchedule(schedule.id);
       toast('Planning supprimé avec succès');
       loadSchedules();
-    } catch (error) {
-      console.error('Erreur suppression:', error);
-      toast(error.response?.data?.message || 'Erreur lors de la suppression du planning');
+    } catch (err) {
+      toast(err.response?.data?.message || 'Erreur lors de la suppression');
     }
   };
 
   return (
-    <div className="p-6">
+    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 24px 40px' }} className="animate-pageFade">
+
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, paddingTop: 4 }}>
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Plannings Hospitaliers</h1>
-          <p className="text-gray-600 mt-1">Gestion des plannings de rotation du personnel</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CalendarDays size={20} color="var(--brand)" /> Plannings Hospitaliers
+          </h1>
+          <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>
+            Gestion des plannings de rotation du personnel
+          </div>
         </div>
         <Link
           to="/schedules/create"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            height: 34, padding: '0 14px', borderRadius: 'var(--radius-2)',
+            background: 'var(--brand)', color: '#fff',
+            fontSize: 13, fontWeight: 500, textDecoration: 'none',
+          }}
         >
-          + Nouveau Planning
+          <Plus size={14} /> Nouveau Planning
         </Link>
       </div>
 
-      {/* Filtres */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Type de planning */}
+      {/* Filters */}
+      <div className="ged-card" style={{ padding: '12px 16px', marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Type de planning
-            </label>
-            <select
-              value={filters.scheduleType}
-              onChange={(e) => handleFilterChange('scheduleType', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
+            <label style={labelStyle}>Type de planning</label>
+            <select style={selectStyle} value={filters.scheduleType} onChange={e => handleFilterChange('scheduleType', e.target.value)}>
               <option value="">Tous les types</option>
-              {Object.entries(scheduleTypeLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
+              {Object.entries(scheduleTypeLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
-
-          {/* Année */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Année
-            </label>
-            <select
-              value={filters.year}
-              onChange={(e) => handleFilterChange('year', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {[2024, 2025, 2026, 2027].map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
+            <label style={labelStyle}>Année</label>
+            <select style={selectStyle} value={filters.year} onChange={e => handleFilterChange('year', e.target.value)}>
+              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-
-          {/* Mois */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Mois
-            </label>
-            <select
-              value={filters.month}
-              onChange={(e) => handleFilterChange('month', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
+            <label style={labelStyle}>Mois</label>
+            <select style={selectStyle} value={filters.month} onChange={e => handleFilterChange('month', e.target.value)}>
               <option value="">Tous les mois</option>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                <option key={month} value={month}>
-                  {scheduleService.getMonthName(month)}
-                </option>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                <option key={m} value={m}>{scheduleService.getMonthName(m)}</option>
               ))}
             </select>
           </div>
-
-          {/* Statut */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Statut
-            </label>
-            <select
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
+            <label style={labelStyle}>Statut</label>
+            <select style={selectStyle} value={filters.status} onChange={e => handleFilterChange('status', e.target.value)}>
               <option value="">Tous les statuts</option>
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
+              {Object.entries(statusLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
         </div>
       </div>
 
-      {/* Liste des plannings */}
+      {/* Content */}
       {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 0' }}>
+          <Loader size={24} color="var(--fg-muted)" className="animate-spin" />
         </div>
       ) : schedules.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <CalendarDays size={40} color="var(--border-strong)" style={{ marginBottom: 12 }} />
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 4 }}>Aucun planning trouvé</div>
+          <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 14 }}>Commencez par créer un nouveau planning.</div>
+          <Link
+            to="/schedules/create"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)',
+              background: 'var(--brand)', color: '#fff',
+              fontSize: 12, fontWeight: 500, textDecoration: 'none',
+            }}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun planning trouvé</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Commencez par créer un nouveau planning.
-          </p>
-          <div className="mt-6">
-            <Link
-              to="/schedules/create"
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-            >
-              + Nouveau Planning
-            </Link>
-          </div>
+            <Plus size={12} /> Nouveau Planning
+          </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {schedules.map((schedule) => (
-            <div
-              key={schedule.id}
-              className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  {/* Titre et type */}
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {schedule.title}
-                    </h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${scheduleService.getStatusColor(schedule.status)}`}>
-                      {statusLabels[schedule.status]}
-                    </span>
-                  </div>
-
-                  {/* Informations */}
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                      </svg>
-                      <span>{scheduleTypeLabels[schedule.scheduleType]}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {schedules.map(schedule => {
+            const cfg = STATUS_CFG[schedule.status] || STATUS_CFG.draft;
+            return (
+              <div
+                key={schedule.id}
+                className="ged-card"
+                style={{ padding: '14px 16px', transition: 'box-shadow .15s' }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-2)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow-1)'}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Title + status */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>{schedule.title}</span>
+                      <span className={cfg.cls}>{statusLabels[schedule.status]}</span>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span>
-                        {scheduleService.getMonthName(schedule.month)} {schedule.year}
+                    {/* Meta */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 14px', fontSize: 12, color: 'var(--fg-muted)', marginBottom: 6 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Tag size={11} /> {scheduleTypeLabels[schedule.scheduleType]}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <CalendarDays size={11} /> {scheduleService.getMonthName(schedule.month)} {schedule.year}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <User size={11} /> {schedule.creator?.firstName} {schedule.creator?.lastName}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      <span>
-                        Créé par {schedule.creator?.firstName} {schedule.creator?.lastName}
-                      </span>
-                    </div>
+                    {/* Validations chain */}
+                    {schedule.validations && schedule.validations.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Validations :</span>
+                        {schedule.validations.map((v, i) => {
+                          const vs = VALIDATION_STATUS[v.status] || VALIDATION_STATUS.pending;
+                          return (
+                            <React.Fragment key={v.id}>
+                              {i > 0 && <span style={{ color: 'var(--fg-subtle)', fontSize: 11 }}>→</span>}
+                              <span style={{
+                                fontSize: 11, padding: '2px 7px', borderRadius: 999,
+                                background: vs.bg, color: vs.color, fontWeight: 500,
+                              }}>
+                                {ROLE_LABELS[v.validatorRole] || v.validatorRole} {vs.symbol}
+                              </span>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Workflow de validation */}
-                  {schedule.validations && schedule.validations.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-500">Validations:</span>
-                      {schedule.validations.map((validation, index) => (
-                        <React.Fragment key={validation.id}>
-                          {index > 0 && <span className="text-gray-400">→</span>}
-                          <span
-                            className={`px-2 py-1 rounded ${
-                              validation.status === 'approved'
-                                ? 'bg-green-100 text-green-800'
-                                : validation.status === 'rejected'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            {validation.validatorRole === 'dds' && 'DDS'}
-                            {validation.validatorRole === 'medical_chief' && 'Médecin Chef'}
-                            {validation.validatorRole === 'dg' && 'DG'}
-                            {validation.status === 'approved' && ' ✓'}
-                            {validation.status === 'rejected' && ' ✗'}
-                          </span>
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => navigate(`/schedules/${schedule.id}/view`)}
-                    className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    Voir détails
-                  </button>
-
-                  {schedule.status === 'draft' && (
+                  {/* Actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                     <button
-                      onClick={() => navigate(`/schedules/${schedule.id}/edit`)}
-                      className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                      onClick={() => navigate(`/schedules/${schedule.id}/view`)}
+                      style={btnText('var(--brand)')}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                      Modifier
+                      <Eye size={13} /> Voir
                     </button>
-                  )}
 
-                  {/* ✅ Bouton Supprimer avec logique de permissions */}
-                  {canDeleteSchedule(schedule) && (
-                    <button
-                      onClick={() => handleDelete(schedule)}
-                      className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
-                      title={schedule.status !== 'draft' ? 'Admin uniquement' : 'Supprimer ce planning'}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Supprimer
-                    </button>
-                  )}
+                    {schedule.status === 'draft' && (
+                      <button
+                        onClick={() => navigate(`/schedules/${schedule.id}/edit`)}
+                        style={btnText('var(--fg-muted)')}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <Edit3 size={13} /> Modifier
+                      </button>
+                    )}
 
-                  {schedule.status.startsWith('pending_') && (
-                    <button
-                      onClick={() => navigate(`/schedules/${schedule.id}/validate`)}
-                      className="px-4 py-2 text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                    >
-                      Valider
-                    </button>
-                  )}
+                    {schedule.status.startsWith('pending_') && (
+                      <button
+                        onClick={() => navigate(`/schedules/${schedule.id}/validate`)}
+                        style={btnText('var(--success)')}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--success-soft)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <CheckCircle size={13} /> Valider
+                      </button>
+                    )}
+
+                    {canDeleteSchedule(schedule) && (
+                      <button
+                        onClick={() => handleDelete(schedule)}
+                        style={btnText('var(--danger)')}
+                        title={schedule.status !== 'draft' ? 'Admin uniquement' : 'Supprimer'}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-soft)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
-};
-
-export default SchedulesList;
+}

@@ -1,293 +1,192 @@
-// frontend/src/components/DocumentWorkflow.jsx - VERSION 100% COMPLÈTE AVEC SUPPORT DARK MODE
+// frontend/src/components/DocumentWorkflow.jsx
 import { useState, useEffect } from 'react';
 import { workflowAPI } from '../services/api';
-import { 
-  Clock, CheckCircle, XCircle, User, Calendar,
-  Loader, AlertCircle, ChevronRight
-} from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Calendar, Loader, AlertCircle } from 'lucide-react';
+
+const STATUS_CFG = {
+  pending:  { color: 'var(--warning)', bg: 'var(--warning-soft)', label: 'En attente' },
+  approved: { color: 'var(--success)', bg: 'var(--success-soft)', label: 'Approuvé' },
+  rejected: { color: 'var(--danger)',  bg: 'var(--danger-soft)',  label: 'Rejeté' },
+};
+
+const OVERALL_CFG = {
+  pending_validation: { color: 'var(--warning)', bg: 'var(--warning-soft)', label: 'Validation en cours' },
+  validated:          { color: 'var(--success)', bg: 'var(--success-soft)', label: 'Document validé' },
+  rejected:           { color: 'var(--danger)',  bg: 'var(--danger-soft)',  label: 'Document rejeté' },
+};
+
+const formatDate = (d) => {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const StatusIcon = ({ status, size = 20 }) => {
+  const color = STATUS_CFG[status]?.color || 'var(--fg-subtle)';
+  if (status === 'approved') return <CheckCircle size={size} color={color} />;
+  if (status === 'rejected') return <XCircle size={size} color={color} />;
+  return <Clock size={size} color={color} />;
+};
 
 export default function DocumentWorkflow({ documentId, onClose }) {
   const [workflows, setWorkflows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
 
-  useEffect(() => {
-    if (documentId) {
-      loadWorkflow();
-    }
-  }, [documentId]);
+  useEffect(() => { if (documentId) loadWorkflow(); }, [documentId]);
 
   const loadWorkflow = async () => {
     try {
       setLoading(true);
       setError('');
-      const response = await workflowAPI.getDocumentWorkflow(documentId);
-      setWorkflows(response.data.workflows || []);
+      const res = await workflowAPI.getDocumentWorkflow(documentId);
+      setWorkflows(res.data.workflows || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur lors du chargement du workflow');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      // Icônes gardent les couleurs, mais les classes dark: peuvent être appliquées si les couleurs s'affadissent trop.
-      case 'pending':
-        return <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />;
-      case 'approved':
-        return <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />;
-      case 'rejected':
-        return <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />;
-      default:
-        return <AlertCircle className="w-6 h-6 text-gray-400 dark:text-gray-500" />;
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    // Badges de statut - Support Dark Mode
-    const styles = {
-      pending: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-200 dark:border-yellow-700',
-      approved: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-200 dark:border-green-700',
-      rejected: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-200 dark:border-red-700'
-    };
-
-    const labels = {
-      pending: 'En attente',
-      approved: 'Approuvé',
-      rejected: 'Rejeté'
-    };
-
-    return (
-      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${styles[status]}`}>
-        {labels[status]}
-      </span>
-    );
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   const getOverallStatus = () => {
     if (workflows.length === 0) return null;
-    
-    const hasRejected = workflows.some(w => w.status === 'rejected');
-    if (hasRejected) return 'rejected';
-    
-    const allApproved = workflows.every(w => w.status === 'approved');
-    if (allApproved) return 'validated';
-    
+    if (workflows.some(w => w.status === 'rejected')) return 'rejected';
+    if (workflows.every(w => w.status === 'approved')) return 'validated';
     return 'pending_validation';
   };
 
-  const getOverallStatusDisplay = () => {
-    const status = getOverallStatus();
-    
-    // Conteneur de statut général - Support Dark Mode
-    const styles = {
-      pending_validation: { 
-        bg: 'bg-yellow-50 dark:bg-yellow-900/10', 
-        border: 'border-yellow-200 dark:border-yellow-700', 
-        text: 'text-yellow-800 dark:text-yellow-300', 
-        label: 'Validation en cours' 
-      },
-      validated: { 
-        bg: 'bg-green-50 dark:bg-green-900/10', 
-        border: 'border-green-200 dark:border-green-700', 
-        text: 'text-green-800 dark:text-green-300', 
-        label: 'Document validé' 
-      },
-      rejected: { 
-        bg: 'bg-red-50 dark:bg-red-900/10', 
-        border: 'border-red-200 dark:border-red-700', 
-        text: 'text-red-800 dark:text-red-300', 
-        label: 'Document rejeté' 
-      }
-    };
-
-    if (!status || !styles[status]) return null;
-
-    const style = styles[status];
-    return (
-      <div className={`${style.bg} border-2 ${style.border} rounded-lg p-4 mb-6`}>
-        <div className={`font-semibold ${style.text}`}>{style.label}</div>
-      </div>
-    );
+  const closeBtnStyle = {
+    height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)',
+    border: '1px solid var(--border)', background: 'transparent',
+    color: 'var(--fg-muted)', fontSize: 13, cursor: 'pointer',
   };
 
-  if (loading) {
-    // Texte de chargement - Support Dark Mode
-    return (
-      <div className="flex items-center justify-center p-8 text-gray-700 dark:text-dark-text">
-        <Loader className="w-8 h-8 animate-spin text-blue-600" />
-        <span className="ml-2">Chargement du workflow...</span>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10, color: 'var(--fg-muted)', fontSize: 13 }}>
+      <Loader size={20} color="var(--brand)" className="animate-spin" />
+      Chargement du workflow…
+    </div>
+  );
 
-  if (error) {
-    // Message d'erreur - Support Dark Mode
-    return (
-      <div className="p-4">
-        <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-700 rounded-lg flex items-start">
-          <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 mr-2 flex-shrink-0 mt-0.5" />
-          <span className="text-red-700 dark:text-red-300">{error}</span>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            // Bouton Fermer - Support Dark Mode
-            className="mt-4 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-          >
-            Fermer
-          </button>
-        )}
+  if (error) return (
+    <div style={{ padding: 16 }}>
+      <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-2)', background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <XCircle size={15} /> {error}
       </div>
-    );
-  }
+      {onClose && <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}><button onClick={onClose} style={closeBtnStyle}>Fermer</button></div>}
+    </div>
+  );
 
-  if (workflows.length === 0) {
-    // Message "Aucun workflow" - Support Dark Mode
-    return (
-      <div className="p-8 text-center">
-        <AlertCircle className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
-        <p className="text-gray-600 dark:text-dark-text-secondary mb-4">Aucun workflow trouvé pour ce document</p>
-        {onClose && (
-          <button
-            onClick={onClose}
-            // Bouton Fermer - Support Dark Mode
-            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-          >
-            Fermer
-          </button>
-        )}
-      </div>
-    );
-  }
+  if (workflows.length === 0) return (
+    <div style={{ padding: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+      <AlertCircle size={40} color="var(--border-strong)" style={{ marginBottom: 10 }} />
+      <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 14 }}>Aucun workflow trouvé pour ce document</div>
+      {onClose && <button onClick={onClose} style={closeBtnStyle}>Fermer</button>}
+    </div>
+  );
+
+  const overall = getOverallStatus();
+  const overallCfg = overall ? OVERALL_CFG[overall] : null;
 
   return (
-    // Conteneur principal - Support Dark Mode
-    <div className="bg-white dark:bg-dark-surface rounded-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        {/* Titre - Support Dark Mode */}
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text">Circuit de validation</h2>
+    <div style={{ padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)' }}>Circuit de validation</div>
         {onClose && (
-          <button
-            onClick={onClose}
-            // Bouton Fermer (X) - Support Dark Mode
-            className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
-          >
-            <XCircle className="w-6 h-6" />
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-subtle)', display: 'flex' }}>
+            <XCircle size={18} />
           </button>
         )}
       </div>
 
-      {getOverallStatusDisplay()}
+      {/* Overall status */}
+      {overallCfg && (
+        <div style={{
+          padding: '10px 14px', borderRadius: 'var(--radius-3)', marginBottom: 16,
+          background: overallCfg.bg, border: `1px solid ${overallCfg.color}`,
+          fontSize: 13, fontWeight: 600, color: overallCfg.color,
+        }}>
+          {overallCfg.label}
+        </div>
+      )}
 
-      {/* Timeline du workflow */}
-      <div className="space-y-6">
-        {workflows.map((workflow, index) => (
-          <div key={workflow.id} className="relative">
-            {/* Ligne de connexion - Support Dark Mode */}
-            {index < workflows.length - 1 && (
-              <div className="absolute left-8 top-16 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
-            )}
+      {/* Timeline */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {workflows.map((wf, index) => {
+          const cfg = STATUS_CFG[wf.status] || STATUS_CFG.pending;
+          return (
+            <div key={wf.id} style={{ display: 'flex', gap: 14, position: 'relative' }}>
+              {/* Connector line */}
+              {index < workflows.length - 1 && (
+                <div style={{ position: 'absolute', left: 18, top: 40, bottom: -8, width: 2, background: 'var(--border)', zIndex: 0 }} />
+              )}
 
-            <div className="flex items-start gap-4">
-              {/* Icône de statut (le cercle) - Support Dark Mode */}
-              <div className="relative z-10 flex-shrink-0">
-                <div className="w-16 h-16 rounded-full bg-white dark:bg-dark-surface border-4 border-gray-100 dark:border-gray-700 flex items-center justify-center shadow-md">
-                  {getStatusIcon(workflow.status)}
+              {/* Step circle */}
+              <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: 20 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%', zIndex: 1,
+                  background: cfg.bg, border: `2px solid ${cfg.color}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <StatusIcon status={wf.status} size={16} />
                 </div>
-                {/* Badge Étape - Support Dark Mode */}
-                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gray-700 dark:bg-dark-bg text-white dark:text-dark-text-secondary text-xs px-2 py-0.5 rounded-full">
-                  Étape {workflow.step}
-                </div>
+                <div style={{ fontSize: 10, color: 'var(--fg-subtle)', marginTop: 3 }}>Étape {wf.step}</div>
               </div>
 
-              {/* Contenu de l'étape - Support Dark Mode */}
-              <div className="flex-1 bg-gray-50 dark:bg-dark-bg rounded-lg p-5 border border-gray-200 dark:border-dark-border">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      {/* Nom du validateur - Support Dark Mode */}
-                      <h3 className="font-semibold text-gray-900 dark:text-dark-text text-lg">
-                        {workflow.validator.fullName || workflow.validator.username}
-                      </h3>
-                      {getStatusBadge(workflow.status)}
-                    </div>
-                    {/* Email du validateur - Support Dark Mode */}
-                    <p className="text-sm text-gray-600 dark:text-dark-text-secondary">{workflow.validator.email}</p>
+              {/* Content */}
+              <div style={{
+                flex: 1, border: '1px solid var(--border)', borderRadius: 'var(--radius-3)',
+                padding: '12px 14px', background: 'var(--surface-2)', marginBottom: 12,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>
+                    {wf.validator.fullName || wf.validator.username}
                   </div>
+                  <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}>
+                    {cfg.label}
+                  </span>
                 </div>
+                <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 8 }}>{wf.validator.email}</div>
 
-                {/* Dates - Support Dark Mode */}
-                <div className="grid grid-cols-2 gap-4 text-sm mt-4">
-                  <div className="flex items-center text-gray-600 dark:text-dark-text-secondary">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Soumis le {formatDate(workflow.createdAt)}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: 'var(--fg-muted)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Calendar size={11} /> Soumis le {formatDate(wf.createdAt)}
                   </div>
-                  {workflow.validatedAt && (
-                    <div className="flex items-center text-gray-600 dark:text-dark-text-secondary">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Traité le {formatDate(workflow.validatedAt)}
+                  {wf.validatedAt && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Calendar size={11} /> Traité le {formatDate(wf.validatedAt)}
                     </div>
                   )}
                 </div>
 
-                {/* Commentaire - Support Dark Mode */}
-                {workflow.comment && (
-                  <div className="mt-4 bg-white dark:bg-dark-surface rounded-lg p-3 border border-gray-200 dark:border-dark-border">
-                    <p className="text-sm font-medium text-gray-700 dark:text-dark-text mb-1">Commentaire:</p>
-                    <p className="text-sm text-gray-600 dark:text-dark-text-secondary">{workflow.comment}</p>
+                {wf.comment && (
+                  <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 'var(--radius-2)', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 12 }}>
+                    <div style={{ fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 3 }}>Commentaire :</div>
+                    <div style={{ color: 'var(--fg)' }}>{wf.comment}</div>
                   </div>
                 )}
               </div>
             </div>
+          );
+        })}
+      </div>
+
+      {/* Summary */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
+        {[
+          { value: workflows.length, label: 'Validateurs', color: 'var(--brand)' },
+          { value: workflows.filter(w => w.status === 'approved').length, label: 'Approuvés', color: 'var(--success)' },
+          { value: workflows.filter(w => w.status === 'pending').length,  label: 'En attente', color: 'var(--warning)' },
+        ].map(s => (
+          <div key={s.label} className="ged-stat" style={{ textAlign: 'center', borderLeft: `3px solid ${s.color}` }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Résumé - Support Dark Mode */}
-      <div className="mt-8 pt-6 border-t border-gray-200 dark:border-dark-border">
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-dark-text">{workflows.length}</div>
-            <div className="text-sm text-gray-600 dark:text-dark-text-secondary">Validateurs</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {workflows.filter(w => w.status === 'approved').length}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-dark-text-secondary">Approuvés</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-              {workflows.filter(w => w.status === 'pending').length}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-dark-text-secondary">En attente</div>
-          </div>
-        </div>
-      </div>
-
       {onClose && (
-        <div className="mt-6 flex justify-end">
-          {/* Bouton Fermer - Support Dark Mode */}
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
-          >
-            Fermer
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <button onClick={onClose} style={closeBtnStyle}>Fermer</button>
         </div>
       )}
     </div>

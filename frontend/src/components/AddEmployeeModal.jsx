@@ -1,50 +1,32 @@
-// frontend/src/components/AddEmployeeModal.jsx - VERSION CORRIGÉE
+// frontend/src/components/AddEmployeeModal.jsx
 import React, { useState, useEffect } from 'react';
-import { employeesAPI, servicesAPI } from '../services/api'; // AJOUTER servicesAPI
-import { Loader } from 'lucide-react';
+import { employeesAPI, servicesAPI } from '../services/api';
+import { Loader, X } from 'lucide-react';
 
 const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    birthDate: '',
-    birthPlace: '',
-    gender: '',
-    childrenCount: 0,
-    matricule: '',
-    maritalStatus: '',
-    serviceId: ''
+    firstName: '', lastName: '', birthDate: '', birthPlace: '',
+    gender: '', childrenCount: 0, matricule: '', maritalStatus: '', serviceId: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [services, setServices] = useState(initialServices || []); // État local pour les services
+  const [services, setServices] = useState(initialServices || []);
 
   const isEditing = !!employee;
 
-  // Charger les services si ils ne sont pas fournis en props
   useEffect(() => {
     const loadServices = async () => {
-        if (services.length === 0) {
-            try {
-            console.log('🔄 Chargement des services dans le modal...');
-            const response = await servicesAPI.getAll();
-            console.log('📦 Réponse complète services:', response);
-            console.log('📦 response.data:', response.data);
-            console.log('📦 response.data.services:', response.data?.services);
-            console.log('📦 response.data.data:', response.data?.data);
-            
-            // Essayer différentes structures de réponse
-            const servicesData = response.data?.services || response.data?.data || response.data || [];
-            console.log('📦 Services data final:', servicesData);
-            setServices(servicesData);
-            } catch (err) {
-            console.error('❌ Erreur chargement services dans modal:', err);
-            console.error('❌ Détails erreur:', err.response);
-            setServices([]);
-            }
+      if (services.length === 0) {
+        try {
+          const response = await servicesAPI.getAll();
+          const servicesData = response.data?.services || response.data?.data || response.data || [];
+          setServices(servicesData);
+        } catch (err) {
+          console.error('Erreur chargement services dans modal:', err);
+          setServices([]);
         }
+      }
     };
-
     loadServices();
   }, [services.length]);
 
@@ -66,15 +48,10 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-
+    setLoading(true); setError(null);
     try {
-      if (isEditing) {
-        await employeesAPI.update(employee.id, formData);
-      } else {
-        await employeesAPI.create(formData);
-      }
+      if (isEditing) await employeesAPI.update(employee.id, formData);
+      else await employeesAPI.create(formData);
       onSave();
     } catch (err) {
       setError(err.response?.data?.error || 'Une erreur est survenue');
@@ -85,149 +62,70 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? parseInt(value) || 0 : value
-    }));
+    setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseInt(value) || 0 : value }));
   };
 
+  const inputStyle = {
+    width: '100%', padding: '10px 14px',
+    border: '1.5px solid var(--border)', borderRadius: 'var(--radius-3)',
+    background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none',
+    boxSizing: 'border-box',
+  };
+  const labelStyle = { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6 };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-dark-surface p-6 rounded-lg shadow-xl dark:shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text">
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
+      <div style={{ background: 'var(--surface)', padding: 24, borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 672, maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>
             {isEditing ? 'Modifier l\'employé' : 'Ajouter un employé'}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            disabled={loading}
+          <button onClick={onClose} disabled={loading}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 4 }}
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-            <p className="text-red-700 dark:text-red-400">{error}</p>
+          <div style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-3)', padding: 14, marginBottom: 20 }}>
+            <p style={{ color: 'var(--danger)', fontSize: 13, margin: 0 }}>{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
             {/* Colonne gauche */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-2">
-                  Matricule *
-                </label>
-                <input
-                  type="text"
-                  name="matricule"
-                  value={formData.matricule}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-                  placeholder="Ex: EMP001"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-2">
-                  Nom *
-                </label>
-                <input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-                  placeholder="Nom de famille"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-2">
-                  Prénom *
-                </label>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-                  placeholder="Prénom"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-2">
-                  Date de naissance *
-                </label>
-                <input
-                  type="date"
-                  name="birthDate"
-                  value={formData.birthDate}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-2">
-                  Lieu de naissance *
-                </label>
-                <input
-                  type="text"
-                  name="birthPlace"
-                  value={formData.birthPlace}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-                  placeholder="Ville, Pays"
-                />
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[
+                { label: 'Matricule *', name: 'matricule', type: 'text', placeholder: 'Ex: EMP001', required: true },
+                { label: 'Nom *', name: 'lastName', type: 'text', placeholder: 'Nom de famille', required: true },
+                { label: 'Prénom *', name: 'firstName', type: 'text', placeholder: 'Prénom', required: true },
+                { label: 'Date de naissance *', name: 'birthDate', type: 'date', required: true },
+                { label: 'Lieu de naissance *', name: 'birthPlace', type: 'text', placeholder: 'Ville, Pays', required: true },
+              ].map(({ label, name, type, placeholder, required }) => (
+                <div key={name}>
+                  <label style={labelStyle}>{label}</label>
+                  <input type={type} name={name} value={formData[name]} onChange={handleChange}
+                    required={required} placeholder={placeholder} style={inputStyle} />
+                </div>
+              ))}
             </div>
 
             {/* Colonne droite */}
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-2">
-                  Service *
-                </label>
-                <select
-                  name="serviceId"
-                  value={formData.serviceId}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-                >
+                <label style={labelStyle}>Service *</label>
+                <select name="serviceId" value={formData.serviceId} onChange={handleChange} required style={inputStyle}>
                   <option value="">Sélectionner un service</option>
-                  {services.map(service => (
-                    <option key={service.id} value={service.id}>
-                      {service.name}
-                    </option>
-                  ))}
+                  {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-                {services.length === 0 && (
-                  <p className="text-sm text-gray-500 mt-1">Chargement des services...</p>
-                )}
+                {services.length === 0 && <p style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 4 }}>Chargement des services...</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-2">
-                  Sexe *
-                </label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-                >
+                <label style={labelStyle}>Sexe *</label>
+                <select name="gender" value={formData.gender} onChange={handleChange} required style={inputStyle}>
                   <option value="">Sélectionner</option>
                   <option value="M">Masculin</option>
                   <option value="F">Féminin</option>
@@ -235,16 +133,8 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-2">
-                  Statut matrimonial *
-                </label>
-                <select
-                  name="maritalStatus"
-                  value={formData.maritalStatus}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-                >
+                <label style={labelStyle}>Statut matrimonial *</label>
+                <select name="maritalStatus" value={formData.maritalStatus} onChange={handleChange} required style={inputStyle}>
                   <option value="">Sélectionner</option>
                   <option value="Célibataire">Célibataire</option>
                   <option value="Marié(e)">Marié(e)</option>
@@ -254,37 +144,38 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-2">
-                  Nombre d'enfants
-                </label>
-                <input
-                  type="number"
-                  name="childrenCount"
-                  value={formData.childrenCount}
-                  onChange={handleChange}
-                  min="0"
-                  max="20"
-                  className="w-full p-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-                />
+                <label style={labelStyle}>Nombre d'enfants</label>
+                <input type="number" name="childrenCount" value={formData.childrenCount} onChange={handleChange}
+                  min="0" max="20" style={inputStyle} />
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-6 border-t border-gray-200 dark:border-dark-border">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="px-6 py-3 bg-gray-200 dark:bg-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
+            <button type="button" onClick={onClose} disabled={loading}
+              style={{
+                padding: '10px 24px', background: 'var(--surface-2)', color: 'var(--fg)',
+                border: '1px solid var(--border)', borderRadius: 'var(--radius-3)',
+                fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: loading ? 0.5 : 1,
+                transition: 'background .15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
             >
               Annuler
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2"
+            <button type="submit" disabled={loading}
+              style={{
+                padding: '10px 24px', background: 'var(--brand)', color: '#fff',
+                border: 'none', borderRadius: 'var(--radius-3)',
+                fontSize: 13, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.6 : 1,
+                display: 'flex', alignItems: 'center', gap: 8, transition: 'background .15s',
+              }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--brand-active)'; }}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
             >
-              {loading && <Loader className="animate-spin w-4 h-4" />}
+              {loading && <Loader size={14} className="animate-spin" />}
               {isEditing ? 'Modifier' : 'Créer'} l'employé
             </button>
           </div>

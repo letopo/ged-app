@@ -16,6 +16,7 @@ const MouvementPiece = sequelize.define('MouvementPiece', {
   motif: { type: DataTypes.STRING(255), allowNull: true },
   prix_unitaire: { type: DataTypes.FLOAT, allowNull: true },
   created_by: { type: DataTypes.UUID, allowNull: true },
+  tenantId: { type: DataTypes.UUID, allowNull: false },
 }, {
   tableName: 'gmao_mouvements_pieces',
   timestamps: true,

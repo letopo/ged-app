@@ -89,26 +89,27 @@ export default function PHPReposHospit() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 lg:p-6">
+    <div className="min-h-screen p-4 lg:p-6" style={{ background: 'var(--surface-2)' }}>
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <Link to="/php" className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            <ArrowLeft size={18} className="text-gray-500" />
+          <Link to="/php" className="p-1 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
+            <ArrowLeft size={18} />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <BedDouble className="text-orange-600" size={22} />
+            <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+              <BedDouble style={{ color: 'rgb(234,88,12)' }} size={22} />
               Repos & Hospitalisations
             </h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
               {repos.length} repos en cours • {hospitalisations.length} hospitalisation{hospitalisations.length !== 1 ? 's' : ''} en cours
             </p>
           </div>
         </div>
         <button
           onClick={loadData}
-          className="flex items-center gap-2 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Actualiser
@@ -116,35 +117,35 @@ export default function PHPReposHospit() {
       </div>
 
       {/* Onglets */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mb-6 w-fit">
+      <div className="flex gap-1 rounded-xl p-1 mb-6 w-fit" style={{ background: 'var(--surface-3)' }}>
         <button
           onClick={() => setActiveTab('repos')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'repos'
-              ? 'bg-white dark:bg-gray-700 text-yellow-700 dark:text-yellow-400 shadow-sm'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          style={activeTab === 'repos'
+            ? { background: 'var(--surface)', color: 'var(--warning)', boxShadow: 'var(--shadow-1)' }
+            : { color: 'var(--fg-muted)' }}
         >
           <Timer size={15} />
           Repos maladie
           {repos.length > 0 && (
-            <span className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs px-1.5 py-0.5 rounded-full font-semibold">
+            <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+              style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
               {repos.length}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab('hospit')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'hospit'
-              ? 'bg-white dark:bg-gray-700 text-red-700 dark:text-red-400 shadow-sm'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          style={activeTab === 'hospit'
+            ? { background: 'var(--surface)', color: 'var(--danger)', boxShadow: 'var(--shadow-1)' }
+            : { color: 'var(--fg-muted)' }}
         >
           <BedDouble size={15} />
           Hospitalisations
           {hospitalisations.length > 0 && (
-            <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs px-1.5 py-0.5 rounded-full font-semibold">
+            <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+              style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
               {hospitalisations.length}
             </span>
           )}
@@ -158,7 +159,7 @@ export default function PHPReposHospit() {
             <LoadingSkeleton />
           ) : repos.length === 0 ? (
             <EmptyState
-              icon={<Timer size={40} className="text-gray-300 dark:text-gray-600" />}
+              icon={<Timer size={40} style={{ color: 'var(--fg-subtle)' }} />}
               message="Aucun repos maladie en cours"
             />
           ) : (
@@ -171,24 +172,29 @@ export default function PHPReposHospit() {
                 return (
                   <div
                     key={r.id}
-                    className={`bg-white dark:bg-gray-800 rounded-xl border transition-colors ${
-                      expire    ? 'border-red-300 dark:border-red-700 bg-red-50/30 dark:bg-red-900/10' :
-                      urgence   ? 'border-orange-300 dark:border-orange-700 bg-orange-50/30 dark:bg-orange-900/10' :
-                                  'border-gray-200 dark:border-gray-700'
-                    } p-4`}
+                    className="rounded-xl p-4 transition-colors"
+                    style={{
+                      background: expire  ? 'rgba(239,68,68,0.05)'  :
+                                  urgence ? 'rgba(249,115,22,0.05)' :
+                                  'var(--surface)',
+                      border: expire  ? '1px solid var(--danger)'  :
+                              urgence ? '1px solid rgba(249,115,22,0.5)' :
+                              '1px solid var(--border)',
+                    }}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex-1">
                         {/* Patient */}
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-700 dark:text-yellow-400 text-sm font-bold shrink-0">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                            style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
                             {r.patient?.nom?.[0] || '?'}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            <p className="text-sm font-semibold" style={{ color: 'var(--fg)' }}>
                               {r.patient?.nom} {r.patient?.prenom || ''}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                            <p className="text-xs" style={{ color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)' }}>
                               {r.patient?.matricule}
                               {r.patient?.infirmerie && ` • ${r.patient.infirmerie.nom}`}
                             </p>
@@ -197,17 +203,17 @@ export default function PHPReposHospit() {
 
                         {/* Dates et durée */}
                         <div className="flex flex-wrap gap-3 text-xs">
-                          <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                          <span className="flex items-center gap-1" style={{ color: 'var(--fg-muted)' }}>
                             <Calendar size={12} />
                             Du {new Date(r.dateDebut).toLocaleDateString('fr-FR')}
                             {' '}au {new Date(r.dateFin).toLocaleDateString('fr-FR')}
                           </span>
-                          <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                          <span className="flex items-center gap-1" style={{ color: 'var(--fg-muted)' }}>
                             <Clock size={12} />
                             {r.dureeJours} jour{r.dureeJours !== 1 ? 's' : ''}
                           </span>
                           {r.prolongations?.length > 0 && (
-                            <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                            <span className="flex items-center gap-1" style={{ color: 'var(--brand)' }}>
                               <Plus size={11} />
                               {r.prolongations.length} prolongation{r.prolongations.length !== 1 ? 's' : ''}
                             </span>
@@ -216,24 +222,24 @@ export default function PHPReposHospit() {
 
                         {/* Statut */}
                         {expire ? (
-                          <div className="mt-2 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+                          <div className="mt-2 flex items-center gap-1 text-xs" style={{ color: 'var(--danger)' }}>
                             <AlertCircle size={12} />
                             Repos expiré depuis {Math.abs(jours)} jour{Math.abs(jours) !== 1 ? 's' : ''}
                           </div>
                         ) : urgence ? (
-                          <div className="mt-2 flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+                          <div className="mt-2 flex items-center gap-1 text-xs" style={{ color: 'var(--warning)' }}>
                             <AlertCircle size={12} />
                             Expire dans {jours} jour{jours !== 1 ? 's' : ''}
                           </div>
                         ) : (
-                          <div className="mt-2 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                          <div className="mt-2 flex items-center gap-1 text-xs" style={{ color: 'var(--success)' }}>
                             <CheckCircle size={12} />
                             {jours} jour{jours !== 1 ? 's' : ''} restant{jours !== 1 ? 's' : ''}
                           </div>
                         )}
 
                         {r.motif && (
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 italic">"{r.motif}"</p>
+                          <p className="mt-1 text-xs italic" style={{ color: 'var(--fg-muted)' }}>"{r.motif}"</p>
                         )}
                       </div>
 
@@ -241,7 +247,8 @@ export default function PHPReposHospit() {
                       <div className="flex sm:flex-col gap-2 shrink-0">
                         <button
                           onClick={() => { setSelectedRepos(r); setShowProlonger(true); }}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition-colors"
+                          style={{ background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand)' }}
                         >
                           <Plus size={12} />
                           Prolonger
@@ -256,7 +263,8 @@ export default function PHPReposHospit() {
                               toast('Erreur lors de la clôture');
                             }
                           }}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition-colors"
+                          style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)', border: '1px solid var(--border)' }}
                         >
                           <X size={12} />
                           Terminer
@@ -278,7 +286,7 @@ export default function PHPReposHospit() {
             <LoadingSkeleton />
           ) : hospitalisations.length === 0 ? (
             <EmptyState
-              icon={<BedDouble size={40} className="text-gray-300 dark:text-gray-600" />}
+              icon={<BedDouble size={40} style={{ color: 'var(--fg-subtle)' }} />}
               message="Aucune hospitalisation en cours"
             />
           ) : (
@@ -290,23 +298,24 @@ export default function PHPReposHospit() {
                 return (
                   <div
                     key={h.id}
-                    className={`bg-white dark:bg-gray-800 rounded-xl border p-4 transition-colors ${
-                      longSejour
-                        ? 'border-orange-300 dark:border-orange-700 bg-orange-50/20 dark:bg-orange-900/10'
-                        : 'border-gray-200 dark:border-gray-700'
-                    }`}
+                    className="rounded-xl p-4 transition-colors"
+                    style={{
+                      background: longSejour ? 'rgba(249,115,22,0.05)' : 'var(--surface)',
+                      border: longSejour ? '1px solid rgba(249,115,22,0.5)' : '1px solid var(--border)',
+                    }}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-700 dark:text-red-400 text-sm font-bold shrink-0">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                            style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
                             {h.patient?.nom?.[0] || '?'}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            <p className="text-sm font-semibold" style={{ color: 'var(--fg)' }}>
                               {h.patient?.nom} {h.patient?.prenom || ''}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                            <p className="text-xs" style={{ color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)' }}>
                               {h.patient?.matricule}
                               {h.patient?.infirmerie && ` • ${h.patient.infirmerie.nom}`}
                             </p>
@@ -314,15 +323,16 @@ export default function PHPReposHospit() {
                         </div>
 
                         <div className="flex flex-wrap gap-3 text-xs">
-                          <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
+                          <span className="flex items-center gap-1 font-medium" style={{ color: 'var(--danger)' }}>
                             <BedDouble size={12} />
                             {h.serviceHospitalisation || 'Service non précisé'}
                           </span>
-                          <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                          <span className="flex items-center gap-1" style={{ color: 'var(--fg-muted)' }}>
                             <Calendar size={12} />
                             Entrée le {new Date(h.dateEntree).toLocaleDateString('fr-FR')}
                           </span>
-                          <span className={`flex items-center gap-1 font-medium ${longSejour ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                          <span className="flex items-center gap-1 font-medium"
+                            style={{ color: longSejour ? 'rgb(234,88,12)' : 'var(--fg-muted)' }}>
                             <Clock size={12} />
                             {nbJours} jour{nbJours !== 1 ? 's' : ''} d'hospitalisation
                             {longSejour && ' ⚠️'}
@@ -330,13 +340,14 @@ export default function PHPReposHospit() {
                         </div>
 
                         {h.notes && (
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 italic">"{h.notes}"</p>
+                          <p className="mt-1 text-xs italic" style={{ color: 'var(--fg-muted)' }}>"{h.notes}"</p>
                         )}
                       </div>
 
                       <button
                         onClick={() => { setSelectedHospit(h); setShowCloture(true); }}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors shrink-0"
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition-colors shrink-0"
+                        style={{ background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' }}
                       >
                         <CheckCircle size={12} />
                         Sortie
@@ -379,7 +390,8 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-3">
       {[1,2,3].map(i => (
-        <div key={i} className="h-24 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 animate-pulse" />
+        <div key={i} className="h-24 rounded-xl border animate-pulse"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} />
       ))}
     </div>
   );
@@ -387,9 +399,9 @@ function LoadingSkeleton() {
 
 function EmptyState({ icon, message }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-10 text-center">
+    <div className="rounded-xl p-10 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="mx-auto mb-3 flex justify-center">{icon}</div>
-      <p className="text-gray-500 dark:text-gray-400 text-sm">{message}</p>
+      <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>{message}</p>
     </div>
   );
 }
@@ -404,21 +416,32 @@ function ProlongerReposModal({ repos, loading, onClose, onSubmit }) {
     onSubmit({ dureeJours: Number(dureeJours), notes });
   };
 
+  const inp = {
+    width: '100%',
+    padding: '0.5rem 0.75rem',
+    fontSize: '0.875rem',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-2)',
+    background: 'var(--surface)',
+    color: 'var(--fg)',
+    outline: 'none',
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm">
-        <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Plus size={18} className="text-blue-600" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="rounded-2xl w-full max-w-sm" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-3)' }}>
+        <div className="p-5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+            <Plus size={18} style={{ color: 'var(--brand)' }} />
             Prolonger le repos maladie
           </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs mt-1" style={{ color: 'var(--fg-muted)' }}>
             {repos.patient?.nom} {repos.patient?.prenom} — actuellement {repos.dureeJours} jour{repos.dureeJours !== 1 ? 's' : ''}
           </p>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>
               Durée de prolongation (jours) *
             </label>
             <input
@@ -427,29 +450,31 @@ function ProlongerReposModal({ repos, loading, onClose, onSubmit }) {
               required
               value={dureeJours}
               onChange={(e) => setDureeJours(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={inp}
               placeholder="Ex: 3"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>
               Motif de prolongation
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              style={{ ...inp, resize: 'none' }}
               placeholder="Motif médical..."
             />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              className="flex-1 px-4 py-2 text-sm rounded-xl transition-colors"
+              style={{ border: '1px solid var(--border)', color: 'var(--fg)' }}>
               Annuler
             </button>
             <button type="submit" disabled={loading}
-              className="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium">
+              className="flex-1 px-4 py-2 text-sm rounded-xl disabled:opacity-50 transition-colors font-medium"
+              style={{ background: 'var(--brand)', color: '#fff' }}>
               {loading ? 'Enregistrement...' : 'Prolonger'}
             </button>
           </div>
@@ -468,21 +493,32 @@ function SortieHospitalisationModal({ hospit, loading, onClose, onSubmit }) {
     onSubmit({ dateSortie, notes });
   };
 
+  const inp = {
+    width: '100%',
+    padding: '0.5rem 0.75rem',
+    fontSize: '0.875rem',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-2)',
+    background: 'var(--surface)',
+    color: 'var(--fg)',
+    outline: 'none',
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm">
-        <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <CheckCircle size={18} className="text-green-600" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="rounded-2xl w-full max-w-sm" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-3)' }}>
+        <div className="p-5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
+            <CheckCircle size={18} style={{ color: 'var(--success)' }} />
             Sortie d'hospitalisation
           </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs mt-1" style={{ color: 'var(--fg-muted)' }}>
             {hospit.patient?.nom} {hospit.patient?.prenom} — {hospit.serviceHospitalisation || 'N/A'}
           </p>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>
               Date de sortie *
             </label>
             <input
@@ -490,28 +526,30 @@ function SortieHospitalisationModal({ hospit, loading, onClose, onSubmit }) {
               required
               value={dateSortie}
               onChange={(e) => setDateSortie(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              style={inp}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>
               Notes de sortie
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              style={{ ...inp, resize: 'none' }}
               placeholder="Observations à la sortie..."
             />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              className="flex-1 px-4 py-2 text-sm rounded-xl transition-colors"
+              style={{ border: '1px solid var(--border)', color: 'var(--fg)' }}>
               Annuler
             </button>
             <button type="submit" disabled={loading}
-              className="flex-1 px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors font-medium">
+              className="flex-1 px-4 py-2 text-sm rounded-xl disabled:opacity-50 transition-colors font-medium"
+              style={{ background: 'var(--success)', color: '#fff' }}>
               {loading ? 'Enregistrement...' : 'Confirmer sortie'}
             </button>
           </div>

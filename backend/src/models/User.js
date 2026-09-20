@@ -34,19 +34,20 @@ const User = sequelize.define('User', {
     unique: true
   },
   role: {
-  type: DataTypes.ENUM(
-    'user',           // Utilisateur simple
-    'validator',      // Validateur de documents
-    'director',       // Directeur
-    'admin',          // Administrateur
-    'gardien',        // ✅ Agent au portail
-    'agent_accueil_PHP',  // ✅ Agent d'accueil PHP
-    'agent_accueil_normal', // ✅ Agent d'accueil Normal
-    'chef_de_service', // ✅ Chef de service
-    'caissier'        // ✅ Agent de caisse
-  ),
-  defaultValue: 'user'
-},
+    type: DataTypes.ENUM(
+      'user',
+      'validator',
+      'director',
+      'admin',
+      'gardien',
+      'agent_accueil_PHP',
+      'agent_accueil_normal',
+      'chef_de_service',
+      'caissier',
+      'superadmin'
+    ),
+    defaultValue: 'user'
+  },
   signaturePath: {
     type: DataTypes.STRING,
     allowNull: true,
@@ -64,7 +65,32 @@ const User = sequelize.define('User', {
   lastLogin: {
     type: DataTypes.DATE,
     allowNull: true
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
+  totpSecret: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  totpEnabled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  // Statut présence — quand true, ses tâches de validation en cours/à venir
+  // sont automatiquement redirigées vers substituteId (voir Workflow.isSubstituted).
+  isAbsent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_absent',
+  },
+  // Remplaçant fixe ("n-1") désigné pour cet utilisateur, assigné par un admin.
+  substituteId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'substitute_id',
+  },
 }, {
   tableName: 'users',
   timestamps: true,
@@ -95,6 +121,7 @@ User.associate = function(models) {
   this.hasMany(models.Document, { foreignKey: 'userId', as: 'documents' });
   this.hasMany(models.Workflow, { foreignKey: 'validatorId', as: 'tasks' });
   this.hasMany(models.ServiceMember, { foreignKey: 'userId', as: 'serviceMemberships' });
+  this.belongsTo(models.User, { foreignKey: 'substituteId', as: 'substitute' });
 };
 
 export default User;

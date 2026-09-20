@@ -64,10 +64,14 @@ export const authorize = (...roles) => {
       });
     }
 
-    // Vérifier si l'utilisateur a le bon rôle
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        message: `Accès refusé. Rôle requis: ${roles.join(' ou ')}` 
+    // superadmin hérite de tous les droits de 'admin'
+    const effectiveRoles = roles.includes('admin')
+      ? [...roles, 'superadmin']
+      : roles;
+
+    if (!effectiveRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        message: `Accès refusé. Rôle requis: ${roles.join(' ou ')}`
       });
     }
 
@@ -79,11 +83,11 @@ export const authorize = (...roles) => {
 // Middleware optionnel : vérifier si admin
 // ============================================
 export const isAdmin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'superadmin')) {
     next();
   } else {
-    res.status(403).json({ 
-      message: 'Accès réservé aux administrateurs' 
+    res.status(403).json({
+      message: 'Accès réservé aux administrateurs'
     });
   }
 };
@@ -92,7 +96,7 @@ export const isAdmin = (req, res, next) => {
 // Middleware optionnel : vérifier si validator ou director
 // ============================================
 export const isValidator = (req, res, next) => {
-  if (req.user && (req.user.role === 'validator' || req.user.role === 'director' || req.user.role === 'admin')) {
+  if (req.user && (req.user.role === 'validator' || req.user.role === 'director' || req.user.role === 'admin' || req.user.role === 'superadmin')) {
     next();
   } else {
     res.status(403).json({ 

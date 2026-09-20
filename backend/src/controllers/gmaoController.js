@@ -1,6 +1,7 @@
 // backend/src/controllers/gmaoController.js
 import { Equipement, PlanMaintenance, Intervention, User, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
+import { sanitizeBody } from '../utils/sanitizeBody.js';
 
 // ─── ÉQUIPEMENTS ────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ export const getEquipements = async (req, res) => {
 
 export const createEquipement = async (req, res) => {
   try {
-    const eq = await Equipement.create(req.body);
+    const eq = await Equipement.create({ ...sanitizeBody(req.body), tenantId: req.tenantId });
     res.status(201).json({ success: true, data: eq });
   } catch (err) {
     console.error('createEquipement error:', err);
@@ -35,7 +36,7 @@ export const updateEquipement = async (req, res) => {
   try {
     const eq = await Equipement.findByPk(req.params.id);
     if (!eq) return res.status(404).json({ success: false, message: 'Équipement introuvable' });
-    await eq.update(req.body);
+    await eq.update(sanitizeBody(req.body));
     res.json({ success: true, data: eq });
   } catch (err) {
     console.error('updateEquipement error:', err);
@@ -81,7 +82,7 @@ export const getPlans = async (req, res) => {
 
 export const createPlan = async (req, res) => {
   try {
-    const plan = await PlanMaintenance.create(req.body);
+    const plan = await PlanMaintenance.create({ ...sanitizeBody(req.body), tenantId: req.tenantId });
     const full = await PlanMaintenance.findByPk(plan.id, {
       include: [
         { model: Equipement, as: 'equipement', attributes: ['id', 'nom', 'service'] },
@@ -99,7 +100,7 @@ export const updatePlan = async (req, res) => {
   try {
     const plan = await PlanMaintenance.findByPk(req.params.id);
     if (!plan) return res.status(404).json({ success: false, message: 'Plan introuvable' });
-    await plan.update(req.body);
+    await plan.update(sanitizeBody(req.body));
     res.json({ success: true, data: plan });
   } catch (err) {
     console.error('updatePlan error:', err);
@@ -259,7 +260,7 @@ export const createIntervention = async (req, res) => {
       equipement_id, plan_id: plan_id || null, type: type || 'preventive',
       statut: statut || 'planifiee', priorite: priorite || 'normal',
       date_planifiee, technicien_id: technicien_id || null,
-      description, signale_par
+      description, signale_par, tenantId: req.tenantId
     });
     const full = await Intervention.findByPk(intervention.id, {
       include: [
@@ -280,7 +281,7 @@ export const updateIntervention = async (req, res) => {
     const { id } = req.params;
     const intervention = await Intervention.findByPk(id);
     if (!intervention) return res.status(404).json({ success: false, message: 'Intervention introuvable.' });
-    await intervention.update(req.body);
+    await intervention.update(sanitizeBody(req.body));
     const full = await Intervention.findByPk(id, {
       include: [
         { model: Equipement, as: 'equipement', attributes: ['id', 'nom', 'service'] },
@@ -297,7 +298,8 @@ export const updateIntervention = async (req, res) => {
 export const completeIntervention = async (req, res) => {
   try {
     const { id } = req.params;
-    const { actions_effectuees, pieces_remplacees, duree_reelle, observations } = req.body;
+    const { actions_effectuees, pieces_remplacees, observations } = req.body;
+    const duree_reelle = req.body.duree_reelle === '' ? null : req.body.duree_reelle;
     const intervention = await Intervention.findByPk(id);
     if (!intervention) return res.status(404).json({ success: false, message: 'Intervention introuvable.' });
     await intervention.update({
@@ -532,6 +534,7 @@ export const generatePreventiveInterventions = async (req, res) => {
           date_planifiee: dateStr,
           technicien_id: plan.technicien_id || null,
           description: `Maintenance préventive - ${plan.equipement?.nom || ''}`,
+          tenantId: req.tenantId,
         });
         created++;
       }

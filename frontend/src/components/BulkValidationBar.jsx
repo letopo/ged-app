@@ -2,73 +2,90 @@
 import React from 'react';
 import { CheckCircle, XCircle, X } from 'lucide-react';
 
-const BulkValidationBar = ({ 
-  selectedCount, 
-  maxSelection, 
-  onApprove, 
-  onReject, 
-  onCancel,
-  disabled 
-}) => {
+export default function BulkValidationBar({ selectedCount, maxSelection, onApprove, onReject, onCancel, disabled }) {
   if (selectedCount === 0) return null;
 
   const isMaxReached = selectedCount >= maxSelection;
 
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl shadow-2xl px-8 py-4 flex items-center gap-6 border-2 border-blue-400">
-        {/* Compteur */}
-        <div className="flex items-center gap-3">
-          <div className="bg-white text-blue-600 rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg shadow-lg">
-            {selectedCount}
-          </div>
-          <div>
-            <p className="font-bold text-lg">
-              {selectedCount} document{selectedCount > 1 ? 's' : ''} sélectionné{selectedCount > 1 ? 's' : ''}
-            </p>
-            {isMaxReached && (
-              <p className="text-xs text-yellow-200">
-                ⚠️ Limite de {maxSelection} documents atteinte
-              </p>
-            )}
-          </div>
+    <div style={{
+      position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 9000,
+      background: 'var(--brand)', borderRadius: 'var(--radius-4)',
+      boxShadow: 'var(--shadow-3)',
+      display: 'flex', alignItems: 'center', gap: 0,
+      overflow: 'hidden',
+      border: '1px solid rgba(255,255,255,0.15)',
+    }}>
+      {/* Counter */}
+      <div style={{
+        padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10,
+        borderRight: '1px solid rgba(255,255,255,0.18)',
+      }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: '50%',
+          background: '#fff', color: 'var(--brand)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 14, fontWeight: 700, flexShrink: 0,
+        }}>
+          {selectedCount}
         </div>
-
-        {/* Séparateur */}
-        <div className="h-12 w-px bg-blue-400"></div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onApprove}
-            disabled={disabled}
-            className="flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 rounded-xl font-semibold transition-all transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg"
-          >
-            <CheckCircle size={20} />
-            Approuver tout
-          </button>
-
-          <button
-            onClick={onReject}
-            disabled={disabled}
-            className="flex items-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 rounded-xl font-semibold transition-all transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg"
-          >
-            <XCircle size={20} />
-            Rejeter tout
-          </button>
-
-          <button
-            onClick={onCancel}
-            disabled={disabled}
-            className="flex items-center gap-2 px-4 py-3 bg-white text-blue-600 hover:bg-gray-100 rounded-xl font-semibold transition-all shadow-lg"
-          >
-            <X size={20} />
-            Annuler
-          </button>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
+            {selectedCount} document{selectedCount > 1 ? 's' : ''} sélectionné{selectedCount > 1 ? 's' : ''}
+          </div>
+          {isMaxReached && (
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+              Limite de {maxSelection} documents atteinte
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4 }}>
+        <button
+          onClick={onApprove}
+          disabled={disabled}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            height: 36, padding: '0 14px', borderRadius: 'var(--radius-2)',
+            border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+            background: 'var(--success)', color: '#fff',
+            fontSize: 13, fontWeight: 500, opacity: disabled ? 0.5 : 1,
+          }}
+        >
+          <CheckCircle size={14} /> Approuver tout
+        </button>
+
+        <button
+          onClick={onReject}
+          disabled={disabled}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            height: 36, padding: '0 14px', borderRadius: 'var(--radius-2)',
+            border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+            background: 'var(--danger)', color: '#fff',
+            fontSize: 13, fontWeight: 500, opacity: disabled ? 0.5 : 1,
+          }}
+        >
+          <XCircle size={14} /> Rejeter tout
+        </button>
+
+        <button
+          onClick={onCancel}
+          disabled={disabled}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            height: 36, padding: '0 12px', borderRadius: 'var(--radius-2)',
+            border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer',
+            background: 'transparent', color: '#fff',
+            fontSize: 13, fontWeight: 500, opacity: disabled ? 0.5 : 1,
+          }}
+        >
+          <X size={14} /> Annuler
+        </button>
       </div>
     </div>
   );
-};
-
-export default BulkValidationBar;
+}

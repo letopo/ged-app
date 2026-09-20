@@ -18,10 +18,12 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-# --ignore-scripts évite ETXTBSY sur esbuild, puis on rebuild esbuild seul
-RUN npm install --no-audit --no-fund --ignore-scripts && \
-    node node_modules/esbuild/install.js 2>/dev/null || \
-    npm install --no-audit --no-fund
+# Install déterministe (npm ci, comme le backend), fallback npm install, puis
+# VÉRIFICATION que vite est bien présent : sinon le build échoue franchement
+# au lieu de mettre en cache un node_modules incomplet (cause du "vite: not found").
+RUN (npm ci --no-audit --no-fund || npm install --no-audit --no-fund) && \
+    test -x node_modules/.bin/vite || \
+    ( echo "❌ Dépendances incomplètes (vite absent). Réessayez: docker compose build --no-cache frontend" && exit 1 )
 
 COPY . .
 
@@ -29,7 +31,7 @@ COPY . .
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=2048" npm run build
 
 # Stage 3: Production avec Nginx
 FROM nginx:alpine AS production
@@ -37,12 +39,10 @@ FROM nginx:alpine AS production
 # Copier la configuration Nginx
 COPY /nginx.conf /etc/nginx/nginx.conf
 
-# Copier les fichiers buildés depuis dist
+# Copier les fichiers buildés depuis dist (inclut déjà sw.js et manifest.json via
+# copyPublicDir ; sw.js y est versionné par le plugin Vite — ne pas le réécraser
+# avec la version source qui contient le placeholder __SW_VERSION__).
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-# ✅ Copier explicitement le Service Worker et le Manifest
-COPY --from=builder /app/public/sw.js /usr/share/nginx/html/sw.js
-COPY --from=builder /app/public/manifest.json /usr/share/nginx/html/manifest.json
 
 # Créer un utilisateur non-root et définir les permissions
 RUN apk add --no-cache curl && \
@@ -57,6 +57,6 @@ EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -sf http://localhost/ -o /dev/null -w '%{http_code}' | grep -q '200' || exit 1
+  CMD curl -s -o /dev/null -w '%{http_code}' http://localhost/ | grep -qE '^(200|301)$' || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

@@ -22,6 +22,7 @@ import {
 } from '../controllers/demandeAchatController.js';
 
 import { protect } from '../middleware/auth.js';
+import { fixUploadEncoding } from '../middleware/upload.js';
 
 // ============================================
 // CONFIGURATION MULTER POUR UPLOAD FICHIERS
@@ -66,10 +67,10 @@ const upload = multer({
 // ============================================
 // ROUTES
 // ============================================
-router.post('/', protect, upload.array('attachments', 10), createDemandeAchat);
+router.post('/', protect, upload.array('attachments', 10), fixUploadEncoding, createDemandeAchat);
 router.get('/', protect, getAllDemandesAchat);
 router.get('/:id', protect, getDemandeAchatById);
-router.put('/:id', protect, upload.array('attachments', 10), updateDemandeAchat);
+router.put('/:id', protect, upload.array('attachments', 10), fixUploadEncoding, updateDemandeAchat);
 router.patch('/:id/status', protect, updateDemandeAchatStatus);
 router.delete('/:id', protect, deleteDemandeAchat);
 

@@ -29,6 +29,10 @@ const storage = multer.diskStorage({
 
 // Filtre pour n'accepter que certains types de fichiers
 const fileFilter = (req, file, cb) => {
+  // Autoriser les réponses de formulaire HTML (blobs internes)
+  if (file.mimetype === 'application/x-form-response' || path.extname(file.originalname).toLowerCase() === '.form') {
+    return cb(null, true);
+  }
   const allowedTypes = /pdf|doc|docx|jpeg|jpg|png/;
   const mimetype = allowedTypes.test(file.mimetype);
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -45,5 +49,25 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // Limite de 10MB
   fileFilter: fileFilter,
 });
+
+// busboy (utilisé par multer en interne) décode le paramètre `filename` du
+// header Content-Disposition en latin1, pas en UTF-8 — un nom de fichier
+// accentué envoyé par le navigateur (ex: "Réunion médicale.pdf") arrive donc
+// corrompu ("RÃ©union mÃ©dicale.pdf") dans `file.originalname`. On le
+// redécode correctement juste après multer, avant que le contrôleur ne s'en
+// serve (ex: documents.original_name). Voir memory encoding-mojibake-fix.
+export const fixUploadEncoding = (req, res, next) => {
+  const fixName = (f) => {
+    if (f?.originalname) {
+      f.originalname = Buffer.from(f.originalname, 'latin1').toString('utf8');
+    }
+  };
+  if (req.file) fixName(req.file);
+  if (Array.isArray(req.files)) req.files.forEach(fixName);
+  else if (req.files && typeof req.files === 'object') {
+    Object.values(req.files).flat().forEach(fixName);
+  }
+  next();
+};
 
 export default upload;

@@ -1,5 +1,6 @@
+// frontend/src/components/KeyboardShortcuts.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Keyboard, X } from 'lucide-react';
 
 const SHORTCUTS = [
@@ -11,17 +12,25 @@ const SHORTCUTS = [
   ]},
   { section: 'Actions', items: [
     { keys: ['/', '⌘K'], label: 'Recherche globale' },
-    { keys: ['n'], label: 'Nouveau document (upload)' },
-    { keys: ['?'], label: 'Afficher les raccourcis' },
-    { keys: ['Esc'], label: 'Fermer les modales' },
+    { keys: ['n'],        label: 'Nouveau document (upload)' },
+    { keys: ['?'],        label: 'Afficher les raccourcis' },
+    { keys: ['Esc'],      label: 'Fermer les modales' },
   ]},
 ];
 
+const kbdStyle = {
+  display: 'inline-flex', alignItems: 'center',
+  padding: '1px 6px', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface-2)', border: '1px solid var(--border)',
+  fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-muted)',
+  boxShadow: '0 1px 0 var(--border)',
+};
+
 export default function KeyboardShortcuts() {
-  const navigate = useNavigate();
+  const navigate    = useNavigate();
   const [showHelp, setShowHelp] = useState(false);
   const [gPressed, setGPressed] = useState(false);
-  const [gTimer, setGTimer] = useState(null);
+  const [gTimer, setGTimer]     = useState(null);
 
   const isInputFocused = useCallback(() => {
     const tag = document.activeElement?.tagName;
@@ -32,85 +41,84 @@ export default function KeyboardShortcuts() {
     const onKey = (e) => {
       if (isInputFocused()) return;
 
-      // "?" → aide
       if (e.key === '?' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        setShowHelp(prev => !prev);
-        return;
+        e.preventDefault(); setShowHelp(prev => !prev); return;
       }
-
-      // "n" → nouveau document
       if (e.key === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault();
-        navigate('/upload');
-        return;
+        e.preventDefault(); navigate('/upload'); return;
       }
-
-      // Séquence "g + lettre" pour navigation
       if (e.key === 'g' && !e.metaKey && !e.ctrlKey && !gPressed) {
-        e.preventDefault();
-        setGPressed(true);
+        e.preventDefault(); setGPressed(true);
         const timer = setTimeout(() => setGPressed(false), 1000);
-        setGTimer(timer);
-        return;
+        setGTimer(timer); return;
       }
-
       if (gPressed) {
-        clearTimeout(gTimer);
-        setGPressed(false);
+        clearTimeout(gTimer); setGPressed(false);
         switch (e.key) {
           case 'd': e.preventDefault(); navigate('/dashboard'); break;
           case 'f': e.preventDefault(); navigate('/documents'); break;
-          case 'u': e.preventDefault(); navigate('/upload'); break;
-          case 't': e.preventDefault(); navigate('/my-tasks'); break;
+          case 'u': e.preventDefault(); navigate('/upload');    break;
+          case 't': e.preventDefault(); navigate('/my-tasks');  break;
           default: break;
         }
         return;
       }
-
-      // Esc → fermer aide
-      if (e.key === 'Escape' && showHelp) {
-        setShowHelp(false);
-      }
+      if (e.key === 'Escape' && showHelp) setShowHelp(false);
     };
 
     window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      clearTimeout(gTimer);
-    };
+    return () => { window.removeEventListener('keydown', onKey); clearTimeout(gTimer); };
   }, [gPressed, gTimer, showHelp, navigate, isInputFocused]);
 
   return (
     <>
       {showHelp && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowHelp(false)} />
-          <div className="relative w-full max-w-md mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden animate-fadeIn">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-              <div className="flex items-center gap-2.5">
-                <Keyboard className="w-5 h-5 text-blue-500" />
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Raccourcis clavier</h2>
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9998,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setShowHelp(false)}
+          />
+          <div className="animate-fadeIn" style={{
+            position: 'relative', width: '100%', maxWidth: 400, margin: '0 16px',
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', overflow: 'hidden',
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px', borderBottom: '1px solid var(--border)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Keyboard size={16} color="var(--brand)" />
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>Raccourcis clavier</span>
               </div>
-              <button onClick={() => setShowHelp(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition">
-                <X className="w-4 h-4" />
+              <button
+                onClick={() => setShowHelp(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 4, borderRadius: 'var(--radius-2)' }}
+              >
+                <X size={14} />
               </button>
             </div>
-            <div className="p-5 space-y-5 max-h-[60vh] overflow-y-auto">
+
+            {/* Body */}
+            <div style={{ padding: '14px 16px', maxHeight: '60vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
               {SHORTCUTS.map(section => (
                 <div key={section.section}>
-                  <h3 className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2.5">{section.section}</h3>
-                  <div className="space-y-1.5">
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                    {section.section}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {section.items.map(item => (
-                      <div key={item.label} className="flex items-center justify-between py-1.5">
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{item.label}</span>
-                        <div className="flex items-center gap-1">
+                      <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0' }}>
+                        <span style={{ fontSize: 13, color: 'var(--fg)' }}>{item.label}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           {item.keys.map((key, i) => (
-                            <span key={i}>
-                              {i > 0 && <span className="text-[10px] text-gray-300 dark:text-gray-600 mx-0.5">ou</span>}
-                              <kbd className="inline-flex items-center px-2 py-0.5 text-[11px] font-mono font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-sm">
-                                {key}
-                              </kbd>
+                            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              {i > 0 && <span style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>ou</span>}
+                              <kbd style={kbdStyle}>{key}</kbd>
                             </span>
                           ))}
                         </div>
@@ -120,10 +128,14 @@ export default function KeyboardShortcuts() {
                 </div>
               ))}
             </div>
-            <div className="px-5 py-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 text-center">
-              <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                Appuyez sur <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] font-mono border border-gray-200 dark:border-gray-600">?</kbd> pour fermer
-              </p>
+
+            {/* Footer */}
+            <div style={{
+              padding: '8px 16px', borderTop: '1px solid var(--border)',
+              background: 'var(--surface-2)', textAlign: 'center',
+              fontSize: 11, color: 'var(--fg-subtle)',
+            }}>
+              Appuyez sur <kbd style={kbdStyle}>?</kbd> pour fermer
             </div>
           </div>
         </div>

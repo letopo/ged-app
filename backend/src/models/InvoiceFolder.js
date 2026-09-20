@@ -23,7 +23,11 @@ const InvoiceFolder = sequelize.define('InvoiceFolder', {
     type: DataTypes.UUID,
     allowNull: true,
     field: 'parent_id',
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'invoice_folders',
   timestamps: true,

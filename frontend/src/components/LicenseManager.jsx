@@ -1,95 +1,111 @@
 // frontend/src/components/LicenseManager.jsx
 import React, { useState, useEffect } from 'react';
-import api from '../services/api'; // Assure-toi d'avoir configuré axios ou api
+import api from '../services/api';
 import { ShieldCheck, ShieldAlert, Key } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const LicenseManager = () => {
-    const [licenseKey, setLicenseKey] = useState('');
-    const [status, setStatus] = useState(null);
-    const [loading, setLoading] = useState(false);
+  const [licenseKey, setLicenseKey] = useState('');
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-    // Vérifier l'état actuel au chargement
-    useEffect(() => {
-        checkStatus();
-    }, []);
+  useEffect(() => { checkStatus(); }, []);
 
-    const checkStatus = async () => {
-        try {
-            const res = await api.get('/license/status');
-            setStatus(res.data);
-        } catch (error) {
-            console.error("Erreur statut licence", error);
-        }
-    };
+  const checkStatus = async () => {
+    try {
+      const res = await api.get('/license/status');
+      setStatus(res.data);
+    } catch (error) {
+      console.error('Erreur statut licence', error);
+    }
+  };
 
-    const handleActivate = async () => {
-        if (!licenseKey.trim()) return;
-        setLoading(true);
-        try {
-            const res = await api.post('/license/activate', { licenseKey });
-            if (res.data.success) {
-                toast.success("Licence activée avec succès !");
-                setStatus({ 
-                    active: true, 
-                    client: res.data.info.clientName, 
-                    expiresAt: res.data.info.expiresAt 
-                });
-                setLicenseKey('');
-            }
-        } catch (error) {
-            toast.error("Erreur : " + (error.response?.data?.message || "Clé invalide"));
-        } finally {
-            setLoading(false);
-        }
-    };
+  const handleActivate = async () => {
+    if (!licenseKey.trim()) return;
+    setLoading(true);
+    try {
+      const res = await api.post('/license/activate', { licenseKey });
+      if (res.data.success) {
+        toast.success('Licence activée avec succès !');
+        setStatus({ active: true, client: res.data.info.clientName, expiresAt: res.data.info.expiresAt });
+        setLicenseKey('');
+      }
+    } catch (error) {
+      toast.error('Erreur : ' + (error.response?.data?.message || 'Clé invalide'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return (
-        <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 max-w-lg mx-auto mt-10">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
-                <Key className="text-blue-600" /> Gestion de la Licence
-            </h2>
+  return (
+    <div style={{
+      padding: 24, background: 'var(--surface)', borderRadius: 'var(--radius-3)',
+      boxShadow: 'var(--shadow-1)', border: '1px solid var(--border)',
+      maxWidth: 512, margin: '40px auto',
+    }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--fg)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Key size={20} style={{ color: 'var(--brand)' }} />
+        Gestion de la Licence
+      </h2>
 
-            {/* État Actuel */}
-            <div className={`p-4 rounded-lg mb-6 ${status?.active ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} border`}>
-                {status?.active ? (
-                    <div className="flex items-start gap-3">
-                        <ShieldCheck className="text-green-600 w-6 h-6 mt-1" />
-                        <div>
-                            <h3 className="font-bold text-green-800">Licence Active</h3>
-                            <p className="text-sm text-green-700">Client : {status.client}</p>
-                            <p className="text-sm text-green-700">Expire le : {new Date(status.expiresAt).toLocaleDateString()}</p>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex items-center gap-3">
-                        <ShieldAlert className="text-red-600 w-6 h-6" />
-                        <h3 className="font-bold text-red-800">Aucune licence valide détectée</h3>
-                    </div>
-                )}
-            </div>
-
-            {/* Formulaire d'activation */}
+      {/* État actuel */}
+      <div style={{
+        padding: 16, borderRadius: 'var(--radius-3)', marginBottom: 24,
+        background: status?.active ? 'var(--success-soft)' : 'var(--danger-soft)',
+        border: `1px solid ${status?.active ? 'var(--success)' : 'var(--danger)'}`,
+      }}>
+        {status?.active ? (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <ShieldCheck size={22} style={{ color: 'var(--success)', marginTop: 2, flexShrink: 0 }} />
             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Activer une nouvelle clé
-                </label>
-                <textarea
-                    value={licenseKey}
-                    onChange={(e) => setLicenseKey(e.target.value)}
-                    placeholder="Collez votre clé de licence ici (eyJh...)"
-                    className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white h-24 text-xs font-mono mb-4"
-                />
-                <button
-                    onClick={handleActivate}
-                    disabled={loading || !licenseKey}
-                    className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition disabled:opacity-50"
-                >
-                    {loading ? 'Vérification...' : 'Activer la licence'}
-                </button>
+              <h3 style={{ fontWeight: 700, color: 'var(--success)', fontSize: 14, margin: '0 0 4px' }}>Licence Active</h3>
+              <p style={{ fontSize: 13, color: 'var(--fg)', margin: '0 0 2px' }}>Client : {status.client}</p>
+              <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>Expire le : {new Date(status.expiresAt).toLocaleDateString()}</p>
             </div>
-        </div>
-    );
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <ShieldAlert size={22} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+            <h3 style={{ fontWeight: 700, color: 'var(--danger)', fontSize: 14, margin: 0 }}>Aucune licence valide détectée</h3>
+          </div>
+        )}
+      </div>
+
+      {/* Activation */}
+      <div>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 }}>
+          Activer une nouvelle clé
+        </label>
+        <textarea
+          value={licenseKey}
+          onChange={e => setLicenseKey(e.target.value)}
+          placeholder="Collez votre clé de licence ici (eyJh...)"
+          style={{
+            width: '100%', padding: 12, height: 96, fontSize: 12,
+            fontFamily: 'var(--font-mono)', border: '1.5px solid var(--border)',
+            borderRadius: 'var(--radius-3)', background: 'var(--surface-2)',
+            color: 'var(--fg)', resize: 'none', outline: 'none', marginBottom: 16,
+            boxSizing: 'border-box',
+          }}
+        />
+        <button
+          onClick={handleActivate}
+          disabled={loading || !licenseKey}
+          style={{
+            width: '100%', padding: '10px 16px',
+            background: 'var(--brand)', color: '#fff',
+            border: 'none', borderRadius: 'var(--radius-3)',
+            fontSize: 14, fontWeight: 500, cursor: (loading || !licenseKey) ? 'not-allowed' : 'pointer',
+            opacity: (loading || !licenseKey) ? 0.5 : 1, transition: 'background .15s',
+          }}
+          onMouseEnter={e => { if (!loading && licenseKey) e.currentTarget.style.background = 'var(--brand-active)'; }}
+          onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
+        >
+          {loading ? 'Vérification...' : 'Activer la licence'}
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default LicenseManager;

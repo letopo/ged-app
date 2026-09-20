@@ -13,27 +13,25 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Charger la préférence depuis localStorage
-    const savedTheme = localStorage.getItem('theme');
-    
-    // Si une préférence est sauvegardée, l'utiliser.
-    if (savedTheme) {
-      return savedTheme === 'dark';
-    }
-    
-    // Si aucune préférence n'est sauvegardée, initialiser par défaut au mode CLAIR.
-    return false; // Mode clair par défaut
+    // Charger la préférence depuis localStorage — protégé : Safari en mode
+    // privé lève une exception sur le moindre accès à localStorage, ce qui
+    // sans try/catch faisait planter le rendu dès le premier useState.
+    try {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) return savedTheme === 'dark';
+    } catch { /* ignore */ }
+    // Si aucune préférence n'est sauvegardée (ou lecture impossible), mode CLAIR par défaut.
+    return false;
   });
 
   useEffect(() => {
     // Appliquer le thème au document
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
     }
+    try { localStorage.setItem('theme', isDarkMode ? 'dark' : 'light'); } catch { /* ignore */ }
   }, [isDarkMode]);
 
   const toggleTheme = () => {

@@ -2,6 +2,12 @@
 import TemplatePermission from '../models/TemplatePermission.js';
 import { User, Document } from '../models/index.js';
 import sequelize from '../config/database.js';
+import { getUserPosteCodes } from '../utils/posteResolver.js';
+
+// Templates liés à un poste : leurs titulaires y ont accès, quel que soit l'individu.
+const TEMPLATE_POSTES = {
+  'Pièce de caisse': 'comptable',
+};
 
 // Liste de TOUS les templates avec leurs permissions
 export const getAll = async (req, res) => {
@@ -20,11 +26,14 @@ export const getMyTemplates = async (req, res) => {
     const user = req.user;
     const permissions = await TemplatePermission.findAll();
 
+    // Postes occupés par l'utilisateur (ex: ['comptable']) — récupérés une fois
+    const userPostes = ['admin','superadmin'].includes(user.role) ? [] : await getUserPosteCodes(user.id);
+
     // Tous les templates définis
     const result = permissions.map(p => {
       const data = p.toJSON();
       // Un admin voit tout
-      if (user.role === 'admin') {
+      if (['admin','superadmin'].includes(user.role)) {
         data.hasAccess = true;
         return data;
       }
@@ -33,10 +42,13 @@ export const getMyTemplates = async (req, res) => {
         data.hasAccess = true;
         return data;
       }
-      // Vérifier si l'utilisateur est dans allowedRoles ou allowedUserIds
+      // Accès si : rôle autorisé, OU utilisateur explicitement autorisé,
+      // OU titulaire du poste lié au template (ex: comptable → Pièce de caisse)
       const roleOk = data.allowedRoles?.length > 0 && data.allowedRoles.includes(user.role);
       const userOk = data.allowedUserIds?.length > 0 && data.allowedUserIds.includes(user.id);
-      data.hasAccess = roleOk || userOk;
+      const posteCode = TEMPLATE_POSTES[data.templateName];
+      const posteOk = posteCode ? userPostes.includes(posteCode) : false;
+      data.hasAccess = roleOk || userOk || posteOk;
       return data;
     });
 
@@ -50,7 +62,7 @@ export const getMyTemplates = async (req, res) => {
 // Créer ou mettre à jour une permission de template
 export const upsert = async (req, res) => {
   try {
-    const { templateName, allowedRoles, allowedUserIds, isRestricted, description } = req.body;
+    const { templateName, allowedRoles, allowedUserIds, isRestricted, description, defaultVisibility } = req.body;
     if (!templateName) return res.status(400).json({ message: 'templateName requis' });
 
     const [permission, created] = await TemplatePermission.upsert({
@@ -59,6 +71,7 @@ export const upsert = async (req, res) => {
       allowedUserIds: allowedUserIds || [],
       isRestricted: isRestricted ?? false,
       description: description || null,
+      defaultVisibility: defaultVisibility || 'personal',
     }, {
       returning: true,
     });
@@ -74,7 +87,7 @@ export const upsert = async (req, res) => {
 export const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { allowedRoles, allowedUserIds, isRestricted, description } = req.body;
+    const { allowedRoles, allowedUserIds, isRestricted, description, defaultVisibility } = req.body;
 
     const permission = await TemplatePermission.findByPk(id);
     if (!permission) return res.status(404).json({ message: 'Permission non trouvée' });
@@ -84,6 +97,7 @@ export const update = async (req, res) => {
       allowedUserIds: allowedUserIds ?? permission.allowedUserIds,
       isRestricted: isRestricted ?? permission.isRestricted,
       description: description ?? permission.description,
+      defaultVisibility: defaultVisibility ?? permission.defaultVisibility,
     });
 
     res.json({ data: permission });
@@ -125,6 +139,7 @@ export const seed = async (req, res) => {
         allowedRoles: [],
         allowedUserIds: [],
         description: 'Accessible à tous',
+        defaultVisibility: 'personal',
       }));
 
     if (toCreate.length === 0) {

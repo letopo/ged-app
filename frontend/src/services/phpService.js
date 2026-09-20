@@ -73,4 +73,34 @@ export const phpRendezVousAPI = {
   delete: (id) => api.delete(`/php/rendez-vous/${id}`),
 };
 
-export default { phpReferenceAPI, phpPatientAPI, phpConsultationAPI, phpStatsAPI, phpRendezVousAPI };
+// ============================================
+// FACTURES PRESTATAIRES (OCR / extraction IA)
+// ============================================
+export const phpFactureAPI = {
+  getAll: () => api.get('/php/factures'),
+  getById: (id) => api.get(`/php/factures/${id}`),
+  // Import du scan + extraction IA en une fois (multipart).
+  // Renvoie {documentId, fields, suggestedNumeroOrdre, dateReception, extractionError}
+  extract: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post('/php/factures/extract', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  reextract: (documentId) => api.post(`/php/factures/${documentId}/reextract`),
+  create: (data) => api.post('/php/factures', data),
+  update: (id, data) => api.put(`/php/factures/${id}`, data),
+  delete: (id) => api.delete(`/php/factures/${id}`),
+  exportCsvPath: '/php/factures/export.csv',
+};
+
+// ============================================
+// FACTURES PATIENT PHP — import automatique depuis Sage (supervision)
+// À ne pas confondre avec phpFactureAPI ci-dessus (factures FOURNISSEURS
+// scannées par la secrétaire, module totalement différent).
+// ============================================
+export const sageFactureAPI = {
+  list: (params) => api.get('/sage-factures', { params }),
+  exportPaiement: (from, to) => api.get('/sage-factures/export-paiement', { params: { from, to }, responseType: 'blob' }),
+};
+
+export default { phpReferenceAPI, phpPatientAPI, phpConsultationAPI, phpStatsAPI, phpRendezVousAPI, phpFactureAPI };

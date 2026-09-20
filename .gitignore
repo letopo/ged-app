@@ -50,3 +50,37 @@ temp/
 backend/private_key.pem
 generate_license.js
 test_keys.js
+# Playwright CLI artifacts
+.playwright/
+.playwright-cli/
+
+# Backups/scripts correction encodage DB
+.db-encoding-fix/
+
+# Clés privées TLS (CA interne) — ne jamais committer
+nginx/ssl/*.key
+nginx/ssl/*.srl
+nginx/ssl/*.crt
+
+# Credentials OVH (ne jamais commiter)
+ovh.conf
+backend/private_key.pem
+private_key.pem
+
+# État d'authentification Playwright (contient un token de session réel)
+auth.json
+
+# Snapshots/captures d'écran de debug Playwright laissés à la racine
+/*.png
+/backend/*.png
+/wft-list.yml
+backend/settings-*.yml
+
+# Sauvegarde locale complète de l'app (1.3G+, ne doit jamais être versionnée)
+ged-app-backup/
+
+# Sortie générée par graphify (régénérable via `graphify update .`)
+graphify-out/
+
+# Archive d'images Docker pré-construites (trop volumineuse pour git)
+deploy/base-images.tar.gz

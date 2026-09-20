@@ -1,6 +1,7 @@
 // backend/src/routes/gmao.js
 import express from 'express';
 import { protect } from '../middleware/auth.js';
+import { getUserPosteCodes } from '../utils/posteResolver.js';
 import {
   getEquipements, createEquipement, updateEquipement, deleteEquipement,
   getPlans, createPlan, updatePlan, deletePlan,
@@ -21,17 +22,13 @@ import {
 
 const router = express.Router();
 
-// Access check middleware - admins + specific emails
-const GMAO_EMAILS = [
-  'hsjm.cellulebiomedicale@gmail.com',
-  'hsjm.pharma@gmail.com',
-  'hopitalcameroun@ordredemaltefrance.org',
-];
-
-const gmaoAccess = (req, res, next) => {
-  if (req.user.role === 'admin' || GMAO_EMAILS.includes(req.user.email)) {
-    return next();
-  }
+// Accès : admin/superadmin OU titulaire du poste « gmao »
+// (remplace l'ancienne liste d'emails en dur — cohérent avec GMAORoute côté
+// frontend et avec le pattern déjà utilisé par routes/compta.js)
+const gmaoAccess = async (req, res, next) => {
+  if (['admin', 'superadmin'].includes(req.user.role)) return next();
+  const postes = await getUserPosteCodes(req.user.id);
+  if (postes.includes('gmao')) return next();
   return res.status(403).json({ success: false, message: 'Accès GMAO non autorisé' });
 };
 

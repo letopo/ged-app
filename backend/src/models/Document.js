@@ -84,10 +84,37 @@ const Document = sequelize.define('Document', {
     defaultValue: false,
     allowNull: false,
   },
+  // 'personal' (visible par l'auteur + validateurs de workflow) ou 'service'
+  // (visible par tous les membres actifs du service ci-dessous).
+  visibility: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'personal',
+  },
+  serviceId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'service_id',
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'documents',
   timestamps: true,
   underscored: true,
+  indexes: [
+    { fields: ['user_id'] },
+    { fields: ['status'] },
+    { fields: ['category'] },
+    { fields: ['archived'] },
+    { fields: ['created_at'] },
+    { fields: ['status', 'archived'] },
+    { fields: ['user_id', 'status'] },
+    { fields: ['service_id'] },
+    { fields: ['visibility'] },
+  ],
 });
 
 Document.associate = function(models) {
@@ -96,6 +123,7 @@ Document.associate = function(models) {
   this.belongsTo(models.Document, { foreignKey: 'linkedDocumentId', as: 'linkedDocument' });
   this.hasMany(models.Document, { foreignKey: 'linkedDocumentId', as: 'dependentDocuments' });
   this.belongsTo(models.InvoiceFolder, { foreignKey: 'invoiceFolderId', as: 'folder' });
+  this.belongsTo(models.Service, { foreignKey: 'serviceId', as: 'service' });
 };
 
 export default Document;

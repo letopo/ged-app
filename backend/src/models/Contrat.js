@@ -35,6 +35,7 @@ const Contrat = sequelize.define('Contrat', {
   alerte_renouvellement: { type: DataTypes.INTEGER, allowNull: true, defaultValue: 30 }, // days before expiry
   notes: { type: DataTypes.TEXT, allowNull: true },
   created_by: { type: DataTypes.UUID, allowNull: true },
+  tenantId: { type: DataTypes.UUID, allowNull: false },
 }, {
   tableName: 'gmao_contrats',
   timestamps: true,

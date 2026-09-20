@@ -38,7 +38,11 @@ const Position = sequelize.define('Position', {
     type: DataTypes.DATE,
     allowNull: true,
     comment: 'Dernière activité'
-  }
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'positions',
   timestamps: true,

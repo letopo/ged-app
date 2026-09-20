@@ -1,7 +1,7 @@
 // frontend/src/components/TemplatePermissionsModal.jsx
 import React, { useState, useEffect } from 'react';
 import { templatePermissionsAPI } from '../services/api';
-import { X, Shield, Users, Lock, Unlock, Save, Loader, Search, ChevronDown, ChevronUp, Plus, RefreshCw } from 'lucide-react';
+import { X, Shield, Users, Lock, Unlock, Loader, Search, ChevronDown, ChevronUp, RefreshCw, Building2, User as UserIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ROLE_OPTIONS = [
@@ -9,6 +9,12 @@ const ROLE_OPTIONS = [
   { value: 'validator', label: 'Validateur' },
   { value: 'user', label: 'Utilisateur' },
 ];
+
+const ROLE_STYLES = {
+  admin:     { background: 'var(--danger-soft)',  color: 'var(--danger)'  },
+  validator: { background: 'rgba(139,92,246,0.12)', color: '#7c3aed'      },
+  user:      { background: 'var(--surface-2)',    color: 'var(--fg-muted)' },
+};
 
 const TemplatePermissionsModal = ({ isOpen, onClose }) => {
   const [permissions, setPermissions] = useState([]);
@@ -18,9 +24,7 @@ const TemplatePermissionsModal = ({ isOpen, onClose }) => {
   const [expandedId, setExpandedId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    if (isOpen) loadData();
-  }, [isOpen]);
+  useEffect(() => { if (isOpen) loadData(); }, [isOpen]);
 
   const loadData = async () => {
     setLoading(true);
@@ -31,8 +35,7 @@ const TemplatePermissionsModal = ({ isOpen, onClose }) => {
       ]);
       setPermissions(permRes.data.data || []);
       setUsers(usersRes.data.data || []);
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error('Erreur chargement des permissions');
     } finally {
       setLoading(false);
@@ -44,7 +47,7 @@ const TemplatePermissionsModal = ({ isOpen, onClose }) => {
       const res = await templatePermissionsAPI.seed();
       toast.success(res.data.message);
       loadData();
-    } catch (err) {
+    } catch {
       toast.error('Erreur lors du seed');
     }
   };
@@ -52,15 +55,25 @@ const TemplatePermissionsModal = ({ isOpen, onClose }) => {
   const toggleRestricted = async (perm) => {
     setSaving(perm.id);
     try {
-      await templatePermissionsAPI.update(perm.id, {
-        isRestricted: !perm.isRestricted,
-      });
-      setPermissions(prev =>
-        prev.map(p => p.id === perm.id ? { ...p, isRestricted: !p.isRestricted } : p)
-      );
-      toast.success(`${perm.templateName} : ${!perm.isRestricted ? 'restreint' : 'accessible a tous'}`);
-    } catch (err) {
-      toast.error('Erreur mise a jour');
+      await templatePermissionsAPI.update(perm.id, { isRestricted: !perm.isRestricted });
+      setPermissions(prev => prev.map(p => p.id === perm.id ? { ...p, isRestricted: !p.isRestricted } : p));
+      toast.success(`${perm.templateName} : ${!perm.isRestricted ? 'restreint' : 'accessible à tous'}`);
+    } catch {
+      toast.error('Erreur mise à jour');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const toggleDefaultVisibility = async (perm) => {
+    const newVisibility = perm.defaultVisibility === 'service' ? 'personal' : 'service';
+    setSaving(perm.id);
+    try {
+      await templatePermissionsAPI.update(perm.id, { defaultVisibility: newVisibility });
+      setPermissions(prev => prev.map(p => p.id === perm.id ? { ...p, defaultVisibility: newVisibility } : p));
+      toast.success(`${perm.templateName} : visibilité par défaut = ${newVisibility === 'service' ? 'service' : 'personnel'}`);
+    } catch {
+      toast.error('Erreur mise à jour de la visibilité');
     } finally {
       setSaving(null);
     }
@@ -68,19 +81,14 @@ const TemplatePermissionsModal = ({ isOpen, onClose }) => {
 
   const toggleRole = async (perm, role) => {
     const currentRoles = perm.allowedRoles || [];
-    const newRoles = currentRoles.includes(role)
-      ? currentRoles.filter(r => r !== role)
-      : [...currentRoles, role];
-    // Auto-restreindre si on ajoute un role
+    const newRoles = currentRoles.includes(role) ? currentRoles.filter(r => r !== role) : [...currentRoles, role];
     const shouldRestrict = newRoles.length > 0 || (perm.allowedUserIds?.length > 0);
     setSaving(perm.id);
     try {
       await templatePermissionsAPI.update(perm.id, { allowedRoles: newRoles, isRestricted: shouldRestrict });
-      setPermissions(prev =>
-        prev.map(p => p.id === perm.id ? { ...p, allowedRoles: newRoles, isRestricted: shouldRestrict } : p)
-      );
-    } catch (err) {
-      toast.error('Erreur mise a jour des roles');
+      setPermissions(prev => prev.map(p => p.id === perm.id ? { ...p, allowedRoles: newRoles, isRestricted: shouldRestrict } : p));
+    } catch {
+      toast.error('Erreur mise à jour des rôles');
     } finally {
       setSaving(null);
     }
@@ -88,19 +96,14 @@ const TemplatePermissionsModal = ({ isOpen, onClose }) => {
 
   const toggleUser = async (perm, userId) => {
     const currentUsers = perm.allowedUserIds || [];
-    const newUsers = currentUsers.includes(userId)
-      ? currentUsers.filter(u => u !== userId)
-      : [...currentUsers, userId];
-    // Auto-restreindre si on ajoute un utilisateur
+    const newUsers = currentUsers.includes(userId) ? currentUsers.filter(u => u !== userId) : [...currentUsers, userId];
     const shouldRestrict = newUsers.length > 0 || (perm.allowedRoles?.length > 0);
     setSaving(perm.id);
     try {
       await templatePermissionsAPI.update(perm.id, { allowedUserIds: newUsers, isRestricted: shouldRestrict });
-      setPermissions(prev =>
-        prev.map(p => p.id === perm.id ? { ...p, allowedUserIds: newUsers, isRestricted: shouldRestrict } : p)
-      );
-    } catch (err) {
-      toast.error('Erreur mise a jour des utilisateurs');
+      setPermissions(prev => prev.map(p => p.id === perm.id ? { ...p, allowedUserIds: newUsers, isRestricted: shouldRestrict } : p));
+    } catch {
+      toast.error('Erreur mise à jour des utilisateurs');
     } finally {
       setSaving(null);
     }
@@ -112,141 +115,167 @@ const TemplatePermissionsModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const inputStyle = {
+    width: '100%', padding: '8px 14px', paddingLeft: 36,
+    border: '1.5px solid var(--border)', borderRadius: 'var(--radius-3)',
+    background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none',
+    boxSizing: 'border-box',
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-fadeIn">
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.50)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 9999 }}>
+      <div className="animate-fadeIn" style={{
+        background: 'var(--surface)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)',
+        width: '100%', maxWidth: 896, maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+      }}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-dark-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-              <Shield className="text-blue-600 dark:text-blue-400" size={20} />
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ padding: 8, background: 'var(--brand-soft)', borderRadius: 'var(--radius-3)', display: 'flex' }}>
+              <Shield size={18} style={{ color: 'var(--brand)' }} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-dark-text">Permissions des templates</h2>
-              <p className="text-xs text-gray-500 dark:text-dark-text-secondary">Gerez l'acces aux modeles de documents</p>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Permissions des templates</h2>
+              <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: 0 }}>Gérez l'accès aux modèles de documents</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition">
-            <X size={20} className="text-gray-500" />
+          <button onClick={onClose} style={{ padding: 8, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-2)', color: 'var(--fg-muted)', display: 'flex', transition: 'background .15s' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <X size={18} />
           </button>
         </div>
 
         {/* Toolbar */}
-        <div className="px-6 py-3 border-b border-gray-100 dark:border-dark-border flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input
-              type="text"
-              placeholder="Rechercher un template..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            />
+        <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
+            <input type="text" placeholder="Rechercher un template..." value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)} style={inputStyle} />
           </div>
           {!loading && (
-            <button
-              onClick={handleSeed}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition whitespace-nowrap"
+            <button onClick={handleSeed} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 16px', background: 'var(--brand)', color: '#fff',
+              fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius-3)',
+              border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background .15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-active)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
             >
-              <RefreshCw size={16} /> {permissions.length === 0 ? 'Initialiser' : 'Synchroniser'}
+              <RefreshCw size={14} /> {permissions.length === 0 ? 'Initialiser' : 'Synchroniser'}
             </button>
           )}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Loader className="animate-spin text-blue-600 mb-3" size={32} />
-              <p className="text-sm text-gray-500">Chargement...</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 0' }}>
+              <Loader className="animate-spin" size={32} style={{ color: 'var(--brand)', marginBottom: 12 }} />
+              <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Chargement...</p>
             </div>
           ) : filteredPermissions.length === 0 ? (
-            <div className="text-center py-16">
-              <Shield className="mx-auto text-gray-300 mb-3" size={48} />
-              <p className="text-gray-500 dark:text-dark-text-secondary">
+            <div style={{ textAlign: 'center', padding: '64px 0' }}>
+              <Shield size={48} style={{ color: 'var(--border)', margin: '0 auto 12px' }} />
+              <p style={{ color: 'var(--fg-muted)', fontSize: 13 }}>
                 {permissions.length === 0
-                  ? 'Aucun template configure. Cliquez sur "Initialiser" pour commencer.'
-                  : 'Aucun resultat pour cette recherche.'}
+                  ? 'Aucun template configuré. Cliquez sur "Initialiser" pour commencer.'
+                  : 'Aucun résultat pour cette recherche.'}
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {filteredPermissions.map(perm => {
                 const isExpanded = expandedId === perm.id;
                 const isSaving = saving === perm.id;
 
                 return (
-                  <div
-                    key={perm.id}
-                    className={`border rounded-xl transition-all ${
-                      perm.isRestricted
-                        ? 'border-amber-200 dark:border-amber-700/50 bg-amber-50/50 dark:bg-amber-900/10'
-                        : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface'
-                    }`}
-                  >
+                  <div key={perm.id} style={{
+                    border: `1px solid ${perm.isRestricted ? 'rgba(245,158,11,0.4)' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-3)',
+                    background: perm.isRestricted ? 'rgba(245,158,11,0.04)' : 'var(--surface)',
+                  }}>
                     {/* Template row */}
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      <button
-                        onClick={() => toggleRestricted(perm)}
-                        disabled={isSaving}
-                        className={`p-2 rounded-lg transition ${
-                          perm.isRestricted
-                            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 hover:bg-amber-200'
-                            : 'bg-green-100 dark:bg-green-900/30 text-green-600 hover:bg-green-200'
-                        }`}
-                        title={perm.isRestricted ? 'Restreint — cliquez pour ouvrir a tous' : 'Accessible a tous — cliquez pour restreindre'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                      <button onClick={() => toggleRestricted(perm)} disabled={isSaving}
+                        title={perm.isRestricted ? 'Restreint — cliquez pour ouvrir à tous' : 'Accessible à tous — cliquez pour restreindre'}
+                        style={{
+                          padding: 8, borderRadius: 'var(--radius-2)', border: 'none', cursor: 'pointer',
+                          background: perm.isRestricted ? 'rgba(245,158,11,0.15)' : 'var(--success-soft)',
+                          color: perm.isRestricted ? '#d97706' : 'var(--success)',
+                          display: 'flex', transition: 'opacity .15s',
+                          opacity: isSaving ? 0.6 : 1,
+                        }}
                       >
-                        {isSaving ? (
-                          <Loader className="animate-spin" size={16} />
-                        ) : perm.isRestricted ? (
-                          <Lock size={16} />
-                        ) : (
-                          <Unlock size={16} />
-                        )}
+                        {isSaving ? <Loader className="animate-spin" size={14} /> : perm.isRestricted ? <Lock size={14} /> : <Unlock size={14} />}
                       </button>
 
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-gray-900 dark:text-dark-text truncate">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontWeight: 500, fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                           {perm.templateName}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-dark-text-secondary">
+                        <p style={{ fontSize: 11, color: 'var(--fg-muted)', margin: 0 }}>
                           {perm.isRestricted
-                            ? `${(perm.allowedRoles?.length || 0)} role(s), ${(perm.allowedUserIds?.length || 0)} utilisateur(s)`
-                            : 'Accessible a tous les utilisateurs'}
+                            ? `${perm.allowedRoles?.length || 0} rôle(s), ${perm.allowedUserIds?.length || 0} utilisateur(s)`
+                            : 'Accessible à tous les utilisateurs'}
                         </p>
                       </div>
 
-                      <button
-                        onClick={() => setExpandedId(isExpanded ? null : perm.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
+                      <button onClick={() => toggleDefaultVisibility(perm)} disabled={isSaving}
+                        title={perm.defaultVisibility === 'service'
+                          ? 'Par défaut visible par le service — cliquez pour rendre personnel'
+                          : 'Par défaut personnel — cliquez pour rendre visible par le service'}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '6px 12px', fontSize: 12, fontWeight: 500,
+                          borderRadius: 'var(--radius-2)', border: 'none', cursor: 'pointer', transition: 'background .15s',
+                          background: perm.defaultVisibility === 'service' ? 'var(--brand-soft)' : 'var(--surface-2)',
+                          color: perm.defaultVisibility === 'service' ? 'var(--brand)' : 'var(--fg-muted)',
+                          opacity: isSaving ? 0.6 : 1,
+                        }}
                       >
-                        <Users size={14} />
+                        {perm.defaultVisibility === 'service' ? <Building2 size={13} /> : <UserIcon size={13} />}
+                        {perm.defaultVisibility === 'service' ? 'Service' : 'Personnel'}
+                      </button>
+
+                      <button onClick={() => setExpandedId(isExpanded ? null : perm.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '6px 12px', fontSize: 12, fontWeight: 500,
+                          color: 'var(--brand)', background: 'var(--brand-soft)',
+                          border: 'none', borderRadius: 'var(--radius-2)', cursor: 'pointer', transition: 'background .15s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
+                      >
+                        <Users size={13} />
                         Configurer
-                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                       </button>
                     </div>
 
                     {/* Expanded config */}
                     {isExpanded && (
-                      <div className="px-4 pb-4 border-t border-gray-100 dark:border-dark-border pt-3 space-y-4">
-                        {/* Roles */}
+                      <div style={{ padding: '12px 16px 16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* Rôles */}
                         <div>
-                          <p className="text-xs font-semibold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider mb-2">
-                            Roles autorises
+                          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, margin: '0 0 8px' }}>
+                            Rôles autorisés
                           </p>
-                          <div className="flex flex-wrap gap-2">
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {ROLE_OPTIONS.map(role => {
                               const isActive = (perm.allowedRoles || []).includes(role.value);
                               return (
-                                <button
-                                  key={role.value}
-                                  onClick={() => toggleRole(perm, role.value)}
-                                  disabled={isSaving}
-                                  className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
-                                    isActive
-                                      ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
-                                      : 'bg-white dark:bg-dark-bg border-gray-200 dark:border-dark-border text-gray-500 dark:text-dark-text-secondary hover:border-blue-300'
-                                  }`}
+                                <button key={role.value} onClick={() => toggleRole(perm, role.value)} disabled={isSaving}
+                                  style={{
+                                    padding: '6px 12px', fontSize: 12, fontWeight: 500,
+                                    borderRadius: 'var(--radius-2)', cursor: 'pointer',
+                                    border: `1px solid ${isActive ? 'var(--brand)' : 'var(--border)'}`,
+                                    background: isActive ? 'var(--brand-soft)' : 'var(--surface)',
+                                    color: isActive ? 'var(--brand)' : 'var(--fg-muted)',
+                                    transition: 'all .15s',
+                                  }}
                                 >
                                   {isActive ? '✓ ' : ''}{role.label}
                                 </button>
@@ -255,39 +284,38 @@ const TemplatePermissionsModal = ({ isOpen, onClose }) => {
                           </div>
                         </div>
 
-                        {/* Users */}
+                        {/* Utilisateurs */}
                         <div>
-                          <p className="text-xs font-semibold text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider mb-2">
-                            Utilisateurs autorises
+                          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 8px' }}>
+                            Utilisateurs autorisés
                           </p>
-                          <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-dark-border rounded-xl divide-y divide-gray-100 dark:divide-dark-border">
-                            {users.map(u => {
+                          <div style={{ maxHeight: 192, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-3)' }}>
+                            {users.map((u, idx) => {
                               const isActive = (perm.allowedUserIds || []).includes(u.id);
                               return (
-                                <label
-                                  key={u.id}
-                                  className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition ${
-                                    isActive ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                                  }`}
+                                <label key={u.id} style={{
+                                  display: 'flex', alignItems: 'center', gap: 12,
+                                  padding: '8px 12px', cursor: 'pointer',
+                                  background: isActive ? 'var(--brand-soft)' : 'transparent',
+                                  borderTop: idx > 0 ? '1px solid var(--border)' : 'none',
+                                  transition: 'background .15s',
+                                }}
+                                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--surface-2)'; }}
+                                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={isActive}
-                                    onChange={() => toggleUser(perm, u.id)}
+                                  <input type="checkbox" checked={isActive} onChange={() => toggleUser(perm, u.id)}
                                     disabled={isSaving}
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">
+                                    style={{ width: 14, height: 14, accentColor: 'var(--brand)', flexShrink: 0 }} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                                       {u.firstName} {u.lastName}
                                     </p>
-                                    <p className="text-xs text-gray-500 dark:text-dark-text-secondary truncate">{u.email}</p>
+                                    <p style={{ fontSize: 11, color: 'var(--fg-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{u.email}</p>
                                   </div>
-                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                    u.role === 'admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                                    u.role === 'validator' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
-                                    'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                                  }`}>
+                                  <span style={{
+                                    fontSize: 10, padding: '2px 8px', borderRadius: 999,
+                                    ...(ROLE_STYLES[u.role] || ROLE_STYLES.user),
+                                  }}>
                                     {u.role}
                                   </span>
                                 </label>
@@ -305,13 +333,17 @@ const TemplatePermissionsModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-gray-200 dark:border-dark-border flex items-center justify-between">
-          <p className="text-xs text-gray-400 dark:text-dark-text-secondary">
-            {permissions.length} template(s) — Les admins ont toujours acces a tout
+        <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: 0 }}>
+            {permissions.length} template(s) — Les admins ont toujours accès à tout
           </p>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-dark-text bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+          <button onClick={onClose} style={{
+            padding: '8px 16px', fontSize: 13, fontWeight: 500,
+            background: 'var(--surface-2)', color: 'var(--fg)',
+            border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', cursor: 'pointer', transition: 'background .15s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
           >
             Fermer
           </button>

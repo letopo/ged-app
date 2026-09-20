@@ -4,477 +4,273 @@ import { demandeAchatAPI, usersAPI, servicesAPI, documentsAPI } from '../service
 import { Loader, Send, Save, Trash2, X, FileText, User, ExternalLink, Eye, Upload, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import DocumentViewer from './DocumentViewer';
-// 1. IMPORT DU COMPOSANT DE SOUMISSION
 import WorkflowSubmission from './WorkflowSubmission';
 
 const initialFormData = {
-  domain: '',
-  domainDescription: '',
-  deliveryDate: '',
-  purchaseType: 'Non-Référencé',
-  articleNature: '',
-  requestDescription: '',
-  beneficiaryName: '',
-  beneficiaryEmail: '',
-  beneficiaryPhone: '',
-  isMagasinOutput: false,
-  linkedDocNumber: '',
-  isForWorks: false,
+  domain: '', domainDescription: '', deliveryDate: '',
+  purchaseType: 'Non-Référencé', articleNature: '', requestDescription: '',
+  beneficiaryName: '', beneficiaryEmail: '', beneficiaryPhone: '',
+  isMagasinOutput: false, linkedDocNumber: '', isForWorks: false,
   nonRefArticles: [{ designation: '', quantity: 1, unitPrice: 0, total: 0 }],
-  totalRefValue: 0,
-  totalNonRefValue: 0,
-  supplierId: null,
+  totalRefValue: 0, totalNonRefValue: 0, supplierId: null,
 };
 
-const DemandeAchatForm = ({ demande, onCancel, onSuccess }) => {
-  const { user } = useAuth();
-  const [formData, setFormData] = useState(initialFormData);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  
-  // États pour les données
-  const [services, setServices] = useState([]);
-  const [demandesTravaux, setDemandesTravaux] = useState([]);
-  const [attachedFiles, setAttachedFiles] = useState([]);
-  const [existingFiles, setExistingFiles] = useState([]);
-  
-  // États UI
-  const [showDTModal, setShowDTModal] = useState(false);
-  const [isViewingDocument, setIsViewingDocument] = useState(null);
+// ── Style constants ──
+const inputStyle = {
+  width: '100%', height: 34, padding: '0 10px', boxSizing: 'border-box',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none',
+};
+const textareaStyle = {
+  width: '100%', padding: '8px 10px', boxSizing: 'border-box',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface)', color: 'var(--fg)', fontSize: 13,
+  outline: 'none', resize: 'vertical',
+};
+const labelStyle = { fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)', display: 'block', marginBottom: 5 };
+const sectionStyle = {
+  marginBottom: 16, padding: '16px 18px', background: 'var(--surface-2)',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-3)',
+};
+const sectionTitleStyle = {
+  fontSize: 14, fontWeight: 700, color: 'var(--brand)',
+  borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 14,
+  display: 'flex', alignItems: 'center', gap: 8,
+};
+const thStyle = {
+  padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 600,
+  color: 'var(--fg-muted)', textTransform: 'uppercase', background: 'var(--surface-2)',
+};
+const tdStyle = { padding: '4px' };
+const btnStyle = (bg, color = '#fff', disabled = false) => ({
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  height: 36, padding: '0 16px', borderRadius: 'var(--radius-2)',
+  border: 'none', background: bg, color, fontSize: 13, fontWeight: 500,
+  cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+});
 
-  // 2. NOUVEAUX ÉTATS POUR LE WORKFLOW
+const toggleBtn = (active) => ({
+  padding: '4px 14px', borderRadius: 'var(--radius-2)', border: 'none',
+  background: active ? 'var(--brand)' : 'var(--surface-3)',
+  color: active ? '#fff' : 'var(--fg-muted)',
+  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+});
+
+export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
+  const { user } = useAuth();
+  const [formData, setFormData]         = useState(initialFormData);
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState('');
+  const [success, setSuccess]           = useState('');
+  const [services, setServices]         = useState([]);
+  const [demandesTravaux, setDemandesTravaux] = useState([]);
+  const [attachedFiles, setAttachedFiles]     = useState([]);
+  const [existingFiles, setExistingFiles]     = useState([]);
+  const [showDTModal, setShowDTModal]         = useState(false);
+  const [isViewingDocument, setIsViewingDocument] = useState(null);
   const [showWorkflowModal, setShowWorkflowModal] = useState(false);
-  const [savedDemande, setSavedDemande] = useState(null);
+  const [savedDemande, setSavedDemande]       = useState(null);
 
   useEffect(() => {
     loadInitialData();
-    if (demande) {
-      loadDemandeData();
-    }
+    if (demande) loadDemandeData();
   }, [demande]);
 
   const loadInitialData = async () => {
     try {
       const servicesRes = await servicesAPI.getAll();
-      const servicesList = servicesRes.data.data || servicesRes.data || [];
-      setServices(servicesList);
-  
+      setServices(servicesRes.data.data || servicesRes.data || []);
       if (!demande && user) {
         const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-        setFormData(prev => ({
-          ...prev,
-          beneficiaryName: fullName || '',
-          beneficiaryEmail: user.email || '',
-          beneficiaryPhone: user.phone || ''
-        }));
+        setFormData(prev => ({ ...prev, beneficiaryName: fullName, beneficiaryEmail: user.email || '', beneficiaryPhone: user.phone || '' }));
       }
-  
       try {
         const allDocsRes = await documentsAPI.getAll();
-        const allDocs = allDocsRes.data.data || allDocsRes.data || [];
-        const dtDocuments = allDocs.filter(doc => {
+        const allDocs    = allDocsRes.data.data || allDocsRes.data || [];
+        setDemandesTravaux(allDocs.filter(doc => {
           const docType = (doc.type || doc.documentType || '').toLowerCase();
-          const title = (doc.title || doc.name || '').toLowerCase();
-          return docType.includes('travaux') || 
-                 title.includes('dt') || 
-                 title.includes('travaux') ||
-                 (doc.metadata && doc.metadata.type === 'demande_travaux');
-        });
-        setDemandesTravaux(dtDocuments);
-      } catch (err) {
-        console.log('Erreur chargement DT:', err.message);
-      }
-  
+          const title   = (doc.title || doc.name || '').toLowerCase();
+          return docType.includes('travaux') || title.includes('dt') || title.includes('travaux') || (doc.metadata && doc.metadata.type === 'demande_travaux');
+        }));
+      } catch { /* ignore */ }
     } catch (err) {
-      console.error("Erreur chargement données initiales", err);
-      setError("Erreur de chargement des données. Vérifiez votre connexion.");
+      console.error('Erreur chargement données initiales', err);
+      setError('Erreur de chargement des données. Vérifiez votre connexion.');
     }
   };
 
   const loadDemandeData = () => {
     setFormData({
-      domain: demande.domain || '',
-      domainDescription: demande.domainDescription || '',
-      deliveryDate: demande.deliveryDate || '',
-      purchaseType: demande.purchaseType || 'Non-Référencé',
-      articleNature: demande.articleNature || '',
+      domain:             demande.domain || '',
+      domainDescription:  demande.domainDescription || '',
+      deliveryDate:       demande.deliveryDate || '',
+      purchaseType:       demande.purchaseType || 'Non-Référencé',
+      articleNature:      demande.articleNature || '',
       requestDescription: demande.requestDescription || '',
-      beneficiaryName: demande.beneficiaryName || '',
-      beneficiaryEmail: demande.beneficiaryEmail || '',
-      beneficiaryPhone: demande.beneficiaryPhone || '',
-      isMagasinOutput: demande.isMagasinOutput || false,
-      linkedDocNumber: demande.linkedDocNumber || '',
-      isForWorks: demande.isForWorks || false,
-      nonRefArticles: demande.nonRefArticles || [{ designation: '', quantity: 1, unitPrice: 0, total: 0 }],
-      totalRefValue: demande.totalRefValue || 0,
-      totalNonRefValue: demande.totalNonRefValue || 0,
-      supplierId: demande.supplierId || null,
+      beneficiaryName:    demande.beneficiaryName || '',
+      beneficiaryEmail:   demande.beneficiaryEmail || '',
+      beneficiaryPhone:   demande.beneficiaryPhone || '',
+      isMagasinOutput:    demande.isMagasinOutput || false,
+      linkedDocNumber:    demande.linkedDocNumber || '',
+      isForWorks:         demande.isForWorks || false,
+      nonRefArticles:     demande.nonRefArticles || [{ designation: '', quantity: 1, unitPrice: 0, total: 0 }],
+      totalRefValue:      demande.totalRefValue || 0,
+      totalNonRefValue:   demande.totalNonRefValue || 0,
+      supplierId:         demande.supplierId || null,
     });
     setExistingFiles(demande.attachedDocuments || []);
   };
 
-  const totalNonRefValue = useMemo(() => {
-    return formData.nonRefArticles.reduce((acc, article) => acc + (article.total || 0), 0);
-  }, [formData.nonRefArticles]);
+  const totalNonRefValue = useMemo(() =>
+    formData.nonRefArticles.reduce((acc, art) => acc + (art.total || 0), 0),
+    [formData.nonRefArticles]
+  );
 
-  useEffect(() => {
-    setFormData(prev => ({ ...prev, totalNonRefValue }));
-  }, [totalNonRefValue]);
+  useEffect(() => { setFormData(prev => ({ ...prev, totalNonRefValue })); }, [totalNonRefValue]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-    
-    if (name === 'isForWorks' && checked === true) {
-      setShowDTModal(true);
-    } else if (name === 'isForWorks' && checked === false) {
-      setFormData(prev => ({ ...prev, linkedDocNumber: '' }));
-    }
+    if (name === 'isForWorks' && checked === true) setShowDTModal(true);
+    else if (name === 'isForWorks' && checked === false) setFormData(prev => ({ ...prev, linkedDocNumber: '' }));
   };
 
   const handleArticleChange = (index, field, value) => {
     const newArticles = [...formData.nonRefArticles];
-    const article = newArticles[index];
-
+    const article     = newArticles[index];
     if (field === 'quantity' || field === 'unitPrice') {
-      const numValue = parseFloat(value) || 0;
-      article[field] = numValue;
-      article.total = article.quantity * article.unitPrice;
-    } else {
-      article[field] = value;
-    }
-
+      article[field] = parseFloat(value) || 0;
+      article.total  = article.quantity * article.unitPrice;
+    } else { article[field] = value; }
     setFormData(prev => ({ ...prev, nonRefArticles: newArticles }));
   };
 
-  const addArticle = () => {
-    setFormData(prev => ({
-      ...prev,
-      nonRefArticles: [...prev.nonRefArticles, { designation: '', quantity: 1, unitPrice: 0, total: 0 }]
-    }));
-  };
-
-  const removeArticle = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      nonRefArticles: prev.nonRefArticles.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
-    setAttachedFiles(prev => [...prev, ...files]);
-  };
-
-  const removeFile = (index) => {
-    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const removeExistingFile = (index) => {
-    setExistingFiles(prev => prev.filter((_, i) => i !== index));
-  };
+  const addArticle    = () => setFormData(prev => ({ ...prev, nonRefArticles: [...prev.nonRefArticles, { designation: '', quantity: 1, unitPrice: 0, total: 0 }] }));
+  const removeArticle = (i) => setFormData(prev => ({ ...prev, nonRefArticles: prev.nonRefArticles.filter((_, idx) => idx !== i) }));
+  const handleFileSelect    = (e) => setAttachedFiles(prev => [...prev, ...Array.from(e.target.files)]);
+  const removeFile          = (i) => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i));
+  const removeExistingFile  = (i) => setExistingFiles(prev => prev.filter((_, idx) => idx !== i));
 
   const handleSelectDT = (dt) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      linkedDocNumber: dt.title,
-      domain: dt.metadata.service || '',
-    }));
+    setFormData(prev => ({ ...prev, linkedDocNumber: dt.title, domain: dt.metadata?.service || '' }));
     setShowDTModal(false);
   };
 
-  // 3. LOGIQUE DE SOUMISSION MODIFIÉE
   const handleSubmit = async (isDraft = false) => {
-    setError('');
-    setSuccess('');
-    setLoading(true);
-
+    setError(''); setSuccess(''); setLoading(true);
     try {
-      const formDataToSend = new FormData();
-      
-      // Ajouter les champs du formulaire
+      const fd = new FormData();
       Object.keys(formData).forEach(key => {
-        if (key === 'nonRefArticles') {
-          formDataToSend.append(key, JSON.stringify(formData[key]));
-        } else if (typeof formData[key] === 'boolean') {
-          formDataToSend.append(key, formData[key]);
-        } else if (formData[key] !== null && formData[key] !== undefined) {
-          formDataToSend.append(key, formData[key]);
-        }
+        if (key === 'nonRefArticles') fd.append(key, JSON.stringify(formData[key]));
+        else if (typeof formData[key] === 'boolean') fd.append(key, formData[key]);
+        else if (formData[key] !== null && formData[key] !== undefined) fd.append(key, formData[key]);
       });
-
-      // Ajouter les fichiers
-      attachedFiles.forEach(file => {
-        formDataToSend.append('attachments', file);
-      });
-
-      let response;
-      if (demande) {
-        response = await demandeAchatAPI.update(demande.id, formDataToSend);
-      } else {
-        response = await demandeAchatAPI.create(formDataToSend);
-      }
-
+      attachedFiles.forEach(file => fd.append('attachments', file));
+      const response = demande ? await demandeAchatAPI.update(demande.id, fd) : await demandeAchatAPI.create(fd);
       const savedData = response.data.data;
-
-      // Si c'est un brouillon, on termine ici
       if (isDraft) {
-        setSuccess(demande ? 'Demande mise à jour avec succès (Brouillon)' : `Demande créée avec succès (Brouillon).`);
-        setTimeout(() => {
-          onSuccess();
-        }, 1500);
+        setSuccess(demande ? 'Demande mise à jour (Brouillon)' : 'Demande créée (Brouillon)');
+        setTimeout(() => onSuccess(), 1500);
       } else {
-        // Si c'est une soumission, on ouvre la modale de workflow
         setSavedDemande(savedData);
         setShowWorkflowModal(true);
       }
-
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement de la Demande d\'Achat.');
+      setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement.');
       console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  // Callback quand le workflow est soumis avec succès
-  const handleWorkflowSuccess = () => {
-    setShowWorkflowModal(false);
-    onSuccess(); // Retour à la liste
-  };
-
-  const inputStyle = "w-full p-2 border border-gray-300 dark:border-dark-border dark:bg-dark-bg dark:text-dark-text rounded-md focus:ring-blue-500 focus:border-blue-500";
-  const labelStyle = "block text-sm font-medium text-gray-700 dark:text-dark-text mb-1";
-  const sectionTitleStyle = "text-lg font-bold text-blue-800 dark:text-blue-400 border-b pb-2 mb-4 border-blue-200 dark:border-blue-700/50 flex items-center gap-2";
+  const handleWorkflowSuccess = () => { setShowWorkflowModal(false); onSuccess(); };
 
   const canEdit = !demande || demande.status === 'draft' || user?.role === 'admin' || user?.role === 'achat';
 
   return (
-    <div className="h-full overflow-y-auto bg-white dark:bg-dark-surface relative">
-      <div className="max-w-5xl mx-auto p-8">
+    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--surface)', position: 'relative' }}>
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 24px 40px' }}>
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-dark-text flex items-center gap-3">
-            <FileText className="w-7 h-7 text-blue-600"/> 
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 18, fontWeight: 700, color: 'var(--fg)' }}>
+            <FileText size={20} color="var(--brand)" />
             {demande ? 'Modifier la Demande d\'Achat' : 'Nouvelle Demande d\'Achat'}
-          </h1>
-          <button
-            onClick={onCancel}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition"
-          >
-            <X size={24} />
+          </div>
+          <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 6 }}>
+            <X size={18} />
           </button>
         </div>
 
-        {error && (
-          <div className="p-3 mb-4 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 rounded-lg">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="p-3 mb-4 bg-green-100 dark:bg-green-900/20 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-400 rounded-lg">
-            {success}
-          </div>
-        )}
-
-        {/* ... (TOUT LE CODE DU FORMULAIRE RESTE IDENTIQUE JUSQU'AUX BOUTONS D'ACTION) ... */}
+        {error && <div style={{ padding: '10px 12px', marginBottom: 12, background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: 'var(--radius-2)', fontSize: 13 }}>{error}</div>}
+        {success && <div style={{ padding: '10px 12px', marginBottom: 12, background: 'var(--success-soft)', border: '1px solid var(--success)', color: 'var(--success)', borderRadius: 'var(--radius-2)', fontSize: 13 }}>{success}</div>}
 
         {/* Informations générales */}
-        <div className="space-y-6 mb-8 p-6 bg-gray-50 dark:bg-dark-bg rounded-lg">
-          <h2 className={sectionTitleStyle}>Informations générales</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>Informations générales</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
             <div>
-              <label className={labelStyle}>Domaine ou Direction*</label>
-              <select 
-                name="domain" 
-                value={formData.domain} 
-                onChange={handleChange} 
-                className={inputStyle} 
-                required
-                disabled={!canEdit}
-              >
-                <option value="">-- Sélectionner un Service --</option>
-                {services.length > 0 ? (
-                  services.map(s => (
-                    <option key={s.id} value={s.name}>
-                      {s.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>Chargement des services...</option>
-                )}
+              <label style={labelStyle}>Domaine ou Direction *</label>
+              <select name="domain" value={formData.domain} onChange={handleChange} style={inputStyle} required disabled={!canEdit}>
+                <option value="">— Sélectionner un service —</option>
+                {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
               </select>
             </div>
-
             <div>
-              <label className={labelStyle}>Description du Domaine</label>
-              <input 
-                type="text" 
-                name="domainDescription" 
-                value={formData.domainDescription} 
-                onChange={handleChange} 
-                className={inputStyle}
-                disabled={!canEdit}
-              />
+              <label style={labelStyle}>Description du domaine</label>
+              <input type="text" name="domainDescription" value={formData.domainDescription} onChange={handleChange} style={inputStyle} disabled={!canEdit} />
             </div>
-
             <div>
-              <label className={labelStyle}>Date de livraison souhaitée</label>
-              <input 
-                type="date" 
-                name="deliveryDate" 
-                value={formData.deliveryDate} 
-                onChange={handleChange} 
-                className={inputStyle}
-                disabled={!canEdit}
-              />
+              <label style={labelStyle}>Date de livraison souhaitée</label>
+              <input type="date" name="deliveryDate" value={formData.deliveryDate} onChange={handleChange} style={inputStyle} disabled={!canEdit} />
             </div>
-
             <div>
-              <label className={labelStyle}>Type d'achat*</label>
-              <select 
-                name="purchaseType" 
-                value={formData.purchaseType} 
-                onChange={handleChange} 
-                className={inputStyle} 
-                required
-                disabled={!canEdit}
-              >
+              <label style={labelStyle}>Type d'achat *</label>
+              <select name="purchaseType" value={formData.purchaseType} onChange={handleChange} style={inputStyle} required disabled={!canEdit}>
                 <option value="Non-Référencé">Non-Référencé</option>
                 <option value="Référencé">Référencé</option>
               </select>
             </div>
-
             <div>
-              <label className={labelStyle}>Nature article*</label>
-              <input 
-                type="text" 
-                name="articleNature" 
-                value={formData.articleNature} 
-                onChange={handleChange} 
-                className={inputStyle} 
-                required
-                disabled={!canEdit}
-              />
+              <label style={labelStyle}>Nature article *</label>
+              <input type="text" name="articleNature" value={formData.articleNature} onChange={handleChange} style={inputStyle} required disabled={!canEdit} />
             </div>
-
             <div>
-              <label className={labelStyle}>Description de la demande*</label>
-              <textarea 
-                name="requestDescription" 
-                value={formData.requestDescription} 
-                onChange={handleChange} 
-                className={inputStyle} 
-                rows="2" 
-                required
-                disabled={!canEdit}
-              ></textarea>
+              <label style={labelStyle}>Description de la demande *</label>
+              <textarea name="requestDescription" value={formData.requestDescription} onChange={handleChange} style={{ ...textareaStyle, minHeight: 60 }} rows={2} required disabled={!canEdit} />
             </div>
           </div>
         </div>
 
-        {/* Informations bénéficiaire */}
-        <div className="space-y-6 mb-8 p-6 bg-gray-50 dark:bg-dark-bg rounded-lg">
-          <h2 className={sectionTitleStyle}><User /> Informations bénéficiaire</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className={labelStyle}>Nom</label>
-              <input 
-                type="text" 
-                name="beneficiaryName" 
-                value={formData.beneficiaryName} 
-                onChange={handleChange} 
-                className={inputStyle}
-                disabled={!canEdit}
-              />
-            </div>
-            <div>
-              <label className={labelStyle}>Email*</label>
-              <input 
-                type="email" 
-                name="beneficiaryEmail" 
-                value={formData.beneficiaryEmail} 
-                onChange={handleChange} 
-                className={inputStyle} 
-                required
-                disabled={!canEdit}
-              />
-            </div>
-            <div>
-              <label className={labelStyle}>Téléphone*</label>
-              <input 
-                type="tel" 
-                name="beneficiaryPhone" 
-                value={formData.beneficiaryPhone} 
-                onChange={handleChange} 
-                className={inputStyle} 
-                required
-                disabled={!canEdit}
-              />
-            </div>
+        {/* Bénéficiaire */}
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}><User size={15} /> Informations bénéficiaire</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 20px', marginBottom: 16 }}>
+            <div><label style={labelStyle}>Nom</label><input type="text" name="beneficiaryName" value={formData.beneficiaryName} onChange={handleChange} style={inputStyle} disabled={!canEdit} /></div>
+            <div><label style={labelStyle}>Email *</label><input type="email" name="beneficiaryEmail" value={formData.beneficiaryEmail} onChange={handleChange} style={inputStyle} required disabled={!canEdit} /></div>
+            <div><label style={labelStyle}>Téléphone *</label><input type="tel" name="beneficiaryPhone" value={formData.beneficiaryPhone} onChange={handleChange} style={inputStyle} required disabled={!canEdit} /></div>
           </div>
-
-          <div className="flex flex-wrap gap-8">
-            <div className="flex items-center gap-4">
-              <span className={labelStyle}>Sortie Magasin</span>
-              <div className="flex gap-2">
-                <button 
-                  type="button" 
-                  onClick={() => canEdit && setFormData(prev => ({ ...prev, isMagasinOutput: true }))} 
-                  className={`px-4 py-1 rounded-md text-sm font-semibold transition ${formData.isMagasinOutput ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'} ${!canEdit && 'opacity-50 cursor-not-allowed'}`}
-                  disabled={!canEdit}
-                >Oui</button>
-                <button 
-                  type="button" 
-                  onClick={() => canEdit && setFormData(prev => ({ ...prev, isMagasinOutput: false }))} 
-                  className={`px-4 py-1 rounded-md text-sm font-semibold transition ${!formData.isMagasinOutput ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'} ${!canEdit && 'opacity-50 cursor-not-allowed'}`}
-                  disabled={!canEdit}
-                >Non</button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={labelStyle}>Sortie Magasin</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button type="button" onClick={() => canEdit && setFormData(p => ({ ...p, isMagasinOutput: true }))} style={toggleBtn(formData.isMagasinOutput)} disabled={!canEdit}>Oui</button>
+                <button type="button" onClick={() => canEdit && setFormData(p => ({ ...p, isMagasinOutput: false }))} style={toggleBtn(!formData.isMagasinOutput)} disabled={!canEdit}>Non</button>
               </div>
             </div>
-
-            <div className="flex items-center gap-4">
-              <span className={labelStyle}>DA pour travaux?</span>
-              <div className="flex gap-2">
-                <button 
-                  type="button" 
-                  onClick={() => canEdit && handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: true } })}
-                  className={`px-4 py-1 rounded-md text-sm font-semibold transition ${formData.isForWorks ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'} ${!canEdit && 'opacity-50 cursor-not-allowed'}`}
-                  disabled={!canEdit}
-                >Oui</button>
-                <button 
-                  type="button" 
-                  onClick={() => canEdit && handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: false } })}
-                  className={`px-4 py-1 rounded-md text-sm font-semibold transition ${!formData.isForWorks ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'} ${!canEdit && 'opacity-50 cursor-not-allowed'}`}
-                  disabled={!canEdit}
-                >Non</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={labelStyle}>DA pour travaux ?</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button type="button" onClick={() => canEdit && handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: true } })} style={toggleBtn(formData.isForWorks)} disabled={!canEdit}>Oui</button>
+                <button type="button" onClick={() => canEdit && handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: false } })} style={toggleBtn(!formData.isForWorks)} disabled={!canEdit}>Non</button>
               </div>
             </div>
-
             {formData.isForWorks && (
-              <div className="flex-1">
-                <label className={labelStyle}>Référence DT</label>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="text" 
-                    name="linkedDocNumber" 
-                    value={formData.linkedDocNumber} 
-                    onChange={handleChange} 
-                    placeholder="Sélectionner une DT"
-                    className={inputStyle}
-                    disabled={!canEdit}
-                  />
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <label style={labelStyle}>Référence DT</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input type="text" name="linkedDocNumber" value={formData.linkedDocNumber} onChange={handleChange} placeholder="Sélectionner une DT" style={{ ...inputStyle, flex: 1 }} disabled={!canEdit} />
                   {canEdit && (
-                    <button 
-                      type="button" 
-                      onClick={() => setShowDTModal(true)} 
-                      className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                      <ExternalLink size={20} />
+                    <button type="button" onClick={() => setShowDTModal(true)} style={{ height: 34, width: 34, borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--brand)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <ExternalLink size={14} />
                     </button>
                   )}
                 </div>
@@ -484,69 +280,30 @@ const DemandeAchatForm = ({ demande, onCancel, onSuccess }) => {
         </div>
 
         {/* Articles */}
-        <div className="space-y-4 mb-8 p-6 bg-gray-50 dark:bg-dark-bg rounded-lg">
-          <h2 className={sectionTitleStyle}>Articles non référencés</h2>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-100 dark:bg-gray-800">
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>Articles non référencés</div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Désignation</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-20">Qté</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-32">P.U. (XAF)</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-32">Total (XAF)</th>
-                  {canEdit && <th className="px-3 py-2 w-10"></th>}
+                  <th style={thStyle}>Désignation</th>
+                  <th style={{ ...thStyle, width: 70 }}>Qté</th>
+                  <th style={{ ...thStyle, width: 120 }}>P.U. (XAF)</th>
+                  <th style={{ ...thStyle, width: 120 }}>Total (XAF)</th>
+                  {canEdit && <th style={{ ...thStyle, width: 36 }}></th>}
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-gray-700">
-                {formData.nonRefArticles.map((article, index) => (
-                  <tr key={index}>
-                    <td className="p-1">
-                      <input 
-                        type="text" 
-                        value={article.designation} 
-                        onChange={(e) => canEdit && handleArticleChange(index, 'designation', e.target.value)} 
-                        className={inputStyle}
-                        disabled={!canEdit}
-                      />
-                    </td>
-                    <td className="p-1">
-                      <input 
-                        type="number" 
-                        min="1" 
-                        value={article.quantity} 
-                        onChange={(e) => canEdit && handleArticleChange(index, 'quantity', e.target.value)} 
-                        className={inputStyle}
-                        disabled={!canEdit}
-                      />
-                    </td>
-                    <td className="p-1">
-                      <input 
-                        type="number" 
-                        min="0" 
-                        step="0.01" 
-                        value={article.unitPrice} 
-                        onChange={(e) => canEdit && handleArticleChange(index, 'unitPrice', e.target.value)} 
-                        className={inputStyle}
-                        disabled={!canEdit}
-                      />
-                    </td>
-                    <td className="p-1">
-                      <input 
-                        type="text" 
-                        value={article.total.toFixed(2)} 
-                        disabled 
-                        className={`${inputStyle} bg-gray-100 dark:bg-gray-700/50`}
-                      />
-                    </td>
+              <tbody>
+                {formData.nonRefArticles.map((art, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={tdStyle}><input type="text" value={art.designation} onChange={e => canEdit && handleArticleChange(i, 'designation', e.target.value)} style={{ ...inputStyle, height: 30 }} disabled={!canEdit} /></td>
+                    <td style={tdStyle}><input type="number" min="1" value={art.quantity} onChange={e => canEdit && handleArticleChange(i, 'quantity', e.target.value)} style={{ ...inputStyle, height: 30 }} disabled={!canEdit} /></td>
+                    <td style={tdStyle}><input type="number" min="0" step="0.01" value={art.unitPrice} onChange={e => canEdit && handleArticleChange(i, 'unitPrice', e.target.value)} style={{ ...inputStyle, height: 30 }} disabled={!canEdit} /></td>
+                    <td style={tdStyle}><input type="text" value={art.total.toFixed(2)} disabled style={{ ...inputStyle, height: 30, background: 'var(--surface-2)', color: 'var(--fg-muted)' }} /></td>
                     {canEdit && (
-                      <td className="p-1 text-center">
-                        <button 
-                          type="button" 
-                          onClick={() => removeArticle(index)} 
-                          className="text-red-500 hover:text-red-700 p-1"
-                        >
-                          <Trash2 size={18} />
+                      <td style={tdStyle}>
+                        <button type="button" onClick={() => removeArticle(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex', padding: 4 }}>
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     )}
@@ -555,105 +312,64 @@ const DemandeAchatForm = ({ demande, onCancel, onSuccess }) => {
               </tbody>
             </table>
           </div>
-
           {canEdit && (
-            <button 
-              type="button" 
-              onClick={addArticle} 
-              className="flex items-center gap-1 px-3 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600"
-            >
+            <button type="button" onClick={addArticle} style={{ marginTop: 8, height: 28, padding: '0 10px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--success)', color: '#fff', fontSize: 12, cursor: 'pointer' }}>
               + Ajouter un article
             </button>
           )}
-
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex justify-end">
-              <div className="text-right">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Non Référencé</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {totalNonRefValue.toFixed(2)} XAF
-                </p>
-              </div>
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 2 }}>Total Non Référencé</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--brand)' }}>{totalNonRefValue.toFixed(2)} XAF</div>
             </div>
           </div>
         </div>
 
         {/* Pièces jointes */}
-        <div className="space-y-4 mb-8 p-6 bg-gray-50 dark:bg-dark-bg rounded-lg">
-          <h2 className={sectionTitleStyle}>Pièces jointes</h2>
-
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>Pièces jointes</div>
           {canEdit && (
-            <div>
-              <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 cursor-pointer transition">
-                <Upload size={20} />
-                <span>Ajouter des fichiers (PDF, Images, Excel)</span>
-                <input 
-                  type="file" 
-                  onChange={handleFileSelect} 
-                  accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
-                  multiple
-                  className="hidden"
-                />
-              </label>
-            </div>
+            <label style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '12px', border: '2px dashed var(--border)', borderRadius: 'var(--radius-3)',
+              cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 13, marginBottom: 12,
+            }}>
+              <Upload size={16} /> Ajouter des fichiers (PDF, Images, Excel)
+              <input type="file" onChange={handleFileSelect} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls" multiple style={{ display: 'none' }} />
+            </label>
           )}
-
-          {/* Fichiers existants */}
           {existingFiles.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Fichiers existants</p>
-              <div className="space-y-2">
-                {existingFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-dark-surface rounded border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-2">
-                      <FileText size={18} className="text-blue-600" />
-                      <span className="text-sm">{file.originalName}</span>
-                      <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6 }}>Fichiers existants</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {existingFiles.map((file, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <FileText size={14} color="var(--brand)" />
+                      <span style={{ fontSize: 12, color: 'var(--fg)' }}>{file.originalName}</span>
+                      <span style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>({(file.size / 1024).toFixed(1)} KB)</span>
                     </div>
-                    <div className="flex gap-2">
-                      <a 
-                        href={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/${file.path}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="p-1 text-blue-600 hover:text-blue-800"
-                      >
-                        <Download size={18} />
-                      </a>
-                      {canEdit && (
-                        <button 
-                          type="button" 
-                          onClick={() => removeExistingFile(index)}
-                          className="p-1 text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      )}
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/${file.path}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand)', display: 'flex', padding: 3 }}><Download size={14} /></a>
+                      {canEdit && <button type="button" onClick={() => removeExistingFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex', padding: 3 }}><Trash2 size={14} /></button>}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Nouveaux fichiers */}
           {attachedFiles.length > 0 && (
             <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nouveaux fichiers</p>
-              <div className="space-y-2">
-                {attachedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700">
-                    <div className="flex items-center gap-2">
-                      <FileText size={18} className="text-blue-600" />
-                      <span className="text-sm">{file.name}</span>
-                      <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
+              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6 }}>Nouveaux fichiers</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {attachedFiles.map((file, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--brand-soft)', border: '1px solid var(--brand)', borderRadius: 'var(--radius-2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <FileText size={14} color="var(--brand)" />
+                      <span style={{ fontSize: 12, color: 'var(--fg)' }}>{file.name}</span>
+                      <span style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>({(file.size / 1024).toFixed(1)} KB)</span>
                     </div>
-                    <button 
-                      type="button" 
-                      onClick={() => removeFile(index)}
-                      className="p-1 text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <button type="button" onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex', padding: 3 }}><Trash2 size={14} /></button>
                   </div>
                 ))}
               </div>
@@ -663,75 +379,46 @@ const DemandeAchatForm = ({ demande, onCancel, onSuccess }) => {
 
         {/* Actions */}
         {canEdit && (
-          <div className="flex justify-end gap-4 pt-6 border-t border-gray-200 dark:border-dark-border">
-            <button 
-              onClick={onCancel}
-              className="px-6 py-3 bg-gray-200 dark:bg-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition font-semibold"
-            >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            <button onClick={onCancel} style={{ height: 36, padding: '0 16px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
               Annuler
             </button>
-            <button 
-              onClick={() => handleSubmit(true)} 
-              disabled={loading} 
-              className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-semibold flex items-center gap-2 disabled:opacity-50"
-            >
-              {loading && <Loader className="animate-spin w-5 h-5" />} 
-              <Save size={18} /> Enregistrer en Brouillon
+            <button onClick={() => handleSubmit(true)} disabled={loading} style={btnStyle('var(--fg-muted)', '#fff', loading)}>
+              {loading && <Loader size={13} className="animate-spin" />}
+              <Save size={13} /> Enregistrer en brouillon
             </button>
-            <button 
-              onClick={() => handleSubmit(false)} 
-              disabled={loading || !formData.domain || !formData.requestDescription} 
-              className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md"
+            <button
+              onClick={() => handleSubmit(false)}
+              disabled={loading || !formData.domain || !formData.requestDescription}
+              style={btnStyle('var(--brand)', '#fff', loading || !formData.domain || !formData.requestDescription)}
             >
-              {loading ? (
-                <>
-                  <Loader className="animate-spin w-5 h-5" /> Soumission...
-                </>
-              ) : (
-                <>
-                  <Send size={18} /> Soumettre
-                </>
-              )}
+              {loading ? <><Loader size={13} className="animate-spin" /> Soumission…</> : <><Send size={13} /> Soumettre</>}
             </button>
           </div>
         )}
 
-        {/* Modal DT */}
+        {/* DT selection modal */}
         {showDTModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-dark-surface rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text">Sélectionner une DT</h2>
-                <button onClick={() => setShowDTModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
+            <div className="animate-fadeIn" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 680, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>Sélectionner une DT</div>
+                <button onClick={() => setShowDTModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex' }}><X size={16} /></button>
               </div>
-              <div className="overflow-y-auto flex-1 p-6">
+              <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px' }}>
                 {demandesTravaux.length === 0 ? (
-                  <p className="text-center text-gray-500">Aucune Demande de Travaux disponible.</p>
+                  <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--fg-muted)', fontSize: 13 }}>Aucune Demande de Travaux disponible.</div>
                 ) : (
-                  <div className="space-y-4">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {demandesTravaux.map(dt => (
-                      <div key={dt.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/10">
+                      <div key={dt.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', background: 'var(--surface-2)' }}>
                         <div>
-                          <p className="font-semibold text-gray-900 dark:text-dark-text">{dt.title}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Service: {dt.metadata?.service || 'N/A'} - {new Date(dt.createdAt).toLocaleDateString()}
-                          </p>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{dt.title}</div>
+                          <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Service : {dt.metadata?.service || 'N/A'} · {new Date(dt.createdAt).toLocaleDateString()}</div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <button 
-                            type="button" 
-                            onClick={() => setIsViewingDocument(dt)}
-                            className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-                          >
-                            <Eye size={20} />
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => handleSelectDT(dt)} 
-                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                          >
-                            Sélectionner
-                          </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <button type="button" onClick={() => setIsViewingDocument(dt)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 4 }}><Eye size={15} /></button>
+                          <button type="button" onClick={() => handleSelectDT(dt)} style={{ height: 30, padding: '0 12px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--success)', color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Sélectionner</button>
                         </div>
                       </div>
                     ))}
@@ -742,33 +429,18 @@ const DemandeAchatForm = ({ demande, onCancel, onSuccess }) => {
           </div>
         )}
 
-        {/* Modal Viewer DT */}
-        {isViewingDocument && (
-          <DocumentViewer 
-            document={isViewingDocument} 
-            onClose={() => setIsViewingDocument(null)} 
-            showActions={false}
-          />
-        )}
-        
-        {/* 4. MODALE DE SOUMISSION WORKFLOW */}
+        {isViewingDocument && <DocumentViewer document={isViewingDocument} onClose={() => setIsViewingDocument(null)} showActions={false} />}
+
         {showWorkflowModal && savedDemande && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60] p-4">
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
             <WorkflowSubmission
-              document={{
-                ...savedDemande,
-                title: savedDemande.daNumber ? `DA ${savedDemande.daNumber}` : 'Nouvelle Demande d\'Achat',
-                filename: 'Demande d\'Achat'
-              }}
+              document={{ ...savedDemande, title: savedDemande.daNumber ? `DA ${savedDemande.daNumber}` : 'Nouvelle Demande d\'Achat', filename: 'Demande d\'Achat' }}
               onSuccess={handleWorkflowSuccess}
               onCancel={() => setShowWorkflowModal(false)}
             />
           </div>
         )}
-
       </div>
     </div>
   );
-};
-
-export default DemandeAchatForm;
+}

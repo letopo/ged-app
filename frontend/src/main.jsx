@@ -6,6 +6,7 @@ import './styles/print.css'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { registerServiceWorker } from './utils/pushNotificationHelper'
+import ErrorBoundary from './components/ErrorBoundary'
 
 // ✅ Enregistrer le Service Worker au démarrage
 if ('serviceWorker' in navigator) {
@@ -18,10 +19,12 @@ if ('serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 )

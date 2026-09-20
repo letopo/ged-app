@@ -4,10 +4,11 @@ import Service from '../models/Service.js';
 import { Op } from 'sequelize';
 import { Parser } from 'json2csv';
 import { Readable } from 'stream';
+import { userHasPoste } from '../utils/posteResolver.js';
 
-// Vérifier si l'utilisateur est RH ou admin
-const isRHOrAdmin = (user) => {
-  return user.role === 'admin' || user.email === 'hsjm.rh@gmail.com';
+// Vérifier si l'utilisateur est RH ou admin (RH = titulaire du poste 'rh')
+const isRHOrAdmin = async (user) => {
+  return ['admin','superadmin'].includes(user.role) || await userHasPoste(user.id, 'rh');
 };
 
 // @desc    Récupérer tous les employés (avec pagination et filtres)
@@ -15,7 +16,7 @@ const isRHOrAdmin = (user) => {
 // @access  Private (RH/Admin)
 export const getEmployees = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -65,7 +66,7 @@ export const getEmployees = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const getEmployeeById = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -92,7 +93,7 @@ export const getEmployeeById = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const createEmployee = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -161,7 +162,7 @@ export const createEmployee = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const updateEmployee = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -238,7 +239,7 @@ export const updateEmployee = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const deleteEmployee = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -261,7 +262,7 @@ export const deleteEmployee = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const getEmployeesByService = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -289,7 +290,7 @@ export const getEmployeesByService = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const getServicesWithEmployees = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -305,6 +306,70 @@ export const getServicesWithEmployees = async (req, res, next) => {
     });
 
     res.json({ success: true, services });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Liste fusionnée Employee + User (dédupliquée) pour les listes déroulantes
+//          missionnaire/conducteur d'un Ordre de Mission — recherche + filtre par pôle.
+// @route   GET /api/employees/mission-candidates?serviceId=&q=
+// @access  Private (tout utilisateur connecté)
+export const getMissionCandidates = async (req, res, next) => {
+  try {
+    const { serviceId, q } = req.query;
+    const { ServiceMember, User } = await import('../models/index.js');
+
+    const nameSearch = q ? {
+      [Op.or]: [
+        { firstName: { [Op.iLike]: `%${q}%` } },
+        { lastName: { [Op.iLike]: `%${q}%` } },
+      ],
+    } : {};
+
+    const employees = await Employee.findAll({
+      where: { isActive: true, ...(serviceId ? { serviceId } : {}), ...nameSearch },
+      attributes: ['id', 'firstName', 'lastName', 'categorie', 'userId'],
+      order: [['lastName', 'ASC'], ['firstName', 'ASC']],
+      limit: 50,
+    });
+
+    const coveredUserIds = new Set(employees.filter(e => e.userId).map(e => e.userId));
+
+    let users;
+    if (serviceId) {
+      const members = await ServiceMember.findAll({
+        where: { serviceId, isActive: true },
+        include: [{ model: User, as: 'user', where: { isActive: true, ...nameSearch }, attributes: ['id', 'firstName', 'lastName'] }],
+      });
+      users = members.map(m => m.user).filter(Boolean);
+    } else {
+      users = await User.findAll({
+        where: { isActive: true, ...nameSearch },
+        attributes: ['id', 'firstName', 'lastName'],
+        limit: 50,
+      });
+    }
+
+    const candidates = [
+      ...employees.map(e => ({
+        id: e.id,
+        label: `${e.firstName} ${e.lastName}`,
+        source: 'employee',
+        categorie: e.categorie || null,
+        userId: e.userId || null,
+      })),
+      ...users
+        .filter(u => !coveredUserIds.has(u.id))
+        .map(u => ({
+          id: u.id,
+          label: `${u.firstName} ${u.lastName}`,
+          source: 'user',
+          categorie: null,
+        })),
+    ].sort((a, b) => a.label.localeCompare(b.label));
+
+    res.json({ success: true, data: candidates.slice(0, 50) });
   } catch (error) {
     next(error);
   }
@@ -338,7 +403,7 @@ export const getAllEmployees = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const exportEmployeesToCSV = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -387,7 +452,10 @@ export const exportEmployeesToCSV = async (req, res, next) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=employes_${new Date().toISOString().split('T')[0]}.csv`);
 
-    res.send(csv);
+    // BOM UTF-8 : indispensable pour qu'Excel (Windows) reconnaisse l'UTF-8.
+    // Sans lui, Excel décode en Windows-1252/CP850 → accents en mojibake, puis
+    // corruption gravée si l'utilisateur ré-enregistre et ré-importe.
+    res.send('﻿' + csv);
   } catch (error) {
     next(error);
   }
@@ -398,7 +466,7 @@ export const exportEmployeesToCSV = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const importEmployeesFromCSV = async (req, res, next) => {
   try {
-    if (!isRHOrAdmin(req.user)) {
+    if (!(await isRHOrAdmin(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -406,7 +474,9 @@ export const importEmployeesFromCSV = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Aucun fichier CSV fourni' });
     }
 
-    const csvBuffer = req.file.buffer.toString('utf-8');
+    // Retire un éventuel BOM UTF-8 en tête (ajouté par Excel) qui corromprait
+    // le premier en-tête de colonne (« Matricule » deviendrait « ﻿Matricule »).
+    const csvBuffer = req.file.buffer.toString('utf-8').replace(/^﻿/, '');
     const lines = csvBuffer.split('\n').filter(line => line.trim());
     
     if (lines.length < 2) {

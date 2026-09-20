@@ -1,70 +1,72 @@
 // frontend/src/components/DemandeAchatCard.jsx
 import React from 'react';
-import { Calendar, User, FileText } from 'lucide-react';
+import { Calendar, User } from 'lucide-react';
 
-const DemandeAchatCard = ({ demande, onClick, selected, getStatusConfig }) => {
+export default function DemandeAchatCard({ demande, onClick, selected, getStatusConfig }) {
   const statusConfig = getStatusConfig(demande.status);
-  const StatusIcon = statusConfig.icon;
-  
-  // S'assurer que totalNonRefValue est un nombre
-  const totalValue = typeof demande.totalNonRefValue === 'number' 
-    ? demande.totalNonRefValue 
+  const StatusIcon   = statusConfig.icon;
+
+  const totalValue = typeof demande.totalNonRefValue === 'number'
+    ? demande.totalNonRefValue
     : parseFloat(demande.totalNonRefValue) || 0;
 
   return (
     <div
       onClick={onClick}
-      className={`
-        p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md
-        ${selected 
-          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md' 
-          : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface hover:border-gray-300 dark:hover:border-gray-600'
-        }
-      `}
+      style={{
+        padding: '12px 14px', borderRadius: 'var(--radius-3)', cursor: 'pointer',
+        transition: 'box-shadow .15s',
+        border: selected ? '1.5px solid var(--brand)' : '1px solid var(--border)',
+        background: selected ? 'var(--brand-soft)' : 'var(--surface)',
+        boxShadow: selected ? 'var(--shadow-2)' : 'none',
+      }}
+      onMouseEnter={e => { if (!selected) e.currentTarget.style.boxShadow = 'var(--shadow-1)'; }}
+      onMouseLeave={e => { if (!selected) e.currentTarget.style.boxShadow = 'none'; }}
     >
-      {/* Numéro DA + Statut */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1">
-          <h3 className="font-bold text-gray-900 dark:text-dark-text text-sm">
-            {demande.daNumber}
-          </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {demande.domain}
-          </p>
+      {/* DA number + status */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{demande.daNumber}</div>
+          <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 1 }}>{demande.domain}</div>
         </div>
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${statusConfig.bgColor} ${statusConfig.textColor}`}>
-          <StatusIcon size={12} />
-          <span>{statusConfig.label}</span>
-        </div>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
+          background: statusConfig.softBg || 'var(--surface-2)',
+          color: statusConfig.color || 'var(--fg-muted)',
+          flexShrink: 0,
+        }}>
+          <StatusIcon size={11} />
+          {statusConfig.label}
+        </span>
       </div>
 
       {/* Description */}
-      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+      <div style={{
+        fontSize: 12, color: 'var(--fg-muted)', marginBottom: 10,
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        lineHeight: 1.5,
+      }}>
         {demande.requestDescription}
-      </p>
-
-      {/* Footer Info */}
-      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-        <div className="flex items-center gap-1">
-          <User size={12} />
-          <span>{demande.requester?.firstName} {demande.requester?.lastName}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Calendar size={12} />
-          <span>{new Date(demande.daDate).toLocaleDateString()}</span>
-        </div>
       </div>
 
-      {/* Montant */}
+      {/* Footer */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: 'var(--fg-subtle)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <User size={11} /> {demande.requester?.firstName} {demande.requester?.lastName}
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Calendar size={11} /> {new Date(demande.daDate).toLocaleDateString()}
+        </span>
+      </div>
+
       {totalValue > 0 && (
-        <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand)' }}>
             {totalValue.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XAF
           </span>
         </div>
       )}
     </div>
   );
-};
-
-export default DemandeAchatCard;
+}

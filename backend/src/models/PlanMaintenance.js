@@ -27,6 +27,10 @@ const PlanMaintenance = sequelize.define('PlanMaintenance', {
   },
   notes: { type: DataTypes.TEXT, allowNull: true },
   actif: { type: DataTypes.BOOLEAN, defaultValue: true, allowNull: false },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'plans_maintenance',
   timestamps: true,

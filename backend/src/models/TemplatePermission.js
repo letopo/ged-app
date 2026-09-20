@@ -35,6 +35,17 @@ const TemplatePermission = sequelize.define('TemplatePermission', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  // Visibilité par défaut des documents créés avec ce template : 'personal' ou 'service'.
+  // L'uploader peut l'annuler au cas par cas au moment de l'upload.
+  defaultVisibility: {
+    type: DataTypes.STRING,
+    defaultValue: 'personal',
+    field: 'default_visibility',
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'template_permissions',
   timestamps: true,

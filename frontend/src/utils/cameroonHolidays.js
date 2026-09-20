@@ -121,18 +121,18 @@ export const isHoliday = (year, month, day) => {
 /**
  * Obtenir la couleur selon le type de jour férié
  */
-export const getHolidayColor = (type) => {
-  const colors = {
-    civil: 'bg-red-100 border-red-300',
-    national: 'bg-green-100 border-green-300',
-    religious: 'bg-purple-100 border-purple-300',
-    muslim: 'bg-teal-100 border-teal-300'
+export const getHolidayStyle = (type) => {
+  const styles = {
+    civil:     { background: '#fee2e2', borderColor: '#fca5a5' },
+    national:  { background: '#dcfce7', borderColor: '#86efac' },
+    religious: { background: '#f3e8ff', borderColor: '#d8b4fe' },
+    muslim:    { background: '#ccfbf1', borderColor: '#5eead4' },
   };
-  return colors[type] || 'bg-gray-100 border-gray-300';
+  return styles[type] || { background: 'var(--surface-2)', borderColor: 'var(--border)' };
 };
 
 export default {
   getCameroonHolidays,
   isHoliday,
-  getHolidayColor
+  getHolidayStyle
 };

@@ -15,6 +15,7 @@ import {
   getAssignees // ✅ Importer
 } from '../controllers/trelloController.js';
 import upload from '../utils/fileUpload.js'; // Assurez-vous que ce fichier existe ou utilisez multer direct
+import { fixUploadEncoding } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.put('/cards/:cardId', protect, updateCard);    // Mise à jour générale
 router.post('/cards/:cardId/comments', protect, addComment);
 
 // Pièces jointes (Upload)
-router.post('/cards/:cardId/attachments', protect, upload.single('file'), addAttachment);
+router.post('/cards/:cardId/attachments', protect, upload.single('file'), fixUploadEncoding, addAttachment);
 
 // Route de synchronisation (Admin seulement de préférence)
 router.post('/sync', protect, syncOldDocuments);

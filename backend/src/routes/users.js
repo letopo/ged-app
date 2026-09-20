@@ -13,8 +13,10 @@ import {
   uploadSignature,
   uploadStamp,
   getMyService,
-  getValidators // ✅ 1. AJOUTER L'IMPORT ICI
+  getValidators,
+  getUsersWithPostes,
 } from '../controllers/userController.js';
+import { toggleAbsence } from '../controllers/workflowController.js';
 
 const router = express.Router();
 
@@ -26,9 +28,11 @@ router.use(protect);
 // 1. Route Service personnel
 router.get('/me/service', getMyService);
 
-// 2. Route Validateurs (✅ AJOUTER CETTE ROUTE ICI)
-// Accessible à tous les utilisateurs connectés pour pouvoir soumettre des docs
+// 2. Route Validateurs
 router.get('/validators', getValidators);
+
+// 3. Route utilisateurs avec postes (pour la page droits d'accès)
+router.get('/with-postes', authorize('admin'), getUsersWithPostes);
 
 // Routes principales pour la gestion des utilisateurs
 router.route('/')
@@ -42,6 +46,9 @@ router.route('/:id')
   .delete(authorize('admin'), deleteUser);
   
 router.post('/:id/reset-password', authorize('admin'), resetUserPassword);
+
+// Statut présence/absence — soi-même ou un admin (vérifié dans le contrôleur).
+router.put('/:id/absence', toggleAbsence);
 
 // Routes pour upload d'images (signatures et cachets)
 router.post(

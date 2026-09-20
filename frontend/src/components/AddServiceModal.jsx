@@ -1,76 +1,85 @@
 // frontend/src/components/AddServiceModal.jsx
-
 import React, { useState } from 'react';
 import { X, Building2 } from 'lucide-react';
 
-const AddServiceModal = ({ onAdd, onClose }) => {
+const inputStyle = {
+  width: '100%', height: 36, padding: '0 10px', boxSizing: 'border-box',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none',
+};
+
+export default function AddServiceModal({ onAdd, onClose }) {
   const [serviceName, setServiceName] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!serviceName.trim()) {
-      setError('Veuillez entrer un nom de service');
-      return;
-    }
+    if (!serviceName.trim()) { setError('Veuillez entrer un nom de service'); return; }
     onAdd(serviceName.trim());
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        {/* En-tête */}
-        <div className="bg-blue-600 p-6 text-white flex items-center justify-between rounded-t-lg">
-          <div className="flex items-center gap-3">
-            <Building2 size={24} />
-            <h2 className="text-xl font-bold">Créer un nouveau service</h2>
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16,
+    }}>
+      <div className="animate-fadeIn" style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)',
+        width: '100%', maxWidth: 420, overflow: 'hidden',
+      }}>
+
+        {/* Header */}
+        <div style={{
+          background: 'var(--brand)', padding: '14px 18px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Building2 size={18} color="#fff" />
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Créer un nouveau service</span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition"
-          >
-            <X size={20} />
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex' }}>
+            <X size={16} />
           </button>
         </div>
 
-        {/* Corps */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+        {/* Body */}
+        <form onSubmit={handleSubmit} style={{ padding: '18px 20px' }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)', display: 'block', marginBottom: 5 }}>
               Nom du service *
             </label>
             <input
+              style={inputStyle}
               type="text"
               value={serviceName}
-              onChange={(e) => {
-                setServiceName(e.target.value);
-                setError('');
-              }}
-              placeholder="Ex: Chirurgie, Urgences, Laboratoire..."
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={e => { setServiceName(e.target.value); setError(''); }}
+              placeholder="Ex: Chirurgie, Urgences, Laboratoire…"
               autoFocus
               required
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-300 text-red-700 p-3 rounded-lg text-sm">
+            <div style={{
+              padding: '8px 10px', borderRadius: 'var(--radius-2)', marginBottom: 12,
+              background: 'var(--danger-soft)', color: 'var(--danger)',
+              fontSize: 12, border: '1px solid var(--danger)',
+            }}>
               {error}
             </div>
           )}
 
-          {/* Boutons */}
-          <div className="flex gap-3 pt-4">
+          <div style={{ display: 'flex', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
             <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+              type="button" onClick={onClose}
+              style={{ flex: 1, height: 34, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 13, cursor: 'pointer' }}
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+              style={{ flex: 1, height: 34, borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
             >
               Créer
             </button>
@@ -79,6 +88,4 @@ const AddServiceModal = ({ onAdd, onClose }) => {
       </div>
     </div>
   );
-};
-
-export default AddServiceModal;
+}

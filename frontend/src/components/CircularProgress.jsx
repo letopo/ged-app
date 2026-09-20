@@ -1,35 +1,41 @@
-export default function CircularProgress({ value = 0, size = 80, strokeWidth = 6, color = 'text-blue-600', label }) {
+export default function CircularProgress({ value = 0, size = 80, strokeWidth = 6, label }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (value / 100) * circumference;
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <div style={{ position: 'relative', width: size, height: size }}>
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+          {/* Track */}
           <circle
             cx={size / 2} cy={size / 2} r={radius}
             fill="none"
-            stroke="currentColor"
+            stroke="var(--border)"
             strokeWidth={strokeWidth}
-            className="text-gray-200 dark:text-gray-700"
           />
+          {/* Progress */}
           <circle
             cx={size / 2} cy={size / 2} r={radius}
             fill="none"
-            stroke="currentColor"
+            stroke="var(--brand)"
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
-            className={`${color} transition-all duration-700 ease-out`}
+            style={{ transition: 'stroke-dashoffset 0.7s ease-out' }}
           />
         </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-lg font-bold ${color}`}>{value}%</span>
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--brand)' }}>{value}%</span>
         </div>
       </div>
-      {label && <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>}
+      {label && (
+        <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)' }}>{label}</span>
+      )}
     </div>
   );
 }

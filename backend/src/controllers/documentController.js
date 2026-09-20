@@ -2,25 +2,13 @@
 
 import { Op } from 'sequelize';
 
-// Documents générés par le RH : visibles uniquement par l'admin autorisé
-const HR_EMAIL = 'hsjm.rh@gmail.com';
-const AUTHORIZED_HR_VIEWER_EMAIL = 'hopitalcameroun@ordredemaltefrance.org';
-
-const canViewHRDocuments = (user) => user.role === 'admin';
-
-// Catégories réservées RH : visibles uniquement par RH + admins, peu importe le créateur
-const HR_ONLY_CATEGORIES = ['Attestation de départ en congé annuel'];
-const canViewHRCategory = (user) => user.role === 'admin' || user.email === HR_EMAIL;
-
-// Retourne le userId du compte RH (mis en cache après le premier appel)
-let _hrUserId = null;
-const getHRUserId = async (UserModel) => {
-  if (_hrUserId) return _hrUserId;
-  const hrUser = await UserModel.findOne({ where: { email: HR_EMAIL }, attributes: ['id'] });
-  if (hrUser) _hrUserId = hrUser.id;
-  return _hrUserId;
-};
-import { Document, User, Workflow, InvoiceFolder } from '../models/index.js'; // ✅ AJOUT IMPORT InvoiceFolder
+import {
+  getRestrictedCategories,
+  buildDocumentAccessWhere,
+  hasDocumentReadAccess,
+  resolveUploaderServiceId,
+} from '../utils/documentVisibility.js';
+import { Document, User, Workflow, InvoiceFolder, TemplatePermission } from '../models/index.js'; // ✅ AJOUT IMPORT InvoiceFolder
 import fs from 'fs/promises';
 import path from 'path';
 import { mergePDFs, validatePDF } from '../utils/pdfMerger.js';
@@ -34,7 +22,7 @@ export const uploadDocument = async (req, res) => {
     // Accepter linkedOrdreMissionId OU linkedDocumentId
     const linkedDocId = req.body.linkedOrdreMissionId || req.body.linkedDocumentId;
     
-    const { title, category, dateDebut, dateFin, nomsDemandeur, metadata } = req.body;
+    const { title, category, dateDebut, dateFin, nomsDemandeur, metadata, visibility } = req.body;
     const { filename, originalname, size, mimetype } = req.file;
 
     let finalFilePath = `uploads/${filename}`;
@@ -148,6 +136,19 @@ export const uploadDocument = async (req, res) => {
       }
     }
 
+    // Visibilité : override explicite de l'uploader, sinon défaut de la catégorie, sinon personnel.
+    const finalCategory = category || parsedMetadata.type || null;
+    const templatePermission = finalCategory
+      ? await TemplatePermission.findOne({ where: { templateName: finalCategory } })
+      : null;
+    let finalVisibility = visibility || templatePermission?.defaultVisibility || 'personal';
+    let documentServiceId = null;
+    if (finalVisibility === 'service') {
+      documentServiceId = await resolveUploaderServiceId(req.user.id);
+      // Pas de service actif → un document "service" sans service n'aurait pas de sens.
+      if (!documentServiceId) finalVisibility = 'personal';
+    }
+
     const documentData = {
       title: title || `Document - ${parsedMetadata.service || 'Inconnu'}`,
       fileName: finalFileName,
@@ -156,13 +157,16 @@ export const uploadDocument = async (req, res) => {
       fileSize: finalSize,
       fileType: mimetype,
       userId: req.user.id,
-      category: category || parsedMetadata.type || null,
+      tenantId: req.tenantId,
+      category: finalCategory,
       linkedDocumentId: linkedDocId || null,
       metadata: parsedMetadata,
       status: 'draft',
       dateDebut: dateDebut ? new Date(dateDebut) : null,
       dateFin: dateFin ? new Date(dateFin) : null,
-      invoiceFolderId: invoiceFolderId // ✅ Ajout du champ pour lier au dossier
+      invoiceFolderId: invoiceFolderId,
+      visibility: finalVisibility,
+      serviceId: documentServiceId,
     };
 
     const newDocument = await Document.create(documentData);
@@ -171,12 +175,16 @@ export const uploadDocument = async (req, res) => {
         include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }]
     });
     
-    res.status(201).json({ 
-      success: true, 
-      data: resultWithUser, 
-      message: parsedMetadata.fusionné 
-        ? '✅ Document uploadé et fusionné avec la pièce justificative avec succès.' 
-        : 'Document uploadé avec succès.' 
+    // Audit upload
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'UPLOAD', 'document', newDocument.id, { title: newDocument.title, category: newDocument.category });
+
+    res.status(201).json({
+      success: true,
+      data: resultWithUser,
+      message: parsedMetadata.fusionné
+        ? '✅ Document uploadé et fusionné avec la pièce justificative avec succès.'
+        : 'Document uploadé avec succès.'
     });
 
   } catch (error) {
@@ -200,41 +208,33 @@ export const getDocuments = async (req, res) => {
   try {
     const { page, limit, search, status, category, dateFrom, dateTo } = req.query;
     const whereClause = { archived: false };
-    const userRole = req.user.role;
-    const userId = req.user.id;
-    if (userRole !== 'admin' && userRole !== 'director') {
-      whereClause.userId = userId;
-    } else if (!canViewHRDocuments(req.user)) {
-      const hrUserId = await getHRUserId(User);
-      if (hrUserId) {
-        whereClause.userId = { [Op.ne]: hrUserId };
-      }
-    }
-    if (!canViewHRCategory(req.user)) {
-      whereClause.category = { [Op.notIn]: HR_ONLY_CATEGORIES };
+    const andConditions = [];
+
+    const accessWhere = await buildDocumentAccessWhere(req.user);
+    if (accessWhere) andConditions.push(accessWhere);
+
+    const restrictedCats = await getRestrictedCategories(req.user);
+    if (restrictedCats.length > 0) {
+      andConditions.push({ category: { [Op.notIn]: restrictedCats } });
     }
 
     // Filtres optionnels
     if (search) {
-      whereClause[Op.or] = [
-        { title: { [Op.iLike]: `%${search}%` } },
-        { originalName: { [Op.iLike]: `%${search}%` } },
-      ];
+      andConditions.push({
+        [Op.or]: [
+          { title: { [Op.iLike]: `%${search}%` } },
+          { originalName: { [Op.iLike]: `%${search}%` } },
+        ],
+      });
     }
     if (status && status !== 'all') {
       whereClause.status = status;
     }
     if (category && category !== 'all') {
-      // Fusionner avec le filtre HR existant si présent
-      if (whereClause.category && whereClause.category[Op.notIn]) {
-        whereClause[Op.and] = [
-          { category },
-          { category: { [Op.notIn]: HR_ONLY_CATEGORIES } },
-        ];
-        delete whereClause.category;
-      } else {
-        whereClause.category = category;
-      }
+      andConditions.push({ category });
+    }
+    if (andConditions.length > 0) {
+      whereClause[Op.and] = andConditions;
     }
     if (dateFrom) {
       whereClause.createdAt = { ...(whereClause.createdAt || {}), [Op.gte]: new Date(dateFrom) };
@@ -248,12 +248,15 @@ export const getDocuments = async (req, res) => {
     // Pagination (optionnelle — si pas de page/limit, retourne tout)
     const queryOptions = {
       where: whereClause,
+      // distinct: indispensable, sinon findAndCountAll compte les lignes jointes
+      // par l'include hasMany 'workflows' (1 par workflow) → total surévalué.
+      distinct: true,
       include: [
         { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
         {
           model: Workflow,
           as: 'workflows',
-          include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }]
+          include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'signaturePath', 'stampPath'] }]
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -295,21 +298,12 @@ export const getDocument = async (req, res) => {
             {
               model: Workflow,
               as: 'workflows',
-              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }]
+              include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'signaturePath', 'stampPath'] }]
             }
         ] 
     });
     if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
-    if (req.user.role !== 'admin' && req.user.role !== 'director' && document.userId !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
-    }
-    // Bloquer l'accès aux documents RH pour les non-autorisés
-    const hrUserId = await getHRUserId(User);
-    if (hrUserId && document.userId === hrUserId && !canViewHRDocuments(req.user) && document.userId !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
-    }
-    // Bloquer l'accès aux catégories RH-only pour les non-autorisés
-    if (HR_ONLY_CATEGORIES.includes(document.category) && !canViewHRCategory(req.user)) {
+    if (!(await hasDocumentReadAccess(document, req.user))) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
     res.json({ success: true, data: document });
@@ -322,7 +316,7 @@ export const updateDocument = async (req, res) => {
   try {
     const document = await Document.findByPk(req.params.id);
     if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
-    if (req.user.role !== 'admin' && document.userId !== req.user.id) {
+    if (!['admin','superadmin'].includes(req.user.role) && document.userId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
     await document.update(req.body);
@@ -339,13 +333,17 @@ export const deleteDocument = async (req, res, next) => {
     if (!id) return res.status(400).json({ success: false, message: "ID du document manquant." });
     const document = await Document.findByPk(id);
     if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
-    if (req.user.role !== 'admin' && document.userId !== req.user.id) {
+    if (!['admin','superadmin'].includes(req.user.role) && document.userId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
     const fullPath = path.resolve(process.cwd(), document.filePath);
     try { await fs.unlink(fullPath); } catch(err) { console.warn("Fichier physique déjà supprimé ou introuvable:", err.message); }
     await Workflow.destroy({ where: { documentId: id } });
+    const docTitle = document.title;
     await document.destroy();
+    // Audit delete
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'DELETE', 'document', id, { title: docTitle });
     res.json({ success: true, message: 'Document supprimé.' });
   } catch (error) {
     next(error);
@@ -356,17 +354,14 @@ export const searchDocuments = async (req, res) => {
     const { q } = req.query;
     if (!q) return res.status(400).json({ success: false, error: 'Terme de recherche requis' });
     try {
-        const where = { [Op.or]: [ { title: { [Op.iLike]: `%${q}%` } }, { originalName: { [Op.iLike]: `%${q}%` } } ] };
-        if (req.user.role !== 'admin' && req.user.role !== 'director') {
-          where.userId = req.user.id;
-        } else if (!canViewHRDocuments(req.user)) {
-          const hrUserId = await getHRUserId(User);
-          if (hrUserId) where.userId = { [Op.ne]: hrUserId };
-        }
-        if (!canViewHRCategory(req.user)) {
-          where.category = { [Op.notIn]: HR_ONLY_CATEGORIES };
-        }
-        const documents = await Document.findAll({ where, limit: 50, include: [{ model: User, as: 'uploadedBy' }], });
+        const andConditions = [
+          { [Op.or]: [ { title: { [Op.iLike]: `%${q}%` } }, { originalName: { [Op.iLike]: `%${q}%` } } ] },
+        ];
+        const accessWhere = await buildDocumentAccessWhere(req.user);
+        if (accessWhere) andConditions.push(accessWhere);
+        const searchRestricted = await getRestrictedCategories(req.user);
+        if (searchRestricted.length > 0) andConditions.push({ category: { [Op.notIn]: searchRestricted } });
+        const documents = await Document.findAll({ where: { [Op.and]: andConditions }, limit: 50, include: [{ model: User, as: 'uploadedBy' }], });
         res.json({ success: true, data: documents });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Erreur recherche' });
@@ -377,16 +372,19 @@ export const downloadDocument = async (req, res) => {
     try {
         const document = await Document.findByPk(req.params.id);
         if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
-        if (req.user.role !== 'admin' && req.user.role !== 'director' && document.userId !== req.user.id) {
-            return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
-        }
-        // Bloquer le téléchargement des documents RH pour les non-autorisés
-        const hrUserId = await getHRUserId(User);
-        if (hrUserId && document.userId === hrUserId && !canViewHRDocuments(req.user) && document.userId !== req.user.id) {
+        if (!(await hasDocumentReadAccess(document, req.user))) {
             return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
         }
         const filePath = path.resolve(process.cwd(), document.filePath);
-        try { await fs.access(filePath); res.download(filePath, document.originalName); }
+        try {
+          await fs.access(filePath);
+          // Utiliser le titre du document comme nom de fichier téléchargé
+          const ext = path.extname(document.fileName || document.originalName || '.pdf') || '.pdf';
+          const safeName = (document.title || document.originalName || 'document')
+            .replace(/[/\\?%*:|"<>]/g, '-') // caractères interdits dans les noms de fichiers
+            .trim();
+          res.download(filePath, `${safeName}${ext}`);
+        }
         catch { res.status(404).send('Fichier introuvable sur le serveur.'); }
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
@@ -462,7 +460,7 @@ export const archiveDocument = async (req, res) => {
     const document = await Document.findByPk(req.params.id);
     if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
     // Vérifier que l'utilisateur a le droit (propriétaire ou admin/director)
-    if (document.userId !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'director') {
+    if (document.userId !== req.user.id && !['admin','superadmin'].includes(req.user.role) && req.user.role !== 'director') {
       return res.status(403).json({ success: false, message: 'Accès refusé.' });
     }
     await document.update({ archived: true });
@@ -477,7 +475,7 @@ export const unarchiveDocument = async (req, res) => {
   try {
     const document = await Document.findByPk(req.params.id);
     if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
-    if (document.userId !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'director') {
+    if (document.userId !== req.user.id && !['admin','superadmin'].includes(req.user.role) && req.user.role !== 'director') {
       return res.status(403).json({ success: false, message: 'Accès refusé.' });
     }
     await document.update({ archived: false });
@@ -491,21 +489,16 @@ export const unarchiveDocument = async (req, res) => {
 export const getArchivedDocuments = async (req, res) => {
   try {
     const whereClause = { archived: true };
-    const userRole = req.user.role;
-    const userId = req.user.id;
+    const andConditions = [];
 
-    if (userRole !== 'admin' && userRole !== 'director') {
-      whereClause.userId = userId;
-    } else if (!canViewHRDocuments(req.user)) {
-      const hrUserId = await getHRUserId(User);
-      if (hrUserId) {
-        whereClause.userId = { [Op.ne]: hrUserId };
-      }
-    }
-    // Exclure les catégories RH pour les utilisateurs non-autorisés
-    if (!canViewHRCategory(req.user)) {
-      whereClause.category = { [Op.notIn]: HR_ONLY_CATEGORIES };
-    }
+    const accessWhere = await buildDocumentAccessWhere(req.user);
+    if (accessWhere) andConditions.push(accessWhere);
+
+    // Exclure les catégories restreintes (RH + Compta) pour les utilisateurs non-autorisés
+    const archiveRestricted = await getRestrictedCategories(req.user);
+    if (archiveRestricted.length > 0) andConditions.push({ category: { [Op.notIn]: archiveRestricted } });
+
+    if (andConditions.length > 0) whereClause[Op.and] = andConditions;
 
     const documents = await Document.findAll({
       where: whereClause,
@@ -514,7 +507,7 @@ export const getArchivedDocuments = async (req, res) => {
         {
           model: Workflow,
           as: 'workflows',
-          include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }]
+          include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'signaturePath', 'stampPath'] }]
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -531,6 +524,61 @@ export const getArchivedDocuments = async (req, res) => {
     res.json({ success: true, data: grouped, total: documents.length });
   } catch (error) {
     console.error('Erreur récupération archives:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// ============================================
+// Historique des Pièces de caisse payées — pour le rapport de la caissière.
+// Réservé aux caissiers/admin ; ne montre que les PC où l'utilisateur est
+// validateur (via buildDocumentAccessWhere, cohérent avec le reste de l'app).
+// ============================================
+export const getPieceDeCaisseHistory = async (req, res) => {
+  try {
+    if (!['admin', 'superadmin'].includes(req.user.role) && req.user.role !== 'caissier') {
+      return res.status(403).json({ success: false, message: 'Accès réservé aux caissiers.' });
+    }
+
+    const { from, to } = req.query;
+    const andConditions = [{ category: 'Pièce de caisse' }];
+
+    const accessWhere = await buildDocumentAccessWhere(req.user);
+    if (accessWhere) andConditions.push(accessWhere);
+
+    if (from) andConditions.push({ createdAt: { [Op.gte]: new Date(from) } });
+    if (to) {
+      const endDate = new Date(to);
+      endDate.setHours(23, 59, 59, 999);
+      andConditions.push({ createdAt: { [Op.lte]: endDate } });
+    }
+
+    const documents = await Document.findAll({
+      where: { [Op.and]: andConditions },
+      include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }],
+      order: [['updatedAt', 'DESC']],
+    });
+
+    const rows = documents
+      .filter(doc => doc.metadata?.paye === true)
+      .map(doc => {
+        const lines = doc.metadata?.lines || [];
+        const montant = lines.reduce((sum, l) => sum + (Number(l.sorties) || 0), 0);
+        return {
+          id: doc.id,
+          title: doc.title,
+          nom: doc.metadata?.nom || null,
+          concerne: doc.metadata?.concerne || null,
+          origine: doc.linkedDocumentId ? 'OM' : 'simple',
+          montant,
+          payeAt: doc.metadata?.payeAt || null,
+          uploadedBy: doc.uploadedBy ? `${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName}` : null,
+        };
+      });
+
+    const total = rows.reduce((sum, r) => sum + r.montant, 0);
+    res.json({ success: true, data: rows, total, count: rows.length });
+  } catch (error) {
+    console.error('Erreur historique Pièces de caisse:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };

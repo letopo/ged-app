@@ -110,7 +110,7 @@ export const createDemandeAchat = async (req, res) => {
 // ============================================
 export const getAllDemandesAchat = async (req, res) => {
   try {
-    const isAdminOrAchat = req.user.role === 'admin' || req.user.role === 'achat';
+    const isAdminOrAchat = ['admin','superadmin'].includes(req.user.role) || req.user.role === 'achat';
     const whereClause = isAdminOrAchat ? {} : { requesterId: req.user.id };
 
     // Filtres optionnels
@@ -188,7 +188,7 @@ export const getDemandeAchatById = async (req, res) => {
       });
     }
 
-    const isAdminOrAchat = req.user.role === 'admin' || req.user.role === 'achat';
+    const isAdminOrAchat = ['admin','superadmin'].includes(req.user.role) || req.user.role === 'achat';
     if (!isAdminOrAchat && demande.requesterId !== req.user.id) {
       return res.status(403).json({ 
         success: false, 
@@ -237,7 +237,7 @@ export const updateDemandeAchat = async (req, res) => {
       });
     }
 
-    const isAdminOrAchat = req.user.role === 'admin' || req.user.role === 'achat';
+    const isAdminOrAchat = ['admin','superadmin'].includes(req.user.role) || req.user.role === 'achat';
     const canEdit = isAdminOrAchat || (demande.requesterId === req.user.id && demande.status === 'draft');
 
     if (!canEdit) {
@@ -311,7 +311,7 @@ export const updateDemandeAchatStatus = async (req, res) => {
       });
     }
 
-    const isAdminOrAchat = req.user.role === 'admin' || req.user.role === 'achat';
+    const isAdminOrAchat = ['admin','superadmin'].includes(req.user.role) || req.user.role === 'achat';
     
     // Validation des transitions
     const allowedStatuses = ['draft', 'pending_approval', 'approved', 'rejected', 'in_progress', 'completed'];
@@ -375,7 +375,7 @@ export const deleteDemandeAchat = async (req, res) => {
       });
     }
 
-    const isAdmin = req.user.role === 'admin';
+    const isAdmin = ['admin','superadmin'].includes(req.user.role);
     const canDelete = isAdmin || (demande.requesterId === req.user.id && demande.status === 'draft');
 
     if (!canDelete) {

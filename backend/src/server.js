@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
+import os from 'os';
 import sequelize from './config/database.js';
 import { Op } from 'sequelize';
 
@@ -46,9 +47,27 @@ import phpPatientsRoutes from './routes/phpPatients.js';
 import phpConsultationsRoutes from './routes/phpConsultations.js';
 import phpStatsRoutes from './routes/phpStats.js';
 import phpRendezVousRoutes from './routes/phpRendezVous.js';
+import phpFacturesRoutes from './routes/phpFactures.js'; // ✅ Module factures PHP
+import sageFacturesRoutes from './routes/sageFactures.js'; // ✅ Import auto factures PHP depuis Sage
+import comptaRoutes from './routes/compta.js';           // ✅ Module Comptabilité
 import templatePermissionRoutes from './routes/templatePermissionRoutes.js';
+import notificationPreferenceRoutes from './routes/notificationPreferenceRoutes.js';
+import auditLogRoutes from './routes/auditLogRoutes.js';
+import workflowTemplateRoutes from './routes/workflowTemplateRoutes.js';
+import verificationRoutes from './routes/verificationRoutes.js';
+import onlyofficeRoutes from './routes/onlyoffice.js';
+import formRoutes from './routes/forms.js'; // ✅ Form Builder
+import postesRoutes from './routes/postes.js'; // ✅ Postes organisationnels
+import missionMealRoutes from './routes/missionMeal.js'; // ✅ Indemnités de repas de mission
+import chatRoutes from './routes/chat.js';     // ✅ Module Discussion
+import tenantBrandingRoutes from './routes/tenantBrandingRoutes.js'; // ✅ Branding tenant
 import { startPHPAutoCloseScheduler, cloturerConsultationsPassees } from './utils/phpAutoClose.js';
+import { startSageFactureSync } from './utils/sageFactureSync.js';
 import { startWorkflowExpireScheduler, expireOverdueWorkflows } from './utils/workflowAutoExpire.js';
+import { resolveTenant } from './middleware/tenant.js';
+import superAdminRoutes from './routes/superAdmin.js';
+import { Tenant as TenantModel } from './models/index.js';
+import { globalLimiter } from './middleware/rateLimiter.js';
 
 
 // Configuration
@@ -59,37 +78,84 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Faire confiance au proxy nginx pour obtenir la vraie IP client (X-Forwarded-For)
+app.set('trust proxy', 1);
+
 // ✅ NOUVEAU : Créer serveur HTTP pour Socket.IO
 const httpServer = createServer(app);
 
 // ============================================
 // MIDDLEWARE CORS
 // ============================================
-const allowedOrigins = [
+// Détecte dynamiquement toutes les IPs réseau de la machine hôte
+// → plus besoin d'ajouter chaque IP manuellement quand le réseau change
+const getLocalNetworkOrigins = () => {
+  const origins = new Set();
+  const ifaces = os.networkInterfaces();
+  for (const iface of Object.values(ifaces)) {
+    for (const addr of iface) {
+      if (addr.family === 'IPv4') {
+        origins.add(`http://${addr.address}`);
+        origins.add(`https://${addr.address}`);
+        origins.add(`http://${addr.address}:80`);
+        origins.add(`http://${addr.address}:3000`);
+        origins.add(`http://${addr.address}:5173`);
+      }
+    }
+  }
+  return origins;
+};
+
+// Origines fixes (domaines, localhost, outils)
+const fixedOrigins = new Set([
   'http://localhost',
   'https://localhost',
-  'https://192.168.1.186',
   'http://localhost:80',
-  'https://localhost:80',
+  'http://localhost:3000',
   'http://localhost:3001',
-  'https://localhost:3001',
   'http://localhost:5173',
   'https://localhost:5173',
-  'http://192.168.1.186',
+  'http://localhost:8080',
+  'https://localhost:8080',
   'https://ged.hsjm.net',
   'http://ged.hsjm.net',
-  'https://192.168.1.179',
-  'http://192.168.1.179',
-  process.env.CORS_ORIGIN
-].filter(Boolean);
+  'https://ged.hsjmcam.net',
+  'http://ged.hsjmcam.net',
+  'null', // blob: URLs envoient Origin: null
+  process.env.CORS_ORIGIN,
+  process.env.ONLYOFFICE_URL,
+].filter(Boolean));
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    // Pas d'origin = requête same-origin, Electron, Postman, curl → toujours OK
+    if (!origin) return callback(null, true);
+
+    // Vérifier les origines fixes
+    if (fixedOrigins.has(origin)) return callback(null, true);
+
+    // Vérifier dynamiquement les IPs réseau actuelles de la machine
+    if (getLocalNetworkOrigins().has(origin)) return callback(null, true);
+
+    // Autoriser tous les sous-domaines *.hsjmcam.net
+    try {
+      const host = new URL(origin).hostname;
+      if (/^[a-z0-9-]+\.hsjmcam\.net$/.test(host)) return callback(null, true);
+    } catch (_) {}
+
+    // Autoriser n'importe quelle IP privée (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    try {
+      const host = new URL(origin).hostname;
+      const isPrivateIP = (
+        /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host) ||
+        /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) ||
+        /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host) ||
+        host === '127.0.0.1'
+      );
+      if (isPrivateIP) return callback(null, true);
+    } catch (_) {}
+
+    callback(new Error(`CORS: origine non autorisée → ${origin}`));
   },
   credentials: true
 }));
@@ -106,9 +172,29 @@ app.use((req, res, next) => {
 
 // ============================================
 // GESTION DES FICHIERS STATIQUES
+// Les uploads doivent être accessibles par OnlyOffice (Origin: localhost:8080)
+// → on ajoute CORS: * explicitement avant le middleware global
 // ============================================
-app.use('/api/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/api/uploads', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
+
 app.use('/api/signatures', express.static(path.join(__dirname, '../signatures')));
+
+// ============================================
+// RATE LIMITING
+// ============================================
+app.use('/api', globalLimiter);
+
+// ============================================
+// MIDDLEWARE MULTI-TENANT
+// ============================================
+app.use('/api', resolveTenant);
 
 // ============================================
 // ROUTES API EXISTANTES
@@ -130,7 +216,6 @@ app.use('/api/schedules', schedulesRoutes);
 app.use('/api/departments', departmentsRoutes);
 app.use('/api/shift-types', shiftTypesRoutes);
 app.use('/api/trello', trelloRoutes);
-app.use('/api/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/api/license', licenseRoutes); // <--- AJOUTER
 app.use('/api/invoices', invoiceRoutes); // ✅ NOUVELLE ROUTE POUR LES FACTURES
 app.use('/api/demande-achat', demandeAchatRoutes); // ✅ NOUVELLE ROUTE POUR LES DEMANDES D'ACHAT
@@ -141,7 +226,21 @@ app.use('/api/php/patients', phpPatientsRoutes);
 app.use('/api/php/consultations', phpConsultationsRoutes);
 app.use('/api/php/stats', phpStatsRoutes);
 app.use('/api/php/rendez-vous', phpRendezVousRoutes);
+app.use('/api/php/factures', phpFacturesRoutes); // ✅ Factures prestataires (OCR)
+app.use('/api/sage-factures', sageFacturesRoutes); // ✅ Import auto factures PHP depuis Sage
+app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
 app.use('/api/template-permissions', templatePermissionRoutes);
+app.use('/api/notification-preferences', notificationPreferenceRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/workflow-templates', workflowTemplateRoutes);
+app.use('/api/verify', verificationRoutes);
+app.use('/api/forms', formRoutes); // ✅ Form Builder
+app.use('/api/onlyoffice', onlyofficeRoutes);
+app.use('/api/postes', postesRoutes); // ✅ Postes organisationnels
+app.use('/api/mission-meal-rates', missionMealRoutes); // ✅ Indemnités de repas de mission
+app.use('/api/chat',   chatRoutes);   // ✅ Module Discussion
+app.use('/api/tenant', tenantBrandingRoutes); // ✅ Branding tenant (logo + couleur)
+app.use('/api/super-admin', superAdminRoutes);
 
 
 // ============================================
@@ -161,6 +260,38 @@ app.use((err, req, res, next) => {
 // ============================================
 // DÉMARRAGE DU SERVEUR
 // ============================================
+const autoDeleteExpiredTenants = async () => {
+  try {
+    const expired = await TenantModel.findAll({
+      where: { autoDeleteAt: { [Op.lte]: new Date() }, slug: { [Op.ne]: 'hsjm' } }
+    });
+    for (const tenant of expired) {
+      const { User: U } = await import('./models/index.js');
+      await U.unscoped().destroy({ where: { tenantId: tenant.id } });
+      await tenant.destroy();
+      console.log(`🗑️  Tenant auto-supprimé : ${tenant.name} (${tenant.slug})`);
+    }
+  } catch (err) {
+    console.error('❌ Auto-suppression tenant:', err.message);
+  }
+};
+
+const startTenantAutoDeleteScheduler = () => {
+  // Vérification quotidienne à 3h du matin
+  const msUntilNext3am = () => {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(3, 0, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1);
+    return next - now;
+  };
+  setTimeout(() => {
+    autoDeleteExpiredTenants();
+    setInterval(autoDeleteExpiredTenants, 24 * 60 * 60 * 1000);
+  }, msUntilNext3am());
+  console.log('✅ Planificateur auto-suppression tenants activé.');
+};
+
 const startServer = async () => {
   try {
     // 1️⃣ Connexion à la base de données
@@ -223,6 +354,7 @@ const startServer = async () => {
           date_mise_en_service DATE,
           statut VARCHAR(20) NOT NULL DEFAULT 'actif' CHECK (statut IN ('actif','en_reparation','hors_service')),
           notes TEXT,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -254,6 +386,7 @@ const startServer = async () => {
           technicien_id UUID REFERENCES users(id) ON DELETE SET NULL,
           notes TEXT,
           actif BOOLEAN NOT NULL DEFAULT TRUE,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -281,6 +414,7 @@ const startServer = async () => {
           duree_reelle FLOAT,
           observations TEXT,
           signale_par VARCHAR(255),
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -301,6 +435,7 @@ const startServer = async () => {
           responsable VARCHAR(255),
           telephone VARCHAR(20),
           is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -316,6 +451,7 @@ const startServer = async () => {
           nom VARCHAR(255) NOT NULL,
           infirmerie_id UUID REFERENCES php_infirmeries(id) ON DELETE SET NULL,
           is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -339,6 +475,7 @@ const startServer = async () => {
           status VARCHAR(20) NOT NULL DEFAULT 'actif' CHECK (status IN ('actif','decede','transfere','inactif')),
           created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
           notes TEXT,
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
@@ -511,12 +648,278 @@ const startServer = async () => {
           allowed_user_ids JSONB DEFAULT '[]',
           is_restricted BOOLEAN DEFAULT FALSE,
           description VARCHAR(255),
+          default_visibility VARCHAR(255) NOT NULL DEFAULT 'personal',
+          tenant_id UUID,
           created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
       `);
       console.log('✅ Table template_permissions vérifiée/créée.');
     } catch (e) { console.warn('⚠️ template_permissions:', e.message); }
+
+    // 2aa. Migration : créer la table notification_preferences
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS notification_preferences (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          email_on_new_task BOOLEAN DEFAULT TRUE,
+          email_on_approval BOOLEAN DEFAULT TRUE,
+          email_on_rejection BOOLEAN DEFAULT TRUE,
+          email_on_comment BOOLEAN DEFAULT TRUE,
+          push_enabled BOOLEAN DEFAULT TRUE,
+          tenant_id UUID,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+      `);
+      console.log('✅ Table notification_preferences verifiee/creee.');
+    } catch (e) { console.warn('⚠️ notification_preferences:', e.message); }
+
+    // 2ab. Migration : créer la table audit_logs
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID,
+          user_email VARCHAR(255),
+          user_name VARCHAR(255),
+          action VARCHAR(255) NOT NULL,
+          resource VARCHAR(255) NOT NULL,
+          resource_id VARCHAR(255),
+          details JSONB,
+          ip_address VARCHAR(100),
+          user_agent TEXT,
+          tenant_id UUID,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+      `);
+      console.log('✅ Table audit_logs verifiee/creee.');
+    } catch (e) { console.warn('⚠️ audit_logs:', e.message); }
+
+    // Table workflow_templates
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS workflow_templates (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(255) NOT NULL,
+          description VARCHAR(500),
+          categories JSONB,
+          validators JSONB NOT NULL DEFAULT '[]',
+          created_by UUID NOT NULL REFERENCES users(id),
+          is_active BOOLEAN DEFAULT true,
+          tenant_id UUID,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+      `);
+      console.log('✅ Table workflow_templates verifiee/creee.');
+    } catch (e) { console.warn('⚠️ workflow_templates:', e.message); }
+
+    // Table workflow_comments
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS workflow_comments (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+          user_id UUID NOT NULL REFERENCES users(id),
+          text TEXT NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_workflow_comments_document_id ON workflow_comments(document_id);
+      `);
+      console.log('✅ Table workflow_comments verifiee/creee.');
+    } catch (e) { console.warn('⚠️ workflow_comments:', e.message); }
+
+    // ── Form Builder ──────────────────────────────────────────────────────────
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS forms (
+          id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          title         VARCHAR(255) NOT NULL,
+          description   TEXT,
+          type          VARCHAR(50),
+          status        VARCHAR(20) DEFAULT 'draft',
+          schema        JSONB NOT NULL DEFAULT '{"version":1,"fields":[],"layout":{"columns":12,"rowHeight":40,"gap":8},"logic":{"conditions":[],"calculations":[]}}',
+          settings      JSONB DEFAULT '{}',
+          created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+          published_at  TIMESTAMP,
+          version       INTEGER DEFAULT 1,
+          workflow_template_id UUID REFERENCES workflow_templates(id) ON DELETE SET NULL,
+          tenant_id     UUID,
+          created_at    TIMESTAMP DEFAULT NOW(),
+          updated_at    TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_forms_status     ON forms(status);
+        CREATE INDEX IF NOT EXISTS idx_forms_type       ON forms(type);
+        CREATE INDEX IF NOT EXISTS idx_forms_created_by ON forms(created_by);
+        CREATE INDEX IF NOT EXISTS idx_forms_created_at ON forms(created_at);
+      `);
+      console.log('✅ Table forms verifiee/creee.');
+    } catch (e) { console.warn('⚠️ forms:', e.message); }
+
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS form_permissions (
+          id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          form_id     UUID NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
+          target_type VARCHAR(20) NOT NULL,
+          target_id   VARCHAR(100) NOT NULL,
+          can_view    BOOLEAN DEFAULT true,
+          can_fill    BOOLEAN DEFAULT true,
+          can_edit    BOOLEAN DEFAULT false,
+          can_delete  BOOLEAN DEFAULT false,
+          created_at  TIMESTAMP DEFAULT NOW(),
+          updated_at  TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_form_permissions_form_id ON form_permissions(form_id);
+        CREATE INDEX IF NOT EXISTS idx_form_permissions_target  ON form_permissions(target_type, target_id);
+      `);
+      console.log('✅ Table form_permissions verifiee/creee.');
+    } catch (e) { console.warn('⚠️ form_permissions:', e.message); }
+
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS form_responses (
+          id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          form_id      UUID NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
+          form_version INTEGER DEFAULT 1,
+          submitted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+          data         JSONB NOT NULL DEFAULT '{}',
+          status       VARCHAR(20) DEFAULT 'submitted',
+          ip_address   VARCHAR(45),
+          submitted_at TIMESTAMP DEFAULT NOW(),
+          workflow_status       VARCHAR(30),
+          workflow_current_step INTEGER,
+          workflow_data         JSONB,
+          tenant_id    UUID,
+          created_at   TIMESTAMP DEFAULT NOW(),
+          updated_at   TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_form_responses_form_id      ON form_responses(form_id);
+        CREATE INDEX IF NOT EXISTS idx_form_responses_submitted_by ON form_responses(submitted_by);
+        CREATE INDEX IF NOT EXISTS idx_form_responses_status       ON form_responses(status);
+        CREATE INDEX IF NOT EXISTS idx_form_responses_submitted_at ON form_responses(submitted_at);
+        CREATE INDEX IF NOT EXISTS idx_form_responses_workflow_status ON form_responses(workflow_status);
+      `);
+      console.log('✅ Table form_responses verifiee/creee.');
+    } catch (e) { console.warn('⚠️ form_responses:', e.message); }
+
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS compta_docs (
+          id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          numero_ordre     INTEGER,
+          date_reception   DATE,
+          libelle          TEXT,
+          date_piece       DATE,
+          numero_piece     VARCHAR(120),
+          numero_comptable VARCHAR(120),
+          montant          DECIMAL(18,2),
+          devise           VARCHAR(8) NOT NULL DEFAULT 'XAF',
+          type_mouvement   VARCHAR(10) NOT NULL DEFAULT 'inconnu',
+          document_id      UUID REFERENCES documents(id) ON DELETE SET NULL,
+          statut           VARCHAR(20) NOT NULL DEFAULT 'valide',
+          extraction       JSONB,
+          saisi_par        UUID REFERENCES users(id) ON DELETE SET NULL,
+          tenant_id        UUID,
+          created_at       TIMESTAMP DEFAULT NOW(),
+          updated_at       TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_compta_docs_numero_ordre  ON compta_docs(numero_ordre);
+        CREATE INDEX IF NOT EXISTS idx_compta_docs_date_reception ON compta_docs(date_reception);
+        CREATE INDEX IF NOT EXISTS idx_compta_docs_saisi_par     ON compta_docs(saisi_par);
+      `);
+      // Ajouter group_id si absent (pièces multi-lignes)
+      await sequelize.query(`
+        ALTER TABLE compta_docs ADD COLUMN IF NOT EXISTS group_id UUID;
+        ALTER TABLE compta_docs ADD COLUMN IF NOT EXISTS ligne_ordre INTEGER DEFAULT 1;
+        CREATE INDEX IF NOT EXISTS idx_compta_docs_group_id ON compta_docs(group_id);
+      `);
+      console.log('✅ Table compta_docs vérifiée/créée.');
+    } catch (e) { console.warn('⚠️ compta_docs:', e.message); }
+
+    // Tables module Discussion (chat)
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS chat_conversations (
+          id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          type          VARCHAR(20) NOT NULL DEFAULT 'channel' CHECK (type IN ('channel','direct','document')),
+          name          VARCHAR(100),
+          description   TEXT,
+          document_id   UUID,
+          created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+          is_archived   BOOLEAN NOT NULL DEFAULT false,
+          last_message_at TIMESTAMP WITH TIME ZONE,
+          tenant_id     UUID,
+          created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          conversation_id UUID NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          author_id       UUID REFERENCES users(id) ON DELETE SET NULL,
+          content         TEXT NOT NULL DEFAULT '',
+          attachment_path TEXT,
+          attachment_name VARCHAR(255),
+          is_deleted      BOOLEAN NOT NULL DEFAULT false,
+          edited_at       TIMESTAMP WITH TIME ZONE,
+          created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_messages_conv_id ON chat_messages(conversation_id, created_at);
+        CREATE TABLE IF NOT EXISTS chat_conversation_members (
+          id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          conversation_id UUID NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role            VARCHAR(20) NOT NULL DEFAULT 'member',
+          last_read_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          joined_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          UNIQUE(conversation_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_conversation_members(user_id);
+        CREATE TABLE IF NOT EXISTS chat_reactions (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          message_id UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          emoji VARCHAR(10) NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(message_id, user_id, emoji)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_reactions_msg ON chat_reactions(message_id);
+      `);
+      console.log('✅ Tables chat vérifiées/créées.');
+    } catch (e) { console.warn('⚠️ chat tables:', e.message); }
+
+    // Canal général : créer si absent
+    try {
+      await sequelize.query(`
+        INSERT INTO chat_conversations (id, type, name, description, created_at, updated_at)
+        VALUES (gen_random_uuid(), 'channel', 'général', 'Canal de discussion général', NOW(), NOW())
+        ON CONFLICT DO NOTHING;
+      `);
+    } catch (_) {}
+
+    // Postes système gmao et kanban (migration des accès email hardcodés)
+    try {
+      // Récupérer tous les tenants actifs pour créer les postes système dans chacun
+      const [tenants] = await sequelize.query(`SELECT id FROM tenants WHERE is_active = true`);
+      for (const t of tenants) {
+        await sequelize.query(`
+          INSERT INTO postes (id, code, label, description, tenant_id, created_at, updated_at)
+          VALUES
+            (gen_random_uuid(), 'gmao',   'Responsable GMAO',    'Accès au module de maintenance préventive des équipements', :tenantId, NOW(), NOW()),
+            (gen_random_uuid(), 'kanban', 'Suivi Technique',     'Accès au tableau de suivi technique (MG, Informatique, Biomédical)', :tenantId, NOW(), NOW())
+          ON CONFLICT DO NOTHING;
+        `, { replacements: { tenantId: t.id } });
+      }
+      console.log('✅ Postes gmao/kanban vérifiés.');
+    } catch (e) { console.warn('⚠️ postes gmao/kanban:', e.message); }
 
     // 3️⃣ Créer l'utilisateur admin par défaut
     console.log('');
@@ -535,6 +938,12 @@ const startServer = async () => {
     // 4c. Workflow : expirer les tâches dépassées au démarrage, puis planifier chaque nuit
     await expireOverdueWorkflows();
     startWorkflowExpireScheduler();
+
+    // 4c-bis. Sage : import automatique périodique des factures PHP (no-op si SAGE_* absent)
+    startSageFactureSync();
+
+    // 4d. Tenant auto-suppression : vérifier chaque nuit les tenants à supprimer
+    startTenantAutoDeleteScheduler();
     console.log('');
 
     // 5️⃣ Démarrage du serveur HTTP (avec Socket.IO)

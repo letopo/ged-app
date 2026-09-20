@@ -54,7 +54,24 @@ const Employee = sequelize.define('Employee', {
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
-  }
+  },
+  // Lien vers le compte de connexion correspondant (si l'employé en a un),
+  // pour fusionner les listes Employee + User (ex: sélection missionnaire sur un OM)
+  // sans doublons. Rapproché initialement par nom/prénom, à tenir à jour ensuite.
+  userId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'user_id',
+  },
+  // Catégorie/grade du personnel — détermine le taux d'indemnité de mission (repas).
+  categorie: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
 }, {
   tableName: 'employees',
   timestamps: true,
@@ -65,6 +82,9 @@ const Employee = sequelize.define('Employee', {
     },
     {
       fields: ['service_id']
+    },
+    {
+      fields: ['user_id']
     }
   ]
 });
@@ -72,6 +92,7 @@ const Employee = sequelize.define('Employee', {
 // Définition des associations
 Employee.associate = function(models) {
   this.belongsTo(models.Service, { foreignKey: 'serviceId', as: 'service' });
+  this.belongsTo(models.User, { foreignKey: 'userId', as: 'user' });
 };
 
 export default Employee;

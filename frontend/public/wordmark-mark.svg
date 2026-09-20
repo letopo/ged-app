@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="GED mark">
+  <rect x="6" y="10" width="42" height="48" rx="4" fill="#1B3A6B" opacity="0.18"></rect>
+  <rect x="11" y="4" width="42" height="48" rx="4" fill="#1B3A6B"></rect>
+  <path d="M43 4 L53 14 L43 14 Z" fill="#0F2340"></path>
+  <path d="M19 32 C 25 24, 31 38, 37 32 C 40 28, 43 30, 46 28" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>

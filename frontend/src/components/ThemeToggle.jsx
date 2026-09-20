@@ -8,16 +8,18 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="relative inline-flex items-center justify-center w-10 h-10 rounded-full 
-                 bg-blue-500 hover:bg-blue-600 dark:bg-blue-700 dark:hover:bg-blue-600
-                 text-white transition-all duration-200 shadow-md hover:shadow-lg"
       aria-label={isDarkMode ? 'Activer le mode clair' : 'Activer le mode sombre'}
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 40, height: 40, borderRadius: '50%',
+        background: 'var(--brand)', color: '#fff', border: 'none',
+        cursor: 'pointer', boxShadow: 'var(--shadow-2)',
+        transition: 'background .15s, box-shadow .15s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--brand-active)'; e.currentTarget.style.boxShadow = 'var(--shadow-3)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'var(--brand)'; e.currentTarget.style.boxShadow = 'var(--shadow-2)'; }}
     >
-      {isDarkMode ? (
-        <Sun className="w-5 h-5 animate-in spin-in-180 duration-300" />
-      ) : (
-        <Moon className="w-5 h-5 animate-in spin-in-180 duration-300" />
-      )}
+      {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
     </button>
   );
 }

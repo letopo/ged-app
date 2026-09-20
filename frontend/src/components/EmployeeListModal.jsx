@@ -3,25 +3,31 @@ import React, { useState, useEffect } from 'react';
 import { employeesAPI } from '../services/api';
 import { Users, Search, X, Loader } from 'lucide-react';
 
-const EmployeeListModal = ({ onClose, onSelectEmployee, selectedService = null }) => {
-  const [employees, setEmployees] = useState([]);
-  const [services, setServices] = useState([]);
+const inputStyle = {
+  width: '100%', height: 34, padding: '0 10px 0 30px', boxSizing: 'border-box',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none',
+};
+const selectStyle = {
+  width: '100%', height: 34, padding: '0 8px', boxSizing: 'border-box',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
+  background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none',
+};
+
+export default function EmployeeListModal({ onClose, onSelectEmployee, selectedService = null }) {
+  const [employees, setEmployees]         = useState([]);
+  const [services, setServices]           = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(selectedService || '');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm]       = useState('');
+  const [loading, setLoading]             = useState(false);
 
-  useEffect(() => {
-    loadServices();
-  }, []);
-
-  useEffect(() => {
-    loadEmployees();
-  }, [selectedServiceId]);
+  useEffect(() => { loadServices(); }, []);
+  useEffect(() => { loadEmployees(); }, [selectedServiceId]);
 
   const loadServices = async () => {
     try {
-      const response = await employeesAPI.getServicesWithEmployees();
-      setServices(response.data.services || []);
+      const res = await employeesAPI.getServicesWithEmployees();
+      setServices(res.data.services || []);
     } catch (err) {
       console.error('Erreur chargement services:', err);
     }
@@ -30,15 +36,10 @@ const EmployeeListModal = ({ onClose, onSelectEmployee, selectedService = null }
   const loadEmployees = async () => {
     try {
       setLoading(true);
-      let response;
-      
-      if (selectedServiceId) {
-        response = await employeesAPI.getByService(selectedServiceId);
-      } else {
-        response = await employeesAPI.getAll({ limit: 100 });
-      }
-      
-      setEmployees(response.data.employees || []);
+      const res = selectedServiceId
+        ? await employeesAPI.getByService(selectedServiceId)
+        : await employeesAPI.getAll({ limit: 100 });
+      setEmployees(res.data.employees || []);
     } catch (err) {
       console.error('Erreur chargement employés:', err);
       setEmployees([]);
@@ -47,126 +48,115 @@ const EmployeeListModal = ({ onClose, onSelectEmployee, selectedService = null }
     }
   };
 
-  const filteredEmployees = employees.filter(employee =>
-    employee.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.matricule.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEmployees = employees.filter(e =>
+    e.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.matricule.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleEmployeeSelect = (employee) => {
-    if (onSelectEmployee) {
-      onSelectEmployee(employee);
-    }
+  const handleSelect = (employee) => {
+    if (onSelectEmployee) onSelectEmployee(employee);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-dark-surface p-6 rounded-lg shadow-xl dark:shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text">
-              Liste des Employés
-            </h2>
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16,
+    }}>
+      <div className="animate-fadeIn" style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)',
+        width: '100%', maxWidth: 720, maxHeight: '90vh',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+
+        {/* Header */}
+        <div style={{
+          padding: '14px 18px', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Users size={18} color="var(--brand)" />
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>Liste des Employés</div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <X className="w-6 h-6" />
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex' }}>
+            <X size={16} />
           </button>
         </div>
 
-        {/* Filtres */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Rechercher un employé..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-              />
-            </div>
+        {/* Filters */}
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, flexShrink: 0 }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)' }} />
+            <input
+              style={inputStyle}
+              type="text"
+              placeholder="Nom, prénom ou matricule…"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
           </div>
-          <div className="w-full md:w-64">
-            <select
-              value={selectedServiceId}
-              onChange={(e) => setSelectedServiceId(e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-dark-bg dark:text-dark-text"
-            >
+          <div style={{ width: 220 }}>
+            <select style={selectStyle} value={selectedServiceId} onChange={e => setSelectedServiceId(e.target.value)}>
               <option value="">Tous les services</option>
-              {services.map(service => (
-                <option key={service.id} value={service.id}>
-                  {service.name} ({service.employees?.length || 0})
-                </option>
+              {services.map(s => (
+                <option key={s.id} value={s.id}>{s.name} ({s.employees?.length || 0})</option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Liste des employés */}
-        <div className="flex-1 overflow-y-auto">
+        {/* List */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
           {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader className="animate-spin text-blue-600 w-8 h-8" />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
+              <Loader size={24} color="var(--brand)" className="animate-spin" />
             </div>
           ) : filteredEmployees.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-dark-text">
-                Aucun employé trouvé
-              </h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-dark-text-secondary">
-                {searchTerm || selectedServiceId 
-                  ? 'Aucun résultat pour les critères sélectionnés.' 
-                  : 'Aucun employé enregistré.'}
-              </p>
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <Users size={36} color="var(--border-strong)" style={{ marginBottom: 10 }} />
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-muted)' }}>Aucun employé trouvé</div>
+              <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 3 }}>
+                {searchTerm || selectedServiceId ? 'Aucun résultat pour ces critères.' : 'Aucun employé enregistré.'}
+              </div>
             </div>
           ) : (
-            <div className="grid gap-3">
-              {filteredEmployees.map(employee => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {filteredEmployees.map(emp => (
                 <div
-                  key={employee.id}
-                  className="p-4 border border-gray-200 dark:border-dark-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                  onClick={() => handleEmployeeSelect(employee)}
+                  key={emp.id}
+                  onClick={() => handleSelect(emp)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', cursor: 'pointer', transition: 'background .1s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0">
-                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 dark:text-blue-300 font-medium text-sm">
-                              {employee.firstName[0]}{employee.lastName[0]}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-lg font-medium text-gray-900 dark:text-dark-text">
-                            {employee.firstName} {employee.lastName}
-                          </h4>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-dark-text-secondary">
-                            <span className="font-mono">{employee.matricule}</span>
-                            <span>•</span>
-                            <span>{employee.service?.name}</span>
-                            <span>•</span>
-                            <span>
-                              {employee.gender === 'M' ? 'Masculin' : 'Féminin'}
-                            </span>
-                          </div>
-                        </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: 'var(--brand-soft)', color: 'var(--brand)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 700, flexShrink: 0,
+                    }}>
+                      {emp.firstName[0]}{emp.lastName[0]}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>
+                        {emp.firstName} {emp.lastName}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--fg-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)' }}>{emp.matricule}</span>
+                        <span>·</span>
+                        <span>{emp.service?.name}</span>
+                        <span>·</span>
+                        <span>{emp.gender === 'M' ? 'Masculin' : 'Féminin'}</span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                        {employee.childrenCount} enfant(s)
-                      </div>
-                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {new Date(employee.birthDate).toLocaleDateString('fr-FR')}
-                      </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{emp.childrenCount} enfant(s)</div>
+                    <div style={{ fontSize: 10, color: 'var(--fg-subtle)', marginTop: 1 }}>
+                      {new Date(emp.birthDate).toLocaleDateString('fr-FR')}
                     </div>
                   </div>
                 </div>
@@ -175,10 +165,15 @@ const EmployeeListModal = ({ onClose, onSelectEmployee, selectedService = null }
           )}
         </div>
 
-        <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-dark-border">
+        {/* Footer */}
+        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 dark:text-dark-text rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+            style={{
+              height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)',
+              border: '1px solid var(--border)', background: 'transparent',
+              color: 'var(--fg-muted)', fontSize: 13, cursor: 'pointer',
+            }}
           >
             Fermer
           </button>
@@ -186,6 +181,4 @@ const EmployeeListModal = ({ onClose, onSelectEmployee, selectedService = null }
       </div>
     </div>
   );
-};
-
-export default EmployeeListModal;
+}

@@ -1,10 +1,10 @@
 // frontend/src/pages/PortailDashboard.jsx
 
 import { useState, useEffect } from 'react';
-import { 
-  UserPlus, 
-  Users, 
-  Activity, 
+import {
+  UserPlus,
+  Users,
+  Activity,
   Printer,
   Clock,
   CheckCircle
@@ -65,7 +65,7 @@ export default function PortailDashboard() {
 
       setGeneratedTicket(response.data.data);
       setShowModal(false);
-      
+
       // Recharger les stats
       loadQueueStats();
 
@@ -156,32 +156,32 @@ export default function PortailDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6">
+    <div className="min-h-screen p-6" style={{ background: 'var(--surface-2)' }}>
       <div className="max-w-6xl mx-auto">
         {/* En-tête */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+        <div className="rounded-lg p-6 mb-6" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-2)' }}>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--fg)' }}>
                 🏥 Accueil Patients
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p style={{ color: 'var(--fg-muted)' }}>
                 Sélectionnez le type de visite du patient
               </p>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                {new Date().toLocaleDateString('fr-FR', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
+              <div className="text-sm" style={{ color: 'var(--fg-muted)' }}>
+                {new Date().toLocaleDateString('fr-FR', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
                 })}
               </div>
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {new Date().toLocaleTimeString('fr-FR', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
+              <div className="text-2xl font-bold" style={{ color: 'var(--brand)' }}>
+                {new Date().toLocaleTimeString('fr-FR', {
+                  hour: '2-digit',
+                  minute: '2-digit'
                 })}
               </div>
             </div>
@@ -190,33 +190,33 @@ export default function PortailDashboard() {
 
         {/* Statistiques des files */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="rounded-lg p-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Accueil PHP</p>
-                <p className="text-3xl font-bold text-blue-600">{queueStats.accueil_php}</p>
+                <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>Accueil PHP</p>
+                <p className="text-3xl font-bold" style={{ color: 'var(--brand)' }}>{queueStats.accueil_php}</p>
               </div>
-              <Users className="w-12 h-12 text-blue-600 opacity-20" />
+              <Users className="w-12 h-12" style={{ color: 'var(--brand)', opacity: 0.2 }} />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="rounded-lg p-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Accueil Normal</p>
-                <p className="text-3xl font-bold text-green-600">{queueStats.accueil_normal}</p>
+                <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>Accueil Normal</p>
+                <p className="text-3xl font-bold" style={{ color: 'var(--success)' }}>{queueStats.accueil_normal}</p>
               </div>
-              <Users className="w-12 h-12 text-green-600 opacity-20" />
+              <Users className="w-12 h-12" style={{ color: 'var(--success)', opacity: 0.2 }} />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="rounded-lg p-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Caisse</p>
-                <p className="text-3xl font-bold text-purple-600">{queueStats.caisse}</p>
+                <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>Caisse</p>
+                <p className="text-3xl font-bold" style={{ color: 'var(--fg)' }}>{queueStats.caisse}</p>
               </div>
-              <Activity className="w-12 h-12 text-purple-600 opacity-20" />
+              <Activity className="w-12 h-12" style={{ color: 'var(--fg-muted)', opacity: 0.2 }} />
             </div>
           </div>
         </div>
@@ -226,57 +226,60 @@ export default function PortailDashboard() {
           {/* Consultation */}
           <button
             onClick={() => handleVisitTypeClick('consultation')}
-            className="group bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl shadow-xl p-8 transform transition-all duration-200 hover:scale-105 hover:shadow-2xl"
+            className="group rounded-2xl p-8 transform transition-all duration-200 hover:scale-105"
+            style={{ background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: 'var(--shadow-2)' }}
           >
             <div className="flex flex-col items-center space-y-4">
-              <div className="p-4 bg-white/20 rounded-full group-hover:bg-white/30 transition-colors">
+              <div className="p-4 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
                 <UserPlus className="w-16 h-16" />
               </div>
               <div className="text-2xl font-bold">Consultation</div>
-              <div className="text-sm opacity-90">Patient venant consulter</div>
+              <div className="text-sm" style={{ opacity: 0.9 }}>Patient venant consulter</div>
             </div>
           </button>
 
           {/* Visite */}
           <button
             onClick={() => handleVisitTypeClick('visite')}
-            className="group bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl shadow-xl p-8 transform transition-all duration-200 hover:scale-105 hover:shadow-2xl"
+            className="group rounded-2xl p-8 transform transition-all duration-200 hover:scale-105"
+            style={{ background: 'var(--success)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: 'var(--shadow-2)' }}
           >
             <div className="flex flex-col items-center space-y-4">
-              <div className="p-4 bg-white/20 rounded-full group-hover:bg-white/30 transition-colors">
+              <div className="p-4 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
                 <Users className="w-16 h-16" />
               </div>
               <div className="text-2xl font-bold">Visite Patient</div>
-              <div className="text-sm opacity-90">Visiteur pour un patient</div>
+              <div className="text-sm" style={{ opacity: 0.9 }}>Visiteur pour un patient</div>
             </div>
           </button>
 
           {/* Garde Malade */}
           <button
             onClick={() => handleVisitTypeClick('garde_malade')}
-            className="group bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-2xl shadow-xl p-8 transform transition-all duration-200 hover:scale-105 hover:shadow-2xl"
+            className="group rounded-2xl p-8 transform transition-all duration-200 hover:scale-105"
+            style={{ background: 'var(--fg)', color: 'var(--surface)', border: 'none', cursor: 'pointer', boxShadow: 'var(--shadow-2)' }}
           >
             <div className="flex flex-col items-center space-y-4">
-              <div className="p-4 bg-white/20 rounded-full group-hover:bg-white/30 transition-colors">
+              <div className="p-4 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
                 <Activity className="w-16 h-16" />
               </div>
               <div className="text-2xl font-bold">Garde Malade</div>
-              <div className="text-sm opacity-90">Accompagnateur de patient</div>
+              <div className="text-sm" style={{ opacity: 0.9 }}>Accompagnateur de patient</div>
             </div>
           </button>
         </div>
 
         {/* Ticket généré */}
         {generatedTicket && (
-          <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl shadow-2xl p-8 animate-bounce-in">
+          <div className="rounded-2xl p-8 animate-bounce-in" style={{ background: 'var(--success)', color: '#fff', boxShadow: 'var(--shadow-3)' }}>
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-4">
                   <CheckCircle className="w-8 h-8" />
                   <h3 className="text-2xl font-bold">Ticket créé avec succès !</h3>
                 </div>
-                
-                <div className="bg-white/20 rounded-xl p-6 mb-4">
+
+                <div className="rounded-xl p-6 mb-4" style={{ background: 'rgba(255,255,255,0.2)' }}>
                   <div className="text-6xl font-bold text-center mb-4">
                     {generatedTicket.ticketNumber}
                   </div>
@@ -290,7 +293,7 @@ export default function PortailDashboard() {
                   </div>
                 </div>
 
-                <p className="text-center text-lg opacity-90">
+                <p className="text-center text-lg" style={{ opacity: 0.9 }}>
                   <Clock className="inline w-5 h-5 mr-2" />
                   Veuillez patienter, vous serez appelé
                 </p>
@@ -298,7 +301,10 @@ export default function PortailDashboard() {
 
               <button
                 onClick={handlePrintTicket}
-                className="ml-6 bg-white text-green-600 hover:bg-green-50 px-6 py-4 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-lg"
+                className="ml-6 px-6 py-4 rounded-xl font-bold flex items-center gap-2 transition-colors"
+                style={{ background: 'var(--surface)', color: 'var(--success)', border: 'none', cursor: 'pointer', boxShadow: 'var(--shadow-2)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
               >
                 <Printer className="w-6 h-6" />
                 Imprimer
@@ -309,23 +315,24 @@ export default function PortailDashboard() {
 
         {/* Modal sélection PHP/Normal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full p-8 animate-scale-in">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+            <div className="rounded-2xl max-w-2xl w-full p-8 animate-scale-in" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-3)' }}>
+              <h2 className="text-3xl font-bold mb-6 text-center" style={{ color: 'var(--fg)' }}>
                 Type de patient
               </h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* PHP */}
                 <button
                   onClick={() => handlePatientTypeSelect('php')}
                   disabled={loading}
-                  className="group bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl p-8 transform transition-all duration-200 hover:scale-105 disabled:opacity-50"
+                  className="group rounded-xl p-8 transform transition-all duration-200 hover:scale-105"
+                  style={{ background: 'var(--brand)', color: '#fff', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}
                 >
                   <div className="flex flex-col items-center space-y-4">
                     <div className="text-6xl">💼</div>
                     <div className="text-2xl font-bold">PHP</div>
-                    <div className="text-sm opacity-90 text-center">
+                    <div className="text-sm text-center" style={{ opacity: 0.9 }}>
                       Patient avec prise en charge
                     </div>
                   </div>
@@ -335,12 +342,13 @@ export default function PortailDashboard() {
                 <button
                   onClick={() => handlePatientTypeSelect('normal')}
                   disabled={loading}
-                  className="group bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl p-8 transform transition-all duration-200 hover:scale-105 disabled:opacity-50"
+                  className="group rounded-xl p-8 transform transition-all duration-200 hover:scale-105"
+                  style={{ background: 'var(--success)', color: '#fff', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}
                 >
                   <div className="flex flex-col items-center space-y-4">
                     <div className="text-6xl">👤</div>
                     <div className="text-2xl font-bold">Normal</div>
-                    <div className="text-sm opacity-90 text-center">
+                    <div className="text-sm text-center" style={{ opacity: 0.9 }}>
                       Patient sans prise en charge
                     </div>
                   </div>
@@ -350,7 +358,10 @@ export default function PortailDashboard() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={loading}
-                className="mt-6 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 py-3 rounded-xl font-semibold transition-colors"
+                className="mt-6 w-full py-3 rounded-xl font-semibold transition-colors"
+                style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
               >
                 Annuler
               </button>
