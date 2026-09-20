@@ -169,6 +169,10 @@ export const initializeSocket = (server) => {
     }
   });
 
+  socket.on('presence:request', () => {
+    socket.emit('users:online', { userIds: Array.from(userSockets.keys()) });
+  });
+
   socket.on('chat:typing', ({ conversationId }) => {
     if (typeof conversationId === 'string' && conversationId.length < 100) {
       socket.to(`conv:${conversationId}`).emit('chat:typing', {

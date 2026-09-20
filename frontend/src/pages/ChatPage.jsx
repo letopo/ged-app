@@ -474,7 +474,7 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
 
 // ─── Thread de messages ───────────────────────────────────────────────────────
 
-const MessageThread = ({ conv, user, onBack }) => {
+const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -482,7 +482,6 @@ const MessageThread = ({ conv, user, onBack }) => {
   const [typingUsers, setTypingUsers] = useState({});
   const [members, setMembers] = useState([]);
   const [showMembers, setShowMembers] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState(new Set());
   const bottomRef = useRef(null);
   const listRef = useRef(null);
   const typingTimers = useRef({});
@@ -540,24 +539,11 @@ const MessageThread = ({ conv, user, onBack }) => {
       setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions } : m));
     };
 
-    const handleUsersOnline = ({ userIds }) => {
-      setOnlineUsers(new Set(userIds));
-    };
-    const handleUserOnline = ({ userId }) => {
-      setOnlineUsers(prev => new Set([...prev, userId]));
-    };
-    const handleUserOffline = ({ userId }) => {
-      setOnlineUsers(prev => { const n = new Set(prev); n.delete(userId); return n; });
-    };
-
     socket.on('chat:message', handleMsg);
     socket.on('chat:typing', handleTyping);
     socket.on('chat:message_edited', handleEdit);
     socket.on('chat:message_deleted', handleDelete);
     socket.on('chat:reaction', handleReaction);
-    socket.on('users:online', handleUsersOnline);
-    socket.on('user:online', handleUserOnline);
-    socket.on('user:offline', handleUserOffline);
 
     return () => {
       socket.off('chat:message', handleMsg);
@@ -565,9 +551,6 @@ const MessageThread = ({ conv, user, onBack }) => {
       socket.off('chat:message_edited', handleEdit);
       socket.off('chat:message_deleted', handleDelete);
       socket.off('chat:reaction', handleReaction);
-      socket.off('users:online', handleUsersOnline);
-      socket.off('user:online', handleUserOnline);
-      socket.off('user:offline', handleUserOffline);
     };
   }, [socket, conv?.id, user?.id, members]);
 
@@ -770,7 +753,7 @@ const MessageThread = ({ conv, user, onBack }) => {
 
 // ─── Élément de conversation dans la liste ────────────────────────────────────
 
-const ConvItem = ({ conv, active, onClick, user }) => {
+const ConvItem = ({ conv, active, onClick, user, onlineUsers = new Set() }) => {
   const name = convName(conv, user);
   const icon = convIcon(conv);
   const preview = conv.last_deleted
@@ -793,7 +776,7 @@ const ConvItem = ({ conv, active, onClick, user }) => {
     >
       <div style={{ position: 'relative', flexShrink: 0 }}>
         {conv.type === 'direct' && conv.other_first_name ? (
-          <Avatar firstName={conv.other_first_name} lastName={conv.other_last_name} size={32} />
+          <Avatar firstName={conv.other_first_name} lastName={conv.other_last_name} size={32} isOnline={onlineUsers.has(conv.other_user_id)} />
         ) : (
           <div style={{
             width: 32, height: 32, borderRadius: 6,
@@ -842,7 +825,7 @@ const ConvItem = ({ conv, active, onClick, user }) => {
 
 // ─── Modal nouvelle conversation ──────────────────────────────────────────────
 
-const NewConvModal = ({ onClose, onCreate, currentUser }) => {
+const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() }) => {
   const [tab, setTab] = useState('channel');
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
@@ -987,7 +970,7 @@ const NewConvModal = ({ onClose, onCreate, currentUser }) => {
               onMouseEnter={e => { if (!selected.find(x => x.id === u.id)) e.currentTarget.style.background = 'var(--surface-2)'; }}
               onMouseLeave={e => { if (!selected.find(x => x.id === u.id)) e.currentTarget.style.background = 'transparent'; }}
             >
-              <Avatar firstName={u.firstName || u.first_name} lastName={u.lastName || u.last_name} size={28} />
+              <Avatar firstName={u.firstName || u.first_name} lastName={u.lastName || u.last_name} size={28} isOnline={onlineUsers.has(u.id)} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>
                   {u.firstName || u.first_name} {u.lastName || u.last_name}
@@ -1028,6 +1011,7 @@ const ChatPage = () => {
   const [search, setSearch] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
   const socket = getSocket();
 
   const loadConversations = useCallback(async () => {
@@ -1062,6 +1046,30 @@ const ChatPage = () => {
     socket.on('chat:message', handleNewMsg);
     return () => socket.off('chat:message', handleNewMsg);
   }, [socket, selectedId]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUsersOnline = ({ userIds }) => setOnlineUsers(new Set(userIds));
+    const handleUserOnline = ({ userId }) => setOnlineUsers(prev => new Set([...prev, userId]));
+    const handleUserOffline = ({ userId }) => setOnlineUsers(prev => { const n = new Set(prev); n.delete(userId); return n; });
+    // Le serveur n'envoie le snapshot 'users:online' qu'une fois, à la connexion du socket
+    // (qui a lieu dès le login, bien avant l'ouverture de cette page) : il faut le redemander ici.
+    const requestSnapshot = () => socket.emit('presence:request');
+
+    socket.on('users:online', handleUsersOnline);
+    socket.on('user:online', handleUserOnline);
+    socket.on('user:offline', handleUserOffline);
+    socket.on('connect', requestSnapshot);
+    requestSnapshot();
+
+    return () => {
+      socket.off('users:online', handleUsersOnline);
+      socket.off('user:online', handleUserOnline);
+      socket.off('user:offline', handleUserOffline);
+      socket.off('connect', requestSnapshot);
+    };
+  }, [socket]);
 
   const selectedConv = conversations.find(c => c.id === selectedId) || null;
 
@@ -1175,6 +1183,7 @@ const ChatPage = () => {
                 active={c.id === selectedId}
                 onClick={() => selectConv(c.id)}
                 user={user}
+                onlineUsers={onlineUsers}
               />
             ))
           )}
@@ -1205,6 +1214,7 @@ const ChatPage = () => {
             conv={selectedConv}
             user={user}
             onBack={() => setSelectedId(null)}
+            onlineUsers={onlineUsers}
           />
         ) : (
           <div style={{
@@ -1238,6 +1248,7 @@ const ChatPage = () => {
           onClose={() => setShowNewModal(false)}
           onCreate={handleCreate}
           currentUser={user}
+          onlineUsers={onlineUsers}
         />
       )}
 
