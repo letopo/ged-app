@@ -4,6 +4,7 @@
 // trace — exactement le bug "page blanche sur iPhone" qu'on n'arrivait pas à
 // diagnostiquer faute de visibilité.
 import React from 'react';
+import { withTranslation } from 'react-i18next';
 import { AlertTriangle, RotateCcw, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
 
 class ErrorBoundary extends React.Component {
@@ -55,6 +56,7 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (!this.state.error) return this.props.children;
+    const { t } = this.props;
 
     return (
       <div style={{
@@ -66,9 +68,9 @@ class ErrorBoundary extends React.Component {
           <AlertTriangle size={28} color="#dc2626" />
         </div>
         <div>
-          <h1 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 6px' }}>Une erreur est survenue</h1>
+          <h1 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 6px' }}>{t('Une erreur est survenue')}</h1>
           <p style={{ fontSize: 13, color: '#6b7280', margin: 0, maxWidth: 340 }}>
-            L'application a rencontré un problème inattendu. Recharger la page suffit en général.
+            {t("L'application a rencontré un problème inattendu. Recharger la page suffit en général.")}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
@@ -76,13 +78,13 @@ class ErrorBoundary extends React.Component {
             display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 16px',
             borderRadius: 8, border: 'none', background: '#1B3A6B', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
           }}>
-            <RotateCcw size={14} /> Recharger la page
+            <RotateCcw size={14} /> {t('Recharger la page')}
           </button>
           <button onClick={this.handleResetLocalData} style={{
             display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 16px',
             borderRadius: 8, border: '1px solid #e5e7eb', background: 'transparent', color: '#6b7280', fontSize: 13, cursor: 'pointer',
           }}>
-            <Trash2 size={14} /> Réinitialiser et se reconnecter
+            <Trash2 size={14} /> {t('Réinitialiser et se reconnecter')}
           </button>
         </div>
         <div style={{ marginTop: 8, width: '100%', maxWidth: 500 }}>
@@ -91,7 +93,7 @@ class ErrorBoundary extends React.Component {
             color: '#6b7280', fontSize: 12, cursor: 'pointer', padding: '4px 0',
           }}>
             <ChevronDown size={13} style={{ transform: this.state.showDetails ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
-            Détails techniques
+            {t('Détails techniques')}
           </button>
           {this.state.showDetails && (
             <div style={{ textAlign: 'left' }}>
@@ -103,7 +105,7 @@ class ErrorBoundary extends React.Component {
                 borderRadius: 8, border: '1px solid #e5e7eb', background: 'transparent', color: '#6b7280', fontSize: 12, cursor: 'pointer',
               }}>
                 {this.state.copied ? <Check size={12} /> : <Copy size={12} />}
-                {this.state.copied ? 'Copié' : 'Copier le détail'}
+                {this.state.copied ? t('Copié') : t('Copier le détail')}
               </button>
             </div>
           )}
@@ -113,4 +115,4 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-export default ErrorBoundary;
+export default withTranslation()(ErrorBoundary);

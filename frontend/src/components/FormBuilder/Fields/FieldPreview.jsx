@@ -1,7 +1,10 @@
 // frontend/src/components/FormBuilder/Fields/FieldPreview.jsx
 // Rendu visuel d'un champ dans le canvas du designer
 
+import { useTranslation } from 'react-i18next';
+
 export default function FieldPreview({ field, isSelected }) {
+  const { t } = useTranslation();
   const { type, label, placeholder, options = [], required } = field;
 
   const ff = field.fontFamily || 'inherit';
@@ -26,16 +29,16 @@ export default function FieldPreview({ field, isSelected }) {
     switch (type) {
       // ── Structure ──────────────────────────────────────────────────────────
       case 'title':
-        return <h2 style={{ fontSize: 20, fontWeight: 800, color: field.textColor || '#111827', margin: 0, lineHeight: 1.3, textAlign: field.textAlign || 'left', fontStyle: field.italic ? 'italic' : 'normal', textDecoration: field.underline ? 'underline' : 'none', fontFamily: ff }}>{label || 'Titre'}</h2>;
+        return <h2 style={{ fontSize: 20, fontWeight: 800, color: field.textColor || '#111827', margin: 0, lineHeight: 1.3, textAlign: field.textAlign || 'left', fontStyle: field.italic ? 'italic' : 'normal', textDecoration: field.underline ? 'underline' : 'none', fontFamily: ff }}>{label || t('Titre')}</h2>;
 
       case 'subtitle':
-        return <h3 style={{ fontSize: 15, fontWeight: field.bold ? 800 : 600, color: field.textColor || '#374151', margin: 0, textAlign: field.textAlign || 'left', fontStyle: field.italic ? 'italic' : 'normal', textDecoration: field.underline ? 'underline' : 'none', fontFamily: ff }}>{label || 'Sous-titre'}</h3>;
+        return <h3 style={{ fontSize: 15, fontWeight: field.bold ? 800 : 600, color: field.textColor || '#374151', margin: 0, textAlign: field.textAlign || 'left', fontStyle: field.italic ? 'italic' : 'normal', textDecoration: field.underline ? 'underline' : 'none', fontFamily: ff }}>{label || t('Sous-titre')}</h3>;
 
       case 'paragraph':
-        return <p style={{ fontSize: 13, color: field.textColor || '#6b7280', margin: 0, lineHeight: 1.6, textAlign: field.textAlign || 'left', fontWeight: field.bold ? 700 : 400, fontStyle: field.italic ? 'italic' : 'normal', textDecoration: field.underline ? 'underline' : 'none', fontFamily: ff }}>{label || 'Texte descriptif...'}</p>;
+        return <p style={{ fontSize: 13, color: field.textColor || '#6b7280', margin: 0, lineHeight: 1.6, textAlign: field.textAlign || 'left', fontWeight: field.bold ? 700 : 400, fontStyle: field.italic ? 'italic' : 'normal', textDecoration: field.underline ? 'underline' : 'none', fontFamily: ff }}>{label || t('Texte descriptif...')}</p>;
 
       case 'dynamictext': {
-        const tmpl = field.template || 'Texte avec {variable} dynamique...';
+        const tmpl = field.template || t('Texte avec {variable} dynamique...');
         const parts = tmpl.split(/(\{[^}]+\})/);
         return (
           <p style={{ fontSize: 12, color: field.textColor || '#374151', margin: 0, lineHeight: 1.7, textAlign: field.textAlign || 'left', fontStyle: field.italic ? 'italic' : 'normal', textDecoration: field.underline ? 'underline' : 'none', fontFamily: ff }}>
@@ -56,7 +59,7 @@ export default function FieldPreview({ field, isSelected }) {
         return (
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
-            <textarea rows={3} placeholder={placeholder || 'Votre réponse...'} style={{ ...inputStyle, resize: 'none', height: 64 }} readOnly />
+            <textarea rows={3} placeholder={placeholder || t('Votre réponse...')} style={{ ...inputStyle, resize: 'none', height: 64 }} readOnly />
           </>
         );
 
@@ -73,7 +76,7 @@ export default function FieldPreview({ field, isSelected }) {
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {(options.length ? options : ['Option 1', 'Option 2']).slice(0, 3).map((opt, i) => (
+              {(options.length ? options : [t('Option 1'), t('Option 2')]).slice(0, 3).map((opt, i) => (
                 <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#6b7280', cursor: 'default' }}>
                   <input type="radio" disabled style={{ accentColor: '#1B3A6B' }} />
                   {opt}
@@ -88,7 +91,7 @@ export default function FieldPreview({ field, isSelected }) {
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
             <select disabled style={{ ...inputStyle, appearance: 'auto' }}>
-              <option>{placeholder || 'Sélectionner...'}</option>
+              <option>{placeholder || t('Sélectionner...')}</option>
             </select>
           </>
         );
@@ -100,11 +103,11 @@ export default function FieldPreview({ field, isSelected }) {
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
             <select disabled style={{ ...inputStyle, appearance: 'auto' }}>
-              <option>{condOpts.length > 0 ? condOpts[0].label : 'Sélectionner...'}</option>
+              <option>{condOpts.length > 0 ? condOpts[0].label : t('Sélectionner...')}</option>
             </select>
             {hasSubOpts && (
               <div style={{ marginTop: 4, fontSize: 10, color: '#dc2626', padding: '3px 6px', background: '#fef2f2', borderRadius: 4, border: '1px solid #fca5a5' }}>
-                → Sous-sélection disponible selon le choix
+                → {t('Sous-sélection disponible selon le choix')}
               </div>
             )}
           </>
@@ -131,7 +134,7 @@ export default function FieldPreview({ field, isSelected }) {
         return (
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
-            <input type="number" placeholder={type === 'currency' ? '0.00 FCFA' : '0'} style={inputStyle} readOnly />
+            <input type="number" placeholder={type === 'currency' ? t('0.00 FCFA') : '0'} style={inputStyle} readOnly />
           </>
         );
 
@@ -139,7 +142,7 @@ export default function FieldPreview({ field, isSelected }) {
         return (
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
-            <input type="email" placeholder={placeholder || 'exemple@email.com'} style={inputStyle} readOnly />
+            <input type="email" placeholder={placeholder || t('exemple@email.com')} style={inputStyle} readOnly />
           </>
         );
 
@@ -147,7 +150,7 @@ export default function FieldPreview({ field, isSelected }) {
         return (
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
-            <input type="tel" placeholder={placeholder || '+237 6XX XXX XXX'} style={inputStyle} readOnly />
+            <input type="tel" placeholder={placeholder || t('+237 6XX XXX XXX')} style={inputStyle} readOnly />
           </>
         );
 
@@ -158,18 +161,18 @@ export default function FieldPreview({ field, isSelected }) {
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <div style={{ flex: 1 }}>
-                <span style={{ fontSize: 10, color: '#6b7280', display: 'block', marginBottom: 2 }}>{field.labelStart || 'Date début'}</span>
+                <span style={{ fontSize: 10, color: '#6b7280', display: 'block', marginBottom: 2 }}>{field.labelStart || t('Date début')}</span>
                 <input type="date" style={{ ...inputStyle, fontSize: 11 }} readOnly />
               </div>
               <span style={{ fontSize: 11, color: '#9ca3af', paddingTop: 16 }}>→</span>
               <div style={{ flex: 1 }}>
-                <span style={{ fontSize: 10, color: '#6b7280', display: 'block', marginBottom: 2 }}>{field.labelEnd || 'Date fin'}</span>
+                <span style={{ fontSize: 10, color: '#6b7280', display: 'block', marginBottom: 2 }}>{field.labelEnd || t('Date fin')}</span>
                 <input type="date" style={{ ...inputStyle, fontSize: 11 }} readOnly />
               </div>
             </div>
             {field.includeBusinessDays && (
               <div style={{ marginTop: 4, padding: '3px 8px', background: '#eff6ff', borderRadius: 5, fontSize: 10, color: '#3b82f6' }}>
-                Jours ouvrés : —
+                {t('Jours ouvrés : —')}
               </div>
             )}
           </>
@@ -180,7 +183,7 @@ export default function FieldPreview({ field, isSelected }) {
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
             <select disabled style={{ ...inputStyle, appearance: 'auto' }}>
-              <option>Sélectionner un service...</option>
+              <option>{t('Sélectionner un service...')}</option>
             </select>
           </>
         );
@@ -189,14 +192,14 @@ export default function FieldPreview({ field, isSelected }) {
         return (
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
-            <input type="text" placeholder="Sélectionner un employé..." style={{ ...inputStyle }} readOnly />
+            <input type="text" placeholder={t('Sélectionner un employé...')} style={{ ...inputStyle }} readOnly />
           </>
         );
 
       // ── Nouveaux types : Choix ─────────────────────────────────────────────
       case 'multicheck': {
         const cols = field.checkColumns || 1;
-        const previewOpts = (options.length ? options : ['Option 1', 'Option 2', 'Option 3']).slice(0, 6);
+        const previewOpts = (options.length ? options : [t('Option 1'), t('Option 2'), t('Option 3')]).slice(0, 6);
         return (
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
@@ -215,9 +218,9 @@ export default function FieldPreview({ field, isSelected }) {
       // ── Nouveaux types : Avancé ────────────────────────────────────────────
       case 'table': {
         const cols = field.columns || [
-          { key: 'col1', label: 'Colonne 1', type: 'text',   width: 50 },
-          { key: 'col2', label: 'Colonne 2', type: 'number', width: 25 },
-          { key: 'col3', label: 'Colonne 3', type: 'number', width: 25 },
+          { key: 'col1', label: t('Colonne 1'), type: 'text',   width: 50 },
+          { key: 'col2', label: t('Colonne 2'), type: 'number', width: 25 },
+          { key: 'col3', label: t('Colonne 3'), type: 'number', width: 25 },
         ];
         return (
           <>
@@ -248,7 +251,7 @@ export default function FieldPreview({ field, isSelected }) {
                 </tbody>
               </table>
               <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, color: '#3b82f6', fontSize: 10, cursor: 'default' }}>
-                <span>+</span> <span>Ajouter une ligne</span>
+                <span>+</span> <span>{t('Ajouter une ligne')}</span>
               </div>
             </div>
           </>
@@ -262,7 +265,7 @@ export default function FieldPreview({ field, isSelected }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input
                 type="text"
-                value={field.formula ? `= ${field.formula}` : '= formule...'}
+                value={field.formula ? `= ${field.formula}` : t('= formule...')}
                 readOnly
                 style={{ ...inputStyle, color: '#6366f1', fontStyle: 'italic', fontSize: 11, background: '#f5f3ff', borderColor: '#c4b5fd' }}
               />
@@ -294,7 +297,7 @@ export default function FieldPreview({ field, isSelected }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               minHeight: 60, fontSize: 12, color: '#9ca3af', background: '#f9fafb',
             }}>
-              ✍ Signer ici
+              ✍ {t('Signer ici')}
             </div>
           </>
         );
@@ -309,7 +312,7 @@ export default function FieldPreview({ field, isSelected }) {
               minHeight: 60, fontSize: 12, color: '#6366f1', background: '#f5f3ff', gap: 4,
             }}>
               <span style={{ fontSize: 22 }}>🔖</span>
-              <span>Zone de cachet</span>
+              <span>{t('Zone de cachet')}</span>
             </div>
           </>
         );
@@ -323,7 +326,7 @@ export default function FieldPreview({ field, isSelected }) {
               display: 'flex', alignItems: 'center', gap: 8,
               fontSize: 12, color: '#9ca3af', background: '#f9fafb',
             }}>
-              📎 Cliquer ou glisser un fichier ici
+              📎 {t('Cliquer ou glisser un fichier ici')}
             </div>
           </>
         );
@@ -332,7 +335,7 @@ export default function FieldPreview({ field, isSelected }) {
         return (
           <>
             <label style={labelStyle}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
-            <input type="text" placeholder={placeholder || 'Votre réponse...'} style={inputStyle} readOnly />
+            <input type="text" placeholder={placeholder || t('Votre réponse...')} style={inputStyle} readOnly />
           </>
         );
     }

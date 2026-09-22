@@ -1,5 +1,6 @@
 // frontend/src/pages/templates/BonDeCommandeInterne.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PlusCircle, Trash2, Users } from 'lucide-react';
 import logo from '../../assets/logo-ordre-malte.png';
 import { usersAPI, servicesAPI } from '../../services/api';
@@ -13,6 +14,7 @@ const ConditionalSignatureFrame = ({ active, ...props }) => {
 
 const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [services, setServices] = useState([]);
 
   const demandeurSignatureUrl = getImageUrl(user?.signaturePath);
@@ -74,10 +76,10 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <img src={logo} alt="Logo HSJM" style={{ height: 64, objectFit: 'contain' }} />
         <div style={{ textAlign: 'center', flex: 1 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>BON DE COMMANDE INTERNE</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>{t('BON DE COMMANDE INTERNE')}</h1>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Date du jour :</div>
+          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{t('Date du jour')} :</div>
           <input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="not-printable" style={{ border: '1px solid #ccc', padding: 4, borderRadius: 4, fontSize: 12 }} />
           <span className="print-only" style={{ fontSize: 12 }}>
             {formData.date ? new Date(formData.date).toLocaleDateString('fr-FR') : ''}
@@ -87,9 +89,9 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
 
       {/* SERVICE DEMANDEUR */}
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Service Demandeur :</span>
+        <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{t('Service Demandeur')} :</span>
         <select name="serviceDemandeur" value={formData.serviceDemandeur || ''} onChange={handleChange} className="not-printable" style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', fontSize: 12, flex: 1, maxWidth: 280, outline: 'none' }}>
-          <option value="">-- Sélectionner un service --</option>
+          <option value="">{t('-- Sélectionner un service --')}</option>
           {services.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
           {formData.serviceDemandeur && !services.find(s => s.name === formData.serviceDemandeur) && (
             <option value={formData.serviceDemandeur}>{formData.serviceDemandeur}</option>
@@ -102,10 +104,10 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
       <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', marginBottom: 16, fontSize: 13 }}>
         <thead>
           <tr>
-            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'left', fontWeight: 700, width: 48 }}>No</th>
-            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'left', fontWeight: 700 }}>Désignation</th>
-            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'left', fontWeight: 700, width: 112 }}>Quantité</th>
-            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'left', fontWeight: 700, width: 160 }}>Observation</th>
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'left', fontWeight: 700, width: 48 }}>{t('No')}</th>
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'left', fontWeight: 700 }}>{t('Désignation')}</th>
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'left', fontWeight: 700, width: 112 }}>{t('Quantité')}</th>
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'left', fontWeight: 700, width: 160 }}>{t('Observation')}</th>
             <th style={{ border: '1px solid #000', padding: 4, width: 32 }} className="not-printable"></th>
           </tr>
         </thead>
@@ -114,7 +116,7 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
             <tr key={index}>
               <td style={{ border: '1px solid #000', padding: 4, textAlign: 'center' }}>{line.no}</td>
               <td style={{ border: '1px solid #000', padding: 4 }}>
-                <input value={line.designation} onChange={(e) => handleLineChange(index, 'designation', e.target.value)} className="not-printable" style={cellIn} placeholder="Article / fourniture..." />
+                <input value={line.designation} onChange={(e) => handleLineChange(index, 'designation', e.target.value)} className="not-printable" style={cellIn} placeholder={t('Article / fourniture...')} />
                 <span className="print-only">{line.designation}</span>
               </td>
               <td style={{ border: '1px solid #000', padding: 4 }}>
@@ -138,7 +140,7 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
       </table>
 
       <button onClick={addLine} className="not-printable" style={{ marginBottom: 32, display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontWeight: 600, fontSize: 13 }}>
-        <PlusCircle size={16} /> Ajouter une ligne
+        <PlusCircle size={16} /> {t('Ajouter une ligne')}
       </button>
 
       {/* SÉLECTEUR NOMBRE DE SIGNATAIRES */}
@@ -147,7 +149,7 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
         background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)',
       }}>
         <Users size={16} color="var(--fg-muted)" />
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-muted)' }}>Nombre de signataires :</span>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-muted)' }}>{t('Nombre de signataires')} :</span>
         {[1, 2, 3].map((n) => (
           <button
             key={n}
@@ -163,22 +165,22 @@ const BonDeCommandeInterne = ({ formData, setFormData, pdfContainerRef }) => {
           </button>
         ))}
         <span style={{ fontSize: 11, color: 'var(--fg-subtle)', marginLeft: 4 }}>
-          {nbSignataires === 1 ? '(Demandeur uniquement)' : nbSignataires === 2 ? '(Demandeur + Acheteur)' : '(Demandeur + Acheteur + DS)'}
+          {nbSignataires === 1 ? t('(Demandeur uniquement)') : nbSignataires === 2 ? t('(Demandeur + Acheteur)') : t('(Demandeur + Acheteur + DS)')}
         </span>
       </div>
 
       {/* ZONES DE SIGNATURE */}
       <div style={{ borderTop: '2px solid #000', paddingTop: 16, marginTop: 8 }}>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nbSignataires}, 1fr)`, gap: 24 }}>
-          <ConditionalSignatureFrame label="Demandeur" signatureUrl={demandeurSignatureUrl} stampUrl={demandeurStampUrl} active={true} zoneIndex={1} />
-          <ConditionalSignatureFrame label="Acheteur" signatureUrl={null} stampUrl={null} active={nbSignataires >= 2} zoneIndex={2} />
-          <ConditionalSignatureFrame label="DS" signatureUrl={null} stampUrl={null} active={nbSignataires >= 3} zoneIndex={3} />
+          <ConditionalSignatureFrame label={t('Demandeur')} signatureUrl={demandeurSignatureUrl} stampUrl={demandeurStampUrl} active={true} zoneIndex={1} />
+          <ConditionalSignatureFrame label={t('Acheteur')} signatureUrl={null} stampUrl={null} active={nbSignataires >= 2} zoneIndex={2} />
+          <ConditionalSignatureFrame label={t('DS')} signatureUrl={null} stampUrl={null} active={nbSignataires >= 3} zoneIndex={3} />
         </div>
       </div>
 
       {/* PIED DE PAGE */}
       <div style={{ textAlign: 'center', fontSize: 10, color: '#9ca3af', marginTop: 24 }}>
-        Hôpital Saint Jean de Malte - Njombé | Document généré automatiquement
+        {t('Hôpital Saint Jean de Malte - Njombé | Document généré automatiquement')}
       </div>
     </div>
   );

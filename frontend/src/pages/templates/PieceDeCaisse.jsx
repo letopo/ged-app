@@ -1,5 +1,6 @@
 // frontend/src/pages/templates/PieceDeCaisse.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PlusCircle, Trash2, Link as LinkIcon, Eye } from 'lucide-react';
 import { documentsAPI } from '../../services/api';
 import DocumentViewer from '../../components/DocumentViewer';
@@ -9,6 +10,7 @@ import PersonAutocomplete from '../../components/PersonAutocomplete';
 
 const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissionSelector = true }) => {
     const { user } = useAuth();
+    const { t } = useTranslation();
     // Si c'est le comptable qui génère la PC, sa signature/cachet va sur la zone
     // « Comptabilité », pas sur « Visa Bénéficiaire ».
     const isComptable = (user?.postes || []).includes('comptable');
@@ -78,14 +80,13 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                         <LinkIcon size={22} color="var(--brand)" />
-                        <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Lier à un document justificatif</h3>
+                        <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('Lier à un document justificatif')}</h3>
                     </div>
                     <p style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 16 }}>
-                        ⚠️ <strong>Important :</strong> En sélectionnant un document, le PDF généré contiendra
-                        automatiquement le document justificatif en haut et la Pièce de Caisse en bas.
+                        ⚠️ <strong>{t('Important')} :</strong> {t('En sélectionnant un document, le PDF généré contiendra automatiquement le document justificatif en haut et la Pièce de Caisse en bas.')}
                     </p>
                     {loadingOM ? (
-                        <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--brand)', fontSize: 13 }}>Chargement des documents...</div>
+                        <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--brand)', fontSize: 13 }}>{t('Chargement des documents...')}</div>
                     ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <select
@@ -98,7 +99,7 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                                     color: 'var(--fg)', fontSize: 13, outline: 'none',
                                 }}
                             >
-                                <option value="">-- Aucun document lié --</option>
+                                <option value="">{t('-- Aucun document lié --')}</option>
                                 {ordresMission.map(doc => (
                                     <option key={doc.id} value={doc.id}>
                                         [{doc.category}] {doc.title} - {new Date(doc.createdAt).toLocaleDateString('fr-FR')} - {doc.status}
@@ -115,7 +116,7 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                                     color: formData.linkedOrdreMissionId ? '#fff' : 'var(--fg-muted)',
                                     border: 'none', display: 'flex', alignItems: 'center',
                                 }}
-                                title="Voir le document sélectionné"
+                                title={t('Voir le document sélectionné')}
                             >
                                 <Eye size={22} />
                             </button>
@@ -123,12 +124,12 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                     )}
                     {ordresMission.length === 0 && !loadingOM && (
                         <p style={{ marginTop: 12, fontSize: 12, color: 'var(--warning)', background: 'var(--warning-soft)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-2)', padding: 10 }}>
-                            ⚠️ Aucun document disponible. Assurez-vous qu'il y a des documents validés.
+                            ⚠️ {t("Aucun document disponible. Assurez-vous qu'il y a des documents validés.")}
                         </p>
                     )}
                     {formData.linkedOrdreMissionId && (
                         <div style={{ marginTop: 12, padding: 10, background: 'var(--success-soft)', border: '1px solid var(--success)', borderRadius: 'var(--radius-2)', fontSize: 12, color: 'var(--success)' }}>
-                            ✅ Le PDF final contiendra le document sélectionné suivi de cette Pièce de Caisse
+                            ✅ {t('Le PDF final contiendra le document sélectionné suivi de cette Pièce de Caisse')}
                         </div>
                     )}
                 </div>
@@ -137,15 +138,15 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
             {/* Template Pièce de Caisse */}
             <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', display: 'flex', flexDirection: 'column', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
                 <div style={{ flex: 1 }}>
-                    <h1 style={{ textAlign: 'center', fontWeight: 700, fontSize: 18, marginBottom: 8 }}>HOPITAL SAINT JEAN DE MALTE</h1>
-                    <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: 15, marginBottom: 32 }}>PIECE DE CAISSE N° {formData.numero || '...'}</h2>
+                    <h1 style={{ textAlign: 'center', fontWeight: 700, fontSize: 18, marginBottom: 8 }}>{t('HOPITAL SAINT JEAN DE MALTE')}</h1>
+                    <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: 15, marginBottom: 32 }}>{t('PIECE DE CAISSE N° {{num}}', { num: formData.numero || '...' })}</h2>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, fontSize: 13 }}>
                         <div style={{ width: '65%' }}>
                             <div className="not-printable">
                                 <PersonAutocomplete
                                     value={formData.nom || ''}
-                                    placeholder="NOM du bénéficiaire..."
+                                    placeholder={t('NOM du bénéficiaire...')}
                                     onSelect={(c) => setFormData(prev => ({
                                         ...prev, nom: c.label, beneficiaire_id: c.id, beneficiaire_source: c.source,
                                     }))}
@@ -154,24 +155,24 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                             <div className="print-only static-field">{formData.nom || ' '}</div>
                         </div>
                         <div style={{ width: '25%' }}>
-                            <input name="date" value={formData.date || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid #999', outline: 'none', fontSize: 13 }} placeholder="DATE..." />
+                            <input name="date" value={formData.date || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid #999', outline: 'none', fontSize: 13 }} placeholder={t('DATE...')} />
                             <div className="print-only static-field">{formData.date || ' '}</div>
                         </div>
                     </div>
 
                     <div style={{ marginBottom: 32 }}>
-                        <input name="concerne" value={formData.concerne || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid #999', outline: 'none', fontSize: 13 }} placeholder="CONCERNE..." />
+                        <input name="concerne" value={formData.concerne || ''} onChange={handleChange} className="not-printable" style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid #999', outline: 'none', fontSize: 13 }} placeholder={t('CONCERNE...')} />
                         <div className="print-only static-field">{formData.concerne || ' '}</div>
                     </div>
 
                     <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: 12 }}>
                         <thead>
                             <tr style={{ background: '#f3f4f6' }}>
-                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>Réf. Comptabilité</th>
-                                <th style={{ border: '1px solid #000', padding: 4, width: '40%' }}>LIBELLES</th>
-                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>Réf. GAGE</th>
-                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>ENTREES</th>
-                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>SORTIES</th>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>{t('Réf. Comptabilité')}</th>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '40%' }}>{t('LIBELLES')}</th>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>{t('Réf. GAGE')}</th>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>{t('ENTREES')}</th>
+                                <th style={{ border: '1px solid #000', padding: 4, width: '15%' }}>{t('SORTIES')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -205,20 +206,20 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                         </tbody>
                     </table>
                     <button type="button" onClick={addLine} className="not-printable" style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontSize: 13 }}>
-                        <PlusCircle size={16}/> Ajouter une ligne
+                        <PlusCircle size={16}/> {t('Ajouter une ligne')}
                     </button>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
                         <table style={{ width: '50%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: 12 }}>
                             <tbody>
                                 <tr>
-                                    <td style={{ border: '1px solid #000', padding: 4, fontWeight: 700 }}>TOTAL</td>
+                                    <td style={{ border: '1px solid #000', padding: 4, fontWeight: 700 }}>{t('TOTAL')}</td>
                                     <td style={{ border: '1px solid #000', padding: 4, textAlign: 'right', fontWeight: 700 }}>{totalEntrees.toLocaleString('fr-FR')}</td>
                                     <td style={{ border: '1px solid #000', padding: 4, textAlign: 'right', fontWeight: 700 }}>{totalSorties.toLocaleString('fr-FR')}</td>
                                 </tr>
                                 <tr>
                                     <td colSpan={3} style={{ border: '1px solid #000', padding: 4, fontWeight: 700 }}>
-                                        En lettres...
+                                        {t('En lettres...')}
                                         <input name="totalEnLettres" value={formData.totalEnLettres || ''} onChange={handleChange} className="not-printable" style={{ width: '60%', marginLeft: 8, border: 'none', borderBottom: '1px solid #999', outline: 'none', fontSize: 12 }} />
                                         <span className="print-only" style={{ marginLeft: 8, fontWeight: 400 }}>{formData.totalEnLettres}</span>
                                     </td>
@@ -229,9 +230,9 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32, fontSize: 12, marginTop: 'auto', borderTop: '2px solid #000', paddingTop: 16 }}>
-                    <SignatureFrame label="Visa Bénéficiaire" signatureUrl={isComptable ? null : mySig} stampUrl={isComptable ? null : myStamp} zoneIndex={1} />
-                    <SignatureFrame label="Comptabilité" signatureUrl={isComptable ? mySig : null} stampUrl={isComptable ? myStamp : null} zoneIndex={2} />
-                    <SignatureFrame label="Visa Directeur" signatureUrl={null} stampUrl={null} zoneIndex={3} />
+                    <SignatureFrame label={t('Visa Bénéficiaire')} signatureUrl={isComptable ? null : mySig} stampUrl={isComptable ? null : myStamp} zoneIndex={1} />
+                    <SignatureFrame label={t('Comptabilité')} signatureUrl={isComptable ? mySig : null} stampUrl={isComptable ? myStamp : null} zoneIndex={2} />
+                    <SignatureFrame label={t('Visa Directeur')} signatureUrl={null} stampUrl={null} zoneIndex={3} />
                 </div>
             </div>
 

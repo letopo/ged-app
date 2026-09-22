@@ -1,7 +1,9 @@
 // frontend/src/components/SessionWarning.jsx
+import { useTranslation } from 'react-i18next';
 import { Clock, LogOut, RefreshCw } from 'lucide-react';
 
 export default function SessionWarning({ remainingSeconds, onExtend, onLogout }) {
+  const { t } = useTranslation();
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
 
@@ -25,7 +27,7 @@ export default function SessionWarning({ remainingSeconds, onExtend, onLogout })
 
           {/* Title */}
           <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)', marginBottom: 8 }}>
-            Session bientôt expirée
+            {t('Session bientôt expirée')}
           </h3>
 
           {/* Countdown */}
@@ -34,7 +36,7 @@ export default function SessionWarning({ remainingSeconds, onExtend, onLogout })
           </div>
 
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 24 }}>
-            Votre session va expirer par inactivité. Souhaitez-vous rester connecté ?
+            {t('Votre session va expirer par inactivité. Souhaitez-vous rester connecté ?')}
           </p>
 
           {/* Buttons */}
@@ -50,7 +52,7 @@ export default function SessionWarning({ remainingSeconds, onExtend, onLogout })
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
             >
-              <LogOut size={15} /> Déconnexion
+              <LogOut size={15} /> {t('Déconnexion')}
             </button>
             <button
               onClick={onExtend}
@@ -63,7 +65,7 @@ export default function SessionWarning({ remainingSeconds, onExtend, onLogout })
               onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-active)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
             >
-              <RefreshCw size={15} /> Rester connecté
+              <RefreshCw size={15} /> {t('Rester connecté')}
             </button>
           </div>
         </div>

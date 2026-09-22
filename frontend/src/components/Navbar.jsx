@@ -2,6 +2,7 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Home,
   FileText,
@@ -63,6 +64,7 @@ const getRoleLabel = (role) => {
 const AVATAR_COLORS = ['#8b5cf6','#3b82f6','#10b981','#f43f5e','#f59e0b','#06b6d4','#ec4899'];
 
 export default function Navbar({ onLogout }) {
+  const { t } = useTranslation();
   const { user, updateUser } = useAuth();
   const location = useLocation();
 
@@ -77,7 +79,7 @@ export default function Navbar({ onLogout }) {
   const handleToggleMyAbsence = async () => {
     if (!user?.id) return;
     if (!user.isAbsent && !user.substituteId) {
-      toast.error('Aucun remplaçant configuré sur votre compte — demandez à un administrateur d\'en désigner un avant de vous mettre absent.');
+      toast.error(t("Aucun remplaçant configuré sur votre compte — demandez à un administrateur d'en désigner un avant de vous mettre absent."));
       return;
     }
     setTogglingAbsence(true);
@@ -86,7 +88,7 @@ export default function Navbar({ onLogout }) {
       updateUser({ ...user, isAbsent: !user.isAbsent });
       toast.success(res.data.message);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur lors du changement de statut.');
+      toast.error(err.response?.data?.message || t('Erreur lors du changement de statut.'));
     } finally {
       setTogglingAbsence(false);
     }
@@ -145,42 +147,42 @@ export default function Navbar({ onLogout }) {
   // CONFIGURATION DES MENUS
   // ==========================================
   const visibleItems = [
-    { path: '/dashboard', icon: Home, label: 'Tableau de bord' },
-    { path: '/documents', icon: FileText, label: 'Documents' },
-    { path: '/upload', icon: Upload, label: 'Upload' },
+    { path: '/dashboard', icon: Home, label: t('Tableau de bord') },
+    { path: '/documents', icon: FileText, label: t('Documents') },
+    { path: '/upload', icon: Upload, label: t('Upload') },
   ];
 
   const moreItems = {
     navigation: [
-      { path: '/archives', icon: Archive, label: 'Archives', desc: 'Documents archivés' },
-      { path: '/workflow-dashboard', icon: BarChart3, label: 'Workflow', desc: 'Tableau de bord workflow' },
-      { path: '/chat', icon: MessageSquare, label: 'Discussion', desc: 'Canaux, messages directs, discussions' },
+      { path: '/archives', icon: Archive, label: t('Archives'), desc: t('Documents archivés') },
+      { path: '/workflow-dashboard', icon: BarChart3, label: t('Workflow'), desc: t('Tableau de bord workflow') },
+      { path: '/chat', icon: MessageSquare, label: t('Discussion'), desc: t('Canaux, messages directs, discussions') },
     ],
     gestion: [
-      { path: '/schedules', icon: Calendar, label: 'Plannings', desc: 'Gérer les plannings', managementOnly: true },
-      { path: '/employees', icon: Users, label: 'Employés', desc: 'Fiches des employés', rhOrAdminOnly: true },
-      { path: '/user-management', icon: Users, label: 'Utilisateurs', desc: 'Comptes & rôles', adminOnly: true },
-      { path: '/services', icon: LayoutGrid, label: 'Services', desc: 'Structure de l\'hôpital', adminOnly: true },
-      { path: '/admin/droits-acces', icon: Shield, label: 'Droits d\'accès', desc: 'Matrice & gestion des droits', adminOnly: true },
-      { path: '/audit-log', icon: Shield, label: 'Journal d\'audit', desc: 'Historique des actions', adminOnly: true },
-      { path: '/statistiques', icon: BarChart3, label: 'Statistiques', desc: 'Graphiques & tendances', adminOnly: true },
-      { path: '/workflow-templates', icon: LayoutGrid, label: 'Modeles workflow', desc: 'Circuits de validation', adminOnly: true },
-      { path: '/forms', icon: Grid, label: 'Formulaires', desc: 'Créateur de formulaires', adminOnly: true },
+      { path: '/schedules', icon: Calendar, label: t('Plannings'), desc: t('Gérer les plannings'), managementOnly: true },
+      { path: '/employees', icon: Users, label: t('Employés'), desc: t('Fiches des employés'), rhOrAdminOnly: true },
+      { path: '/user-management', icon: Users, label: t('Utilisateurs'), desc: t('Comptes & rôles'), adminOnly: true },
+      { path: '/services', icon: LayoutGrid, label: t('Services'), desc: t("Structure de l'hôpital"), adminOnly: true },
+      { path: '/admin/droits-acces', icon: Shield, label: t("Droits d'accès"), desc: t('Matrice & gestion des droits'), adminOnly: true },
+      { path: '/audit-log', icon: Shield, label: t("Journal d'audit"), desc: t('Historique des actions'), adminOnly: true },
+      { path: '/statistiques', icon: BarChart3, label: t('Statistiques'), desc: t('Graphiques & tendances'), adminOnly: true },
+      { path: '/workflow-templates', icon: LayoutGrid, label: t('Modeles workflow'), desc: t('Circuits de validation'), adminOnly: true },
+      { path: '/forms', icon: Grid, label: t('Formulaires'), desc: t('Créateur de formulaires'), adminOnly: true },
     ],
     apps: [
-      { path: '/portail', icon: UserPlus, label: 'Portail', desc: 'Gestion des entrées', gardienOnly: true },
-      { path: '/accueil', icon: DoorOpen, label: 'Accueil', desc: 'Enregistrement patients', accueilOnly: true },
-      { path: '/caisse', icon: DollarSign, label: 'Caisse', desc: 'Paiements & reçus', caisseOnly: true },
-      { path: '/demandes-achat', icon: ShoppingCart, label: 'Demandes d\'Achat', desc: 'Commandes & achats', demandeAchatOnly: true },
-      { path: '/php', icon: Stethoscope, label: 'Module PHP', desc: 'Gestion clinique', phpOnly: true },
-      { path: '/php/factures', icon: Receipt, label: 'Factures PHP', desc: 'Factures prestataires (OCR)', phpOnly: true },
-      { path: '/sage-factures-php', icon: FileSpreadsheet, label: 'Factures PHP (Sage)', desc: 'Import automatique depuis Sage', adminOnly: true },
-      { path: '/compta', icon: Calculator, label: 'Comptabilité', desc: 'Pièces de caisse (OCR)', comptaOnly: true },
+      { path: '/portail', icon: UserPlus, label: t('Portail'), desc: t('Gestion des entrées'), gardienOnly: true },
+      { path: '/accueil', icon: DoorOpen, label: t('Accueil'), desc: t('Enregistrement patients'), accueilOnly: true },
+      { path: '/caisse', icon: DollarSign, label: t('Caisse'), desc: t('Paiements & reçus'), caisseOnly: true },
+      { path: '/demandes-achat', icon: ShoppingCart, label: t("Demandes d'Achat"), desc: t('Commandes & achats'), demandeAchatOnly: true },
+      { path: '/php', icon: Stethoscope, label: t('Module PHP'), desc: t('Gestion clinique'), phpOnly: true },
+      { path: '/php/factures', icon: Receipt, label: t('Factures PHP'), desc: t('Factures prestataires (OCR)'), phpOnly: true },
+      { path: '/sage-factures-php', icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), desc: t('Import automatique depuis Sage'), adminOnly: true },
+      { path: '/compta', icon: Calculator, label: t('Comptabilité'), desc: t('Pièces de caisse (OCR)'), comptaOnly: true },
     ],
     outils: [
-      { path: '/kanban/MG', icon: Kanban, label: 'Suivi Technique', desc: 'Tickets techniques', kanbanOnly: true },
-      { path: '/invoices', icon: Receipt, label: 'Factures', desc: 'Facturation', managementOnly: true },
-      { path: '/gmao', icon: Wrench, label: 'GMAO', desc: 'Maintenance équipements', gmaoOnly: true },
+      { path: '/kanban/MG', icon: Kanban, label: t('Suivi Technique'), desc: t('Tickets techniques'), kanbanOnly: true },
+      { path: '/invoices', icon: Receipt, label: t('Factures'), desc: t('Facturation'), managementOnly: true },
+      { path: '/gmao', icon: Wrench, label: t('GMAO'), desc: t('Maintenance équipements'), gmaoOnly: true },
     ],
   };
 
@@ -349,7 +351,7 @@ export default function Navbar({ onLogout }) {
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.80)'; }}
                   >
                     <Grid style={{ width: 14, height: 14 }} />
-                    <span>Plus</span>
+                    <span>{t('Plus')}</span>
                     <ChevronDown style={{ width: 12, height: 12, transition: 'transform .2s', transform: showMoreMenu ? 'rotate(180deg)' : 'rotate(0deg)' }} />
                   </button>
 
@@ -359,13 +361,13 @@ export default function Navbar({ onLogout }) {
                       marginTop: 0, paddingTop: 8, width: 320, zIndex: 50,
                     }}>
                       <div className="animate-fadeIn" style={{ ...dropdownStyle, padding: '8px 0', maxHeight: '75vh', overflowY: 'auto' }}>
-                        {renderMoreSection('Navigation', moreNavItems, () => setShowMoreMenu(false))}
+                        {renderMoreSection(t('Navigation'), moreNavItems, () => setShowMoreMenu(false))}
                         {moreGestionItems.length > 0 && moreNavItems.length > 0 && <div style={{ height: 1, background: 'var(--border)', margin: '4px 16px' }} />}
-                        {renderMoreSection('Gestion', moreGestionItems, () => setShowMoreMenu(false))}
+                        {renderMoreSection(t('Gestion'), moreGestionItems, () => setShowMoreMenu(false))}
                         {moreAppsItems.length > 0 && <div style={{ height: 1, background: 'var(--border)', margin: '4px 16px' }} />}
-                        {renderMoreSection('Applications', moreAppsItems, () => setShowMoreMenu(false))}
+                        {renderMoreSection(t('Applications'), moreAppsItems, () => setShowMoreMenu(false))}
                         {moreToolsItems.length > 0 && <div style={{ height: 1, background: 'var(--border)', margin: '4px 16px' }} />}
-                        {renderMoreSection('Outils', moreToolsItems, () => setShowMoreMenu(false))}
+                        {renderMoreSection(t('Outils'), moreToolsItems, () => setShowMoreMenu(false))}
                       </div>
                     </div>
                   )}
@@ -379,7 +381,7 @@ export default function Navbar({ onLogout }) {
             <GlobalSearch />
 
             {/* Mes Tâches */}
-            <Link to="/my-tasks" title="Mes tâches"
+            <Link to="/my-tasks" title={t('Mes tâches')}
               style={{
                 position: 'relative', padding: 8, borderRadius: 'var(--radius-3)',
                 color: 'rgba(255,255,255,0.70)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -404,7 +406,7 @@ export default function Navbar({ onLogout }) {
             </Link>
 
             {/* Notifications */}
-            <button title="Notifications" style={{
+            <button title={t('Notifications')} style={{
               padding: 8, borderRadius: 'var(--radius-3)',
               color: 'rgba(255,255,255,0.70)',
               background: 'none', border: 'none', cursor: 'pointer',
@@ -466,7 +468,7 @@ export default function Navbar({ onLogout }) {
                         fontSize: 10, fontWeight: 500,
                         background: 'var(--brand-soft)', color: 'var(--brand)',
                         padding: '2px 8px', borderRadius: 999,
-                      }}>{getRoleLabel(user?.role)}</span>
+                      }}>{t(getRoleLabel(user?.role))}</span>
                     </div>
                   </div>
 
@@ -483,7 +485,7 @@ export default function Navbar({ onLogout }) {
                       }}
                     >
                       <span style={{ fontSize: 12, fontWeight: 600, color: user?.isAbsent ? 'var(--warning)' : '#166534' }}>
-                        {user?.isAbsent ? '🔴 Absent — cliquer pour repasser en ligne' : '🟢 En ligne — cliquer pour se mettre absent'}
+                        {user?.isAbsent ? t('🔴 Absent — cliquer pour repasser en ligne') : t('🟢 En ligne — cliquer pour se mettre absent')}
                       </span>
                     </button>
                   </div>
@@ -491,8 +493,8 @@ export default function Navbar({ onLogout }) {
                   {/* Liens menu */}
                   <div style={{ padding: 8 }}>
                     {[
-                      { to: '/parametres/notifications', icon: Bell, label: 'Notifications', sub: 'Gérer vos alertes' },
-                      { to: '/settings', icon: Settings, label: 'Paramètres', sub: 'Configuration' },
+                      { to: '/parametres/notifications', icon: Bell, label: t('Notifications'), sub: t('Gérer vos alertes') },
+                      { to: '/settings', icon: Settings, label: t('Paramètres'), sub: t('Configuration') },
                     ].map(({ to, icon: Icon, label, sub }) => (
                       <Link key={to} to={to} onClick={() => setShowUserMenu(false)}
                         style={{
@@ -517,7 +519,7 @@ export default function Navbar({ onLogout }) {
 
                     {/* Couleur de la barre */}
                     <div style={{ padding: '8px 12px' }}>
-                      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, margin: '0 0 8px' }}>Couleur de la barre</p>
+                      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, margin: '0 0 8px' }}>{t('Couleur de la barre')}</p>
                       <div style={{ display: 'flex', gap: 6 }}>
                         {Object.entries(themes).map(([key, t]) => (
                           <button key={key} onClick={() => setThemeName(key)} title={t.label}
@@ -553,8 +555,8 @@ export default function Navbar({ onLogout }) {
                         <LogOut style={{ width: 14, height: 14, color: 'var(--danger)' }} />
                       </div>
                       <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>Déconnexion</div>
-                        <div style={{ fontSize: 11, opacity: 0.6 }}>Se déconnecter</div>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{t('Déconnexion')}</div>
+                        <div style={{ fontSize: 11, opacity: 0.6 }}>{t('Se déconnecter')}</div>
                       </div>
                     </button>
                   </div>
@@ -606,9 +608,9 @@ export default function Navbar({ onLogout }) {
               })}
 
               {[
-                { label: 'Gestion', items: moreGestionItems },
-                { label: 'Applications', items: moreAppsItems },
-                { label: 'Outils', items: moreToolsItems },
+                { label: t('Gestion'), items: moreGestionItems },
+                { label: t('Applications'), items: moreAppsItems },
+                { label: t('Outils'), items: moreToolsItems },
               ].map(({ label, items }) => items.length === 0 ? null : (
                 <div key={label} style={{ paddingTop: 8, marginTop: 4 }}>
                   <div style={{ padding: '6px 12px', color: 'rgba(255,255,255,0.40)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 2 }}>{label}</div>
@@ -645,7 +647,7 @@ export default function Navbar({ onLogout }) {
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.20)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <LogOut style={{ width: 16, height: 16 }} /><span>Déconnexion</span>
+                  <LogOut style={{ width: 16, height: 16 }} /><span>{t('Déconnexion')}</span>
                 </button>
               </div>
             </div>

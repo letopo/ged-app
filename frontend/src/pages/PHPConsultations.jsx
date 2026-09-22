@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Stethoscope, Search, RefreshCw, ChevronLeft, ChevronRight,
   Filter, Clock, AlertCircle, CheckCircle, ArrowLeft,
@@ -11,20 +12,23 @@ import {
 import { phpConsultationAPI, phpReferenceAPI, phpRendezVousAPI } from '../services/phpService';
 import PHPConsultationForm from '../components/php/PHPConsultationForm';
 import toast from 'react-hot-toast';
+import i18n from '../i18n/config';
 
-const RESULTATS = [
-  { value: '',               label: 'Tous les résultats' },
-  { value: 'en_cours',       label: 'En cours' },
-  { value: 'pharmacie',      label: 'Pharmacie' },
-  { value: 'laboratoire',    label: 'Laboratoire' },
-  { value: 'radiologie',     label: 'Radiologie' },
-  { value: 'specialiste',    label: 'Spécialiste' },
-  { value: 'repos',          label: 'Repos maladie' },
-  { value: 'hospitalisation', label: 'Hospitalisé' },
-  { value: 'retour_travail', label: 'Retour travail (historique)' },
-  { value: 'operation',      label: 'Opération' },
-  { value: 'transfert',      label: 'Transfert' },
-  { value: 'deces',          label: 'Décès' },
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
+
+const getResultats = (t) => [
+  { value: '',               label: t('Tous les résultats') },
+  { value: 'en_cours',       label: t('En cours') },
+  { value: 'pharmacie',      label: t('Pharmacie') },
+  { value: 'laboratoire',    label: t('Laboratoire') },
+  { value: 'radiologie',     label: t('Radiologie') },
+  { value: 'specialiste',    label: t('Spécialiste') },
+  { value: 'repos',          label: t('Repos maladie') },
+  { value: 'hospitalisation', label: t('Hospitalisé') },
+  { value: 'retour_travail', label: t('Retour travail (historique)') },
+  { value: 'operation',      label: t('Opération') },
+  { value: 'transfert',      label: t('Transfert') },
+  { value: 'deces',          label: t('Décès') },
 ];
 
 // Inline style maps replacing Tailwind color classes
@@ -42,19 +46,19 @@ const RESULTAT_STYLE_OBJ = {
   deces:           { background: 'var(--surface-3)', color: 'var(--fg-muted)' },
 };
 
-const RESULTAT_LABEL = {
-  en_cours:        'En cours',
-  pharmacie:       'Pharmacie',
-  laboratoire:     'Laboratoire',
-  radiologie:      'Radiologie',
-  specialiste:     'Spécialiste',
-  repos:           'Repos',
-  hospitalisation: 'Hospitalisé',
-  retour_travail:  'Retour travail',
-  operation:       'Opération',
-  transfert:       'Transféré',
-  deces:           'Décès',
-};
+const getResultatLabel = (t) => ({
+  en_cours:        t('En cours'),
+  pharmacie:       t('Pharmacie'),
+  laboratoire:     t('Laboratoire'),
+  radiologie:      t('Radiologie'),
+  specialiste:     t('Spécialiste'),
+  repos:           t('Repos'),
+  hospitalisation: t('Hospitalisé'),
+  retour_travail:  t('Retour travail'),
+  operation:       t('Opération'),
+  transfert:       t('Transféré'),
+  deces:           t('Décès'),
+});
 
 function formatMinutes(min) {
   if (!min || min === 0) return '–';
@@ -65,6 +69,10 @@ function formatMinutes(min) {
 }
 
 export default function PHPConsultations() {
+  const { t } = useTranslation();
+  const RESULTATS = getResultats(t);
+  const RESULTAT_LABEL = getResultatLabel(t);
+  const PARCOURS_BTNS = getParcoursBtns(t);
   const [consultations, setConsultations] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(true);
@@ -130,7 +138,7 @@ export default function PHPConsultations() {
       setSelectedConsult(null);
       loadConsultations();
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur lors de la clôture');
+      toast(err.response?.data?.message || t('Erreur lors de la clôture'));
     } finally {
       setCloturantId(null);
     }
@@ -160,11 +168,11 @@ export default function PHPConsultations() {
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
               <Stethoscope style={{ color: 'var(--success)' }} size={22} />
-              Consultations PHP
+              {t('Consultations PHP')}
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
-              {pagination.total} consultation{pagination.total !== 1 ? 's' : ''}
-              {filterDate && ` — ${new Date(filterDate + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+              {t('{{count}} consultation(s)', { count: pagination.total })}
+              {filterDate && ` — ${new Date(filterDate + 'T12:00:00').toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
             </p>
           </div>
         </div>
@@ -174,7 +182,7 @@ export default function PHPConsultations() {
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Actualiser
+          {t('Actualiser')}
         </button>
       </div>
 
@@ -188,7 +196,7 @@ export default function PHPConsultations() {
               type="text"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Nom, matricule..."
+              placeholder={t('Nom, matricule...')}
               style={{ ...inputStyle, paddingLeft: '2.25rem' }}
             />
           </div>
@@ -216,7 +224,7 @@ export default function PHPConsultations() {
             onChange={(e) => { setFilterInfirmerie(e.target.value); setPage(1); }}
             style={inputStyle}
           >
-            <option value="">Toutes les infirmeries</option>
+            <option value="">{t('Toutes les infirmeries')}</option>
             {infirmeries.map(i => <option key={i.id} value={i.id}>{i.nom}</option>)}
           </select>
         </div>
@@ -229,7 +237,7 @@ export default function PHPConsultations() {
               ? { background: 'var(--success-soft)', color: 'var(--success)' }
               : { background: 'var(--surface-2)', color: 'var(--fg-muted)' }}
           >
-            Aujourd'hui
+            {t("Aujourd'hui")}
           </button>
           <button
             onClick={() => { setFilterDate(''); setPage(1); }}
@@ -238,7 +246,7 @@ export default function PHPConsultations() {
               ? { background: 'var(--success-soft)', color: 'var(--success)' }
               : { background: 'var(--surface-2)', color: 'var(--fg-muted)' }}
           >
-            Toutes les dates
+            {t('Toutes les dates')}
           </button>
         </div>
       </div>
@@ -253,8 +261,8 @@ export default function PHPConsultations() {
       ) : consultations.length === 0 ? (
         <div className="rounded-xl p-10 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <Stethoscope size={40} className="mx-auto mb-3" style={{ color: 'var(--fg-subtle)' }} />
-          <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>Aucune consultation trouvée</p>
-          <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>Modifiez les filtres ou enregistrez un nouveau patient</p>
+          <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>{t('Aucune consultation trouvée')}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>{t('Modifiez les filtres ou enregistrez un nouveau patient')}</p>
         </div>
       ) : (
         <>
@@ -263,13 +271,13 @@ export default function PHPConsultations() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                    <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>Patient</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>Infirmerie</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>Service</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>Date</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>Attente</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>Résultat</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>Action</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Patient')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Infirmerie')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Service')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Date')}</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Attente')}</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Résultat')}</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Action')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -295,7 +303,7 @@ export default function PHPConsultations() {
                       </td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--fg-muted)' }}>
                         {c.dateConsultation
-                          ? new Date(c.dateConsultation).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          ? new Date(c.dateConsultation).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                           : '–'}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -348,7 +356,7 @@ export default function PHPConsultations() {
                             className="text-xs px-3 py-1.5 rounded-lg transition-colors"
                             style={{ background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' }}
                           >
-                            Clôturer
+                            {t('Clôturer')}
                           </button>
                         ) : (
                           <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>–</span>
@@ -365,7 +373,7 @@ export default function PHPConsultations() {
           {pagination.totalPages > 1 && (
             <div className="flex items-center justify-between mt-4 text-sm">
               <p className="text-xs" style={{ color: 'var(--fg-muted)' }}>
-                {((page-1)*20)+1}–{Math.min(page*20, pagination.total)} sur {pagination.total}
+                {t('{{from}}–{{to}} sur {{total}}', { from: ((page-1)*20)+1, to: Math.min(page*20, pagination.total), total: pagination.total })}
               </p>
               <div className="flex gap-1">
                 <button disabled={page === 1} onClick={() => setPage(p => p-1)}
@@ -398,14 +406,14 @@ export default function PHPConsultations() {
 }
 
 // ── Modal clôture ─────────────────────────────────────────────────────────────
-const PARCOURS_BTNS = [
-  { value: 'pharmacie',       label: 'Pharmacie',       icon: '💊', activeStyle: { background: 'rgb(8,145,178)', border: '2px solid rgb(8,145,178)', color: '#fff' },     desc: 'Médicaments prescrits'    },
-  { value: 'laboratoire',     label: 'Laboratoire',     icon: '🔬', activeStyle: { background: 'rgb(15,118,110)', border: '2px solid rgb(15,118,110)', color: '#fff' },   desc: 'Analyses biologiques'     },
-  { value: 'radiologie',      label: 'Radiologie',      icon: '🩻', activeStyle: { background: 'rgb(67,56,202)', border: '2px solid rgb(67,56,202)', color: '#fff' },     desc: 'Imagerie médicale'        },
-  { value: 'specialiste',     label: 'Spécialiste',     icon: '👨‍⚕️', activeStyle: { background: 'rgb(109,40,217)', border: '2px solid rgb(109,40,217)', color: '#fff' }, desc: 'Référé à un spécialiste'  },
-  { value: 'hospitalisation', label: 'Hospitalisation', icon: '🏥', activeStyle: { background: 'var(--danger)', border: '2px solid var(--danger)', color: '#fff' },       desc: 'Admission en service'     },
-  { value: 'repos',           label: 'Repos maladie',   icon: '🛌', activeStyle: { background: 'var(--warning)', border: '2px solid var(--warning)', color: '#fff' },    desc: 'Certificat de repos'      },
-  { value: 'rendez_vous',     label: 'Rendez-vous',     icon: '📅', activeStyle: { background: 'var(--brand)', border: '2px solid var(--brand)', color: '#fff' },        desc: 'Prochain RDV médical'     },
+const getParcoursBtns = (t) => [
+  { value: 'pharmacie',       label: t('Pharmacie'),       icon: '💊', activeStyle: { background: 'rgb(8,145,178)', border: '2px solid rgb(8,145,178)', color: '#fff' },     desc: t('Médicaments prescrits')    },
+  { value: 'laboratoire',     label: t('Laboratoire'),     icon: '🔬', activeStyle: { background: 'rgb(15,118,110)', border: '2px solid rgb(15,118,110)', color: '#fff' },   desc: t('Analyses biologiques')     },
+  { value: 'radiologie',      label: t('Radiologie'),      icon: '🩻', activeStyle: { background: 'rgb(67,56,202)', border: '2px solid rgb(67,56,202)', color: '#fff' },     desc: t('Imagerie médicale')        },
+  { value: 'specialiste',     label: t('Spécialiste'),     icon: '👨‍⚕️', activeStyle: { background: 'rgb(109,40,217)', border: '2px solid rgb(109,40,217)', color: '#fff' }, desc: t('Référé à un spécialiste')  },
+  { value: 'hospitalisation', label: t('Hospitalisation'), icon: '🏥', activeStyle: { background: 'var(--danger)', border: '2px solid var(--danger)', color: '#fff' },       desc: t('Admission en service')     },
+  { value: 'repos',           label: t('Repos maladie'),   icon: '🛌', activeStyle: { background: 'var(--warning)', border: '2px solid var(--warning)', color: '#fff' },    desc: t('Certificat de repos')      },
+  { value: 'rendez_vous',     label: t('Rendez-vous'),     icon: '📅', activeStyle: { background: 'var(--brand)', border: '2px solid var(--brand)', color: '#fff' },        desc: t('Prochain RDV médical')     },
 ];
 
 const SPECIALITES = ['Gynécologie','Chirurgie','Ophtalmologie','Dentiste','Urologie','UPEC','Kinésithérapie','Autres'];
@@ -414,6 +422,8 @@ const SPECIALITES = ['Gynécologie','Chirurgie','Ophtalmologie','Dentiste','Urol
 const PRIORITE_RESULTAT = ['hospitalisation','repos','specialiste','radiologie','laboratoire','pharmacie','rendez_vous'];
 
 function CloturerConsultationModal({ consultation, loading, onClose, onSubmit }) {
+  const { t } = useTranslation();
+  const PARCOURS_BTNS = getParcoursBtns(t);
   // Multi-sélection : Set des parcours cochés
   const [selection, setSelection] = useState(new Set());
 
@@ -461,22 +471,22 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
     setErreur('');
 
     if (selection.size === 0) {
-      setErreur('Veuillez sélectionner au moins une étape du parcours.'); return;
+      setErreur(t('Veuillez sélectionner au moins une étape du parcours.')); return;
     }
     if (selection.has('hospitalisation') && !serviceHospitalisation) {
-      setErreur('Veuillez choisir le service d\'hospitalisation.'); return;
+      setErreur(t("Veuillez choisir le service d'hospitalisation.")); return;
     }
     if (selection.has('repos') && !dateFin) {
-      setErreur('Veuillez indiquer la date de fin de repos.'); return;
+      setErreur(t('Veuillez indiquer la date de fin de repos.')); return;
     }
     if (selection.has('specialiste') && !specialite) {
-      setErreur('Veuillez choisir la spécialité.'); return;
+      setErreur(t('Veuillez choisir la spécialité.')); return;
     }
     if (selection.has('specialiste') && specialite === 'Autres' && !specialiteAutre.trim()) {
-      setErreur('Veuillez préciser la spécialité.'); return;
+      setErreur(t('Veuillez préciser la spécialité.')); return;
     }
     if (selection.has('rendez_vous') && !rdvDate) {
-      setErreur('Veuillez indiquer la date du rendez-vous.'); return;
+      setErreur(t('Veuillez indiquer la date du rendez-vous.')); return;
     }
 
     const resultats = Array.from(selection);
@@ -513,7 +523,7 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
         <div className="p-4 sticky top-0 z-10" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
           <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
             <CheckCircle size={18} style={{ color: 'var(--success)' }} />
-            Clôturer — Parcours patient
+            {t('Clôturer — Parcours patient')}
           </h2>
           <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
             <span className="font-semibold" style={{ color: 'var(--fg)' }}>
@@ -531,10 +541,10 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
           {/* ── Choix multi-sélection ── */}
           <div>
             <label className="block text-xs font-semibold mb-1 uppercase tracking-wide" style={{ color: 'var(--fg)' }}>
-              Suite du parcours <span style={{ color: 'var(--danger)' }}>*</span>
+              {t('Suite du parcours')} <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <p className="text-[11px] mb-2" style={{ color: 'var(--fg-subtle)' }}>
-              Vous pouvez sélectionner plusieurs étapes simultanément
+              {t('Vous pouvez sélectionner plusieurs étapes simultanément')}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {PARCOURS_BTNS.map(btn => {
@@ -584,28 +594,28 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
           {selection.has('hospitalisation') && (
             <div className="p-3 rounded-xl space-y-2"
               style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)' }}>
-              <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>🏥 Service d'hospitalisation</p>
+              <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>🏥 {t("Service d'hospitalisation")}</p>
               <select value={serviceHospitalisation} onChange={e => setServiceHospitalisation(e.target.value)}
                 style={{ ...inp, border: '1px solid var(--danger)' }}>
-                <option value="">-- Choisir le service --</option>
+                <option value="">{t('-- Choisir le service --')}</option>
                 {servicesMed.length > 0
                   ? servicesMed.map(s => (
                       <option key={s.code || s.nom} value={s.nom}>{s.nom}</option>
                     ))
                   : <>
-                      <option value="MEDECINE">MÉDECINE</option>
-                      <option value="CHIRURGIE">CHIRURGIE</option>
-                      <option value="GYNECOLOGIE">GYNÉCOLOGIE</option>
-                      <option value="PMI">PMI</option>
-                      <option value="UROLOGIE">UROLOGIE</option>
-                      <option value="CARDIOLOGIE">CARDIOLOGIE</option>
-                      <option value="GASTROENTEROLOGIE">GASTROENTÉROLOGIE</option>
-                      <option value="ORL">ORL</option>
-                      <option value="OPHTALMOLOGIE">OPHTALMOLOGIE</option>
-                      <option value="KINESITHERAPIE">KINÉSITHÉRAPIE</option>
-                      <option value="SAU">SAU (Urgences)</option>
-                      <option value="UPEC">UPEC</option>
-                      <option value="ANESTHESIE">ANESTHÉSIE</option>
+                      <option value="MEDECINE">{t('MÉDECINE')}</option>
+                      <option value="CHIRURGIE">{t('CHIRURGIE')}</option>
+                      <option value="GYNECOLOGIE">{t('GYNÉCOLOGIE')}</option>
+                      <option value="PMI">{t('PMI')}</option>
+                      <option value="UROLOGIE">{t('UROLOGIE')}</option>
+                      <option value="CARDIOLOGIE">{t('CARDIOLOGIE')}</option>
+                      <option value="GASTROENTEROLOGIE">{t('GASTROENTÉROLOGIE')}</option>
+                      <option value="ORL">{t('ORL')}</option>
+                      <option value="OPHTALMOLOGIE">{t('OPHTALMOLOGIE')}</option>
+                      <option value="KINESITHERAPIE">{t('KINÉSITHÉRAPIE')}</option>
+                      <option value="SAU">{t('SAU (Urgences)')}</option>
+                      <option value="UPEC">{t('UPEC')}</option>
+                      <option value="ANESTHESIE">{t('ANESTHÉSIE')}</option>
                     </>
                 }
               </select>
@@ -616,18 +626,18 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
           {selection.has('repos') && (
             <div className="p-3 rounded-xl space-y-2"
               style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning)' }}>
-              <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>🛌 Certificat de repos maladie</p>
+              <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>🛌 {t('Certificat de repos maladie')}</p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: 'var(--warning)' }}>
-                    Date début <span style={{ color: 'var(--danger)' }}>*</span>
+                    {t('Date début')} <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <input type="date" value={dateDebut} onChange={e => setDateDebut(e.target.value)}
                     style={{ ...inp, border: '1px solid var(--warning)' }} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: 'var(--warning)' }}>
-                    Date fin <span style={{ color: 'var(--danger)' }}>*</span>
+                    {t('Date fin')} <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <input type="date" min={dateDebut} value={dateFin} onChange={e => setDateFin(e.target.value)}
                     style={{ ...inp, border: '1px solid var(--warning)' }} />
@@ -635,7 +645,7 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
               </div>
               {dateDebut && dateFin && (
                 <p className="text-xs font-medium" style={{ color: 'var(--warning)' }}>
-                  → {Math.max(0, Math.round((new Date(dateFin) - new Date(dateDebut)) / 86400000) + 1)} jour(s) de repos
+                  → {t('{{count}} jour(s) de repos', { count: Math.max(0, Math.round((new Date(dateFin) - new Date(dateDebut)) / 86400000) + 1) })}
                 </p>
               )}
             </div>
@@ -645,7 +655,7 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
           {selection.has('specialiste') && (
             <div className="p-3 rounded-xl space-y-2"
               style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.4)' }}>
-              <p className="text-xs font-semibold" style={{ color: 'rgb(109,40,217)' }}>👨‍⚕️ Choisir la spécialité</p>
+              <p className="text-xs font-semibold" style={{ color: 'rgb(109,40,217)' }}>👨‍⚕️ {t('Choisir la spécialité')}</p>
               <div className="grid grid-cols-2 gap-2">
                 {SPECIALITES.map(sp => (
                   <button
@@ -657,7 +667,7 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
                       ? { background: 'rgb(109,40,217)', border: '1px solid rgb(109,40,217)', color: '#fff' }
                       : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}
                   >
-                    {sp}
+                    {t(sp)}
                   </button>
                 ))}
               </div>
@@ -665,7 +675,7 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
                 <input
                   type="text"
                   autoFocus
-                  placeholder="Préciser la spécialité..."
+                  placeholder={t('Préciser la spécialité...')}
                   value={specialiteAutre}
                   onChange={e => setSpecialiteAutre(e.target.value)}
                   style={{ ...inp, border: '1px solid rgba(139,92,246,0.6)' }}
@@ -678,26 +688,26 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
           {selection.has('rendez_vous') && (
             <div className="p-3 rounded-xl space-y-2"
               style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
-              <p className="text-xs font-semibold" style={{ color: 'var(--brand)' }}>📅 Rendez-vous médical</p>
+              <p className="text-xs font-semibold" style={{ color: 'var(--brand)' }}>📅 {t('Rendez-vous médical')}</p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand)' }}>
-                    Date RDV <span style={{ color: 'var(--danger)' }}>*</span>
+                    {t('Date RDV')} <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <input type="date" min={new Date().toISOString().split('T')[0]} value={rdvDate}
                     onChange={e => setRdvDate(e.target.value)}
                     style={{ ...inp, border: '1px solid var(--brand)' }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand)' }}>Heure</label>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand)' }}>{t('Heure')}</label>
                   <input type="time" value={rdvHeure} onChange={e => setRdvHeure(e.target.value)}
                     style={{ ...inp, border: '1px solid var(--brand)' }} />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand)' }}>Service / Spécialité</label>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand)' }}>{t('Service / Spécialité')}</label>
                 <input type="text" value={rdvService} onChange={e => setRdvService(e.target.value)}
-                  placeholder="Ex: Cardiologie, Gynécologie..."
+                  placeholder={t('Ex: Cardiologie, Gynécologie...')}
                   style={{ ...inp, border: '1px solid var(--brand)' }} />
               </div>
             </div>
@@ -705,13 +715,13 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
 
           {/* DIAGNOSTIC */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>Diagnostic / Observation</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>{t('Diagnostic / Observation')}</label>
             <textarea
               value={diagnostic}
               onChange={e => setDiagnostic(e.target.value)}
               rows={2}
               style={{ ...inp, resize: 'none' }}
-              placeholder="Diagnostic médical..."
+              placeholder={t('Diagnostic médical...')}
             />
           </div>
 
@@ -732,7 +742,7 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
               className="flex-1 px-4 py-2 text-sm rounded-xl transition-colors"
               style={{ border: '1px solid var(--border)', color: 'var(--fg)' }}
             >
-              Annuler
+              {t('Annuler')}
             </button>
             <button
               type="submit"
@@ -741,10 +751,10 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
               style={{ background: 'var(--success)', color: '#fff' }}
             >
               {loading
-                ? 'Enregistrement...'
+                ? t('Enregistrement...')
                 : selection.size === 0
-                  ? '← Sélectionner le parcours'
-                  : `✓ Confirmer (${selection.size} étape${selection.size > 1 ? 's' : ''})`
+                  ? t('← Sélectionner le parcours')
+                  : t('✓ Confirmer ({{count}} étape(s))', { count: selection.size })
               }
             </button>
           </div>

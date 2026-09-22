@@ -1,11 +1,17 @@
 // frontend/src/components/QuickPreviewModal.jsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Eye, Calendar, User, FileText } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 const QuickPreviewModal = ({ task, onClose }) => {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
   if (!task) return null;
 
-  const formatDate = (date) => new Date(date).toLocaleDateString('fr-FR');
+  const formatDate = (date) => new Date(date).toLocaleDateString(BCP47_LOCALES[lang] || 'fr-FR');
   const apiBaseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
 
   return (
@@ -17,7 +23,7 @@ const QuickPreviewModal = ({ task, onClose }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <FileText size={26} style={{ color: '#fff' }} />
             <div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>Aperçu rapide</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>{t('Aperçu rapide')}</h2>
               <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, margin: 0 }}>{task.document.category}</p>
             </div>
           </div>
@@ -41,8 +47,8 @@ const QuickPreviewModal = ({ task, onClose }) => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             {[
-              { Icon: User, label: 'Demandeur', value: `${task.document.uploadedBy?.firstName} ${task.document.uploadedBy?.lastName}` },
-              { Icon: Calendar, label: 'Date de soumission', value: formatDate(task.createdAt) },
+              { Icon: User, label: t('Demandeur'), value: `${task.document.uploadedBy?.firstName} ${task.document.uploadedBy?.lastName}` },
+              { Icon: Calendar, label: t('Date de soumission'), value: formatDate(task.createdAt) },
             ].map(({ Icon, label, value }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fg-muted)' }}>
                 <Icon size={18} />
@@ -56,17 +62,17 @@ const QuickPreviewModal = ({ task, onClose }) => {
 
           {task.document.metadata && (
             <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-3)', padding: 16, marginBottom: 16, border: '1px solid var(--border)' }}>
-              <h4 style={{ fontWeight: 600, color: 'var(--fg)', marginBottom: 12, fontSize: 13, margin: '0 0 12px' }}>Détails du document</h4>
+              <h4 style={{ fontWeight: 600, color: 'var(--fg)', marginBottom: 12, fontSize: 13, margin: '0 0 12px' }}>{t('Détails du document')}</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: 'var(--fg)' }}>
                 {task.document.metadata.service && (
                   <p style={{ margin: 0 }}>
-                    <span style={{ color: 'var(--fg-muted)' }}>Service : </span>
+                    <span style={{ color: 'var(--fg-muted)' }}>{t('Service :')} </span>
                     <span style={{ fontWeight: 600 }}>{task.document.metadata.service}</span>
                   </p>
                 )}
                 {task.document.metadata.date_debut && task.document.metadata.date_fin && (
                   <p style={{ margin: 0 }}>
-                    <span style={{ color: 'var(--fg-muted)' }}>Période : </span>
+                    <span style={{ color: 'var(--fg-muted)' }}>{t('Période :')} </span>
                     <span style={{ fontWeight: 600 }}>
                       {formatDate(task.document.metadata.date_debut)} → {formatDate(task.document.metadata.date_fin)}
                     </span>
@@ -74,7 +80,7 @@ const QuickPreviewModal = ({ task, onClose }) => {
                 )}
                 {task.document.metadata.motif && (
                   <p style={{ margin: 0 }}>
-                    <span style={{ color: 'var(--fg-muted)' }}>Motif : </span>
+                    <span style={{ color: 'var(--fg-muted)' }}>{t('Motif :')} </span>
                     <span style={{ fontWeight: 600 }}>{task.document.metadata.motif}</span>
                   </p>
                 )}
@@ -84,7 +90,7 @@ const QuickPreviewModal = ({ task, onClose }) => {
 
           {task.comment && (
             <div style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)', borderRadius: 'var(--radius-3)', padding: 16 }}>
-              <h4 style={{ fontWeight: 600, color: 'var(--brand)', marginBottom: 8, fontSize: 13, margin: '0 0 8px' }}>Commentaire</h4>
+              <h4 style={{ fontWeight: 600, color: 'var(--brand)', marginBottom: 8, fontSize: 13, margin: '0 0 8px' }}>{t('Commentaire')}</h4>
               <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>{task.comment}</p>
             </div>
           )}
@@ -100,7 +106,7 @@ const QuickPreviewModal = ({ task, onClose }) => {
             onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
             onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
           >
-            Fermer
+            {t('Fermer')}
           </button>
           <a href={`${apiBaseUrl}/${task.document.filePath}`} target="_blank" rel="noopener noreferrer"
             style={{
@@ -113,7 +119,7 @@ const QuickPreviewModal = ({ task, onClose }) => {
             onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
           >
             <Eye size={16} />
-            Voir le document complet
+            {t('Voir le document complet')}
           </a>
         </div>
       </div>

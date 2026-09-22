@@ -3,18 +3,23 @@
 // (masquée sur /chat où la page complète existe déjà, et sur mobile)
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MessageCircle, X, ArrowLeft, Search, Send, Loader, Hash, User, FileText, Plus, Maximize2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
+import i18n from '../i18n/config';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
+const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 
 const fmtTime = (date) => {
   if (!date) return '';
   const d = new Date(date);
   const diffDays = Math.floor((Date.now() - d) / 86_400_000);
-  if (diffDays === 0) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  if (diffDays === 1) return 'Hier';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  if (diffDays === 0) return d.toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return i18n.t('Hier');
+  return d.toLocaleDateString(currentLocale(), { day: '2-digit', month: 'short' });
 };
 
 const avatarColor = (str = '') => {
@@ -38,9 +43,9 @@ const Avatar = ({ fn = '', ln = '', size = 28 }) => (
 const convName = (conv) => {
   if (!conv) return '';
   if (conv.type === 'direct') {
-    return conv.other_first_name ? `${conv.other_first_name} ${conv.other_last_name}` : (conv.name || 'Message direct');
+    return conv.other_first_name ? `${conv.other_first_name} ${conv.other_last_name}` : (conv.name || i18n.t('Message direct'));
   }
-  return conv.name || 'Sans nom';
+  return conv.name || i18n.t('Sans nom');
 };
 
 const convIcon = (conv) => {
@@ -61,6 +66,7 @@ const Centered = ({ children, small }) => (
 );
 
 export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -174,14 +180,14 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
     if (view !== 'new') return;
     if (!search.trim()) { setSearchResults([]); return; }
     setSearching(true);
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         const results = await chatService.searchUsers(search.trim());
         setSearchResults(results.filter(u => u.id !== user?.id));
       } catch (_) {}
       setSearching(false);
     }, 250);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [search, view, user?.id]);
 
   const startDirect = async (targetUser) => {
@@ -219,7 +225,7 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
       {/* Bouton flottant discret */}
       <button
         onClick={toggleOpen}
-        title={open ? 'Fermer' : 'Discussion'}
+        title={open ? t('Fermer') : t('Discussion')}
         style={{
           position: 'fixed', bottom: 20, right: 20, zIndex: 900,
           width: 44, height: 44, borderRadius: '50%',
@@ -267,18 +273,18 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
               <MessageCircle size={15} style={{ color: 'var(--brand)', flexShrink: 0 }} />
             )}
             <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {view === 'list' && 'Discussions'}
-              {view === 'new' && 'Nouvelle discussion'}
+              {view === 'list' && t('Discussions')}
+              {view === 'new' && t('Nouvelle discussion')}
               {view === 'thread' && convName(activeConv)}
             </div>
             {view === 'list' && (
-              <button onClick={() => setView('new')} title="Nouvelle discussion" style={iconGhostBtn}>
+              <button onClick={() => setView('new')} title={t('Nouvelle discussion')} style={iconGhostBtn}>
                 <Plus size={15} />
               </button>
             )}
             <button
               onClick={() => { setOpen(false); navigate('/chat'); }}
-              title="Ouvrir en plein écran"
+              title={t('Ouvrir en plein écran')}
               style={iconGhostBtn}
             >
               <Maximize2 size={13} />
@@ -293,9 +299,9 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
               ) : conversations.length === 0 ? (
                 <Centered>
                   <MessageCircle size={26} style={{ opacity: 0.3, marginBottom: 8 }} />
-                  <div style={{ fontSize: 12.5 }}>Aucune discussion</div>
+                  <div style={{ fontSize: 12.5 }}>{t('Aucune discussion')}</div>
                   <button onClick={() => setView('new')} style={{ marginTop: 8, fontSize: 12, color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-                    Démarrer une discussion
+                    {t('Démarrer une discussion')}
                   </button>
                 </Centered>
               ) : (
@@ -323,7 +329,7 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
                         <span style={{ fontSize: 10, color: 'var(--fg-muted)', flexShrink: 0 }}>{fmtTime(conv.last_at)}</span>
                       </div>
                       <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {conv.last_deleted ? '[Message supprimé]' : (conv.last_content || 'Aucun message')}
+                        {conv.last_deleted ? t('[Message supprimé]') : (conv.last_content || t('Aucun message'))}
                       </div>
                     </div>
                     {conv.unread_count > 0 && (
@@ -344,7 +350,7 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
                     autoFocus
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Rechercher un utilisateur…"
+                    placeholder={t('Rechercher un utilisateur…')}
                     style={{
                       width: '100%', boxSizing: 'border-box', padding: '7px 8px 7px 28px',
                       borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface-2)',
@@ -354,7 +360,7 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
                 </div>
                 {searching && <Centered small><Loader size={14} /></Centered>}
                 {!searching && search.trim() && searchResults.length === 0 && (
-                  <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--fg-muted)', padding: 12 }}>Aucun utilisateur trouvé</div>
+                  <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--fg-muted)', padding: 12 }}>{t('Aucun utilisateur trouvé')}</div>
                 )}
                 {searchResults.map(u => (
                   <div
@@ -376,7 +382,7 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
                     onClick={() => { setOpen(false); navigate('/chat'); }}
                     style={{ fontSize: 12, color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
                   >
-                    Créer un groupe (page complète)
+                    {t('Créer un groupe (page complète)')}
                   </button>
                 </div>
               </div>
@@ -388,8 +394,8 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
                   <Centered><Loader size={18} /></Centered>
                 ) : messages.length === 0 ? (
                   <Centered>
-                    <div style={{ fontSize: 12.5 }}>Aucun message</div>
-                    <div style={{ fontSize: 11.5, marginTop: 4 }}>Démarrez la discussion</div>
+                    <div style={{ fontSize: 12.5 }}>{t('Aucun message')}</div>
+                    <div style={{ fontSize: 11.5, marginTop: 4 }}>{t('Démarrez la discussion')}</div>
                   </Centered>
                 ) : (
                   messages.map((msg, i) => {
@@ -403,7 +409,7 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
                         {!sameAuthor && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, marginBottom: 2 }}>
                             <Avatar fn={fn} ln={ln} size={22} />
-                            <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--fg)' }}>{isMine ? 'Vous' : `${fn} ${ln}`}</span>
+                            <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--fg)' }}>{isMine ? t('Vous') : `${fn} ${ln}`}</span>
                             <span style={{ fontSize: 10, color: 'var(--fg-muted)' }}>{fmtTime(msg.created_at || msg.createdAt)}</span>
                           </div>
                         )}
@@ -412,7 +418,7 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
                           fontStyle: msg.isDeleted ? 'italic' : 'normal',
                           color: msg.isDeleted ? 'var(--fg-muted)' : 'var(--fg)',
                         }}>
-                          {msg.isDeleted ? '[Message supprimé]' : msg.content}
+                          {msg.isDeleted ? t('[Message supprimé]') : msg.content}
                         </div>
                       </div>
                     );
@@ -431,7 +437,7 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
                   value={text}
                   onChange={e => setText(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                  placeholder="Écrire un message…"
+                  placeholder={t('Écrire un message…')}
                   rows={1}
                   style={{
                     flex: 1, padding: '7px 9px', borderRadius: 7, fontFamily: 'inherit',

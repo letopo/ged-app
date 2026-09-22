@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
 export default function TwoFactorVerify({ tempToken, onSuccess, onBack }) {
+  const { t } = useTranslation();
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const refs = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()];
@@ -48,7 +50,7 @@ export default function TwoFactorVerify({ tempToken, onSuccess, onBack }) {
         body: JSON.stringify({ tempToken, code: fullCode })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Code invalide');
+      if (!res.ok) throw new Error(data.error || t('Code invalide'));
       onSuccess(data);
     } catch (err) {
       toast.error(err.message);
@@ -78,10 +80,10 @@ export default function TwoFactorVerify({ tempToken, onSuccess, onBack }) {
         </div>
 
         <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: 'var(--fg)' }}>
-          Double authentification
+          {t('Double authentification')}
         </h2>
         <p style={{ margin: '0 0 28px', fontSize: 14, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-          Ouvrez <strong>Google Authenticator</strong> et entrez le code à 6 chiffres.
+          {t('Ouvrez')} <strong>Google Authenticator</strong> {t('et entrez le code à 6 chiffres.')}
         </p>
 
         {/* Champs 6 chiffres */}
@@ -119,7 +121,7 @@ export default function TwoFactorVerify({ tempToken, onSuccess, onBack }) {
             opacity: loading || code.some(d => !d) ? 0.6 : 1, marginBottom: 12
           }}
         >
-          {loading ? 'Vérification…' : 'Valider'}
+          {loading ? t('Vérification…') : t('Valider')}
         </button>
 
         <button
@@ -129,7 +131,7 @@ export default function TwoFactorVerify({ tempToken, onSuccess, onBack }) {
             fontSize: 13, cursor: 'pointer', textDecoration: 'underline'
           }}
         >
-          Retour à la connexion
+          {t('Retour à la connexion')}
         </button>
       </div>
     </div>

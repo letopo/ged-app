@@ -1,11 +1,13 @@
 // frontend/src/components/MgTaskModal.jsx
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { workflowAPI } from '../services/api';
 import { Loader, Check, X, FilePlus, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const MgTaskModal = ({ task, onClose, onUpdate }) => {
+  const { t } = useTranslation();
   const [action, setAction] = useState(null); // 'validate' ou 'create_db'
   const [comment, setComment] = useState('');
   const [file, setFile] = useState(null);
@@ -16,16 +18,16 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
     setLoading(true); setError('');
     try {
       await workflowAPI.validateTask(task.id, { status: 'approved', comment });
-      toast.success('Tâche validée avec succès.');
+      toast.success(t('Tâche validée avec succès.'));
       onUpdate(); onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de la validation.');
+      setError(err.response?.data?.message || t('Erreur lors de la validation.'));
       setLoading(false);
     }
   };
 
   const handleInitiateDB = async () => {
-    if (!file) { setError('Veuillez joindre le fichier de la Demande de Besoin.'); return; }
+    if (!file) { setError(t('Veuillez joindre le fichier de la Demande de Besoin.')); return; }
     setLoading(true); setError('');
     try {
       const formData = new FormData();
@@ -34,10 +36,10 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
       formData.append('category', 'Demande de Besoin');
       formData.append('file', file);
       await workflowAPI.initiateLinkedDocument(formData);
-      toast.success('Demande de Besoin initiée. La Demande de Travaux est en pause.');
+      toast.success(t('Demande de Besoin initiée. La Demande de Travaux est en pause.'));
       onUpdate(); onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de l\'initiation.');
+      setError(err.response?.data?.message || t("Erreur lors de l'initiation."));
       setLoading(false);
     }
   };
@@ -53,7 +55,7 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 9999 }}>
       <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 512, padding: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Traiter la Demande de Travaux</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('Traiter la Demande de Travaux')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', transition: 'color .15s' }}
             onMouseEnter={e => e.currentTarget.style.color = 'var(--fg)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--fg-muted)'}
@@ -66,17 +68,17 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
           <div style={{ background: 'var(--warning-soft)', borderLeft: '4px solid var(--warning)', padding: 16, borderRadius: 'var(--radius-2)', display: 'flex', gap: 12 }}>
             <AlertTriangle size={18} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} />
             <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>
-              Cette tâche est en attente de la finalisation d'une Demande de Besoin. Elle sera réactivée automatiquement.
+              {t("Cette tâche est en attente de la finalisation d'une Demande de Besoin. Elle sera réactivée automatiquement.")}
             </p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ color: 'var(--fg)', fontSize: 14, margin: 0 }}>Comment souhaitez-vous traiter cette demande ?</p>
+            <p style={{ color: 'var(--fg)', fontSize: 14, margin: 0 }}>{t('Comment souhaitez-vous traiter cette demande ?')}</p>
 
             <div style={{ display: 'flex', gap: 16 }}>
               {[
-                { id: 'validate', Icon: Check, label: 'Valider directement', iconColor: 'var(--success)' },
-                { id: 'create_db', Icon: FilePlus, label: 'Initier une Demande de Besoin', iconColor: '#f97316' },
+                { id: 'validate', Icon: Check, label: t('Valider directement'), iconColor: 'var(--success)' },
+                { id: 'create_db', Icon: FilePlus, label: t('Initier une Demande de Besoin'), iconColor: '#f97316' },
               ].map(({ id, Icon, label, iconColor }) => (
                 <button key={id} onClick={() => setAction(id)}
                   style={{
@@ -95,7 +97,7 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
 
             {action === 'validate' && (
               <div style={{ paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>Commentaire (optionnel)</label>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{t('Commentaire (optionnel)')}</label>
                 <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3}
                   style={{ ...inputStyle, resize: 'none' }} />
                 <button onClick={handleValidateDirectly} disabled={loading}
@@ -107,14 +109,14 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
                     transition: 'opacity .15s',
                   }}
                 >
-                  {loading ? <Loader size={16} className="animate-spin" /> : 'Confirmer la validation'}
+                  {loading ? <Loader size={16} className="animate-spin" /> : t('Confirmer la validation')}
                 </button>
               </div>
             )}
 
             {action === 'create_db' && (
               <div style={{ paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>Joindre la Demande de Besoin (PDF)</label>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{t('Joindre la Demande de Besoin (PDF)')}</label>
                 <input type="file" onChange={e => setFile(e.target.files[0])} accept=".pdf"
                   style={inputStyle} />
                 <button onClick={handleInitiateDB} disabled={loading}
@@ -126,7 +128,7 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
                     transition: 'opacity .15s',
                   }}
                 >
-                  {loading ? <Loader size={16} className="animate-spin" /> : 'Créer et Mettre en Pause'}
+                  {loading ? <Loader size={16} className="animate-spin" /> : t('Créer et Mettre en Pause')}
                 </button>
               </div>
             )}

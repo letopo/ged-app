@@ -3,6 +3,7 @@
 // Onglets : Affichage | Validation | Conditions
 
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Settings2, MousePointerClick, Plus, Trash2, Eye, ShieldCheck,
   GitBranch, AlignLeft, AlignCenter, AlignRight,
@@ -55,6 +56,7 @@ function AlignButtons({ value = 'left', onChange }) {
 
 // Boutons Gras / Italique / Souligné
 function FormatButtons({ field, upd }) {
+  const { t } = useTranslation();
   const btn = (key, Icon, label, extraStyle = {}) => (
     <button
       title={label}
@@ -73,35 +75,36 @@ function FormatButtons({ field, upd }) {
   );
   return (
     <div style={{ display: 'flex', gap: 4 }}>
-      {btn('bold',      Bold,      'Gras')}
-      {btn('italic',    Italic,    'Italique')}
-      {btn('underline', Underline, 'Souligné')}
+      {btn('bold',      Bold,      t('Gras'))}
+      {btn('italic',    Italic,    t('Italique'))}
+      {btn('underline', Underline, t('Souligné'))}
     </div>
   );
 }
 
 // ─── Éditeur pour le type `selectcond` ───────────────────────────────────────
 
-const PERMISSION_PRESET = [
-  { label: 'Personnel',           subOptions: [] },
-  { label: 'Journée Directeur',   subOptions: [] },
-  { label: 'Journée Major',       subOptions: [] },
-  { label: "Permission d'Urgence",subOptions: [] },
-  { label: 'Exceptionnel',        subOptions: [
-    'mariage du travailleur (5 jours)',
-    "accouchement de l'épouse du travailleur (3 jours)",
-    "mariage d'un enfant du travailleur (2 jours)",
-    'décès du conjoint du travailleur (5 jours)',
-    'décès du père ou de la mère du travailleur (5 jours)',
-    "décès d'un frère ou d'une sœur (2 jour)",
-    "médaille d'honneur du travail (2 jours)",
+const getPermissionPreset = (t) => [
+  { label: t('Personnel'),           subOptions: [] },
+  { label: t('Journée Directeur'),   subOptions: [] },
+  { label: t('Journée Major'),       subOptions: [] },
+  { label: t("Permission d'Urgence"),subOptions: [] },
+  { label: t('Exceptionnel'),        subOptions: [
+    t('mariage du travailleur (5 jours)'),
+    t("accouchement de l'épouse du travailleur (3 jours)"),
+    t("mariage d'un enfant du travailleur (2 jours)"),
+    t('décès du conjoint du travailleur (5 jours)'),
+    t('décès du père ou de la mère du travailleur (5 jours)'),
+    t("décès d'un frère ou d'une sœur (2 jour)"),
+    t("médaille d'honneur du travail (2 jours)"),
   ]},
 ];
 
 function ConditionalSelectEditor({ options = [], onChange }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(null);
 
-  const addOpt    = () => onChange([...options, { label: `Option ${options.length + 1}`, subOptions: [] }]);
+  const addOpt    = () => onChange([...options, { label: t('Option {{num}}', { num: options.length + 1 }), subOptions: [] }]);
   const removeOpt = (i) => { onChange(options.filter((_, idx) => idx !== i)); if (expanded === i) setExpanded(null); };
   const updLabel  = (i, val) => onChange(options.map((o, idx) => idx === i ? { ...o, label: val } : o));
   const addSub    = (i) => onChange(options.map((o, idx) => idx === i ? { ...o, subOptions: [...(o.subOptions || []), ''] } : o));
@@ -111,10 +114,10 @@ function ConditionalSelectEditor({ options = [], onChange }) {
   return (
     <div>
       <button
-        onClick={() => onChange(PERMISSION_PRESET)}
+        onClick={() => onChange(getPermissionPreset(t))}
         style={{ width: '100%', marginBottom: 8, padding: '5px 8px', borderRadius: 6, border: '1px solid #93c5fd', background: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', fontSize: 10, fontWeight: 700 }}
       >
-        🏥 Charger le modèle Permissions HSJM
+        🏥 {t('Charger le modèle Permissions HSJM')}
       </button>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -126,13 +129,13 @@ function ConditionalSelectEditor({ options = [], onChange }) {
                 value={opt.label}
                 onChange={e => updLabel(i, e.target.value)}
                 style={{ ...IS, flex: 1, padding: '3px 6px', fontSize: 11 }}
-                placeholder="Libellé..."
+                placeholder={t('Libellé...')}
               />
               <button
                 onClick={() => setExpanded(expanded === i ? null : i)}
                 style={{ padding: '3px 7px', borderRadius: 5, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', fontSize: 9, color: '#3b82f6', flexShrink: 0, whiteSpace: 'nowrap' }}
               >
-                {expanded === i ? '▲' : `▼ ${opt.subOptions?.length || 0} ss.`}
+                {expanded === i ? '▲' : t('▼ {{count}} ss.', { count: opt.subOptions?.length || 0 })}
               </button>
               <button onClick={() => removeOpt(i)} style={{ padding: '3px 5px', background: 'none', border: '1px solid var(--danger)', borderRadius: 5, cursor: 'pointer', color: 'var(--danger)', flexShrink: 0 }}>
                 <Trash2 size={10} />
@@ -143,7 +146,7 @@ function ConditionalSelectEditor({ options = [], onChange }) {
             {expanded === i && (
               <div style={{ padding: '6px 8px', borderTop: '1px solid var(--border)', background: '#fef9f9' }}>
                 <p style={{ fontSize: 10, color: '#dc2626', fontWeight: 700, margin: '0 0 5px' }}>
-                  Sous-options visibles quand « {opt.label} » est choisi :
+                  {t('Sous-options visibles quand « {{label}} » est choisi :', { label: opt.label })}
                 </p>
                 {(opt.subOptions || []).map((s, j) => (
                   <div key={j} style={{ display: 'flex', gap: 4, marginBottom: 3 }}>
@@ -151,7 +154,7 @@ function ConditionalSelectEditor({ options = [], onChange }) {
                       value={s}
                       onChange={e => updSub(i, j, e.target.value)}
                       style={{ ...IS, flex: 1, padding: '3px 6px', fontSize: 10 }}
-                      placeholder="Sous-option..."
+                      placeholder={t('Sous-option...')}
                     />
                     <button onClick={() => removeSub(i, j)} style={{ padding: '2px 5px', background: 'none', border: '1px solid var(--danger)', borderRadius: 4, cursor: 'pointer', color: 'var(--danger)', flexShrink: 0 }}>
                       <Trash2 size={9} />
@@ -159,7 +162,7 @@ function ConditionalSelectEditor({ options = [], onChange }) {
                   </div>
                 ))}
                 <button onClick={() => addSub(i)} style={{ fontSize: 10, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginTop: 2 }}>
-                  <Plus size={10} /> Ajouter un sous-motif
+                  <Plus size={10} /> {t('Ajouter un sous-motif')}
                 </button>
               </div>
             )}
@@ -168,7 +171,7 @@ function ConditionalSelectEditor({ options = [], onChange }) {
       </div>
 
       <button onClick={addOpt} style={{ marginTop: 6, width: '100%', padding: '6px 0', background: 'none', border: '1.5px dashed var(--border)', borderRadius: 7, cursor: 'pointer', fontSize: 11, color: 'var(--fg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-        <Plus size={11} /> Ajouter une option principale
+        <Plus size={11} /> {t('Ajouter une option principale')}
       </button>
     </div>
   );
@@ -176,11 +179,12 @@ function ConditionalSelectEditor({ options = [], onChange }) {
 
 // ─── Éditeur de colonnes pour le type `table` ─────────────────────────────────
 function TableColumnsEditor({ columns = [], onChange }) {
+  const { t } = useTranslation();
   const COL_TYPES = ['text', 'number', 'computed'];
 
   const addCol = () => {
     const key = `col_${Date.now()}`;
-    onChange([...columns, { key, label: 'Nouvelle colonne', type: 'text', width: 20 }]);
+    onChange([...columns, { key, label: t('Nouvelle colonne'), type: 'text', width: 20 }]);
   };
   const removeCol = (i) => onChange(columns.filter((_, idx) => idx !== i));
   const updateCol = (i, patch) => onChange(columns.map((c, idx) => idx === i ? { ...c, ...patch } : c));
@@ -194,7 +198,7 @@ function TableColumnsEditor({ columns = [], onChange }) {
               <input
                 value={col.label}
                 onChange={e => updateCol(i, { label: e.target.value })}
-                placeholder="En-tête"
+                placeholder={t('En-tête')}
                 style={{ ...IS, flex: 1, padding: '4px 8px', fontSize: 11 }}
               />
               <button onClick={() => removeCol(i)} style={{ padding: '4px 6px', background: 'none', border: '1px solid var(--danger)', borderRadius: 5, cursor: 'pointer', color: 'var(--danger)', flexShrink: 0 }}>
@@ -203,21 +207,21 @@ function TableColumnsEditor({ columns = [], onChange }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px', gap: 4 }}>
               <div>
-                <label style={{ fontSize: 10, color: 'var(--fg-muted)', display: 'block', marginBottom: 2 }}>Type</label>
+                <label style={{ fontSize: 10, color: 'var(--fg-muted)', display: 'block', marginBottom: 2 }}>{t('Type')}</label>
                 <select value={col.type} onChange={e => updateCol(i, { type: e.target.value })} style={{ ...IS, padding: '3px 6px', fontSize: 11 }}>
-                  {COL_TYPES.map(t => (
-                    <option key={t} value={t}>{t === 'computed' ? 'Calculé' : t === 'number' ? 'Nombre' : 'Texte'}</option>
+                  {COL_TYPES.map(colType => (
+                    <option key={colType} value={colType}>{colType === 'computed' ? t('Calculé') : colType === 'number' ? t('Nombre') : t('Texte')}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label style={{ fontSize: 10, color: 'var(--fg-muted)', display: 'block', marginBottom: 2 }}>Largeur%</label>
+                <label style={{ fontSize: 10, color: 'var(--fg-muted)', display: 'block', marginBottom: 2 }}>{t('Largeur%')}</label>
                 <input type="number" min={5} max={100} value={col.width || 20} onChange={e => updateCol(i, { width: Number(e.target.value) })} style={{ ...IS, padding: '3px 6px', fontSize: 11 }} />
               </div>
             </div>
             {col.type === 'computed' && (
               <div style={{ marginTop: 5 }}>
-                <label style={{ fontSize: 10, color: 'var(--fg-muted)', display: 'block', marginBottom: 2 }}>Formule (ex: quantite * prix_unitaire)</label>
+                <label style={{ fontSize: 10, color: 'var(--fg-muted)', display: 'block', marginBottom: 2 }}>{t('Formule (ex: quantite * prix_unitaire)')}</label>
                 <input
                   value={col.formula || ''}
                   onChange={e => updateCol(i, { formula: e.target.value })}
@@ -227,7 +231,7 @@ function TableColumnsEditor({ columns = [], onChange }) {
               </div>
             )}
             <div style={{ marginTop: 5 }}>
-              <label style={{ fontSize: 10, color: 'var(--fg-muted)', display: 'block', marginBottom: 2 }}>Clé interne</label>
+              <label style={{ fontSize: 10, color: 'var(--fg-muted)', display: 'block', marginBottom: 2 }}>{t('Clé interne')}</label>
               <input
                 value={col.key}
                 onChange={e => updateCol(i, { key: e.target.value.replace(/\s+/g, '_').toLowerCase() })}
@@ -243,7 +247,7 @@ function TableColumnsEditor({ columns = [], onChange }) {
         borderRadius: 7, cursor: 'pointer', fontSize: 11, color: 'var(--fg-muted)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
       }}>
-        <Plus size={11} /> Ajouter une colonne
+        <Plus size={11} /> {t('Ajouter une colonne')}
       </button>
     </div>
   );
@@ -252,6 +256,7 @@ function TableColumnsEditor({ columns = [], onChange }) {
 // ─── Éditeur de texte dynamique ───────────────────────────────────────────────
 
 function DynamicTextSection({ field, upd, allFields }) {
+  const { t } = useTranslation();
   const taRef = useRef(null);
   const [jFrom, setJFrom] = useState('');
   const [jTo,   setJTo]   = useState('');
@@ -275,14 +280,14 @@ function DynamicTextSection({ field, upd, allFields }) {
 
   return (
     <>
-      <Field label="Modèle de texte" hint='Utilisez {id} pour insérer un champ, ou cliquez ci-dessous'>
+      <Field label={t('Modèle de texte')} hint={t('Utilisez {id} pour insérer un champ, ou cliquez ci-dessous')}>
         <textarea
           ref={taRef}
           value={field.template || ''}
           onChange={e => upd('template', e.target.value)}
           rows={5}
           style={{ ...IS, resize: 'vertical', fontFamily: 'monospace', fontSize: 11, lineHeight: 1.6 }}
-          placeholder="Ex : Je soussigné(e) {nom}, demande {jours_ouvres(debut, fin)} jours de permission..."
+          placeholder={t('Ex : Je soussigné(e) {nom}, demande {jours_ouvres(debut, fin)} jours de permission...')}
         />
       </Field>
 
@@ -290,22 +295,22 @@ function DynamicTextSection({ field, upd, allFields }) {
       {dateFields.length > 0 && (
         <div style={{ marginBottom: 10, background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8, padding: '8px 10px' }}>
           <p style={{ fontSize: 10, fontWeight: 700, color: '#1d4ed8', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 5 }}>
-            📅 Calculateur jours ouvrés (hors week-ends)
+            📅 {t('Calculateur jours ouvrés (hors week-ends)')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <div>
-              <label style={{ fontSize: 10, color: '#374151', display: 'block', marginBottom: 2, fontWeight: 600 }}>Champ date début</label>
+              <label style={{ fontSize: 10, color: '#374151', display: 'block', marginBottom: 2, fontWeight: 600 }}>{t('Champ date début')}</label>
               <select value={jFrom} onChange={e => setJFrom(e.target.value)} style={{ ...IS, fontSize: 11, padding: '4px 6px' }}>
-                <option value="">Choisir...</option>
+                <option value="">{t('Choisir...')}</option>
                 {dateFields.map(f => (
                   <option key={f.id} value={f.id}>{f.label || FIELD_REGISTRY[f.type]?.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 10, color: '#374151', display: 'block', marginBottom: 2, fontWeight: 600 }}>Champ date fin</label>
+              <label style={{ fontSize: 10, color: '#374151', display: 'block', marginBottom: 2, fontWeight: 600 }}>{t('Champ date fin')}</label>
               <select value={jTo} onChange={e => setJTo(e.target.value)} style={{ ...IS, fontSize: 11, padding: '4px 6px' }}>
-                <option value="">Choisir...</option>
+                <option value="">{t('Choisir...')}</option>
                 {dateFields.map(f => (
                   <option key={f.id} value={f.id}>{f.label || FIELD_REGISTRY[f.type]?.label}</option>
                 ))}
@@ -322,7 +327,7 @@ function DynamicTextSection({ field, upd, allFields }) {
                 fontSize: 11, fontWeight: 600, transition: 'all .15s',
               }}
             >
-              ↖ Insérer le calcul dans le texte
+              ↖ {t('Insérer le calcul dans le texte')}
             </button>
           </div>
         </div>
@@ -330,7 +335,7 @@ function DynamicTextSection({ field, upd, allFields }) {
 
       {/* ── Insertion de champs ─────────────────────────────────────── */}
       {inputFields.length > 0 && (
-        <Field label="↖ Cliquer pour insérer un champ">
+        <Field label={t('↖ Cliquer pour insérer un champ')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 150, overflowY: 'auto' }}>
             {inputFields.map(f => (
               <button key={f.id} onClick={() => insertAtCursor(`{${f.id}}`)} style={{
@@ -357,6 +362,7 @@ function DynamicTextSection({ field, upd, allFields }) {
 // ─── Onglet Affichage ─────────────────────────────────────────────────────────
 
 function TabDisplay({ field, upd, allFields = [] }) {
+  const { t } = useTranslation();
   const isSep       = field.type === 'separator';
   const isText      = ['title', 'subtitle', 'paragraph', 'dynamictext'].includes(field.type);
   const hasPlaceholder = !['title','subtitle','paragraph','separator','dynamictext','checkbox','radio','multicheck','selectcond','signature','cachet','table','daterange','computed','autonum','serviceselect'].includes(field.type);
@@ -367,10 +373,10 @@ function TabDisplay({ field, upd, allFields = [] }) {
     <div>
       {/* Libellé */}
       {!isSep && field.type !== 'dynamictext' && (
-        <Field label={isText ? 'Contenu' : 'Libellé'}>
+        <Field label={isText ? t('Contenu') : t('Libellé')}>
           {field.type === 'paragraph'
-            ? <textarea value={field.label || ''} onChange={e => upd('label', e.target.value)} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Texte à afficher..." />
-            : <input value={field.label || ''} onChange={e => upd('label', e.target.value)} style={IS} placeholder="Libellé du champ" />
+            ? <textarea value={field.label || ''} onChange={e => upd('label', e.target.value)} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('Texte à afficher...')} />
+            : <input value={field.label || ''} onChange={e => upd('label', e.target.value)} style={IS} placeholder={t('Libellé du champ')} />
           }
         </Field>
       )}
@@ -382,7 +388,7 @@ function TabDisplay({ field, upd, allFields = [] }) {
 
       {/* Alignement texte + Formatage + Couleur */}
       {!isSep && (
-        <Field label="Mise en forme">
+        <Field label={t('Mise en forme')}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <AlignButtons value={field.textAlign || 'left'} onChange={v => upd('textAlign', v)} />
             <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
@@ -390,18 +396,18 @@ function TabDisplay({ field, upd, allFields = [] }) {
             <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
             {/* Color picker */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 10, color: 'var(--fg-muted)' }}>Couleur</span>
+              <span style={{ fontSize: 10, color: 'var(--fg-muted)' }}>{t('Couleur')}</span>
               <input
                 type="color"
                 value={field.textColor || '#374151'}
                 onChange={e => upd('textColor', e.target.value)}
-                title="Couleur du texte"
+                title={t('Couleur du texte')}
                 style={{ width: 28, height: 28, border: '1.5px solid var(--border)', cursor: 'pointer', borderRadius: 5, padding: 2, background: 'none' }}
               />
               {field.textColor && (
                 <button
                   onClick={() => upd('textColor', null)}
-                  title="Réinitialiser la couleur"
+                  title={t('Réinitialiser la couleur')}
                   style={{ fontSize: 10, padding: '3px 6px', borderRadius: 4, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', color: 'var(--fg-muted)' }}
                 >↺</button>
               )}
@@ -409,13 +415,13 @@ function TabDisplay({ field, upd, allFields = [] }) {
           </div>
           {/* Sélecteur de police */}
           <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 10, color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>Police</span>
+            <span style={{ fontSize: 10, color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>{t('Police')}</span>
             <select
               value={field.fontFamily || ''}
               onChange={e => upd('fontFamily', e.target.value || null)}
               style={{ ...IS, padding: '4px 8px', fontSize: 11, flex: 1, fontFamily: field.fontFamily || 'inherit' }}
             >
-              <option value="">Par défaut (Inter)</option>
+              <option value="">{t('Par défaut (Inter)')}</option>
               <option value="Arial, sans-serif" style={{ fontFamily: 'Arial' }}>Arial</option>
               <option value="'Times New Roman', serif" style={{ fontFamily: 'Times New Roman' }}>Times New Roman</option>
               <option value="Georgia, serif" style={{ fontFamily: 'Georgia' }}>Georgia</option>
@@ -428,21 +434,21 @@ function TabDisplay({ field, upd, allFields = [] }) {
 
       {/* Placeholder */}
       {hasPlaceholder && (
-        <Field label="Placeholder">
-          <input value={field.placeholder || ''} onChange={e => upd('placeholder', e.target.value)} style={IS} placeholder="Texte indicatif..." />
+        <Field label={t('Placeholder')}>
+          <input value={field.placeholder || ''} onChange={e => upd('placeholder', e.target.value)} style={IS} placeholder={t('Texte indicatif...')} />
         </Field>
       )}
 
       {/* Description */}
       {!isSep && !['table'].includes(field.type) && (
-        <Field label="Description">
-          <textarea value={field.description || ''} onChange={e => upd('description', e.target.value)} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder="Aide pour l'utilisateur..." />
+        <Field label={t('Description')}>
+          <textarea value={field.description || ''} onChange={e => upd('description', e.target.value)} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder={t("Aide pour l'utilisateur...")} />
         </Field>
       )}
 
       {/* ── Options (radio / select / multicheck) ─────────────────────── */}
       {hasOptions && (
-        <Field label="Options">
+        <Field label={t('Options')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {(field.options || []).map((opt, idx) => (
               <div key={idx} style={{ display: 'flex', gap: 4 }}>
@@ -454,7 +460,7 @@ function TabDisplay({ field, upd, allFields = [] }) {
                     upd('options', opts);
                   }}
                   style={{ ...IS, flex: 1 }}
-                  placeholder={`Option ${idx + 1}`}
+                  placeholder={t('Option {{num}}', { num: idx + 1 })}
                 />
                 <button onClick={() => upd('options', field.options.filter((_, i) => i !== idx))}
                   style={{ padding: '0 7px', background: 'none', border: '1.5px solid var(--border)', borderRadius: 6, cursor: 'pointer', color: 'var(--danger)' }}>
@@ -462,9 +468,9 @@ function TabDisplay({ field, upd, allFields = [] }) {
                 </button>
               </div>
             ))}
-            <button onClick={() => upd('options', [...(field.options || []), `Option ${(field.options?.length || 0) + 1}`])}
+            <button onClick={() => upd('options', [...(field.options || []), t('Option {{num}}', { num: (field.options?.length || 0) + 1 })])}
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', background: 'none', border: '1.5px dashed var(--border)', borderRadius: 6, cursor: 'pointer', fontSize: 11, color: 'var(--fg-muted)' }}>
-              <Plus size={11} /> Ajouter une option
+              <Plus size={11} /> {t('Ajouter une option')}
             </button>
           </div>
         </Field>
@@ -472,11 +478,11 @@ function TabDisplay({ field, upd, allFields = [] }) {
 
       {/* Colonnes de cases (multicheck) */}
       {field.type === 'multicheck' && (
-        <Field label="Colonnes d'affichage">
+        <Field label={t("Colonnes d'affichage")}>
           <select value={field.checkColumns || 1} onChange={e => upd('checkColumns', Number(e.target.value))} style={IS}>
-            <option value={1}>1 colonne</option>
-            <option value={2}>2 colonnes</option>
-            <option value={3}>3 colonnes</option>
+            <option value={1}>{t('1 colonne')}</option>
+            <option value={2}>{t('2 colonnes')}</option>
+            <option value={3}>{t('3 colonnes')}</option>
           </select>
         </Field>
       )}
@@ -484,7 +490,7 @@ function TabDisplay({ field, upd, allFields = [] }) {
       {/* ── Tableau (table) ─────────────────────────────────────────────── */}
       {field.type === 'table' && (
         <>
-          <Field label="Colonnes du tableau">
+          <Field label={t('Colonnes du tableau')}>
             <TableColumnsEditor
               columns={field.columns || []}
               onChange={cols => upd('columns', cols)}
@@ -494,10 +500,10 @@ function TabDisplay({ field, upd, allFields = [] }) {
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
               <input type="checkbox" checked={field.autoNumber !== false} onChange={e => upd('autoNumber', e.target.checked)}
                 style={{ accentColor: 'var(--brand)', width: 13, height: 13 }} />
-              Numéroter les lignes
+              {t('Numéroter les lignes')}
             </label>
           </div>
-          <Field label="Lignes minimum">
+          <Field label={t('Lignes minimum')}>
             <input type="number" min={0} max={20} value={field.minRows ?? 1} onChange={e => upd('minRows', Number(e.target.value))} style={IS} />
           </Field>
         </>
@@ -506,17 +512,17 @@ function TabDisplay({ field, upd, allFields = [] }) {
       {/* ── Période de dates (daterange) ─────────────────────────────────── */}
       {field.type === 'daterange' && (
         <>
-          <Field label="Libellé date début">
-            <input value={field.labelStart || 'Date début'} onChange={e => upd('labelStart', e.target.value)} style={IS} />
+          <Field label={t('Libellé date début')}>
+            <input value={field.labelStart || t('Date début')} onChange={e => upd('labelStart', e.target.value)} style={IS} />
           </Field>
-          <Field label="Libellé date fin">
-            <input value={field.labelEnd || 'Date fin'} onChange={e => upd('labelEnd', e.target.value)} style={IS} />
+          <Field label={t('Libellé date fin')}>
+            <input value={field.labelEnd || t('Date fin')} onChange={e => upd('labelEnd', e.target.value)} style={IS} />
           </Field>
           <div style={{ marginBottom: 10 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
               <input type="checkbox" checked={!!field.includeBusinessDays} onChange={e => upd('includeBusinessDays', e.target.checked)}
                 style={{ accentColor: 'var(--brand)', width: 13, height: 13 }} />
-              Afficher le nombre de jours ouvrés
+              {t('Afficher le nombre de jours ouvrés')}
             </label>
           </div>
         </>
@@ -525,19 +531,19 @@ function TabDisplay({ field, upd, allFields = [] }) {
       {/* ── Champ calculé (computed) ─────────────────────────────────────── */}
       {field.type === 'computed' && (
         <>
-          <Field label="Formule" hint="Ex: {total} * 1.1925 ou {qte} * {prix}">
+          <Field label={t('Formule')} hint={t('Ex: {total} * 1.1925 ou {qte} * {prix}')}>
             <input value={field.formula || ''} onChange={e => upd('formula', e.target.value)}
               style={{ ...IS, fontFamily: 'monospace' }} placeholder="{champ1} * {champ2}" />
           </Field>
-          <Field label="Format du résultat">
+          <Field label={t('Format du résultat')}>
             <select value={field.format || 'number'} onChange={e => upd('format', e.target.value)} style={IS}>
-              <option value="number">Nombre</option>
-              <option value="currency">Montant (FCFA)</option>
-              <option value="text">Texte</option>
+              <option value="number">{t('Nombre')}</option>
+              <option value="currency">{t('Montant (FCFA)')}</option>
+              <option value="text">{t('Texte')}</option>
             </select>
           </Field>
-          <Field label="Suffixe (optionnel)">
-            <input value={field.suffix || ''} onChange={e => upd('suffix', e.target.value)} style={IS} placeholder="FCFA, kg, %, ..." />
+          <Field label={t('Suffixe (optionnel)')}>
+            <input value={field.suffix || ''} onChange={e => upd('suffix', e.target.value)} style={IS} placeholder={t('FCFA, kg, %, ...')} />
           </Field>
         </>
       )}
@@ -545,10 +551,10 @@ function TabDisplay({ field, upd, allFields = [] }) {
       {/* ── Sélection conditionnelle (selectcond) ──────────────────────── */}
       {field.type === 'selectcond' && (
         <>
-          <Field label="Libellé de la sous-sélection" hint="Visible quand l'option choisie a des sous-options">
-            <input value={field.subLabel || 'Préciser :'} onChange={e => upd('subLabel', e.target.value)} style={IS} />
+          <Field label={t('Libellé de la sous-sélection')} hint={t("Visible quand l'option choisie a des sous-options")}>
+            <input value={field.subLabel || t('Préciser :')} onChange={e => upd('subLabel', e.target.value)} style={IS} />
           </Field>
-          <Field label="Options & sous-options">
+          <Field label={t('Options & sous-options')}>
             <ConditionalSelectEditor
               options={field.condOptions || []}
               onChange={opts => upd('condOptions', opts)}
@@ -560,25 +566,25 @@ function TabDisplay({ field, upd, allFields = [] }) {
       {/* ── N° automatique (autonum) ─────────────────────────────────────── */}
       {field.type === 'autonum' && (
         <>
-          <Field label="Préfixe" hint="Sera suivi d'un tiret et du numéro">
-            <input value={field.prefix || 'REF'} onChange={e => upd('prefix', e.target.value)} style={IS} placeholder="Ex: BC, PC, OM..." />
+          <Field label={t('Préfixe')} hint={t("Sera suivi d'un tiret et du numéro")}>
+            <input value={field.prefix || 'REF'} onChange={e => upd('prefix', e.target.value)} style={IS} placeholder={t('Ex: BC, PC, OM...')} />
           </Field>
-          <Field label="Catégorie de document" hint="Pour la numérotation séquentielle">
-            <input value={field.category || ''} onChange={e => upd('category', e.target.value)} style={IS} placeholder="Ex: Bon de commande" />
+          <Field label={t('Catégorie de document')} hint={t('Pour la numérotation séquentielle')}>
+            <input value={field.category || ''} onChange={e => upd('category', e.target.value)} style={IS} placeholder={t('Ex: Bon de commande')} />
           </Field>
         </>
       )}
 
       {/* ── Valeur par défaut ────────────────────────────────────────────── */}
       {hasDefault && (
-        <Field label="Valeur par défaut">
-          <input value={field.defaultValue || ''} onChange={e => upd('defaultValue', e.target.value)} style={IS} placeholder="Valeur pré-remplie..." />
+        <Field label={t('Valeur par défaut')}>
+          <input value={field.defaultValue || ''} onChange={e => upd('defaultValue', e.target.value)} style={IS} placeholder={t('Valeur pré-remplie...')} />
         </Field>
       )}
 
       {/* ── Dimensions ───────────────────────────────────────────────────── */}
       <div style={{ paddingTop: 6, borderTop: '1px solid var(--border)' }}>
-        <p style={{ ...LS, marginBottom: 6, color: 'var(--fg-muted)' }}>Position & taille (unités grille)</p>
+        <p style={{ ...LS, marginBottom: 6, color: 'var(--fg-muted)' }}>{t('Position & taille (unités grille)')}</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4 }}>
           {['x','y','w','h'].map(k => {
             const raw = field.layout?.[k] ?? 0;
@@ -606,6 +612,7 @@ function TabDisplay({ field, upd, allFields = [] }) {
 // ─── Onglet Validation ────────────────────────────────────────────────────────
 
 function TabValidation({ field, upd, updV }) {
+  const { t } = useTranslation();
   const isSep     = field.type === 'separator';
   const isTitle   = ['title','subtitle','paragraph'].includes(field.type);
   const isNoValid = ['table','computed','autonum','signature','cachet'].includes(field.type);
@@ -614,7 +621,7 @@ function TabValidation({ field, upd, updV }) {
 
   if (isSep || isTitle || isNoValid) return (
     <p style={{ fontSize: 12, color: 'var(--fg-muted)', textAlign: 'center', marginTop: 20 }}>
-      Pas de validation pour ce type de champ.
+      {t('Pas de validation pour ce type de champ.')}
     </p>
   );
 
@@ -624,23 +631,23 @@ function TabValidation({ field, upd, updV }) {
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
           <input type="checkbox" checked={field.required || false} onChange={e => upd('required', e.target.checked)}
             style={{ width: 14, height: 14, accentColor: 'var(--brand)', cursor: 'pointer' }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>Champ obligatoire</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>{t('Champ obligatoire')}</span>
         </label>
         {field.required && (
           <div style={{ marginTop: 6 }}>
-            <label style={LS}>Message d'erreur</label>
+            <label style={LS}>{t("Message d'erreur")}</label>
             <input value={field.validation?.requiredMsg || ''} onChange={e => updV('requiredMsg', e.target.value)}
-              style={IS} placeholder="Ce champ est obligatoire" />
+              style={IS} placeholder={t('Ce champ est obligatoire')} />
           </div>
         )}
       </div>
 
       {isText && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-          <Field label="Min. caractères">
+          <Field label={t('Min. caractères')}>
             <input type="number" min={0} value={field.validation?.minLength ?? ''} onChange={e => updV('minLength', e.target.value === '' ? null : Number(e.target.value))} style={IS} placeholder="—" />
           </Field>
-          <Field label="Max. caractères">
+          <Field label={t('Max. caractères')}>
             <input type="number" min={0} value={field.validation?.maxLength ?? ''} onChange={e => updV('maxLength', e.target.value === '' ? null : Number(e.target.value))} style={IS} placeholder="—" />
           </Field>
         </div>
@@ -648,25 +655,25 @@ function TabValidation({ field, upd, updV }) {
 
       {isNum && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-          <Field label="Valeur min.">
+          <Field label={t('Valeur min.')}>
             <input type="number" value={field.validation?.min ?? ''} onChange={e => updV('min', e.target.value === '' ? null : Number(e.target.value))} style={IS} placeholder="—" />
           </Field>
-          <Field label="Valeur max.">
+          <Field label={t('Valeur max.')}>
             <input type="number" value={field.validation?.max ?? ''} onChange={e => updV('max', e.target.value === '' ? null : Number(e.target.value))} style={IS} placeholder="—" />
           </Field>
         </div>
       )}
 
       {isText && (
-        <Field label="Expression régulière" hint="Ex: ^[A-Za-z]+$ pour lettres seulement">
+        <Field label={t('Expression régulière')} hint={t('Ex: ^[A-Za-z]+$ pour lettres seulement')}>
           <input value={field.validation?.regex || ''} onChange={e => updV('regex', e.target.value || null)}
             style={{ ...IS, fontFamily: 'monospace' }} placeholder="^[A-Za-z0-9]+$" />
         </Field>
       )}
       {field.validation?.regex && (
-        <Field label="Message si invalide">
+        <Field label={t('Message si invalide')}>
           <input value={field.validation?.regexMsg || ''} onChange={e => updV('regexMsg', e.target.value)}
-            style={IS} placeholder="Format invalide" />
+            style={IS} placeholder={t('Format invalide')} />
         </Field>
       )}
     </div>
@@ -692,6 +699,7 @@ const OPERATORS_OPTIONS = [
 const NO_VALUE_OPS = ['is_empty', 'is_not_empty', 'is_checked', 'is_unchecked'];
 
 function TabConditions({ field, upd, allFields }) {
+  const { t } = useTranslation();
   const raw  = field.conditions;
   const cond = (Array.isArray(raw) && raw.length > 0) ? raw[0]
              : (raw && !Array.isArray(raw)) ? raw
@@ -706,14 +714,14 @@ function TabConditions({ field, upd, allFields }) {
       <div style={{ textAlign: 'center', paddingTop: 20 }}>
         <GitBranch size={28} style={{ color: 'var(--fg-muted)', opacity: .4, marginBottom: 8 }} />
         <p style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 12 }}>
-          Ce champ est toujours visible.<br/>
-          Activez une condition pour le masquer ou l'afficher selon les réponses.
+          {t('Ce champ est toujours visible.')}<br/>
+          {t("Activez une condition pour le masquer ou l'afficher selon les réponses.")}
         </p>
         <button
           onClick={() => setCond({ action: 'show', logic: 'AND', rules: [{ fieldId: '', operator: 'equals', value: '' }] })}
           style={{ padding: '7px 14px', borderRadius: 8, background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
           <Plus size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-          Ajouter une condition
+          {t('Ajouter une condition')}
         </button>
       </div>
     );
@@ -734,7 +742,7 @@ function TabConditions({ field, upd, allFields }) {
 
   return (
     <div>
-      <Field label="Action">
+      <Field label={t('Action')}>
         <div style={{ display: 'flex', gap: 6 }}>
           {['show', 'hide'].map(a => (
             <button key={a} onClick={() => updateCond('action', a)} style={{
@@ -743,14 +751,14 @@ function TabConditions({ field, upd, allFields }) {
               color: cond.action === a ? '#fff' : 'var(--fg-muted)',
               border: `1.5px solid ${cond.action === a ? 'var(--brand)' : 'var(--border)'}`,
             }}>
-              {a === 'show' ? '👁 Afficher' : '🙈 Masquer'}
+              {a === 'show' ? `👁 ${t('Afficher')}` : `🙈 ${t('Masquer')}`}
             </button>
           ))}
         </div>
       </Field>
 
       {(cond.rules?.length || 0) > 1 && (
-        <Field label="Combiner les règles">
+        <Field label={t('Combiner les règles')}>
           <div style={{ display: 'flex', gap: 6 }}>
             {['AND', 'OR'].map(l => (
               <button key={l} onClick={() => updateCond('logic', l)} style={{
@@ -759,40 +767,40 @@ function TabConditions({ field, upd, allFields }) {
                 color: cond.logic === l ? '#fff' : 'var(--fg-muted)',
                 border: `1.5px solid ${cond.logic === l ? '#6366f1' : 'var(--border)'}`,
               }}>
-                {l === 'AND' ? 'ET (toutes)' : 'OU (une)'}
+                {l === 'AND' ? t('ET (toutes)') : t('OU (une)')}
               </button>
             ))}
           </div>
         </Field>
       )}
 
-      <p style={{ ...LS, marginBottom: 6 }}>Si...</p>
+      <p style={{ ...LS, marginBottom: 6 }}>{t('Si...')}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
         {(cond.rules || []).map((rule, idx) => (
           <div key={idx} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '8px', border: '1px solid var(--border)' }}>
             <div style={{ marginBottom: 5 }}>
-              <label style={{ ...LS, fontSize: 10 }}>Champ</label>
+              <label style={{ ...LS, fontSize: 10 }}>{t('Champ')}</label>
               <select value={rule.fieldId || ''} onChange={e => updateRule(idx, 'fieldId', e.target.value)} style={IS}>
-                <option value="">Choisir un champ...</option>
+                <option value="">{t('Choisir un champ...')}</option>
                 {otherFields.map(f => (
                   <option key={f.id} value={f.id}>{f.label || FIELD_REGISTRY[f.type]?.label}</option>
                 ))}
               </select>
             </div>
             <div style={{ marginBottom: NO_VALUE_OPS.includes(rule.operator) ? 0 : 5 }}>
-              <label style={{ ...LS, fontSize: 10 }}>Condition</label>
+              <label style={{ ...LS, fontSize: 10 }}>{t('Condition')}</label>
               <select value={rule.operator || 'equals'} onChange={e => updateRule(idx, 'operator', e.target.value)} style={IS}>
-                {OPERATORS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {OPERATORS_OPTIONS.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
               </select>
             </div>
             {!NO_VALUE_OPS.includes(rule.operator) && (
               <div>
-                <label style={{ ...LS, fontSize: 10 }}>Valeur</label>
-                <input value={rule.value || ''} onChange={e => updateRule(idx, 'value', e.target.value)} style={IS} placeholder="Valeur à comparer..." />
+                <label style={{ ...LS, fontSize: 10 }}>{t('Valeur')}</label>
+                <input value={rule.value || ''} onChange={e => updateRule(idx, 'value', e.target.value)} style={IS} placeholder={t('Valeur à comparer...')} />
               </div>
             )}
             <button onClick={() => removeRule(idx)} style={{ marginTop: 6, padding: '3px 8px', background: 'none', border: '1px solid var(--danger)', borderRadius: 5, cursor: 'pointer', fontSize: 10, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Trash2 size={10} /> Supprimer
+              <Trash2 size={10} /> {t('Supprimer')}
             </button>
           </div>
         ))}
@@ -800,10 +808,10 @@ function TabConditions({ field, upd, allFields }) {
 
       <div style={{ display: 'flex', gap: 6 }}>
         <button onClick={addRule} style={{ flex: 1, padding: '6px 0', background: 'none', border: '1.5px dashed var(--border)', borderRadius: 7, cursor: 'pointer', fontSize: 11, color: 'var(--fg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-          <Plus size={11} /> Ajouter une règle
+          <Plus size={11} /> {t('Ajouter une règle')}
         </button>
         <button onClick={() => setCond(null)} style={{ padding: '6px 10px', background: 'none', border: '1.5px solid var(--danger)', borderRadius: 7, cursor: 'pointer', fontSize: 11, color: 'var(--danger)' }}>
-          Supprimer tout
+          {t('Supprimer tout')}
         </button>
       </div>
     </div>
@@ -819,6 +827,7 @@ const TABS = [
 ];
 
 export default function PropertiesPanel() {
+  const { t } = useTranslation();
   const { form, selectedFieldId, updateField } = useFormBuilderStore();
   const [activeTab, setActiveTab] = useState('display');
 
@@ -849,7 +858,7 @@ export default function PropertiesPanel() {
       }}>
         <MousePointerClick size={28} style={{ color: 'var(--fg-muted)', opacity: .3 }} />
         <p style={{ fontSize: 12, color: 'var(--fg-muted)', textAlign: 'center', margin: 0, lineHeight: 1.6 }}>
-          Cliquez sur un champ<br/>pour le configurer
+          {t('Cliquez sur un champ')}<br/>{t('pour le configurer')}
         </p>
       </div>
     );
@@ -870,7 +879,7 @@ export default function PropertiesPanel() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
           <Settings2 size={13} style={{ color: 'var(--brand)' }} />
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg)', textTransform: 'uppercase', letterSpacing: '.5px', flex: 1 }}>
-            Propriétés
+            {t('Propriétés')}
           </span>
           <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: 'var(--brand)', color: '#fff' }}>
             {reg?.label || field.type}
@@ -893,7 +902,7 @@ export default function PropertiesPanel() {
                 position: 'relative', transition: 'color .15s',
               }}>
                 <Icon size={11} />
-                {tab.label}
+                {t(tab.label)}
                 {badge > 0 && (
                   <span style={{ position: 'absolute', top: 2, right: 4, background: '#10b981', color: '#fff', fontSize: 8, fontWeight: 700, borderRadius: 8, padding: '1px 4px' }}>
                     {badge}

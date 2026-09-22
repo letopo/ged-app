@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { documentsAPI, postesAPI, servicesAPI, missionMealAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
@@ -7,6 +8,7 @@ import PersonAutocomplete from '../../components/PersonAutocomplete';
 // Aperçu (lecture seule) des indemnités de repas calculées pour le missionnaire et
 // le conducteur — sert de référence à la comptable pour la pièce de caisse.
 function MissionMealsPreview({ formData }) {
+  const { t } = useTranslation();
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -14,7 +16,7 @@ function MissionMealsPreview({ formData }) {
     const ready = formData.heure_depart && formData.heure_retour && (formData.missionnaire_id || formData.conducteur_id);
     if (!ready) { setResult(null); return undefined; }
     setLoading(true);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       missionMealAPI.calculate({
         missionnaireId: formData.missionnaire_id, missionnaireSource: formData.missionnaire_source,
         conducteurId: formData.conducteur_id, conducteurSource: formData.conducteur_source,
@@ -22,7 +24,7 @@ function MissionMealsPreview({ formData }) {
         dateDepart: formData.date_depart, dateRetour: formData.date_retour,
       }).then(r => setResult(r.data.data)).catch(() => setResult(null)).finally(() => setLoading(false));
     }, 300);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [formData.missionnaire_id, formData.conducteur_id, formData.heure_depart, formData.heure_retour, formData.date_depart, formData.date_retour]);
 
   if (!formData.heure_depart || !formData.heure_retour) return null;
@@ -31,10 +33,10 @@ function MissionMealsPreview({ formData }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
       <span style={{ color: 'var(--fg-muted)' }}>{label}</span>
       {!data || data.categorieInconnue ? (
-        <span style={{ color: 'var(--fg-subtle)' }}>Catégorie inconnue — pas de calcul</span>
+        <span style={{ color: 'var(--fg-subtle)' }}>{t('Catégorie inconnue — pas de calcul')}</span>
       ) : (
         <span style={{ color: 'var(--fg)' }}>
-          {data.petitDejeuner && 'Petit-déj '}{data.dejeuner && 'Déjeuner '}{data.diner && 'Dîner '}
+          {data.petitDejeuner && t('Petit-déj ')}{data.dejeuner && t('Déjeuner ')}{data.diner && t('Dîner ')}
           {!data.petitDejeuner && !data.dejeuner && !data.diner && '—'}
           {' · '}<strong>{Number(data.total).toLocaleString('fr-FR')} FCFA</strong>
         </span>
@@ -45,18 +47,18 @@ function MissionMealsPreview({ formData }) {
   return (
     <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', marginBottom: 4 }}>
-        Indemnités estimées (référence pour la pièce de caisse)
+        {t('Indemnités estimées (référence pour la pièce de caisse)')}
       </div>
       {loading ? (
-        <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>Calcul…</div>
+        <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{t('Calcul…')}</div>
       ) : !result ? (
-        <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>Sélectionnez le missionnaire et/ou le conducteur pour voir le calcul.</div>
+        <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{t('Sélectionnez le missionnaire et/ou le conducteur pour voir le calcul.')}</div>
       ) : (
         <>
-          <Row label="Missionnaire" data={result.missionnaire} />
-          <Row label="Conducteur" data={result.conducteur} />
+          <Row label={t('Missionnaire')} data={result.missionnaire} />
+          <Row label={t('Conducteur')} data={result.conducteur} />
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>
-            <span>Total</span><span>{Number(result.total).toLocaleString('fr-FR')} FCFA</span>
+            <span>{t('Total')}</span><span>{Number(result.total).toLocaleString('fr-FR')} FCFA</span>
           </div>
         </>
       )}
@@ -88,6 +90,7 @@ const VALIDATION_ZONES = {
 
 const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [missionServiceId, setMissionServiceId] = useState(null);
   const [chauffeursServiceId, setChauffeursServiceId] = useState(null);
 
@@ -105,7 +108,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
     postesAPI.getOrdreMissionTypes()
       .then(res => {
         const types = res.data?.data || [];
-        const match = types.find(t => t.code === formData.type_mission);
+        const match = types.find(om => om.code === formData.type_mission);
         setMissionServiceId(match?.serviceId || null);
       })
       .catch(() => setMissionServiceId(null));
@@ -142,43 +145,43 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
         boxShadow: 'var(--shadow-1)',
       }}>
         <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', marginBottom: 16, marginTop: 0 }}>
-          Remplir les informations
+          {t('Remplir les informations')}
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div>
-            <label style={labelStyle}>📅 Date de Départ *</label>
+            <label style={labelStyle}>📅 {t('Date de Départ')} *</label>
             <input type="date" name="date_depart" value={formData.date_depart || ''} onChange={handleChange} style={inputStyle} required />
           </div>
           <div>
-            <label style={labelStyle}>📅 Date de Retour *</label>
+            <label style={labelStyle}>📅 {t('Date de Retour')} *</label>
             <input type="date" name="date_retour" value={formData.date_retour || ''} onChange={handleChange} min={formData.date_depart || ''} style={inputStyle} required />
           </div>
           <div>
-            <label style={labelStyle}>🕐 Heure de Départ *</label>
+            <label style={labelStyle}>🕐 {t('Heure de Départ')} *</label>
             <input type="time" name="heure_depart" value={formData.heure_depart || ''} onChange={handleChange} style={inputStyle} required />
           </div>
           <div>
-            <label style={labelStyle}>🕐 Heure de Retour *</label>
+            <label style={labelStyle}>🕐 {t('Heure de Retour')} *</label>
             <input type="time" name="heure_retour" value={formData.heure_retour || ''} onChange={handleChange} style={inputStyle} required />
           </div>
           <div>
-            <label style={labelStyle}>🏢 Service Demandeur *</label>
-            <input type="text" name="service_demandeur" value={formData.service_demandeur || ''} onChange={handleChange} placeholder="Ex: Direction" style={inputStyle} required />
+            <label style={labelStyle}>🏢 {t('Service Demandeur')} *</label>
+            <input type="text" name="service_demandeur" value={formData.service_demandeur || ''} onChange={handleChange} placeholder={t('Ex: Direction')} style={inputStyle} required />
           </div>
           <div>
-            <label style={labelStyle}>📋 Numéro d'Ordre</label>
-            <input type="text" name="numero_ordre" value={formData.numero_ordre || 'Génération en cours...'} readOnly style={{ ...inputStyle, background: 'var(--surface-2)', color: 'var(--fg-muted)', cursor: 'not-allowed' }} />
+            <label style={labelStyle}>📋 {t("Numéro d'Ordre")}</label>
+            <input type="text" name="numero_ordre" value={formData.numero_ordre || t('Génération en cours...')} readOnly style={{ ...inputStyle, background: 'var(--surface-2)', color: 'var(--fg-muted)', cursor: 'not-allowed' }} />
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={labelStyle}>📝 Objet de la Mission *</label>
-            <textarea name="objet_mission" value={formData.objet_mission || ''} onChange={handleChange} placeholder="Décrivez l'objet de la mission..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} required />
+            <label style={labelStyle}>📝 {t('Objet de la Mission')} *</label>
+            <textarea name="objet_mission" value={formData.objet_mission || ''} onChange={handleChange} placeholder={t("Décrivez l'objet de la mission...")} rows={3} style={{ ...inputStyle, resize: 'vertical' }} required />
           </div>
           <div>
-            <label style={labelStyle}>👤 Nom du Missionnaire *</label>
+            <label style={labelStyle}>👤 {t('Nom du Missionnaire')} *</label>
             <PersonAutocomplete
               value={formData.nom_missionnaire || ''}
               serviceId={missionServiceId}
-              placeholder="Rechercher un nom..."
+              placeholder={t('Rechercher un nom...')}
               required
               onSelect={(c) => setFormData(prev => ({
                 ...prev, nom_missionnaire: c.label, missionnaire_id: c.id, missionnaire_source: c.source,
@@ -186,11 +189,11 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
             />
           </div>
           <div>
-            <label style={labelStyle}>🚗 Nom du Conducteur *</label>
+            <label style={labelStyle}>🚗 {t('Nom du Conducteur')} *</label>
             <PersonAutocomplete
               value={formData.nom_conducteur || ''}
               serviceId={chauffeursServiceId}
-              placeholder="Rechercher un nom..."
+              placeholder={t('Rechercher un nom...')}
               required
               onSelect={(c) => setFormData(prev => ({
                 ...prev, nom_conducteur: c.label, conducteur_id: c.id, conducteur_source: c.source,
@@ -198,13 +201,13 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
             />
           </div>
           <div>
-            <label style={labelStyle}>🚙 Immatriculation du Véhicule *</label>
-            <input type="text" name="immat_vehicule" value={formData.immat_vehicule || ''} onChange={handleChange} placeholder="Ex: AB-123-CD" style={inputStyle} required />
+            <label style={labelStyle}>🚙 {t('Immatriculation du Véhicule')} *</label>
+            <input type="text" name="immat_vehicule" value={formData.immat_vehicule || ''} onChange={handleChange} placeholder={t('Ex: AB-123-CD')} style={inputStyle} required />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <input type="checkbox" name="frais_mission" checked={formData.frais_mission || false} onChange={handleChange} style={{ width: 18, height: 18 }} />
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', cursor: 'pointer' }}>
-              💰 Ouvre droit aux frais de mission (OUI) / Imputation budgétaire
+              💰 {t('Ouvre droit aux frais de mission (OUI) / Imputation budgétaire')}
             </label>
           </div>
         </div>
@@ -218,15 +221,15 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <img src="/logo-hopital.png" alt="Logo" style={{ width: 64, height: 64, objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
             <div>
-              <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', margin: 0 }}>Office de Malte</p>
-              <p style={{ fontSize: 10, margin: '2px 0 0' }}>Hôpital Saint Jean de Malte</p>
-              <p style={{ fontSize: 10, margin: '2px 0 0' }}>BP 15 Njombé - Littoral - Cameroun</p>
+              <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', margin: 0 }}>{t('Office de Malte')}</p>
+              <p style={{ fontSize: 10, margin: '2px 0 0' }}>{t('Hôpital Saint Jean de Malte')}</p>
+              <p style={{ fontSize: 10, margin: '2px 0 0' }}>{t('BP 15 Njombé - Littoral - Cameroun')}</p>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', margin: 0 }}>Ordre de Mission</h1>
-            <p style={{ fontSize: 10, color: '#6b7280', marginTop: 4 }}>Hôpital Saint Jean de Malte</p>
-            {formData.numero_ordre && <p style={{ fontSize: 10, fontWeight: 600, marginTop: 8 }}>N° {formData.numero_ordre}</p>}
+            <h1 style={{ fontSize: 18, fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', margin: 0 }}>{t('Ordre de Mission')}</h1>
+            <p style={{ fontSize: 10, color: '#6b7280', marginTop: 4 }}>{t('Hôpital Saint Jean de Malte')}</p>
+            {formData.numero_ordre && <p style={{ fontSize: 10, fontWeight: 600, marginTop: 8 }}>{t('N° {{num}}', { num: formData.numero_ordre })}</p>}
           </div>
         </div>
 
@@ -234,45 +237,45 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>📅 Date de Départ (A)</p>
+              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>📅 {t('Date de Départ (A)')}</p>
               <p style={{ fontSize: 13, fontWeight: 600, borderBottom: '2px dotted #9ca3af', paddingBottom: 4, minHeight: 24 }}>
                 {formData.date_depart ? new Date(formData.date_depart).toLocaleDateString('fr-FR') : '___/___/_____'}
               </p>
             </div>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>📅 Date de Retour (R)</p>
+              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>📅 {t('Date de Retour (R)')}</p>
               <p style={{ fontSize: 13, fontWeight: 600, borderBottom: '2px dotted #9ca3af', paddingBottom: 4, minHeight: 24 }}>
                 {formData.date_retour ? new Date(formData.date_retour).toLocaleDateString('fr-FR') : '___/___/_____'}
               </p>
             </div>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>🏢 Service Demandeur</p>
+              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>🏢 {t('Service Demandeur')}</p>
               <p style={{ fontSize: 13, fontWeight: 600, borderBottom: '2px dotted #9ca3af', paddingBottom: 4, minHeight: 24 }}>
                 {formData.service_demandeur || '_____________________'}
               </p>
             </div>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>👤 Nom du Missionnaire</p>
+              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>👤 {t('Nom du Missionnaire')}</p>
               <p style={{ fontSize: 13, fontWeight: 600, borderBottom: '2px dotted #9ca3af', paddingBottom: 4, minHeight: 24 }}>
                 {formData.nom_missionnaire || '_____________________'}
               </p>
             </div>
           </div>
           <div style={{ border: '2px solid #1f2937', padding: 12, marginBottom: 16 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>📝 Objet de la Mission</p>
+            <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>📝 {t('Objet de la Mission')}</p>
             <div style={{ minHeight: 60, fontSize: 13, borderBottom: '2px dotted #9ca3af', paddingBottom: 8 }}>
               {formData.objet_mission || '__________________________________________'}
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>🚗 Nom du Conducteur</p>
+              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>🚗 {t('Nom du Conducteur')}</p>
               <p style={{ fontSize: 13, fontWeight: 600, borderBottom: '2px dotted #9ca3af', paddingBottom: 4, minHeight: 24 }}>
                 {formData.nom_conducteur || '_____________________'}
               </p>
             </div>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>🚙 Immatriculation du Véhicule</p>
+              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>🚙 {t('Immatriculation du Véhicule')}</p>
               <p style={{ fontSize: 13, fontWeight: 600, borderBottom: '2px dotted #9ca3af', paddingBottom: 4, minHeight: 24 }}>
                 {formData.immat_vehicule || '_____________________'}
               </p>
@@ -280,9 +283,9 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
           </div>
           <div style={{ border: '2px solid #1f2937', padding: 12 }}>
             <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>
-              💰 Ouvre droit aux frais de mission (OUI) / Imputation budgétaire
+              💰 {t('Ouvre droit aux frais de mission (OUI) / Imputation budgétaire')}
             </p>
-            <p style={{ fontSize: 13, fontWeight: 600 }}>{formData.frais_mission ? 'OUI' : 'NON'}</p>
+            <p style={{ fontSize: 13, fontWeight: 600 }}>{formData.frais_mission ? t('OUI') : t('NON')}</p>
           </div>
         </div>
 
@@ -291,12 +294,12 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid #1f2937', fontSize: 10 }}>
             <thead>
               <tr style={{ background: '#f3f4f6' }}>
-                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>DATE (A/R)</th>
-                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>OBJET DE LA MISSION<br/>SERVICE DEMANDEUR</th>
-                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>NOM DU<br/>CONDUCTEUR</th>
-                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>NOM DU<br/>MISSIONNAIRE</th>
-                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>IMMAT. DU<br/>VÉHICULE</th>
-                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>MISSION (OUI OU NON) /<br/>IMPUTATION BUDGÉTAIRE</th>
+                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>{t('DATE (A/R)')}</th>
+                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>{t('OBJET DE LA MISSION')}<br/>{t('SERVICE DEMANDEUR')}</th>
+                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>{t('NOM DU')}<br/>{t('CONDUCTEUR')}</th>
+                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>{t('NOM DU')}<br/>{t('MISSIONNAIRE')}</th>
+                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>{t('IMMAT. DU')}<br/>{t('VÉHICULE')}</th>
+                <th style={{ border: '1px solid #1f2937', padding: 8, fontWeight: 700 }}>{t('MISSION (OUI OU NON) /')}<br/>{t('IMPUTATION BUDGÉTAIRE')}</th>
               </tr>
             </thead>
             <tbody>
@@ -304,8 +307,8 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
                 <td style={{ border: '1px solid #1f2937', padding: 8, textAlign: 'center', verticalAlign: 'top' }}>
                   {formData.date_depart && formData.date_retour ? (
                     <>
-                      <div style={{ fontWeight: 600 }}>A: {new Date(formData.date_depart).toLocaleDateString('fr-FR')}</div>
-                      <div style={{ fontWeight: 600, marginTop: 4 }}>R: {new Date(formData.date_retour).toLocaleDateString('fr-FR')}</div>
+                      <div style={{ fontWeight: 600 }}>{t('A: {{date}}', { date: new Date(formData.date_depart).toLocaleDateString('fr-FR') })}</div>
+                      <div style={{ fontWeight: 600, marginTop: 4 }}>{t('R: {{date}}', { date: new Date(formData.date_retour).toLocaleDateString('fr-FR') })}</div>
                     </>
                   ) : <div style={{ color: '#9ca3af' }}>___/___/_____</div>}
                 </td>
@@ -317,7 +320,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
                 <td style={{ border: '1px solid #1f2937', padding: 8, textAlign: 'center', verticalAlign: 'top' }}>{formData.nom_missionnaire || ''}</td>
                 <td style={{ border: '1px solid #1f2937', padding: 8, textAlign: 'center', verticalAlign: 'top' }}>{formData.immat_vehicule || ''}</td>
                 <td style={{ border: '1px solid #1f2937', padding: 8, textAlign: 'center', verticalAlign: 'top', fontWeight: 600 }}>
-                  {formData.frais_mission ? 'OUI' : 'NON'}
+                  {formData.frais_mission ? t('OUI') : t('NON')}
                 </td>
               </tr>
             </tbody>
@@ -333,7 +336,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
           {zones.map((label, i) => (
             <SignatureFrame
               key={label}
-              label={label}
+              label={t(label)}
               signatureUrl={label === 'Service Demandeur' ? getImageUrl(user?.signaturePath) : null}
               stampUrl={label === 'Service Demandeur' ? getImageUrl(user?.stampPath) : null}
               zoneIndex={i + 1}

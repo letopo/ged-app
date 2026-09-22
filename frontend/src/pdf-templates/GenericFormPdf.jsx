@@ -2,6 +2,7 @@
 // PDF générique HSJM — reproduit fidèlement le canvas du Form Builder (positionnement absolu)
 import React from 'react';
 import { Document, Page, Text, View, Image, Font } from '@react-pdf/renderer';
+import i18n from '../i18n/config';
 import logo from '../assets/logo-ordre-malte.png';
 
 Font.register({
@@ -74,7 +75,7 @@ function evalTemplatePdf(template, responseData, allFields) {
         const dr = typeof val === 'object' ? val : {};
         const s  = dr.start ? new Date(dr.start).toLocaleDateString('fr-FR') : '...';
         const e  = dr.end   ? new Date(dr.end).toLocaleDateString('fr-FR')   : '...';
-        return `${s} au ${e}`;
+        return i18n.t('{{start}} au {{end}}', { start: s, end: e });
       }
       if (typeof val === 'object') return JSON.stringify(val);
       return fmt(val);
@@ -86,8 +87,8 @@ function formatValue(field, value) {
   if (field.type === 'date') {
     try { return new Date(value).toLocaleDateString('fr-FR'); } catch { return fmt(value); }
   }
-  if (field.type === 'checkbox') return value ? 'Oui' : 'Non';
-  if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
+  if (field.type === 'checkbox') return value ? i18n.t('Oui') : i18n.t('Non');
+  if (typeof value === 'boolean') return value ? i18n.t('Oui') : i18n.t('Non');
   if (field.type === 'selectcond' && typeof value === 'object' && value?.main) {
     return value.sub ? `${value.main} : ${value.sub}` : value.main;
   }
@@ -96,7 +97,9 @@ function formatValue(field, value) {
     const s  = dr.start ? new Date(dr.start).toLocaleDateString('fr-FR') : '—';
     const e  = dr.end   ? new Date(dr.end).toLocaleDateString('fr-FR')   : '—';
     const bd = field.includeBusinessDays ? countBusinessDaysPdf(dr.start, dr.end) : null;
-    return bd !== null ? `Du ${s} au ${e} (${bd}j ouvrés)` : `Du ${s} au ${e}`;
+    return bd !== null
+      ? i18n.t('Du {{start}} au {{end}} ({{days}}j ouvrés)', { start: s, end: e, days: bd })
+      : i18n.t('Du {{start}} au {{end}}', { start: s, end: e });
   }
   if (typeof value === 'object') return JSON.stringify(value);
   return fmt(value);
@@ -136,7 +139,7 @@ function renderFieldPdf(field, value, allFields, responseData) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: textAlign === 'right' ? 'flex-end' : textAlign === 'center' ? 'center' : 'flex-start' }}>
           <Text style={{ ...baseText, fontSize: 13, fontWeight: 'bold', textDecoration: 'underline', textTransform: 'uppercase', color: field.textColor || '#111827' }}>
-            {field.label || 'Titre'}
+            {field.label || i18n.t('Titre')}
           </Text>
         </View>
       );
@@ -187,7 +190,7 @@ function renderFieldPdf(field, value, allFields, responseData) {
             </Text>
           )}
           <View style={{ flex: 1, border: '1pt dashed #9ca3af', borderRadius: 2, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ fontSize: 7, color: '#9ca3af' }}>Cachet officiel</Text>
+            <Text style={{ fontSize: 7, color: '#9ca3af' }}>{i18n.t('Cachet officiel')}</Text>
           </View>
         </View>
       );
@@ -201,7 +204,7 @@ function renderFieldPdf(field, value, allFields, responseData) {
             </Text>
           )}
           <View style={{ flex: 1, border: '1pt dashed #9ca3af', borderRadius: 2, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ fontSize: 7, color: '#9ca3af' }}>Signature</Text>
+            <Text style={{ fontSize: 7, color: '#9ca3af' }}>{i18n.t('Signature')}</Text>
           </View>
         </View>
       );
@@ -245,21 +248,21 @@ function renderFieldPdf(field, value, allFields, responseData) {
           )}
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end' }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 6, color: '#9ca3af' }}>{field.labelStart || 'Début'}</Text>
+              <Text style={{ fontSize: 6, color: '#9ca3af' }}>{field.labelStart || i18n.t('Début')}</Text>
               <View style={{ borderBottom: '0.5pt solid #374151' }}>
                 <Text style={{ fontSize: 8.5, color: '#111827' }}>{s}</Text>
               </View>
             </View>
             <Text style={{ fontSize: 8, color: '#9ca3af', paddingBottom: 1, marginHorizontal: 3 }}>→</Text>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 6, color: '#9ca3af' }}>{field.labelEnd || 'Fin'}</Text>
+              <Text style={{ fontSize: 6, color: '#9ca3af' }}>{field.labelEnd || i18n.t('Fin')}</Text>
               <View style={{ borderBottom: '0.5pt solid #374151' }}>
                 <Text style={{ fontSize: 8.5, color: '#111827' }}>{e}</Text>
               </View>
             </View>
           </View>
           {bd !== null && (
-            <Text style={{ fontSize: 6.5, color: '#3b82f6', marginTop: 1 }}>{bd} jour(s) ouvré(s)</Text>
+            <Text style={{ fontSize: 6.5, color: '#3b82f6', marginTop: 1 }}>{i18n.t('{{count}} jour(s) ouvré(s)', { count: bd })}</Text>
           )}
         </View>
       );
@@ -343,7 +346,7 @@ function renderFieldPdf(field, value, allFields, responseData) {
               ))
             : (
               <View style={{ backgroundColor: '#f9fafb' }}>
-                <Text style={{ fontSize: 6, color: '#9ca3af', fontStyle: 'italic', padding: '2pt 3pt' }}>Aucune ligne</Text>
+                <Text style={{ fontSize: 6, color: '#9ca3af', fontStyle: 'italic', padding: '2pt 3pt' }}>{i18n.t('Aucune ligne')}</Text>
               </View>
             )
           }
@@ -424,18 +427,18 @@ export const GenericFormPdfDocument = ({ form, responseData = {}, wfSteps = [], 
           <Image src={logo} style={{ width: 80, height: 27 }} />
 
           <View style={{ textAlign: 'center', flex: 1, paddingHorizontal: 10 }}>
-            <Text style={{ fontSize: 12, fontWeight: 'bold' }}>ORDRE DE MALTE</Text>
-            <Text style={{ fontSize: 9, color: '#DC2626' }}>HÔPITAL SAINT JEAN DE MALTE</Text>
-            <Text style={{ fontSize: 7, color: '#6b7280', marginTop: 2 }}>Njombé — Cameroun</Text>
+            <Text style={{ fontSize: 12, fontWeight: 'bold' }}>{i18n.t('ORDRE DE MALTE')}</Text>
+            <Text style={{ fontSize: 9, color: '#DC2626' }}>{i18n.t('HÔPITAL SAINT JEAN DE MALTE')}</Text>
+            <Text style={{ fontSize: 7, color: '#6b7280', marginTop: 2 }}>{i18n.t('Njombé — Cameroun')}</Text>
           </View>
 
           <View style={{ textAlign: 'right', minWidth: 110 }}>
-            <Text style={{ fontSize: 8 }}>Njombé le {now}</Text>
+            <Text style={{ fontSize: 8 }}>{i18n.t('Njombé le {{date}}', { date: now })}</Text>
             {submittedBy && (
-              <Text style={{ fontSize: 7, color: '#6b7280', marginTop: 3 }}>Soumis par : {submittedBy}</Text>
+              <Text style={{ fontSize: 7, color: '#6b7280', marginTop: 3 }}>{i18n.t('Soumis par')} : {submittedBy}</Text>
             )}
             {refCode && (
-              <Text style={{ fontSize: 7, color: '#9ca3af', marginTop: 2 }}>Réf. {refCode}</Text>
+              <Text style={{ fontSize: 7, color: '#9ca3af', marginTop: 2 }}>{i18n.t('Réf. {{ref}}', { ref: refCode })}</Text>
             )}
           </View>
         </View>

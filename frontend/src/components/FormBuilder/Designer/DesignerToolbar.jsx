@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Save, Eye, Globe, CheckCircle, Loader2, MoreVertical, FileEdit, Archive, Undo2, Redo2, GitBranch, ChevronDown, Grid3x3 } from 'lucide-react';
 import { useFormBuilderStore } from '../../../store/formBuilderStore';
 import { formsAPI, workflowTemplatesAPI } from '../../../services/api';
@@ -10,6 +11,7 @@ import toast from 'react-hot-toast';
 
 export default function DesignerToolbar({ mode, onToggleMode }) {
   const navigate  = useNavigate();
+  const { t } = useTranslation();
   const { form, isDirty, isSaving, setIsSaving, setIsDirty, setForm, undo, redo, _history, _future, snapEnabled, toggleSnap } = useFormBuilderStore();
   const [menuOpen, setMenuOpen]       = useState(false);
   const [wfDropOpen, setWfDropOpen]   = useState(false);
@@ -23,9 +25,9 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
   if (!form) return null;
 
   const STATUS_LABELS = {
-    draft:     { label: 'Brouillon',  color: '#94a3b8', icon: FileEdit },
-    published: { label: 'Publié',     color: '#10b981', icon: CheckCircle },
-    archived:  { label: 'Archivé',    color: '#f59e0b', icon: Archive },
+    draft:     { label: t('Brouillon'),  color: '#94a3b8', icon: FileEdit },
+    published: { label: t('Publié'),     color: '#10b981', icon: CheckCircle },
+    archived:  { label: t('Archivé'),    color: '#f59e0b', icon: Archive },
   };
   const StatusIcon = STATUS_LABELS[form.status]?.icon || FileEdit;
 
@@ -36,9 +38,9 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
     try {
       const res = await formsAPI.update(form.id, { workflowTemplateId: templateId || null });
       setForm({ ...form, workflowTemplateId: templateId || null });
-      toast.success(templateId ? 'Workflow lié' : 'Workflow retiré');
+      toast.success(templateId ? t('Workflow lié') : t('Workflow retiré'));
     } catch (e) {
-      toast.error('Erreur lors de la mise à jour du workflow');
+      toast.error(t('Erreur lors de la mise à jour du workflow'));
     } finally {
       setWfSaving(false);
     }
@@ -55,9 +57,9 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
       });
       setForm(res.data.data);
       setIsDirty(false);
-      toast.success('Sauvegardé');
+      toast.success(t('Sauvegardé'));
     } catch (e) {
-      toast.error(e?.response?.data?.message || 'Erreur lors de la sauvegarde');
+      toast.error(e?.response?.data?.message || t('Erreur lors de la sauvegarde'));
     } finally {
       setIsSaving(false);
     }
@@ -70,9 +72,9 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
     try {
       const res = await formsAPI.publish(form.id);
       setForm(res.data.data);
-      toast.success('Formulaire publié !');
+      toast.success(t('Formulaire publié !'));
     } catch (e) {
-      toast.error(e?.response?.data?.message || 'Erreur lors de la publication');
+      toast.error(e?.response?.data?.message || t('Erreur lors de la publication'));
     }
   };
 
@@ -81,9 +83,9 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
     try {
       const res = await formsAPI.unpublish(form.id);
       setForm(res.data.data);
-      toast.success('Formulaire dépublié');
+      toast.success(t('Formulaire dépublié'));
     } catch (e) {
-      toast.error('Erreur');
+      toast.error(t('Erreur'));
     }
   };
 
@@ -109,23 +111,23 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
         onMouseLeave={e => e.currentTarget.style.background = 'none'}
       >
         <ArrowLeft size={15} />
-        <span style={{ display: 'none' }} className="md-show">Formulaires</span>
+        <span style={{ display: 'none' }} className="md-show">{t('Formulaires')}</span>
       </button>
 
       <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
 
       {/* Undo / Redo */}
-      <button onClick={undo} disabled={!_history?.length} title="Annuler (Ctrl+Z)" style={{ padding: '5px 7px', background: 'none', border: '1.5px solid var(--border)', borderRadius: 7, cursor: _history?.length ? 'pointer' : 'default', color: _history?.length ? 'var(--fg)' : 'var(--fg-muted)', opacity: _history?.length ? 1 : .4, display: 'flex' }}>
+      <button onClick={undo} disabled={!_history?.length} title={t('Annuler (Ctrl+Z)')} style={{ padding: '5px 7px', background: 'none', border: '1.5px solid var(--border)', borderRadius: 7, cursor: _history?.length ? 'pointer' : 'default', color: _history?.length ? 'var(--fg)' : 'var(--fg-muted)', opacity: _history?.length ? 1 : .4, display: 'flex' }}>
         <Undo2 size={14} />
       </button>
-      <button onClick={redo} disabled={!_future?.length} title="Rétablir (Ctrl+Y)" style={{ padding: '5px 7px', background: 'none', border: '1.5px solid var(--border)', borderRadius: 7, cursor: _future?.length ? 'pointer' : 'default', color: _future?.length ? 'var(--fg)' : 'var(--fg-muted)', opacity: _future?.length ? 1 : .4, display: 'flex' }}>
+      <button onClick={redo} disabled={!_future?.length} title={t('Rétablir (Ctrl+Y)')} style={{ padding: '5px 7px', background: 'none', border: '1.5px solid var(--border)', borderRadius: 7, cursor: _future?.length ? 'pointer' : 'default', color: _future?.length ? 'var(--fg)' : 'var(--fg-muted)', opacity: _future?.length ? 1 : .4, display: 'flex' }}>
         <Redo2 size={14} />
       </button>
 
       {/* Bascule grille / magnétisme */}
       <button
         onClick={toggleSnap}
-        title={snapEnabled ? 'Désactiver la grille et le magnétisme' : 'Activer la grille et le magnétisme'}
+        title={snapEnabled ? t('Désactiver la grille et le magnétisme') : t('Activer la grille et le magnétisme')}
         style={{
           padding: '5px 9px', borderRadius: 7,
           border: `1.5px solid ${snapEnabled ? 'var(--brand)' : 'var(--border)'}`,
@@ -136,7 +138,7 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
         }}
       >
         <Grid3x3 size={13} />
-        {snapEnabled ? 'Grille ON' : 'Grille OFF'}
+        {snapEnabled ? t('Grille ON') : t('Grille OFF')}
       </button>
 
       <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
@@ -159,7 +161,7 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
           </span>
           {isDirty && (
             <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>
-              • Non sauvegardé
+              • {t('Non sauvegardé')}
             </span>
           )}
         </div>
@@ -169,7 +171,7 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
           <button
             onClick={() => setWfDropOpen(!wfDropOpen)}
             disabled={wfSaving}
-            title="Workflow de validation lié"
+            title={t('Workflow de validation lié')}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               padding: '2px 8px', borderRadius: 10,
@@ -185,8 +187,8 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
               : <GitBranch size={10} />
             }
             {form.workflowTemplateId
-              ? (wfTemplates.find(t => t.id === form.workflowTemplateId)?.name || 'Workflow lié')
-              : 'Aucun workflow'
+              ? (wfTemplates.find(wft => wft.id === form.workflowTemplateId)?.name || t('Workflow lié'))
+              : t('Aucun workflow')
             }
             <ChevronDown size={10} />
           </button>
@@ -211,27 +213,27 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
                   onMouseLeave={e => e.currentTarget.style.background = !form.workflowTemplateId ? 'var(--surface-2)' : 'none'}
                 >
-                  Aucun workflow
+                  {t('Aucun workflow')}
                 </button>
                 {wfTemplates.length > 0 && (
                   <div style={{ borderTop: '1px solid var(--border)' }}>
-                    {wfTemplates.map(t => (
+                    {wfTemplates.map(wft => (
                       <button
-                        key={t.id}
-                        onClick={() => handleChangeWorkflow(t.id)}
+                        key={wft.id}
+                        onClick={() => handleChangeWorkflow(wft.id)}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 8,
                           width: '100%', padding: '9px 14px',
-                          background: form.workflowTemplateId === t.id ? '#eff6ff' : 'none',
+                          background: form.workflowTemplateId === wft.id ? '#eff6ff' : 'none',
                           border: 'none', cursor: 'pointer',
                           fontSize: 12, color: 'var(--fg)', textAlign: 'left',
                         }}
                         onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-                        onMouseLeave={e => e.currentTarget.style.background = form.workflowTemplateId === t.id ? '#eff6ff' : 'none'}
+                        onMouseLeave={e => e.currentTarget.style.background = form.workflowTemplateId === wft.id ? '#eff6ff' : 'none'}
                       >
                         <GitBranch size={12} style={{ color: '#3b82f6', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-                        {form.workflowTemplateId === t.id && <CheckCircle size={12} style={{ color: '#10b981', marginLeft: 'auto', flexShrink: 0 }} />}
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wft.name}</span>
+                        {form.workflowTemplateId === wft.id && <CheckCircle size={12} style={{ color: '#10b981', marginLeft: 'auto', flexShrink: 0 }} />}
                       </button>
                     ))}
                   </div>
@@ -249,10 +251,10 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
         {form.status === 'published' && (
           <>
             <button onClick={() => navigate(`/forms/${form.id}/fill`)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: '#dcfce7', color: '#16a34a', border: '1.5px solid #86efac', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-              Remplir
+              {t('Remplir')}
             </button>
             <button onClick={() => navigate(`/forms/${form.id}/responses`)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: 'var(--surface-2)', color: 'var(--fg)', border: '1.5px solid var(--border)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-              Réponses
+              {t('Réponses')}
             </button>
           </>
         )}
@@ -270,7 +272,7 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
           }}
         >
           <Eye size={14} />
-          {mode === 'preview' ? 'Conception' : 'Aperçu'}
+          {mode === 'preview' ? t('Conception') : t('Aperçu')}
         </button>
 
         {/* Sauvegarder */}
@@ -288,7 +290,7 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
           }}
         >
           {isSaving ? <Loader2 size={14} style={{ animation: 'spin .7s linear infinite' }} /> : <Save size={14} />}
-          Sauvegarder
+          {t('Sauvegarder')}
         </button>
 
         {/* Publier */}
@@ -305,7 +307,7 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
             }}
           >
             <Globe size={14} />
-            Publier
+            {t('Publier')}
           </button>
         )}
 
@@ -340,7 +342,7 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'none'}
                   >
-                    <FileEdit size={14} /> Repasser en brouillon
+                    <FileEdit size={14} /> {t('Repasser en brouillon')}
                   </button>
                 )}
                 <button
@@ -354,7 +356,7 @@ export default function DesignerToolbar({ mode, onToggleMode }) {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
                 >
-                  <CheckCircle size={14} /> Voir les réponses
+                  <CheckCircle size={14} /> {t('Voir les réponses')}
                 </button>
               </div>
             </>

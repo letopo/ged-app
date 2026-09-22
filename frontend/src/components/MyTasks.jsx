@@ -1,6 +1,7 @@
 // frontend/src/components/MyTasks.jsx - VERSION COMPLÈTE AVEC WORKFLOW COMPTABLE, ACTION COMBINÉE DG ET SUPPORT DARK MODE
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactDOM from 'react-dom';
 import { workflowAPI, listsAPI, documentsAPI, missionMealAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -29,6 +30,7 @@ const DG_EMAIL = 'hopitalcameroun@ordredemaltefrance.org';
 
 const MyTasks = () => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const dbPdfRef = useRef(null);
   const fsPdfRef = useRef(null);
   const piecePdfRef = useRef(null);
@@ -119,7 +121,7 @@ const MyTasks = () => {
         setCurrentPage(response.data.pagination.page);
       }
     } catch (err) {
-      setError('Erreur lors du chargement des tâches.');
+      setError(t('Erreur lors du chargement des tâches.'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -188,13 +190,13 @@ const MyTasks = () => {
       if (prev.length < MAX_SELECTION) {
         return [...prev, taskId];
       }
-      toast(`Vous ne pouvez pas sélectionner plus de ${MAX_SELECTION} documents à la fois.`);
+      toast(t('Vous ne pouvez pas sélectionner plus de {{max}} documents à la fois.', { max: MAX_SELECTION }));
       return prev;
     });
   };
 
   const handleSelectAll = () => {
-    const idsToSelect = filteredAndSortedTasks.filter(isTaskSelectable).slice(0, MAX_SELECTION).map(t => t.id);
+    const idsToSelect = filteredAndSortedTasks.filter(isTaskSelectable).slice(0, MAX_SELECTION).map(task => task.id);
     setSelectedTaskIds(idsToSelect);
   };
 
@@ -203,18 +205,18 @@ const MyTasks = () => {
   };
   
   const handleBulkAction = async (action) => {
-    const confirmMessage = `Vous êtes sur le point de ${action === 'approve' ? 'approuver' : 'rejeter'} ${selectedTaskIds.length} document(s).\n\nÊtes-vous sûr de vouloir continuer ?`;
+    const confirmMessage = t('Vous êtes sur le point de {{action}} {{count}} document(s).\n\nÊtes-vous sûr de vouloir continuer ?', { action: action === 'approve' ? t('approuver') : t('rejeter'), count: selectedTaskIds.length });
     if (!window.confirm(confirmMessage)) return;
 
-    const comment = prompt("Ajoutez un commentaire global (optionnel, mais requis si rejet) :", "");
+    const comment = prompt(t('Ajoutez un commentaire global (optionnel, mais requis si rejet) :'), "");
     if (action === 'reject' && (!comment || comment.trim() === '')) {
-      toast("Un commentaire est requis pour rejeter en masse.");
+      toast(t('Un commentaire est requis pour rejeter en masse.'));
       return;
     }
 
     let applySignature = false;
     if (action === 'approve' && user?.signaturePath) {
-      applySignature = window.confirm("Appliquer votre signature sur tous les documents PDF applicables ?");
+      applySignature = window.confirm(t('Appliquer votre signature sur tous les documents PDF applicables ?'));
     }
 
     setBulkActionLoading(true);
@@ -225,21 +227,21 @@ const MyTasks = () => {
       const response = await workflowAPI.bulkValidate(payload);
       
       const { summary, errors } = response.data;
-      let resultMessage = `${summary.succeeded} document(s) traité(s) avec succès.`;
+      let resultMessage = t('{{count}} document(s) traité(s) avec succès.', { count: summary.succeeded });
       if (summary.failed > 0) {
-        resultMessage += `\n${summary.failed} échec(s). Détails dans la console.`;
+        resultMessage += '\n' + t('{{count}} échec(s). Détails dans la console.', { count: summary.failed });
         console.error("Erreurs de validation en masse :", errors);
       }
       toast(resultMessage);
-      
+
       setSelectedTaskIds([]);
       setIsInSelectionMode(false);
       loadTasks(1);
 
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Une erreur serveur est survenue.';
-      setError(`Erreur lors de la validation en masse : ${errorMessage}`);
-      toast(`Erreur lors de la validation en masse : ${errorMessage}`);
+      const errorMessage = err.response?.data?.message || t('Une erreur serveur est survenue.');
+      setError(t('Erreur lors de la validation en masse : {{error}}', { error: errorMessage }));
+      toast(t('Erreur lors de la validation en masse : {{error}}', { error: errorMessage }));
     } finally {
       setBulkActionLoading(false);
     }
@@ -296,8 +298,8 @@ const MyTasks = () => {
   };
 
   const MEAL_LABELS = {
-    petitDejeuner: 'Petit-déjeuner', dejeuner: 'Déjeuner', diner: 'Dîner',
-    primeSecurite: 'Prime de sécurité', hebergement: 'Hébergement', peage: 'Péage',
+    petitDejeuner: t('Petit-déjeuner'), dejeuner: t('Déjeuner'), diner: t('Dîner'),
+    primeSecurite: t('Prime de sécurité'), hebergement: t('Hébergement'), peage: t('Péage'),
   };
   const linesFromMealCalc = (calc, fallbackLabel) => {
     if (!calc) {
@@ -340,8 +342,8 @@ const MyTasks = () => {
       setDemandeBesoinsData(prev => ({ 
         ...prev, 
         service: metadata.service || '', 
-        reference: `DT-${task.document.id.slice(0, 8)}`, 
-        justification: `Suite à la demande de travaux concernant: ${metadata.motif || ''}` 
+        reference: `DT-${task.document.id.slice(0, 8)}`,
+        justification: t('Suite à la demande de travaux concernant: {{motif}}', { motif: metadata.motif || '' })
       }));
     }
     
@@ -383,7 +385,7 @@ const MyTasks = () => {
   const handleAction = async (action) => {
     if (!taskToProcess) return;
     if (action === 'reject' && !comment.trim()) {
-      toast('Un commentaire est requis pour rejeter.');
+      toast(t('Un commentaire est requis pour rejeter.'));
       return;
     }
 
@@ -403,10 +405,7 @@ const MyTasks = () => {
       const hoursOverdue = pendingTask ? getHoursOverdue(pendingTask) : 0;
       
       const confirm = window.confirm(
-        `⚠️ VALIDATION EN BYPASS\n\n` +
-        `Le validateur précédent est en retard de ${hoursOverdue}h.\n` +
-        `Voulez-vous valider ce document à sa place ?\n\n` +
-        `Note : Cette action sera enregistrée dans l'historique.`
+        t('⚠️ VALIDATION EN BYPASS\n\nLe validateur précédent est en retard de {{hours}}h.\nVoulez-vous valider ce document à sa place ?\n\nNote : Cette action sera enregistrée dans l\'historique.', { hours: hoursOverdue })
       );
       if (!confirm) return;
     }
@@ -420,7 +419,7 @@ const MyTasks = () => {
       
       if (isBypass) {
         payload.isBypass = true;
-        payload.comment = (comment || '') + `\n[VALIDATION EN BYPASS - Retard du validateur précédent]`;
+        payload.comment = (comment || '') + '\n' + t('[VALIDATION EN BYPASS - Retard du validateur précédent]');
       }
       
       if (action === 'approve') {
@@ -444,28 +443,28 @@ const MyTasks = () => {
       const response = await workflowAPI.validateTask(taskToProcess.id, payload);
 
       setTasks(currentTasks => 
-        currentTasks.map(t => 
-          t.id === taskToProcess.id ? response.data.data : t
+        currentTasks.map(task =>
+          task.id === taskToProcess.id ? response.data.data : task
         )
       );
       
       setTaskToProcess(response.data.data);
       
       if (action === 'stamp') {
-        toast('Cachet apposé avec succès !');
+        toast(t('Cachet apposé avec succès !'));
         closeProcessingModal();
       } else if (action === 'approve_sign_stamp') {
-        toast.success('Document approuvé, signé et cacheté avec succès !');
+        toast.success(t('Document approuvé, signé et cacheté avec succès !'));
         closeProcessingModal();
       } else if (['reject', 'simple_approve'].includes(action) || action === 'dater') {
-        toast('Tâche traitée avec succès !');
+        toast(t('Tâche traitée avec succès !'));
         closeProcessingModal();
       } else if (action === 'approve') {
-        toast('Document signé avec succès !');
+        toast(t('Document signé avec succès !'));
       }
 
     } catch (err) {
-      const errorMessage = err.response?.data?.message || `Erreur lors de l'action '${action}'.`;
+      const errorMessage = err.response?.data?.message || t("Erreur lors de l'action '{{action}}'.", { action });
       setError(errorMessage);
       toast(errorMessage);
       console.error(`Erreur lors de l'action '${action}':`, err);
@@ -481,7 +480,7 @@ const MyTasks = () => {
   // de l'OM en cours de traitement (une pièce de caisse par bénéficiaire).
   const handleCreatePieceDeCaisseFromOM = (role) => {
     const metadata = taskToProcess?.document?.metadata || {};
-    const docTitle = taskToProcess.document.title || 'Document';
+    const docTitle = taskToProcess.document.title || t('Document');
     const nom = role === 'conducteur' ? metadata.nom_conducteur : metadata.nom_missionnaire;
     const calc = role === 'conducteur' ? pcMealCalc?.conducteur : pcMealCalc?.missionnaire;
     const objet = metadata.objet_mission ? ` — ${metadata.objet_mission}` : '';
@@ -493,8 +492,8 @@ const MyTasks = () => {
     setPieceDeCaisseData({
       nom: nom || '',
       date: new Date().toLocaleDateString('fr-FR'),
-      concerne: `Frais de mission${objet}${dates} - ${docTitle}`,
-      lines: linesFromMealCalc(calc, `Frais de mission - ${metadata.service_demandeur || ''}`),
+      concerne: t('Frais de mission{{objet}}{{dates}} - {{docTitle}}', { objet, dates, docTitle }),
+      lines: linesFromMealCalc(calc, t('Frais de mission - {{service}}', { service: metadata.service_demandeur || '' })),
       totalEnLettres: '',
       beneficiaire_id: beneficiaireId || null,
       beneficiaire_source: beneficiaireSource || null,
@@ -507,7 +506,7 @@ const MyTasks = () => {
     setError('');
 
     try {
-      if (!piecePdfRef.current) throw new Error('Référence PDF introuvable');
+      if (!piecePdfRef.current) throw new Error(t('Référence PDF introuvable'));
 
       const nonPrintableElements = piecePdfRef.current.querySelectorAll('.not-printable');
       nonPrintableElements?.forEach(el => el.style.display = 'none');
@@ -522,7 +521,7 @@ const MyTasks = () => {
       const uploadData = new FormData();
       const fileName = `Piece_Caisse_${taskToProcess.document.category.replace(/\s/g, '_')}_${pcTargetRole || 'beneficiaire'}_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
       uploadData.append('file', pdfBlob, fileName);
-      uploadData.append('title', `Pièce de caisse - ${pieceDeCaisseData.concerne}`);
+      uploadData.append('title', t('Pièce de caisse - {{concerne}}', { concerne: pieceDeCaisseData.concerne }));
       uploadData.append('category', 'Pièce de caisse');
 
       uploadData.append('linkedOrdreMissionId', taskToProcess.document.id);
@@ -542,20 +541,20 @@ const MyTasks = () => {
       try {
         await workflowAPI.create({ documentId: uploadResponse.data.data.id });
       } catch (wfErr) {
-        toast(`⚠️ Pièce de caisse créée mais circuit non démarré : ${wfErr.response?.data?.message || 'erreur inconnue'}. Utilisez "Soumettre" depuis Documents.`);
+        toast(t('⚠️ Pièce de caisse créée mais circuit non démarré : {{message}}. Utilisez "Soumettre" depuis Documents.', { message: wfErr.response?.data?.message || t('erreur inconnue') }));
       }
 
       setPcCreatedFor(prev => new Set(prev).add(pcTargetRole));
 
       toast(uploadResponse.data.data.metadata?.fusionné
-          ? `✅ Pièce de caisse créée et fusionnée avec ${taskToProcess.document.category}!`
-          : `✅ Pièce de caisse créée avec succès pour ${pieceDeCaisseData.nom}.`);
+          ? t('✅ Pièce de caisse créée et fusionnée avec {{category}}!', { category: taskToProcess.document.category })
+          : t('✅ Pièce de caisse créée avec succès pour {{nom}}.', { nom: pieceDeCaisseData.nom }));
       setShowPieceDeCaisseFromOM(false);
 
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de la création de la Pièce de caisse.');
+      setError(err.response?.data?.message || t('Erreur lors de la création de la Pièce de caisse.'));
       console.error('❌ Erreur Pièce de caisse:', err);
-      toast(`Erreur: ${err.response?.data?.message || 'Impossible de créer la Pièce de caisse'}`);
+      toast(t('Erreur: {{message}}', { message: err.response?.data?.message || t('Impossible de créer la Pièce de caisse') }));
     } finally {
       setSubmittingDB(false);
     }
@@ -568,13 +567,13 @@ const MyTasks = () => {
     try {
       await workflowAPI.validateTask(taskToProcess.id, {
         status: 'approved',
-        comment: `Pièce(s) de caisse créée(s) pour : ${[...pcCreatedFor].join(', ')}. Processus complété.`,
+        comment: t('Pièce(s) de caisse créée(s) pour : {{list}}. Processus complété.', { list: [...pcCreatedFor].join(', ') }),
         validationType: 'simple_approve',
       });
-      toast('✅ Ordre de mission finalisé.');
+      toast(t('✅ Ordre de mission finalisé.'));
       closeProcessingModal();
     } catch (err) {
-      toast(`Erreur: ${err.response?.data?.message || 'Impossible de finaliser l\'OM'}`);
+      toast(t('Erreur: {{message}}', { message: err.response?.data?.message || t("Impossible de finaliser l'OM") }));
     } finally {
       setActionLoading(null);
     }
@@ -584,7 +583,7 @@ const MyTasks = () => {
     setSubmittingDB(true);
     setError('');
     try {
-      if (!dbPdfRef.current) throw new Error('Référence PDF introuvable');
+      if (!dbPdfRef.current) throw new Error(t('Référence PDF introuvable'));
       const nonPrintableElements = dbPdfRef.current.querySelectorAll('.not-printable');
       nonPrintableElements?.forEach(el => el.style.display = 'none');
       const canvas = await html2canvas(dbPdfRef.current, { scale: 2, logging: false, useCORS: true });
@@ -596,7 +595,7 @@ const MyTasks = () => {
       const uploadData = new FormData();
       const fileName = `Demande_Besoin_${demandeBesoinsData.service.replace(/\s/g, '_')}_${Date.now()}.pdf`;
       uploadData.append('file', pdfBlob, fileName);
-      uploadData.append('title', `Demande de besoin - ${demandeBesoinsData.service}`);
+      uploadData.append('title', t('Demande de besoin - {{service}}', { service: demandeBesoinsData.service }));
       uploadData.append('category', 'Demande de besoin');
       uploadData.append('metadata', JSON.stringify({
         service: demandeBesoinsData.service,
@@ -608,21 +607,21 @@ const MyTasks = () => {
       setCreatedDBDocumentId(dbDocumentId);
       await workflowAPI.validateTask(taskToProcess.id, {
         status: 'en_pause',
-        comment: `En attente de la validation de la Demande de Besoin (${demandeBesoinsData.reference})`,
+        comment: t('En attente de la validation de la Demande de Besoin ({{ref}})', { ref: demandeBesoinsData.reference }),
         validationType: 'pause'
       });
       const validatorsResponse = await workflowAPI.getValidators();
       const allValidators = validatorsResponse.data.data || [];
-      const dbValidatorsList = allValidators.filter(v => 
+      const dbValidatorsList = allValidators.filter(v =>
         v.email === 'hsjm.econome@gmail.com' || v.email === 'hsjm.achat@gmail.com' || v.email === 'hsjm.pharma@gmail.com'
       );
-      if (dbValidatorsList.length === 0) throw new Error('Aucun validateur trouvé.');
+      if (dbValidatorsList.length === 0) throw new Error(t('Aucun validateur trouvé.'));
       setDbValidators(dbValidatorsList);
       setShowDemandeBesoins(false);
       setShowDBFromFS(false);
       setShowValidatorsSelection(true);
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de la création de la Demande de Besoin.');
+      setError(err.response?.data?.message || t('Erreur lors de la création de la Demande de Besoin.'));
       console.error('Erreur DB:', err);
     } finally {
       setSubmittingDB(false);
@@ -631,7 +630,7 @@ const MyTasks = () => {
 
   const handleSubmitDBWorkflow = async () => {
     if (selectedDbValidators.length === 0) {
-      setError('Veuillez sélectionner au moins un validateur.');
+      setError(t('Veuillez sélectionner au moins un validateur.'));
       return;
     }
     setSubmittingDB(true);
@@ -641,10 +640,10 @@ const MyTasks = () => {
         documentId: createdDBDocumentId,
         validatorIds: selectedDbValidators
       });
-      toast.success('Demande de Besoin créée et soumise avec succès !');
+      toast.success(t('Demande de Besoin créée et soumise avec succès !'));
       closeProcessingModal();
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de la soumission.');
+      setError(err.response?.data?.message || t('Erreur lors de la soumission.'));
       console.error('Erreur soumission DB:', err);
     } finally {
       setSubmittingDB(false);
@@ -663,7 +662,7 @@ const MyTasks = () => {
     setSubmittingFS(true);
     setError('');
     try {
-      if (!fsPdfRef.current) throw new Error('Référence PDF introuvable');
+      if (!fsPdfRef.current) throw new Error(t('Référence PDF introuvable'));
       const nonPrintableElements = fsPdfRef.current.querySelectorAll('.not-printable');
       nonPrintableElements?.forEach(el => el.style.display = 'none');
       const canvas = await html2canvas(fsPdfRef.current, { scale: 2, logging: false, useCORS: true });
@@ -675,7 +674,7 @@ const MyTasks = () => {
       const uploadData = new FormData();
       const fileName = `Fiche_Suivi_${ficheSuiviData.service.replace(/\s/g, '_')}_${Date.now()}.pdf`;
       uploadData.append('file', pdfBlob, fileName);
-      uploadData.append('title', `Fiche de suivi - ${ficheSuiviData.equipement}`);
+      uploadData.append('title', t('Fiche de suivi - {{equipement}}', { equipement: ficheSuiviData.equipement }));
       uploadData.append('category', 'Fiche de suivi d\'équipements');
       uploadData.append('metadata', JSON.stringify({
         service: ficheSuiviData.service,
@@ -685,18 +684,18 @@ const MyTasks = () => {
       await documentsAPI.upload(uploadData);
       await workflowAPI.validateTask(taskToProcess.id, {
         status: 'en_pause',
-        comment: `Fiche de suivi créée. En attente de résolution.`,
+        comment: t('Fiche de suivi créée. En attente de résolution.'),
         validationType: 'pause'
       });
-      toast.success('Fiche de Suivi créée !');
+      toast.success(t('Fiche de Suivi créée !'));
       if (ficheSuiviData.pieces.some(p => p.designation)) {
-        if (window.confirm('Des pièces sont nécessaires. Créer une Demande de Besoin ?')) {
+        if (window.confirm(t('Des pièces sont nécessaires. Créer une Demande de Besoin ?'))) {
           setShowDBFromFS(true);
           setDemandeBesoinsData({
             date_demande: new Date().toLocaleDateString('fr-FR'),
             service: ficheSuiviData.service,
             reference: `FS-${taskToProcess.document.id.slice(0, 8)}`,
-            justification: `Pièces nécessaires suite à : ${ficheSuiviData.equipement}`,
+            justification: t('Pièces nécessaires suite à : {{equipement}}', { equipement: ficheSuiviData.equipement }),
             lines: ficheSuiviData.pieces.map(p => ({
               designation: p.designation,
               quantite: p.quantite,
@@ -711,7 +710,7 @@ const MyTasks = () => {
         closeProcessingModal();
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de la création.');
+      setError(err.response?.data?.message || t('Erreur lors de la création.'));
       console.error('Erreur FS:', err);
     } finally {
       setSubmittingFS(false);
@@ -735,8 +734,8 @@ const MyTasks = () => {
     };
     const Icon = icons[status] || Clock;
     const labels = {
-      pending: 'En attente', approved: 'Approuvé', rejected: 'Rejeté',
-      en_pause: 'En pause', queued: 'File d\'attente', expired: 'Expiré',
+      pending: t('En attente'), approved: t('Approuvé'), rejected: t('Rejeté'),
+      en_pause: t('En pause'), queued: t("File d'attente"), expired: t('Expiré'),
     };
     const s = styleMap[status] || { background: 'var(--surface-2)', color: 'var(--fg-muted)' };
     return (
@@ -750,7 +749,7 @@ const MyTasks = () => {
   const getOverdueBadge = (task) => {
     if (!isTaskOverdue(task)) return null;
     const days = getDaysOverdue(task);
-    const label = days > 0 ? `⏰ Retard +${days}j` : `⏰ Retard +${getHoursOverdue(task)}h`;
+    const label = days > 0 ? t('⏰ Retard +{{days}}j', { days }) : t('⏰ Retard +{{hours}}h', { hours: getHoursOverdue(task) });
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger)' }}>
         <AlertTriangle size={12} />
@@ -764,18 +763,18 @@ const MyTasks = () => {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, background: 'rgba(249,115,22,0.12)', color: '#f97316', border: '1px solid rgba(249,115,22,0.4)' }}>
         <AlertTriangle size={12} />
-        🚀 Validation possible (bypass)
+        🚀 {t('Validation possible (bypass)')}
       </span>
     );
   };
 
   const STATUS_CFG = {
-    pending:  { dot: 'var(--warning)', label: 'En attente',    cls: 'ged-badge-warning' },
-    approved: { dot: 'var(--success)', label: 'Approuvé',      cls: 'ged-badge-success' },
-    rejected: { dot: 'var(--danger)',  label: 'Rejeté',        cls: 'ged-badge-danger'  },
-    en_pause: { dot: 'var(--brand)',   label: 'En pause',      cls: 'ged-badge-brand'   },
-    queued:   { dot: 'var(--fg-muted)', label: 'File d\'attente', cls: 'ged-badge-neutral' },
-    expired:  { dot: 'var(--fg-muted)', label: 'Expiré',      cls: 'ged-badge-neutral' },
+    pending:  { dot: 'var(--warning)', label: t('En attente'),    cls: 'ged-badge-warning' },
+    approved: { dot: 'var(--success)', label: t('Approuvé'),      cls: 'ged-badge-success' },
+    rejected: { dot: 'var(--danger)',  label: t('Rejeté'),        cls: 'ged-badge-danger'  },
+    en_pause: { dot: 'var(--brand)',   label: t('En pause'),      cls: 'ged-badge-brand'   },
+    queued:   { dot: 'var(--fg-muted)', label: t("File d'attente"), cls: 'ged-badge-neutral' },
+    expired:  { dot: 'var(--fg-muted)', label: t('Expiré'),      cls: 'ged-badge-neutral' },
   };
   const btnOutline = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 12, border: '1px solid var(--border)', cursor: 'pointer' };
   const iconBtn    = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 6, borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--fg-muted)' };
@@ -795,9 +794,9 @@ const MyTasks = () => {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20, paddingTop: 4 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>Mes tâches</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>{t('Mes tâches')}</h1>
           <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>
-            {tasks.filter(t => t.status === 'pending').length} en attente · {tasks.filter(t => isTaskOverdue(t)).length} en retard
+            {t('{{pending}} en attente · {{overdue}} en retard', { pending: tasks.filter(task => task.status === 'pending').length, overdue: tasks.filter(task => isTaskOverdue(task)).length })}
           </div>
         </div>
         {(user?.role === 'director' || user?.role === 'admin') && (
@@ -810,7 +809,7 @@ const MyTasks = () => {
             cursor: 'pointer', fontSize: 13, fontWeight: 500,
           }}>
             {isInSelectionMode ? <X size={14} /> : <ListChecks size={14} />}
-            {isInSelectionMode ? 'Annuler' : 'Validation en masse'}
+            {isInSelectionMode ? t('Annuler') : t('Validation en masse')}
           </button>
         )}
       </div>
@@ -823,13 +822,13 @@ const MyTasks = () => {
       {/* Tabs + filter bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 16, flexWrap: 'wrap' }}>
         {[
-          { key: 'pending',  label: 'En attente' },
-          { key: 'approved', label: 'Approuvées' },
-          { key: 'rejected', label: 'Rejetées'   },
-          { key: 'expired',  label: 'Expirées'   },
-          { key: 'all',      label: 'Toutes'     },
+          { key: 'pending',  label: t('En attente') },
+          { key: 'approved', label: t('Approuvées') },
+          { key: 'rejected', label: t('Rejetées')   },
+          { key: 'expired',  label: t('Expirées')   },
+          { key: 'all',      label: t('Toutes')     },
         ].map(tab => {
-          const count = tab.key === 'all' ? tasks.length : tasks.filter(t => t.status === tab.key).length;
+          const count = tab.key === 'all' ? tasks.length : tasks.filter(task => task.status === tab.key).length;
           const active = filter === tab.key;
           return (
             <button key={tab.key} onClick={() => setFilter(tab.key)} style={{
@@ -855,7 +854,7 @@ const MyTasks = () => {
           height: 32, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
           background: 'var(--surface)', color: 'var(--fg)', fontSize: 12, outline: 'none', marginBottom: 8,
         }}>
-          <option value="all">Tous les services</option>
+          <option value="all">{t('Tous les services')}</option>
           {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
         </select>
       </div>
@@ -863,10 +862,10 @@ const MyTasks = () => {
       {/* Bulk selection info bar */}
       {isInSelectionMode && (
         <div style={{ padding: '10px 14px', marginBottom: 12, background: 'var(--brand-soft)', borderRadius: 'var(--radius-3)', border: '1px solid var(--brand-soft-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 13, color: 'var(--brand-fg)', fontWeight: 600 }}>{selectedTaskIds.length} / {MAX_SELECTION} sélectionné(s)</span>
+          <span style={{ fontSize: 13, color: 'var(--brand-fg)', fontWeight: 600 }}>{t('{{count}} / {{max}} sélectionné(s)', { count: selectedTaskIds.length, max: MAX_SELECTION })}</span>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={handleSelectAll} style={btnOutline}>Tout sélectionner</button>
-            <button onClick={handleDeselectAll} style={btnOutline}>Tout désélectionner</button>
+            <button onClick={handleSelectAll} style={btnOutline}>{t('Tout sélectionner')}</button>
+            <button onClick={handleDeselectAll} style={btnOutline}>{t('Tout désélectionner')}</button>
           </div>
         </div>
       )}
@@ -876,10 +875,10 @@ const MyTasks = () => {
         <div className="ged-card" style={{ padding: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
           <CheckCircle size={32} color="var(--success)" style={{ marginBottom: 12 }} />
           <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>
-            {filter === 'pending' ? 'Tout est traité.' : 'Aucune tâche ici.'}
+            {filter === 'pending' ? t('Tout est traité.') : t('Aucune tâche ici.')}
           </p>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
-            {filter === 'pending' ? 'Aucune tâche en attente de validation.' : 'Aucune tâche ne correspond à ce filtre.'}
+            {filter === 'pending' ? t('Aucune tâche en attente de validation.') : t('Aucune tâche ne correspond à ce filtre.')}
           </p>
         </div>
       ) : (
@@ -888,14 +887,14 @@ const MyTasks = () => {
             <thead>
               <tr style={{ background: 'var(--surface-2)' }}>
                 {isInSelectionMode && <th style={thStyle}></th>}
-                <th style={thStyle}>Document</th>
-                <th style={thStyle}>Type</th>
-                <th style={thStyle}>Soumis par</th>
-                <th style={thStyle}>Statut</th>
+                <th style={thStyle}>{t('Document')}</th>
+                <th style={thStyle}>{t('Type')}</th>
+                <th style={thStyle}>{t('Soumis par')}</th>
+                <th style={thStyle}>{t('Statut')}</th>
                 <th style={{ ...thStyle, cursor: 'pointer' }} onClick={() => setSortConfig(c => ({ key: 'createdAt', direction: c.direction === 'asc' ? 'desc' : 'asc' }))}>
-                  Date {sortConfig.key === 'createdAt' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  {t('Date')} {sortConfig.key === 'createdAt' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                 </th>
-                <th style={thStyle}>Actions</th>
+                <th style={thStyle}>{t('Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -930,14 +929,14 @@ const MyTasks = () => {
                         <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
                           {isOverdue && (
                             <span className="ged-badge ged-badge-danger" style={{ fontSize: 10 }}>
-                              <AlertTriangle size={9} /> Retard +{getDaysOverdue(task) > 0 ? getDaysOverdue(task) + 'j' : getHoursOverdue(task) + 'h'}
+                              <AlertTriangle size={9} /> {t('Retard +{{value}}', { value: getDaysOverdue(task) > 0 ? getDaysOverdue(task) + 'j' : getHoursOverdue(task) + 'h' })}
                             </span>
                           )}
                           {isBypassable && (
-                            <span className="ged-badge ged-badge-warning" style={{ fontSize: 10 }}>Bypass dispo</span>
+                            <span className="ged-badge ged-badge-warning" style={{ fontSize: 10 }}>{t('Bypass dispo')}</span>
                           )}
                           {needsPieceDeCaisse(task) && (
-                            <span className="ged-badge ged-badge-warning" style={{ fontSize: 10 }}>Pièce de caisse</span>
+                            <span className="ged-badge ged-badge-warning" style={{ fontSize: 10 }}>{t('Pièce de caisse')}</span>
                           )}
                         </div>
                       </td>
@@ -963,8 +962,8 @@ const MyTasks = () => {
                       </td>
                       <td style={tdStyle}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button onClick={() => setTaskForPreview(task)} style={iconBtn} title="Aperçu rapide"><ZoomIn size={13} /></button>
-                          <button onClick={() => setViewingDocument(task.document)} style={iconBtn} title="Voir le document"><Eye size={13} /></button>
+                          <button onClick={() => setTaskForPreview(task)} style={iconBtn} title={t('Aperçu rapide')}><ZoomIn size={13} /></button>
+                          <button onClick={() => setViewingDocument(task.document)} style={iconBtn} title={t('Voir le document')}><Eye size={13} /></button>
                           {(task.status === 'pending' || isBypassable) && (
                             <button onClick={() => openProcessingModal(task)} style={{
                               display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -974,7 +973,7 @@ const MyTasks = () => {
                               fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
                             }}>
                               <CheckCircle size={12} />
-                              {needsPieceDeCaisse(task) ? 'Pièce caisse' : isBypassable ? 'Bypass' : 'Traiter'}
+                              {needsPieceDeCaisse(task) ? t('Pièce caisse') : isBypassable ? t('Bypass') : t('Traiter')}
                             </button>
                           )}
                         </div>
@@ -992,7 +991,7 @@ const MyTasks = () => {
       {/* Pagination */}
       {pagination.totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
-          <span>Page <b style={{ color: 'var(--fg)' }}>{pagination.page}</b> sur <b style={{ color: 'var(--fg)' }}>{pagination.totalPages}</b> · {pagination.total} tâche(s)</span>
+          <span>{t('Page')} <b style={{ color: 'var(--fg)' }}>{pagination.page}</b> {t('sur')} <b style={{ color: 'var(--fg)' }}>{pagination.totalPages}</b> · {t('{{count}} tâche(s)', { count: pagination.total })}</span>
           <div style={{ display: 'flex', gap: 4 }}>
             <button onClick={() => goToPage(1)} disabled={currentPage === 1} style={pageBtn}>«</button>
             <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} style={pageBtn}>‹</button>
@@ -1030,7 +1029,7 @@ const MyTasks = () => {
             {/* Colonne Gauche (Actions) */}
             <div style={{ width: '50%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
               <div style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10, padding: '24px 24px 16px', borderBottom: '1px solid var(--border)' }}>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', margin: '0 0 4px' }}>Traiter le document</h2>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', margin: '0 0 4px' }}>{t('Traiter le document')}</h2>
                 <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={taskToProcess.document.title}>
                   {taskToProcess.document.title}
                 </p>
@@ -1042,11 +1041,9 @@ const MyTasks = () => {
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <FileText size={20} style={{ color: '#ca8a04', flexShrink: 0, marginTop: 2 }} />
                     <div>
-                      <p style={{ fontWeight: 700, color: '#92400e', fontSize: 13, margin: '0 0 6px' }}>💰 Créer la Pièce de caisse</p>
+                      <p style={{ fontWeight: 700, color: '#92400e', fontSize: 13, margin: '0 0 6px' }}>💰 {t('Créer la Pièce de caisse')}</p>
                       <p style={{ fontSize: 13, color: '#92400e', margin: 0 }}>
-                        Cet Ordre de mission nécessite une Pièce de caisse par bénéficiaire ayant des frais
-                        (missionnaire et/ou conducteur). L'OM sera automatiquement joint comme pièce justificative.
-                        Finalisez une fois toutes les pièces créées.
+                        {t("Cet Ordre de mission nécessite une Pièce de caisse par bénéficiaire ayant des frais (missionnaire et/ou conducteur). L'OM sera automatiquement joint comme pièce justificative. Finalisez une fois toutes les pièces créées.")}
                       </p>
                     </div>
                   </div>
@@ -1058,9 +1055,9 @@ const MyTasks = () => {
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <FileText size={20} style={{ color: 'var(--brand)', flexShrink: 0, marginTop: 2 }} />
                     <div>
-                      <p style={{ fontWeight: 700, color: 'var(--brand)', fontSize: 13, margin: '0 0 6px' }}>Cette pièce de caisse vous concerne</p>
+                      <p style={{ fontWeight: 700, color: 'var(--brand)', fontSize: 13, margin: '0 0 6px' }}>{t('Cette pièce de caisse vous concerne')}</p>
                       <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>
-                        Validez-la pour la transmettre à la caissière, qui vous remettra le montant.
+                        {t('Validez-la pour la transmettre à la caissière, qui vous remettra le montant.')}
                       </p>
                     </div>
                   </div>
@@ -1072,10 +1069,11 @@ const MyTasks = () => {
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <FileText size={20} style={{ color: 'var(--success)', flexShrink: 0, marginTop: 2 }} />
                     <div>
-                      <p style={{ fontWeight: 700, color: 'var(--success)', fontSize: 13, margin: '0 0 6px' }}>Pièce de caisse à payer</p>
+                      <p style={{ fontWeight: 700, color: 'var(--success)', fontSize: 13, margin: '0 0 6px' }}>{t('Pièce de caisse à payer')}</p>
                       <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>
-                        Le DG{taskToProcess.document?.metadata?.beneficiaire_id ? ', la comptabilité et le bénéficiaire ont' : ' et la comptabilité ont'} déjà validé.
-                        Cliquez "Payer" une fois le montant remis en main propre.
+                        {taskToProcess.document?.metadata?.beneficiaire_id
+                          ? t('Le DG, la comptabilité et le bénéficiaire ont déjà validé. Cliquez "Payer" une fois le montant remis en main propre.')
+                          : t('Le DG et la comptabilité ont déjà validé. Cliquez "Payer" une fois le montant remis en main propre.')}
                       </p>
                     </div>
                   </div>
@@ -1087,13 +1085,13 @@ const MyTasks = () => {
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <AlertTriangle size={20} style={{ color: '#f97316', flexShrink: 0, marginTop: 2 }} />
                     <div>
-                      <p style={{ fontWeight: 700, color: '#9a3412', fontSize: 13, margin: '0 0 6px' }}>🚀 Validation en Bypass</p>
+                      <p style={{ fontWeight: 700, color: '#9a3412', fontSize: 13, margin: '0 0 6px' }}>🚀 {t('Validation en Bypass')}</p>
                       <p style={{ fontSize: 13, color: '#9a3412', margin: 0 }}>
-                        Le validateur précédent est en retard de{' '}
+                        {t('Le validateur précédent est en retard de')}{' '}
                         <strong>
-                          {getHoursOverdue(taskToProcess.bypassInfo || null)}h
+                          {t('{{hours}}h', { hours: getHoursOverdue(taskToProcess.bypassInfo || null) })}
                         </strong>
-                        . Vous pouvez valider ce document à sa place.
+                        . {t('Vous pouvez valider ce document à sa place.')}
                       </p>
                     </div>
                   </div>
@@ -1103,33 +1101,33 @@ const MyTasks = () => {
               {taskToProcess.document.category === 'Demande de permission' && (
                 <div style={{ marginBottom: 16, padding: 12, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 'var(--radius-3)' }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#92400e', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <UserCheck size={14} /> Intérim assuré par
+                    <UserCheck size={14} /> {t('Intérim assuré par')}
                   </label>
                   <input
                     type="text"
                     value={remplacantName}
                     onChange={(e) => setRemplacantName(e.target.value)}
-                    placeholder="Nom du remplaçant..."
+                    placeholder={t('Nom du remplaçant...')}
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                     autoFocus
                   />
-                  <p style={{ fontSize: 11, color: '#b45309', margin: '6px 0 0' }}>Inscrit automatiquement sur le PDF</p>
+                  <p style={{ fontSize: 11, color: '#b45309', margin: '6px 0 0' }}>{t('Inscrit automatiquement sur le PDF')}</p>
                 </div>
               )}
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Commentaire</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>{t('Commentaire')}</label>
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Ajouter un commentaire (requis si rejet)..."
+                  placeholder={t('Ajouter un commentaire (requis si rejet)...')}
                   rows={2}
                   style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', resize: 'none', boxSizing: 'border-box' }}
                 />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>Actions</p>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>{t('Actions')}</p>
 
                 {canUseCombinedAction() && taskToProcess.document.fileType === 'application/pdf' && (
                   <>
@@ -1144,13 +1142,13 @@ const MyTasks = () => {
                         {actionLoading === 'approve_sign_stamp' ? <Loader size={18} style={{ color: '#7c3aed' }} className="animate-spin" /> : <ShieldCheck size={18} style={{ color: '#7c3aed' }} />}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#4c1d95', margin: '0 0 2px' }}>Approuver, Signer et Cacheter</p>
-                        <p style={{ fontSize: 11, color: '#7c3aed', margin: 0 }}>Action rapide — Signature + Cachet</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: '#4c1d95', margin: '0 0 2px' }}>{t('Approuver, Signer et Cacheter')}</p>
+                        <p style={{ fontSize: 11, color: '#7c3aed', margin: 0 }}>{t('Action rapide — Signature + Cachet')}</p>
                       </div>
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 0' }}>
                       <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                      <span style={{ fontSize: 10, color: 'var(--fg-muted)', textTransform: 'uppercase' }}>ou individuellement</span>
+                      <span style={{ fontSize: 10, color: 'var(--fg-muted)', textTransform: 'uppercase' }}>{t('ou individuellement')}</span>
                       <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                     </div>
                   </>
@@ -1168,7 +1166,7 @@ const MyTasks = () => {
                       <div style={{ padding: 6, background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', flexShrink: 0 }}>
                         {actionLoading === 'simple_approve' ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} style={{ color: 'var(--fg-muted)' }} />}
                       </div>
-                      <span style={{ fontSize: 13, color: 'var(--fg)' }}>Validation simple</span>
+                      <span style={{ fontSize: 13, color: 'var(--fg)' }}>{t('Validation simple')}</span>
                     </button>
 
                     {user?.signaturePath && (
@@ -1182,7 +1180,7 @@ const MyTasks = () => {
                         <div style={{ padding: 6, background: 'var(--brand-soft)', borderRadius: 'var(--radius-2)', flexShrink: 0 }}>
                           {actionLoading === 'approve' ? <Loader size={16} style={{ color: 'var(--brand)' }} className="animate-spin" /> : <Edit size={16} style={{ color: 'var(--brand)' }} />}
                         </div>
-                        <span style={{ fontSize: 13, color: 'var(--brand)' }}>Approuver et Signer</span>
+                        <span style={{ fontSize: 13, color: 'var(--brand)' }}>{t('Approuver et Signer')}</span>
                       </button>
                     )}
 
@@ -1198,9 +1196,9 @@ const MyTasks = () => {
                           {actionLoading === 'stamp' ? <Loader size={16} style={{ color: '#6366f1' }} className="animate-spin" /> : <ShieldCheck size={16} style={{ color: '#6366f1' }} />}
                         </div>
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: 13, color: '#4338ca' }}>Apposer le cachet</span>
+                          <span style={{ fontSize: 13, color: '#4338ca' }}>{t('Apposer le cachet')}</span>
                           {taskToProcess.document.category === 'Ordre de mission' && (
-                            <span style={{ fontSize: 10, color: '#6366f1', background: 'rgba(99,102,241,0.1)', padding: '2px 6px', borderRadius: 999 }}>4 cachets</span>
+                            <span style={{ fontSize: 10, color: '#6366f1', background: 'rgba(99,102,241,0.1)', padding: '2px 6px', borderRadius: 999 }}>{t('{{count}} cachets', { count: 4 })}</span>
                           )}
                         </div>
                       </button>
@@ -1217,7 +1215,7 @@ const MyTasks = () => {
                         <div style={{ padding: 6, background: 'rgba(20,184,166,0.1)', borderRadius: 'var(--radius-2)', flexShrink: 0 }}>
                           {actionLoading === 'dater' ? <Loader size={16} style={{ color: '#14b8a6' }} className="animate-spin" /> : <CalendarPlus size={16} style={{ color: '#14b8a6' }} />}
                         </div>
-                        <span style={{ fontSize: 13, color: '#0f766e' }}>Apposer le Dateur</span>
+                        <span style={{ fontSize: 13, color: '#0f766e' }}>{t('Apposer le Dateur')}</span>
                       </button>
                     )}
 
@@ -1231,10 +1229,10 @@ const MyTasks = () => {
                           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.06)'; }}
                         >
                           <FileText size={16} style={{ color: '#7c3aed' }} />
-                          <span style={{ fontSize: 13, color: '#4c1d95' }}>Initier une Demande de Besoin</span>
+                          <span style={{ fontSize: 13, color: '#4c1d95' }}>{t('Initier une Demande de Besoin')}</span>
                         </button>
                         <p style={{ fontSize: 12, color: 'var(--fg-muted)', paddingLeft: 12, margin: 0 }}>
-                          La DT sera mise en pause en attendant la validation de la DB
+                          {t('La DT sera mise en pause en attendant la validation de la DB')}
                         </p>
                       </>
                     )}
@@ -1249,10 +1247,10 @@ const MyTasks = () => {
                           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(20,184,166,0.06)'; }}
                         >
                           <FileText size={16} style={{ color: '#14b8a6' }} />
-                          <span style={{ fontSize: 13, color: '#0f766e' }}>Créer Fiche de Suivi d'Équipements</span>
+                          <span style={{ fontSize: 13, color: '#0f766e' }}>{t("Créer Fiche de Suivi d'Équipements")}</span>
                         </button>
                         <p style={{ fontSize: 12, color: 'var(--fg-muted)', paddingLeft: 12, margin: 0 }}>
-                          La DT sera mise en pause. Vous pourrez ensuite initier une DB si nécessaire.
+                          {t('La DT sera mise en pause. Vous pourrez ensuite initier une DB si nécessaire.')}
                         </p>
                       </>
                     )}
@@ -1281,10 +1279,10 @@ const MyTasks = () => {
                             {done ? <CheckCircle size={22} style={{ color: 'var(--success)' }} /> : <FileText size={22} style={{ color: '#ca8a04' }} />}
                             <div>
                               <p style={{ fontWeight: 600, color: done ? 'var(--success)' : '#78350f', fontSize: 13, margin: '0 0 2px' }}>
-                                {done ? `Pièce de caisse créée — ${b.label}` : `Créer Pièce de caisse — ${b.label}`}
+                                {done ? t('Pièce de caisse créée — {{label}}', { label: b.label }) : t('Créer Pièce de caisse — {{label}}', { label: b.label })}
                               </p>
                               <p style={{ fontSize: 12, color: done ? 'var(--success)' : '#b45309', margin: 0 }}>
-                                {b.role === 'missionnaire' ? 'Missionnaire' : 'Conducteur'}
+                                {b.role === 'missionnaire' ? t('Missionnaire') : t('Conducteur')}
                               </p>
                             </div>
                           </button>
@@ -1297,9 +1295,9 @@ const MyTasks = () => {
                       >
                         {actionLoading === 'finalize_pc' ? <Loader size={18} className="animate-spin" /> : <ShieldCheck size={18} style={{ color: 'var(--success)' }} />}
                         <div>
-                          <p style={{ fontWeight: 600, fontSize: 13, margin: '0 0 2px', color: pcCreatedFor.size === 0 ? 'var(--fg-muted)' : 'var(--success)' }}>Finaliser l'Ordre de mission</p>
+                          <p style={{ fontWeight: 600, fontSize: 13, margin: '0 0 2px', color: pcCreatedFor.size === 0 ? 'var(--fg-muted)' : 'var(--success)' }}>{t("Finaliser l'Ordre de mission")}</p>
                           <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: 0 }}>
-                            {pcCreatedFor.size === 0 ? 'Créez au moins une pièce de caisse ci-dessus d\'abord' : 'Valide définitivement cette étape'}
+                            {pcCreatedFor.size === 0 ? t("Créez au moins une pièce de caisse ci-dessus d'abord") : t('Valide définitivement cette étape')}
                           </p>
                         </div>
                       </button>
@@ -1317,8 +1315,8 @@ const MyTasks = () => {
                     >
                       {actionLoading === 'payer' ? <Loader size={22} className="animate-spin" style={{ color: 'var(--success)' }} /> : <CheckCircle size={22} style={{ color: 'var(--success)' }} />}
                       <div>
-                        <p style={{ fontWeight: 600, color: 'var(--success)', fontSize: 13, margin: '0 0 2px' }}>Payer</p>
-                        <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: 0 }}>Marque la pièce de caisse comme payée et l'archive</p>
+                        <p style={{ fontWeight: 600, color: 'var(--success)', fontSize: 13, margin: '0 0 2px' }}>{t('Payer')}</p>
+                        <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: 0 }}>{t("Marque la pièce de caisse comme payée et l'archive")}</p>
                       </div>
                     </button>
                     <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
@@ -1338,7 +1336,7 @@ const MyTasks = () => {
                     <div style={{ padding: 6, background: 'var(--danger-soft)', borderRadius: 'var(--radius-2)', flexShrink: 0 }}>
                       {actionLoading === 'reject' ? <Loader size={16} style={{ color: 'var(--danger)' }} className="animate-spin" /> : <XCircle size={16} style={{ color: 'var(--danger)' }} />}
                     </div>
-                    <span style={{ fontSize: 13, color: 'var(--danger)' }}>Rejeter le document</span>
+                    <span style={{ fontSize: 13, color: 'var(--danger)' }}>{t('Rejeter le document')}</span>
                   </button>
               </>
               </div>
@@ -1350,14 +1348,14 @@ const MyTasks = () => {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-active)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
                 >
-                  <ThumbsUp size={15} /> Fermer
+                  <ThumbsUp size={15} /> {t('Fermer')}
                 </button>
               </div>
             </div>
 
             {/* Colonne Droite (Progression) */}
             <div style={{ width: '50%', padding: 24, background: 'var(--surface-2)', borderLeft: '1px solid var(--border)', overflowY: 'auto' }}>
-              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>Suivi de Validation</p>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>{t('Suivi de Validation')}</p>
               <WorkflowProgress
                 workflows={taskToProcess.document.workflows}
                 documentStatus={taskToProcess.document.status}
@@ -1379,16 +1377,16 @@ const MyTasks = () => {
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 896, margin: '32px 0' }}>
             <div style={{ padding: 24, borderBottom: '1px solid var(--border)' }}>
               <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: '0 0 8px' }}>
-                {showPieceDeCaisseFromOM && '💰 Créer Pièce de caisse'}
-                {(showDemandeBesoins || showDBFromFS) && 'Créer une Demande de Besoin'}
-                {showFicheSuivi && 'Créer une Fiche de Suivi d\'Équipements'}
+                {showPieceDeCaisseFromOM && `💰 ${t('Créer Pièce de caisse')}`}
+                {(showDemandeBesoins || showDBFromFS) && t('Créer une Demande de Besoin')}
+                {showFicheSuivi && t("Créer une Fiche de Suivi d'Équipements")}
               </h2>
               <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>
-                {showPieceDeCaisseFromOM ? `Document source : ${taskToProcess?.document?.title}` : showDBFromFS ? 'Suite à la Fiche de Suivi d\'Équipements' : showFicheSuivi ? 'Documentation de l\'intervention biomédicale' : 'Cette demande sera liée à la Demande de Travaux en cours'}
+                {showPieceDeCaisseFromOM ? t('Document source : {{title}}', { title: taskToProcess?.document?.title }) : showDBFromFS ? t("Suite à la Fiche de Suivi d'Équipements") : showFicheSuivi ? t("Documentation de l'intervention biomédicale") : t('Cette demande sera liée à la Demande de Travaux en cours')}
               </p>
               {showPieceDeCaisseFromOM && (
                 <p style={{ fontSize: 12, padding: '8px 10px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 'var(--radius-2)', marginTop: 8, color: '#b45309' }}>
-                  📌 Ce document sera automatiquement joint comme pièce justificative (au-dessus de la PC)
+                  📌 {t('Ce document sera automatiquement joint comme pièce justificative (au-dessus de la PC)')}
                 </p>
               )}
             </div>
@@ -1410,7 +1408,7 @@ const MyTasks = () => {
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
               >
-                Annuler
+                {t('Annuler')}
               </button>
               <button
                 onClick={showPieceDeCaisseFromOM ? handleSubmitPieceDeCaisseFromOM : showFicheSuivi ? handleSubmitFicheSuivi : handleSubmitDemandeBesoins}
@@ -1418,9 +1416,9 @@ const MyTasks = () => {
                 style={{ padding: '12px 32px', background: showFicheSuivi ? '#14b8a6' : 'var(--success)', color: '#fff', border: 'none', borderRadius: 'var(--radius-3)', fontSize: 14, fontWeight: 600, cursor: (submittingDB || submittingFS) ? 'not-allowed' : 'pointer', opacity: (submittingDB || submittingFS) ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 8 }}
               >
                 {submittingDB || submittingFS ? (
-                  <><Loader size={18} className="animate-spin" /> Création en cours...</>
+                  <><Loader size={18} className="animate-spin" /> {t('Création en cours...')}</>
                 ) : (
-                  <><Send size={18} /> {showPieceDeCaisseFromOM ? 'Créer la pièce de caisse' : showFicheSuivi ? 'Créer la Fiche' : 'Créer et Soumettre'}</>
+                  <><Send size={18} /> {showPieceDeCaisseFromOM ? t('Créer la pièce de caisse') : showFicheSuivi ? t('Créer la Fiche') : t('Créer et Soumettre')}</>
                 )}
               </button>
             </div>
@@ -1433,9 +1431,9 @@ const MyTasks = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 640 }}>
             <div style={{ padding: 24, borderBottom: '1px solid var(--border)' }}>
-              <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: '0 0 8px' }}>Sélectionner les validateurs</h2>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: '0 0 8px' }}>{t('Sélectionner les validateurs')}</h2>
               <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>
-                Choisissez les personnes qui doivent valider cette Demande de Besoin
+                {t('Choisissez les personnes qui doivent valider cette Demande de Besoin')}
               </p>
             </div>
             <div style={{ padding: 24, maxHeight: '60vh', overflowY: 'auto' }}>
@@ -1447,7 +1445,7 @@ const MyTasks = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {dbValidators.length === 0 ? (
                   <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '16px 0', fontSize: 13 }}>
-                    Aucun validateur disponible. Contactez l'administrateur.
+                    {t("Aucun validateur disponible. Contactez l'administrateur.")}
                   </p>
                 ) : (
                   dbValidators.map(validator => {
@@ -1484,7 +1482,7 @@ const MyTasks = () => {
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
               >
-                Annuler
+                {t('Annuler')}
               </button>
               <button
                 onClick={handleSubmitDBWorkflow}
@@ -1492,9 +1490,9 @@ const MyTasks = () => {
                 style={{ padding: '12px 32px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-3)', fontSize: 14, fontWeight: 600, cursor: (submittingDB || selectedDbValidators.length === 0) ? 'not-allowed' : 'pointer', opacity: (submittingDB || selectedDbValidators.length === 0) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 8 }}
               >
                 {submittingDB ? (
-                  <><Loader size={18} className="animate-spin" /> Soumission...</>
+                  <><Loader size={18} className="animate-spin" /> {t('Soumission...')}</>
                 ) : (
-                  <><Send size={18} /> Soumettre la Demande de Besoin</>
+                  <><Send size={18} /> {t('Soumettre la Demande de Besoin')}</>
                 )}
               </button>
             </div>

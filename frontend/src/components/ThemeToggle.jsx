@@ -1,14 +1,16 @@
 // frontend/src/components/ThemeToggle.jsx
 import { Sun, Moon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function ThemeToggle() {
+  const { t } = useTranslation();
   const { isDarkMode, toggleTheme } = useTheme();
 
   return (
     <button
       onClick={toggleTheme}
-      aria-label={isDarkMode ? 'Activer le mode clair' : 'Activer le mode sombre'}
+      aria-label={isDarkMode ? t('Activer le mode clair') : t('Activer le mode sombre')}
       style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         width: 40, height: 40, borderRadius: '50%',

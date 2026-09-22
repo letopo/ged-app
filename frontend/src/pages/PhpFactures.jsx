@@ -2,11 +2,13 @@
 // Scan → import GED → extraction IA (Claude vision) → tableau façon Excel.
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Receipt, ArrowLeft, Upload, Download, Trash2, RefreshCw, Loader2,
   FileText, AlertCircle, CheckCircle, X, Save, ExternalLink, Filter, Sigma,
 } from 'lucide-react';
 import { phpFactureAPI } from '../services/phpService';
+import i18n from '../i18n/config';
 
 const emptyDraft = () => ({
   documentId: null,
@@ -21,13 +23,16 @@ const emptyDraft = () => ({
   extraction: null,
 });
 
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
+
 const fmtMontant = (v) => {
   if (v == null || v === '') return '';
   const n = Number(v);
-  return Number.isFinite(n) ? n.toLocaleString('fr-FR') : v;
+  return Number.isFinite(n) ? n.toLocaleString(BCP47_LOCALES[i18n.language] || 'fr-FR') : v;
 };
 
 export default function PhpFactures() {
+  const { t } = useTranslation();
   const [factures, setFactures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -74,7 +79,7 @@ export default function PhpFactures() {
       setFactures(res.data.data || []);
       setError(null);
     } catch (e) {
-      setError("Impossible de charger les factures.");
+      setError(t("Impossible de charger les factures."));
     } finally {
       setLoading(false);
     }
@@ -109,15 +114,17 @@ export default function PhpFactures() {
         d.extraction = fields._raw || fields;
         setNotice(
           fields.confiance
-            ? `Extraction terminée (confiance : ${fields.confiance}). Vérifiez puis enregistrez.`
-            : 'Extraction terminée. Vérifiez puis enregistrez.'
+            ? t('Extraction terminée (confiance : {{confiance}}). Vérifiez puis enregistrez.', { confiance: fields.confiance })
+            : t('Extraction terminée. Vérifiez puis enregistrez.')
         );
       } else {
-        setNotice(`Pièce importée mais extraction indisponible${extractionError ? ` (${extractionError})` : ''}. Saisie manuelle possible.`);
+        setNotice(extractionError
+          ? t('Pièce importée mais extraction indisponible ({{error}}). Saisie manuelle possible.', { error: extractionError })
+          : t('Pièce importée mais extraction indisponible. Saisie manuelle possible.'));
       }
       setDraft(d);
     } catch (err) {
-      setError(err.response?.data?.message || "Échec de l'import/extraction.");
+      setError(err.response?.data?.message || t("Échec de l'import/extraction."));
     } finally {
       setExtracting(false);
     }
@@ -138,9 +145,9 @@ export default function PhpFactures() {
         devise: f.devise || d.devise,
         extraction: f._raw || f,
       }));
-      setNotice('Nouvelle extraction appliquée.');
+      setNotice(t('Nouvelle extraction appliquée.'));
     } catch (err) {
-      setError(err.response?.data?.message || 'Échec de la ré-extraction.');
+      setError(err.response?.data?.message || t('Échec de la ré-extraction.'));
     } finally {
       setExtracting(false);
     }
@@ -152,28 +159,28 @@ export default function PhpFactures() {
     try {
       await phpFactureAPI.create({ ...draft, statut: 'valide' });
       setDraft(null);
-      setNotice('Facture enregistrée.');
+      setNotice(t('Facture enregistrée.'));
       await load();
     } catch (err) {
-      setError(err.response?.data?.message || "Échec de l'enregistrement.");
+      setError(err.response?.data?.message || t("Échec de l'enregistrement."));
     } finally {
       setSaving(false);
     }
   };
 
   const removeFacture = async (id) => {
-    if (!window.confirm('Supprimer cette facture ? (la pièce archivée reste dans la GED)')) return;
+    if (!window.confirm(t('Supprimer cette facture ? (la pièce archivée reste dans la GED)'))) return;
     try {
       await phpFactureAPI.delete(id);
       setFactures(fs => fs.filter(f => f.id !== id));
     } catch {
-      setError('Échec de la suppression.');
+      setError(t('Échec de la suppression.'));
     }
   };
 
   // Export CSV (Excel FR : séparateur « ; », BOM UTF-8) — sur la sélection filtrée
   const exportCsv = () => {
-    const headers = ['N° DATE', 'DATE', 'DESIGNATION', 'DATE FACTURE', 'N° FACTURE', 'N° C', 'MONTANT'];
+    const headers = [t('N° DATE'), t('DATE'), t('DESIGNATION'), t('DATE FACTURE'), t('N° FACTURE'), t('N° C'), t('MONTANT')];
     const esc = (v) => {
       const s = v == null ? '' : String(v);
       return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -183,7 +190,7 @@ export default function PhpFactures() {
       f.dateFacture ?? '', f.numeroFacture ?? '', f.numeroComptable ?? '', f.montant ?? '',
     ].map(esc).join(';'));
     // Ligne de total
-    rows.push(['', '', '', '', '', 'TOTAL', total].map(esc).join(';'));
+    rows.push(['', '', '', '', '', t('TOTAL'), total].map(esc).join(';'));
     const csv = '﻿' + [headers.join(';'), ...rows].join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -211,10 +218,10 @@ export default function PhpFactures() {
           </Link>
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
-              <Receipt size={22} style={{ color: 'var(--brand)' }} /> Factures prestataires
+              <Receipt size={22} style={{ color: 'var(--brand)' }} /> {t('Factures prestataires')}
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
-              Scannez une facture : les champs sont extraits automatiquement, vous validez.
+              {t('Scannez une facture : les champs sont extraits automatiquement, vous validez.')}
             </p>
           </div>
         </div>
@@ -222,13 +229,13 @@ export default function PhpFactures() {
           <button onClick={exportCsv}
             className="flex items-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors"
             style={{ background: 'var(--surface)', color: 'var(--fg)', border: '1px solid var(--border)' }}>
-            <Download size={16} /> Export Excel (CSV)
+            <Download size={16} /> {t('Export Excel (CSV)')}
           </button>
           <button onClick={onPickFile} disabled={extracting}
             className="flex items-center gap-1 px-3 py-2 text-sm rounded-lg text-white transition-colors disabled:opacity-60"
             style={{ background: 'var(--brand)' }}>
             {extracting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-            {extracting ? 'Extraction…' : 'Importer une facture'}
+            {extracting ? t('Extraction…') : t('Importer une facture')}
           </button>
           <input ref={fileRef} type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/*"
             onChange={onFileSelected} className="hidden" />
@@ -256,33 +263,33 @@ export default function PhpFactures() {
         <div className="mb-5 p-4 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--brand)', boxShadow: 'var(--shadow-3)' }}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
-              <FileText size={16} style={{ color: 'var(--brand)' }} /> Vérifier la facture extraite
+              <FileText size={16} style={{ color: 'var(--brand)' }} /> {t('Vérifier la facture extraite')}
             </h2>
             <button onClick={() => setDraft(null)} style={{ color: 'var(--fg-muted)' }}><X size={18} /></button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <Field label="N° DATE">
+            <Field label={t('N° DATE')}>
               <input type="number" value={draft.numeroOrdre} onChange={setF('numeroOrdre')} className={cellInput} style={inputStyle} />
             </Field>
-            <Field label="DATE (réception)">
+            <Field label={t('DATE (réception)')}>
               <input type="date" value={draft.dateReception} onChange={setF('dateReception')} className={cellInput} style={inputStyle} />
             </Field>
-            <Field label="DESIGNATION (fournisseur)" hint="🤖 extrait">
+            <Field label={t('DESIGNATION (fournisseur)')} hint={`🤖 ${t('extrait')}`}>
               <input value={draft.fournisseur} onChange={setF('fournisseur')} className={cellInput} style={inputStyle} />
             </Field>
-            <Field label="DATE FACTURE" hint="🤖 extrait">
+            <Field label={t('DATE FACTURE')} hint={`🤖 ${t('extrait')}`}>
               <input type="date" value={draft.dateFacture || ''} onChange={setF('dateFacture')} className={cellInput} style={inputStyle} />
             </Field>
-            <Field label="N° FACTURE" hint="🤖 extrait">
+            <Field label={t('N° FACTURE')} hint={`🤖 ${t('extrait')}`}>
               <input value={draft.numeroFacture} onChange={setF('numeroFacture')} className={cellInput} style={inputStyle} />
             </Field>
-            <Field label="N° C (code comptable)">
-              <input value={draft.numeroComptable} onChange={setF('numeroComptable')} placeholder="Ex: PHFCAZ…" className={cellInput} style={inputStyle} />
+            <Field label={t('N° C (code comptable)')}>
+              <input value={draft.numeroComptable} onChange={setF('numeroComptable')} placeholder={t('Ex: PHFCAZ…')} className={cellInput} style={inputStyle} />
             </Field>
-            <Field label="MONTANT" hint="🤖 extrait">
+            <Field label={t('MONTANT')} hint={`🤖 ${t('extrait')}`}>
               <input type="number" value={draft.montant} onChange={setF('montant')} className={cellInput} style={inputStyle} />
             </Field>
-            <Field label="Devise">
+            <Field label={t('Devise')}>
               <input value={draft.devise} onChange={setF('devise')} className={cellInput} style={inputStyle} />
             </Field>
           </div>
@@ -290,18 +297,18 @@ export default function PhpFactures() {
             <button onClick={saveDraft} disabled={saving}
               className="flex items-center gap-1 px-4 py-2 text-sm rounded-lg text-white disabled:opacity-60"
               style={{ background: 'var(--success)' }}>
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Enregistrer
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {t('Enregistrer')}
             </button>
             <button onClick={reextract} disabled={extracting || !draft.documentId}
               className="flex items-center gap-1 px-3 py-2 text-sm rounded-lg disabled:opacity-60"
               style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)' }}>
-              <RefreshCw size={15} className={extracting ? 'animate-spin' : ''} /> Ré-extraire
+              <RefreshCw size={15} className={extracting ? 'animate-spin' : ''} /> {t('Ré-extraire')}
             </button>
             {draft.documentId && (
               <Link to={`/documents/${draft.documentId}`} target="_blank"
                 className="flex items-center gap-1 px-3 py-2 text-sm rounded-lg"
                 style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)' }}>
-                <ExternalLink size={15} /> Voir la pièce
+                <ExternalLink size={15} /> {t('Voir la pièce')}
               </Link>
             )}
           </div>
@@ -313,25 +320,25 @@ export default function PhpFactures() {
         <div className="flex flex-wrap items-end gap-3 flex-1 p-3 rounded-xl"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center gap-1 text-xs font-semibold pb-2" style={{ color: 'var(--fg-muted)' }}>
-            <Filter size={15} /> Filtres
+            <Filter size={15} /> {t('Filtres')}
           </div>
           <label className="block">
-            <span className="text-xs font-medium block mb-1" style={{ color: 'var(--fg-muted)' }}>Fournisseur</span>
+            <span className="text-xs font-medium block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Fournisseur')}</span>
             <select value={fFournisseur} onChange={e => setFFournisseur(e.target.value)}
               className="px-2 py-1.5 text-sm rounded-md outline-none min-w-[180px]"
               style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)' }}>
-              <option value="">Tous</option>
+              <option value="">{t('Tous')}</option>
               {fournisseurs.map(nom => <option key={nom} value={nom}>{nom}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="text-xs font-medium block mb-1" style={{ color: 'var(--fg-muted)' }}>Date facture — du</span>
+            <span className="text-xs font-medium block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Date facture — du')}</span>
             <input type="date" value={fDu} onChange={e => setFDu(e.target.value)}
               className="px-2 py-1.5 text-sm rounded-md outline-none"
               style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)' }} />
           </label>
           <label className="block">
-            <span className="text-xs font-medium block mb-1" style={{ color: 'var(--fg-muted)' }}>au</span>
+            <span className="text-xs font-medium block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('au')}</span>
             <input type="date" value={fAu} onChange={e => setFAu(e.target.value)}
               className="px-2 py-1.5 text-sm rounded-md outline-none"
               style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)' }} />
@@ -340,7 +347,7 @@ export default function PhpFactures() {
             <button onClick={resetFilters}
               className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-md"
               style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)', border: '1px solid var(--border)' }}>
-              <X size={14} /> Réinitialiser
+              <X size={14} /> {t('Réinitialiser')}
             </button>
           )}
         </div>
@@ -349,14 +356,14 @@ export default function PhpFactures() {
         <div className="px-4 py-3 rounded-xl min-w-[230px]"
           style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
           <div className="flex items-center gap-1 text-xs font-semibold mb-1" style={{ color: 'var(--brand)' }}>
-            <Sigma size={14} /> {hasFilters ? 'Total filtré' : 'Total global'}
+            <Sigma size={14} /> {hasFilters ? t('Total filtré') : t('Total global')}
           </div>
           <div className="text-2xl font-bold leading-none" style={{ color: 'var(--fg)' }}>
             {fmtMontant(total) || '0'} <span className="text-sm font-medium" style={{ color: 'var(--fg-muted)' }}>FCFA</span>
           </div>
           <div className="text-xs mt-1" style={{ color: 'var(--fg-muted)' }}>
-            {filtered.length} facture{filtered.length > 1 ? 's' : ''}
-            {hasFilters ? ` sur ${factures.length}` : ''}
+            {t('{{count}} facture(s)', { count: filtered.length })}
+            {hasFilters ? ` ${t('sur {{total}}', { total: factures.length })}` : ''}
           </div>
         </div>
       </div>
@@ -367,7 +374,7 @@ export default function PhpFactures() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
-                {['N° DATE', 'DATE', 'DESIGNATION', 'DATE FACTURE', 'N° FACTURE', 'N° C', 'MONTANT', ''].map((h, i) => (
+                {[t('N° DATE'), t('DATE'), t('DESIGNATION'), t('DATE FACTURE'), t('N° FACTURE'), t('N° C'), t('MONTANT'), ''].map((h, i) => (
                   <th key={i} className="px-3 py-2 text-left font-semibold whitespace-nowrap" style={{ borderBottom: '1px solid var(--border)' }}>{h}</th>
                 ))}
               </tr>
@@ -375,15 +382,15 @@ export default function PhpFactures() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={8} className="px-3 py-8 text-center" style={{ color: 'var(--fg-muted)' }}>
-                  <Loader2 size={18} className="animate-spin inline mr-2" /> Chargement…
+                  <Loader2 size={18} className="animate-spin inline mr-2" /> {t('Chargement…')}
                 </td></tr>
               ) : factures.length === 0 ? (
                 <tr><td colSpan={8} className="px-3 py-10 text-center" style={{ color: 'var(--fg-muted)' }}>
-                  Aucune facture. Cliquez « Importer une facture » pour commencer.
+                  {t('Aucune facture. Cliquez « Importer une facture » pour commencer.')}
                 </td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={8} className="px-3 py-10 text-center" style={{ color: 'var(--fg-muted)' }}>
-                  Aucun résultat pour ces filtres. <button onClick={resetFilters} className="underline" style={{ color: 'var(--brand)' }}>Réinitialiser</button>
+                  {t('Aucun résultat pour ces filtres.')} <button onClick={resetFilters} className="underline" style={{ color: 'var(--brand)' }}>{t('Réinitialiser')}</button>
                 </td></tr>
               ) : filtered.map(f => (
                 <tr key={f.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -399,12 +406,12 @@ export default function PhpFactures() {
                   <td className="px-3 py-2 whitespace-nowrap">
                     <div className="flex items-center gap-1 justify-end">
                       {f.documentId && (
-                        <Link to={`/documents/${f.documentId}`} target="_blank" title="Voir la pièce"
+                        <Link to={`/documents/${f.documentId}`} target="_blank" title={t('Voir la pièce')}
                           className="p-1.5 rounded-md" style={{ color: 'var(--fg-muted)' }}>
                           <ExternalLink size={15} />
                         </Link>
                       )}
-                      <button onClick={() => removeFacture(f.id)} title="Supprimer"
+                      <button onClick={() => removeFacture(f.id)} title={t('Supprimer')}
                         className="p-1.5 rounded-md" style={{ color: 'var(--danger)' }}>
                         <Trash2 size={15} />
                       </button>
@@ -417,7 +424,7 @@ export default function PhpFactures() {
               <tfoot>
                 <tr style={{ background: 'var(--surface-2)', borderTop: '2px solid var(--border)' }}>
                   <td colSpan={6} className="px-3 py-2 text-right font-semibold" style={{ color: 'var(--fg-muted)' }}>
-                    {hasFilters ? 'Total filtré' : 'Total global'} ({filtered.length})
+                    {hasFilters ? t('Total filtré') : t('Total global')} ({filtered.length})
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap font-bold" style={{ color: 'var(--fg)' }}>
                     {fmtMontant(total)} FCFA

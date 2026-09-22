@@ -2,6 +2,7 @@
 // Page liste des formulaires — point d'entrée du module
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, FileText, Copy, Trash2, Eye,
@@ -43,6 +44,7 @@ const TYPE_COLORS = {
 // ── Modal Nouveau Formulaire ───────────────────────────────────────────────────
 
 function NewFormModal({ onClose, onCreate }) {
+  const { t } = useTranslation();
   const [title, setTitle]               = useState('');
   const [type, setType]                 = useState('custom');
   const [description, setDesc]          = useState('');
@@ -50,22 +52,22 @@ function NewFormModal({ onClose, onCreate }) {
   const [wfTemplates, setWfTemplates]   = useState([]);
   const [loading, setLoading]           = useState(false);
 
-  const TYPES = FORM_TYPES.filter(t => t.value !== 'all');
+  const TYPES = FORM_TYPES.filter(ft => ft.value !== 'all');
 
   useEffect(() => {
     workflowTemplatesAPI.getAll().then(r => setWfTemplates(r.data?.data || [])).catch(() => {});
   }, []);
 
   const handleCreate = async () => {
-    if (!title.trim()) { toast.error('Le titre est requis'); return; }
+    if (!title.trim()) { toast.error(t('Le titre est requis')); return; }
     setLoading(true);
     try {
       const res = await formsAPI.create({ title: title.trim(), description, type, workflowTemplateId: workflowTemplateId || null });
       onCreate(res.data.data);
-      toast.success('Formulaire créé');
+      toast.success(t('Formulaire créé'));
       onClose();
     } catch (e) {
-      toast.error(e?.response?.data?.message || 'Erreur lors de la création');
+      toast.error(e?.response?.data?.message || t('Erreur lors de la création'));
     } finally {
       setLoading(false);
     }
@@ -84,20 +86,20 @@ function NewFormModal({ onClose, onCreate }) {
       }} onClick={e => e.stopPropagation()}>
 
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: 'var(--fg)' }}>
-          Nouveau formulaire
+          {t('Nouveau formulaire')}
         </h2>
 
         {/* Titre */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'block', marginBottom: 6 }}>
-            Titre *
+            {t('Titre')} *
           </label>
           <input
             autoFocus
             value={title}
             onChange={e => setTitle(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            placeholder="Ex: Formulaire de consultation…"
+            placeholder={t('Ex: Formulaire de consultation…')}
             style={{
               width: '100%', padding: '10px 14px',
               border: '1.5px solid var(--border)', borderRadius: 10,
@@ -110,18 +112,18 @@ function NewFormModal({ onClose, onCreate }) {
         {/* Type */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'block', marginBottom: 6 }}>
-            Type de formulaire
+            {t('Type de formulaire')}
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-            {TYPES.map(t => (
-              <button key={t.value} onClick={() => setType(t.value)} style={{
+            {TYPES.map(ft => (
+              <button key={ft.value} onClick={() => setType(ft.value)} style={{
                 padding: '8px 6px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                 cursor: 'pointer', textAlign: 'center', transition: 'all .15s',
-                border: type === t.value ? `2px solid ${TYPE_COLORS[t.value] || 'var(--brand)'}` : '1.5px solid var(--border)',
-                background: type === t.value ? `${TYPE_COLORS[t.value]}15` : 'var(--bg)',
-                color: type === t.value ? (TYPE_COLORS[t.value] || 'var(--brand)') : 'var(--fg-muted)',
+                border: type === ft.value ? `2px solid ${TYPE_COLORS[ft.value] || 'var(--brand)'}` : '1.5px solid var(--border)',
+                background: type === ft.value ? `${TYPE_COLORS[ft.value]}15` : 'var(--bg)',
+                color: type === ft.value ? (TYPE_COLORS[ft.value] || 'var(--brand)') : 'var(--fg-muted)',
               }}>
-                {t.label}
+                {t(ft.label)}
               </button>
             ))}
           </div>
@@ -130,7 +132,7 @@ function NewFormModal({ onClose, onCreate }) {
         {/* Workflow */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'block', marginBottom: 6 }}>
-            Circuit de validation <span style={{ color: 'var(--fg-muted)', fontWeight: 400 }}>(optionnel)</span>
+            {t('Circuit de validation')} <span style={{ color: 'var(--fg-muted)', fontWeight: 400 }}>({t('optionnel')})</span>
           </label>
           <select
             value={workflowTemplateId}
@@ -142,14 +144,14 @@ function NewFormModal({ onClose, onCreate }) {
               outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
             }}
           >
-            <option value="">— Aucun workflow (simple collecte) —</option>
-            {wfTemplates.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
+            <option value="">{t('— Aucun workflow (simple collecte) —')}</option>
+            {wfTemplates.map(wf => (
+              <option key={wf.id} value={wf.id}>{wf.name}</option>
             ))}
           </select>
           {workflowTemplateId && (
             <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 4 }}>
-              ✓ À la soumission, le circuit sélectionné sera déclenché automatiquement.
+              ✓ {t('À la soumission, le circuit sélectionné sera déclenché automatiquement.')}
             </div>
           )}
         </div>
@@ -157,12 +159,12 @@ function NewFormModal({ onClose, onCreate }) {
         {/* Description */}
         <div style={{ marginBottom: 24 }}>
           <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'block', marginBottom: 6 }}>
-            Description <span style={{ color: 'var(--fg-muted)', fontWeight: 400 }}>(optionnel)</span>
+            {t('Description')} <span style={{ color: 'var(--fg-muted)', fontWeight: 400 }}>({t('optionnel')})</span>
           </label>
           <textarea
             value={description}
             onChange={e => setDesc(e.target.value)}
-            placeholder="Décrivez l'objectif de ce formulaire…"
+            placeholder={t("Décrivez l'objectif de ce formulaire…")}
             rows={2}
             style={{
               width: '100%', padding: '10px 14px',
@@ -179,7 +181,7 @@ function NewFormModal({ onClose, onCreate }) {
             padding: '10px 18px', borderRadius: 10, border: '1.5px solid var(--border)',
             background: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--fg)',
           }}>
-            Annuler
+            {t('Annuler')}
           </button>
           <button onClick={handleCreate} disabled={loading} style={{
             padding: '10px 20px', borderRadius: 10, border: 'none',
@@ -187,7 +189,7 @@ function NewFormModal({ onClose, onCreate }) {
             fontSize: 14, fontWeight: 600, opacity: loading ? .6 : 1,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            {loading ? 'Création…' : <><Plus size={16} /> Créer et concevoir</>}
+            {loading ? t('Création…') : <><Plus size={16} /> {t('Créer et concevoir')}</>}
           </button>
         </div>
       </div>
@@ -198,6 +200,7 @@ function NewFormModal({ onClose, onCreate }) {
 // ── Card Formulaire ────────────────────────────────────────────────────────────
 
 function FormCard({ form, onDelete, onDuplicate, onStatusChange, onOpen }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const statusCfg = STATUS_CONFIG[form.status] || STATUS_CONFIG.draft;
@@ -267,11 +270,11 @@ function FormCard({ form, onDelete, onDuplicate, onStatusChange, onOpen }) {
                   minWidth: 180, overflow: 'hidden',
                 }}>
                   {[
-                    { action: 'edit',      icon: Edit3,    label: 'Modifier',    color: 'var(--fg)', onClick: () => { setMenuOpen(false); onOpen(form); } },
-                    { action: 'duplicate', icon: Copy,     label: 'Dupliquer',   color: 'var(--fg)' },
-                    { action: 'archive',   icon: Archive,  label: 'Archiver',    color: 'var(--warning)', show: form.status !== 'archived' },
-                    { action: 'unpublish', icon: Globe,    label: 'Dépublier',   color: 'var(--warning)', show: form.status === 'published' },
-                    { action: 'delete',    icon: Trash2,   label: 'Supprimer',   color: 'var(--danger)' },
+                    { action: 'edit',      icon: Edit3,    label: t('Modifier'),    color: 'var(--fg)', onClick: () => { setMenuOpen(false); onOpen(form); } },
+                    { action: 'duplicate', icon: Copy,     label: t('Dupliquer'),   color: 'var(--fg)' },
+                    { action: 'archive',   icon: Archive,  label: t('Archiver'),    color: 'var(--warning)', show: form.status !== 'archived' },
+                    { action: 'unpublish', icon: Globe,    label: t('Dépublier'),   color: 'var(--warning)', show: form.status === 'published' },
+                    { action: 'delete',    icon: Trash2,   label: t('Supprimer'),   color: 'var(--danger)' },
                   ].filter(m => m.show !== false).map(m => (
                     <button key={m.action}
                       onClick={e => { e.stopPropagation(); m.onClick ? m.onClick() : handleAction(m.action); }}
@@ -302,14 +305,14 @@ function FormCard({ form, onDelete, onDuplicate, onStatusChange, onOpen }) {
             background: statusCfg.bg, color: statusCfg.color,
           }}>
             <StatusIcon size={11} />
-            {statusCfg.label}
+            {t(statusCfg.label)}
           </span>
           {/* Type */}
           <span style={{
             padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,
             background: `${typeColor}18`, color: typeColor,
           }}>
-            {FORM_TYPES.find(t => t.value === form.type)?.label || form.type}
+            {t(FORM_TYPES.find(ft => ft.value === form.type)?.label || form.type)}
           </span>
         </div>
 
@@ -317,7 +320,7 @@ function FormCard({ form, onDelete, onDuplicate, onStatusChange, onOpen }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--fg-muted)' }}>
             <ClipboardList size={13} />
-            {fieldCount} champ{fieldCount !== 1 ? 's' : ''}
+            {t('{{count}} champ(s)', { count: fieldCount })}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--fg-muted)' }}>
             <Clock size={13} />
@@ -343,26 +346,26 @@ function FormCard({ form, onDelete, onDuplicate, onStatusChange, onOpen }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         }}>
           <Edit3 size={13} />
-          {form.status === 'draft' ? 'Concevoir' : 'Modifier'}
+          {form.status === 'draft' ? t('Concevoir') : t('Modifier')}
         </button>
         {form.status === 'published' && (
-          <button onClick={() => navigate(`/forms/${form.id}/fill`)} title="Remplir le formulaire" style={{
+          <button onClick={() => navigate(`/forms/${form.id}/fill`)} title={t('Remplir le formulaire')} style={{
             padding: '8px 10px', borderRadius: 8,
             background: '#dcfce7', color: '#16a34a',
             border: '1.5px solid #86efac', cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600,
           }}>
-            <Eye size={13} /> Remplir
+            <Eye size={13} /> {t('Remplir')}
           </button>
         )}
         {form.status === 'published' && (
-          <button onClick={() => navigate(`/forms/${form.id}/responses`)} title="Voir les réponses" style={{
+          <button onClick={() => navigate(`/forms/${form.id}/responses`)} title={t('Voir les réponses')} style={{
             padding: '8px 10px', borderRadius: 8,
             background: 'var(--surface-2)', color: 'var(--fg)',
             border: '1.5px solid var(--border)', cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600,
           }}>
-            <BarChart2 size={13} /> Réponses
+            <BarChart2 size={13} /> {t('Réponses')}
           </button>
         )}
       </div>
@@ -373,6 +376,7 @@ function FormCard({ form, onDelete, onDuplicate, onStatusChange, onOpen }) {
 // ── Page principale ────────────────────────────────────────────────────────────
 
 export default function FormsListPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -396,15 +400,15 @@ export default function FormsListPage() {
       setForms(res.data.data || []);
       setPagination(res.data.pagination || { total: 0 });
     } catch (e) {
-      toast.error('Erreur lors du chargement des formulaires');
+      toast.error(t('Erreur lors du chargement des formulaires'));
     } finally {
       setLoading(false);
     }
   }, [search, filterType, filterStatus]);
 
   useEffect(() => {
-    const t = setTimeout(loadForms, 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(loadForms, 300);
+    return () => clearTimeout(timer);
   }, [loadForms]);
 
   const handleCreate = (newForm) => {
@@ -413,13 +417,13 @@ export default function FormsListPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer ce formulaire ? Cette action est irréversible.')) return;
+    if (!confirm(t('Supprimer ce formulaire ? Cette action est irréversible.'))) return;
     try {
       await formsAPI.delete(id);
       setForms(prev => prev.filter(f => f.id !== id));
-      toast.success('Formulaire supprimé');
+      toast.success(t('Formulaire supprimé'));
     } catch (e) {
-      toast.error('Erreur lors de la suppression');
+      toast.error(t('Erreur lors de la suppression'));
     }
   };
 
@@ -427,9 +431,9 @@ export default function FormsListPage() {
     try {
       const res = await formsAPI.duplicate(id);
       setForms(prev => [res.data.data, ...prev]);
-      toast.success('Formulaire dupliqué');
+      toast.success(t('Formulaire dupliqué'));
     } catch (e) {
-      toast.error('Erreur lors de la duplication');
+      toast.error(t('Erreur lors de la duplication'));
     }
   };
 
@@ -439,9 +443,9 @@ export default function FormsListPage() {
       if (action === 'archive')   res = await formsAPI.archive(id);
       if (action === 'unpublish') res = await formsAPI.unpublish(id);
       setForms(prev => prev.map(f => f.id === id ? { ...f, ...res.data.data } : f));
-      toast.success(action === 'archive' ? 'Formulaire archivé' : 'Formulaire dépublié');
+      toast.success(action === 'archive' ? t('Formulaire archivé') : t('Formulaire dépublié'));
     } catch (e) {
-      toast.error(e?.response?.data?.message || 'Erreur');
+      toast.error(e?.response?.data?.message || t('Erreur'));
     }
   };
 
@@ -464,10 +468,10 @@ export default function FormsListPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--fg)', margin: 0 }}>
-            Formulaires
+            {t('Formulaires')}
           </h1>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: '4px 0 0' }}>
-            {pagination.total} formulaire{pagination.total !== 1 ? 's' : ''} au total
+            {t('{{count}} formulaire(s) au total', { count: pagination.total })}
           </p>
         </div>
         <button
@@ -482,17 +486,17 @@ export default function FormsListPage() {
           }}
         >
           <Plus size={16} />
-          Créer un formulaire
+          {t('Créer un formulaire')}
         </button>
       </div>
 
       {/* ── Filtres statut ── */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
-          { value: 'all',       label: `Tous (${counts.all})` },
-          { value: 'published', label: `Publiés (${counts.published})` },
-          { value: 'draft',     label: `Brouillons (${counts.draft})` },
-          { value: 'archived',  label: `Archivés (${counts.archived})` },
+          { value: 'all',       label: t('Tous ({{count}})', { count: counts.all }) },
+          { value: 'published', label: t('Publiés ({{count}})', { count: counts.published }) },
+          { value: 'draft',     label: t('Brouillons ({{count}})', { count: counts.draft }) },
+          { value: 'archived',  label: t('Archivés ({{count}})', { count: counts.archived }) },
         ].map(tab => (
           <button key={tab.value} onClick={() => setFilterStatus(tab.value)} style={{
             padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
@@ -513,7 +517,7 @@ export default function FormsListPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher un formulaire…"
+            placeholder={t('Rechercher un formulaire…')}
             style={{
               width: '100%', padding: '10px 14px 10px 36px',
               border: '1.5px solid var(--border)', borderRadius: 10,
@@ -531,7 +535,7 @@ export default function FormsListPage() {
             color: 'var(--fg)', outline: 'none', cursor: 'pointer',
           }}
         >
-          {FORM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          {FORM_TYPES.map(ft => <option key={ft.value} value={ft.value}>{t(ft.label)}</option>)}
         </select>
       </div>
 
@@ -544,10 +548,10 @@ export default function FormsListPage() {
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
           <FileText size={48} style={{ color: 'var(--fg-muted)', opacity: .4, marginBottom: 16 }} />
           <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)', marginBottom: 8 }}>
-            {search || filterType !== 'all' ? 'Aucun formulaire trouvé' : 'Aucun formulaire pour l\'instant'}
+            {search || filterType !== 'all' ? t('Aucun formulaire trouvé') : t("Aucun formulaire pour l'instant")}
           </p>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 20 }}>
-            {search ? 'Essayez d\'autres termes de recherche' : 'Créez votre premier formulaire en cliquant sur le bouton ci-dessus'}
+            {search ? t("Essayez d'autres termes de recherche") : t('Créez votre premier formulaire en cliquant sur le bouton ci-dessus')}
           </p>
           {!search && (
             <button onClick={() => setShowModal(true)} style={{
@@ -556,7 +560,7 @@ export default function FormsListPage() {
               border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600,
             }}>
               <Plus size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-              Créer un formulaire
+              {t('Créer un formulaire')}
             </button>
           )}
         </div>

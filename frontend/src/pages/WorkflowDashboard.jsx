@@ -1,5 +1,6 @@
 // frontend/src/pages/WorkflowDashboard.jsx — Redesign analytics
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { workflowAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
@@ -79,6 +80,7 @@ function FilterDropdown({ label, options, value, onChange }) {
 
 // ── Sankey Flow Diagram ───────────────────────────────────────────────────────
 function SankeyFlow({ total, approved, pending, rejected }) {
+  const { t } = useTranslation();
   // ViewBox: wide enough to include right-side labels
   const VW = 920;   // total viewBox width
   const H  = 230;
@@ -142,17 +144,17 @@ function SankeyFlow({ total, approved, pending, rejected }) {
       {rejectedH > 0 && <rect x={BAR_RIGHT} y={rejectedY} width={barW} height={rejectedH}  rx={2} fill="rgba(239,68,68,0.9)" />}
 
       {/* ── Left labels (Soumissions) ────────── */}
-      <text x={colX[0]-6} y={20 + subH/2 - 8}  textAnchor="end" fill="var(--fg)" fontSize={13} fontWeight="600" dominantBaseline="middle">Soumissions</text>
-      <text x={colX[0]-6} y={20 + subH/2 + 10} textAnchor="end" fill="var(--fg-muted)" fontSize={11} dominantBaseline="middle">{total} documents</text>
+      <text x={colX[0]-6} y={20 + subH/2 - 8}  textAnchor="end" fill="var(--fg)" fontSize={13} fontWeight="600" dominantBaseline="middle">{t('Soumissions')}</text>
+      <text x={colX[0]-6} y={20 + subH/2 + 10} textAnchor="end" fill="var(--fg-muted)" fontSize={11} dominantBaseline="middle">{t('{{count}} documents', { count: total })}</text>
 
       {/* ── Column headers ───────────────────── */}
-      <text x={colX[1]+barW/2} y={10} textAnchor="middle" fill="var(--fg-muted)" fontSize={12} fontWeight="600">Validation N1</text>
-      <text x={colX[2]+barW/2} y={10} textAnchor="middle" fill="var(--fg-muted)" fontSize={12} fontWeight="600">Validation N2</text>
+      <text x={colX[1]+barW/2} y={10} textAnchor="middle" fill="var(--fg-muted)" fontSize={12} fontWeight="600">{t('Validation N1')}</text>
+      <text x={colX[2]+barW/2} y={10} textAnchor="middle" fill="var(--fg-muted)" fontSize={12} fontWeight="600">{t('Validation N2')}</text>
 
       {/* ── Right outcome labels ─────────────── */}
-      <text x={LABEL_RIGHT} y={approvedY + approvedH/2} fill="rgb(74,222,128)"  fontSize={12} fontWeight="600" dominantBaseline="middle">✓ Approuvés ({approved})</text>
-      {pendingH  > 0 && <text x={LABEL_RIGHT} y={pendingY  + pendingH /2} fill="rgb(253,224,71)"  fontSize={12} fontWeight="600" dominantBaseline="middle">◎ En attente ({pending})</text>}
-      {rejectedH > 0 && <text x={LABEL_RIGHT} y={rejectedY + rejectedH/2} fill="rgb(252,165,165)" fontSize={12} fontWeight="600" dominantBaseline="middle">✕ Rejetés ({rejected})</text>}
+      <text x={LABEL_RIGHT} y={approvedY + approvedH/2} fill="rgb(74,222,128)"  fontSize={12} fontWeight="600" dominantBaseline="middle">{t('✓ Approuvés ({{count}})', { count: approved })}</text>
+      {pendingH  > 0 && <text x={LABEL_RIGHT} y={pendingY  + pendingH /2} fill="rgb(253,224,71)"  fontSize={12} fontWeight="600" dominantBaseline="middle">{t('◎ En attente ({{count}})', { count: pending })}</text>}
+      {rejectedH > 0 && <text x={LABEL_RIGHT} y={rejectedY + rejectedH/2} fill="rgb(252,165,165)" fontSize={12} fontWeight="600" dominantBaseline="middle">{t('✕ Rejetés ({{count}})', { count: rejected })}</text>}
     </svg>
   );
 }
@@ -189,13 +191,14 @@ function StatCard({ label, sublabel, value, delta, deltaLabel, urgent }) {
 
 // ── Bottleneck bar ────────────────────────────────────────────────────────────
 function BottleneckBar({ label, value, maxValue }) {
+  const { t } = useTranslation();
   const pct   = Math.min(100, (value / (maxValue || 1)) * 100);
   const color = value >= 5 ? 'var(--danger)' : value >= 3 ? 'var(--warning)' : 'var(--success)';
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
         <span style={{ fontSize: 13, color: 'var(--fg)' }}>{label}</span>
-        <span style={{ fontSize: 12, color: 'var(--fg-muted)', fontWeight: 500 }}>{value.toFixed(1)} j moyen</span>
+        <span style={{ fontSize: 12, color: 'var(--fg-muted)', fontWeight: 500 }}>{t('{{days}} j moyen', { days: value.toFixed(1) })}</span>
       </div>
       <div style={{ height: 6, background: 'var(--surface-3)', borderRadius: 4, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width .6s ease' }} />
@@ -219,6 +222,7 @@ function Avatar({ name, size = 34 }) {
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function WorkflowDashboard() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [allTasks, setAllTasks]         = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
@@ -234,7 +238,7 @@ export default function WorkflowDashboard() {
       const data = response.data?.data || response.data?.tasks || (Array.isArray(response.data) ? response.data : []);
       setAllTasks(data);
     } catch (err) {
-      setError(err.message || 'Erreur lors du chargement');
+      setError(err.message || t('Erreur lors du chargement'));
     } finally {
       setLoading(false);
     }
@@ -246,23 +250,23 @@ export default function WorkflowDashboard() {
   const { serviceOptions, typeOptions } = useMemo(() => {
     const services = new Set();
     const types    = new Set();
-    allTasks.forEach(t => {
-      const svc  = t.document?.service   || t.document?.department;
-      const type = t.document?.category  || t.document?.type;
+    allTasks.forEach(task => {
+      const svc  = task.document?.service   || task.document?.department;
+      const type = task.document?.category  || task.document?.type;
       if (svc)  services.add(svc);
       if (type) types.add(type);
     });
     return {
       serviceOptions: [...services].sort().map(s => ({ value: s, label: s })),
-      typeOptions:    [...types].sort().map(t => ({ value: t, label: t })),
+      typeOptions:    [...types].sort().map(ty => ({ value: ty, label: ty })),
     };
   }, [allTasks]);
 
   // ── Filtered task set (for Sankey + stats) ─────────────────────────────────
   const filteredTasks = useMemo(() => {
-    return allTasks.filter(t => {
-      const svc  = t.document?.service || t.document?.department;
-      const type = t.document?.category || t.document?.type;
+    return allTasks.filter(task => {
+      const svc  = task.document?.service || task.document?.department;
+      const type = task.document?.category || task.document?.type;
       if (filterService !== 'all' && svc  !== filterService) return false;
       if (filterType    !== 'all' && type !== filterType)    return false;
       return true;
@@ -271,30 +275,30 @@ export default function WorkflowDashboard() {
 
   // ── Stats derived from filtered tasks ──────────────────────────────────────
   const stats = useMemo(() => {
-    const pending  = filteredTasks.filter(t => t.status === 'pending').length;
-    const approved = filteredTasks.filter(t => t.status === 'approved').length;
-    const rejected = filteredTasks.filter(t => t.status === 'rejected').length;
+    const pending  = filteredTasks.filter(task => task.status === 'pending').length;
+    const approved = filteredTasks.filter(task => task.status === 'approved').length;
+    const rejected = filteredTasks.filter(task => task.status === 'rejected').length;
     const total    = filteredTasks.length;
 
     // Top validators
     const valMap = {};
-    filteredTasks.forEach(t => {
-      const v = t.validator || t.assignedTo;
+    filteredTasks.forEach(task => {
+      const v = task.validator || task.assignedTo;
       if (!v) return;
       const key = v.id || v._id || v.email;
-      if (!valMap[key]) valMap[key] = { name: `${v.firstName||''} ${v.lastName||''}`.trim() || v.email, role: v.role || 'Validateur', count: 0 };
+      if (!valMap[key]) valMap[key] = { name: `${v.firstName||''} ${v.lastName||''}`.trim() || v.email, role: v.role || t('Validateur'), count: 0 };
       valMap[key].count++;
     });
     const topValidators = Object.values(valMap).sort((a,b) => b.count - a.count).slice(0,4);
 
     // Bottlenecks
     const svcMap = {};
-    filteredTasks.forEach(t => {
-      const svc = t.document?.service || t.document?.category || 'Autre';
+    filteredTasks.forEach(task => {
+      const svc = task.document?.service || task.document?.category || t('Autre');
       if (!svcMap[svc]) svcMap[svc] = { total: 0, daysSum: 0 };
       svcMap[svc].total++;
-      const c = t.createdAt ? new Date(t.createdAt) : null;
-      const u = t.updatedAt ? new Date(t.updatedAt) : null;
+      const c = task.createdAt ? new Date(task.createdAt) : null;
+      const u = task.updatedAt ? new Date(task.updatedAt) : null;
       if (c && u) svcMap[svc].daysSum += (u - c) / 86400000;
     });
     const bottlenecks = Object.entries(svcMap)
@@ -303,29 +307,29 @@ export default function WorkflowDashboard() {
 
     // Avg days
     let dSum = 0, dCnt = 0;
-    filteredTasks.forEach(t => {
-      if (t.createdAt && t.updatedAt) { dSum += (new Date(t.updatedAt) - new Date(t.createdAt)) / 86400000; dCnt++; }
+    filteredTasks.forEach(task => {
+      if (task.createdAt && task.updatedAt) { dSum += (new Date(task.updatedAt) - new Date(task.createdAt)) / 86400000; dCnt++; }
     });
     const avgDays = dCnt > 0 ? (dSum / dCnt).toFixed(1) : '—';
 
     return { pending, approved, rejected, total, topValidators, bottlenecks, avgDays };
-  }, [filteredTasks]);
+  }, [filteredTasks, t]);
 
   const handleValidate = async ({ comment, realisePar }) => {
     if (!selectedTask) return;
     try {
       await workflowAPI.validateTask(selectedTask.id, { status: 'approved', comment, realisePar });
-      setSelectedTask(null); loadAllTasks(); toast.success('Document approuvé !');
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur lors de la validation'); }
+      setSelectedTask(null); loadAllTasks(); toast.success(t('Document approuvé !'));
+    } catch (err) { toast.error(err.response?.data?.message || t('Erreur lors de la validation')); }
   };
 
   const handleReject = async ({ comment }) => {
-    if (!comment?.trim()) { toast('Commentaire obligatoire pour rejeter'); return; }
+    if (!comment?.trim()) { toast(t('Commentaire obligatoire pour rejeter')); return; }
     if (!selectedTask) return;
     try {
       await workflowAPI.validateTask(selectedTask.id, { status: 'rejected', comment });
-      setSelectedTask(null); loadAllTasks(); toast('Document rejeté');
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur lors du rejet'); }
+      setSelectedTask(null); loadAllTasks(); toast(t('Document rejeté'));
+    } catch (err) { toast.error(err.response?.data?.message || t('Erreur lors du rejet')); }
   };
 
   if (loading) return (
@@ -336,7 +340,7 @@ export default function WorkflowDashboard() {
   if (error) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh', gap:8, color:'var(--danger)' }}>
       <AlertCircle size={18} /> {error}
-      <button onClick={loadAllTasks} style={{ marginLeft:8, padding:'4px 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--danger)', background:'transparent', color:'var(--danger)', fontSize:12, cursor:'pointer' }}>Réessayer</button>
+      <button onClick={loadAllTasks} style={{ marginLeft:8, padding:'4px 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--danger)', background:'transparent', color:'var(--danger)', fontSize:12, cursor:'pointer' }}>{t('Réessayer')}</button>
     </div>
   );
 
@@ -349,15 +353,15 @@ export default function WorkflowDashboard() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:28, paddingTop:4 }}>
         <div>
-          <h1 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 4px', letterSpacing:'-0.3px' }}>Workflow</h1>
-          <div style={{ fontSize:13, color:'var(--fg-muted)' }}>Vue d'ensemble du flux de validation et goulots d'étranglement</div>
+          <h1 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 4px', letterSpacing:'-0.3px' }}>{t('Workflow')}</h1>
+          <div style={{ fontSize:13, color:'var(--fg-muted)' }}>{t("Vue d'ensemble du flux de validation et goulots d'étranglement")}</div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <button style={{ display:'inline-flex', alignItems:'center', gap:6, height:34, padding:'0 14px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor:'pointer' }}>
-            {period} derniers jours <ChevronDown size={14} color="var(--fg-muted)" />
+            {t('{{count}} derniers jours', { count: period })} <ChevronDown size={14} color="var(--fg-muted)" />
           </button>
           <button style={{ display:'inline-flex', alignItems:'center', gap:6, height:34, padding:'0 14px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor:'pointer' }}>
-            <Download size={14} /> Exporter
+            <Download size={14} /> {t('Exporter')}
           </button>
           <div style={{ width:34, height:34, borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', position:'relative' }}>
             <Bell size={16} color="var(--fg-muted)" />
@@ -368,18 +372,18 @@ export default function WorkflowDashboard() {
 
       {/* ── KPI cards ──────────────────────────────────────────────────────── */}
       <div style={{ display:'flex', gap:14, marginBottom:20 }}>
-        <StatCard label="Entrées" sublabel={`${period}j`}  value={stats.total}    delta={null} deltaLabel={null} />
-        <StatCard label="En attente"                        value={stats.pending}  delta={null} deltaLabel={null} urgent={urgentCount > 0 ? `${urgentCount} urgente${urgentCount>1?'s':''}` : null} />
-        <StatCard label="Approuvées"                        value={stats.approved} delta={null} deltaLabel={null} />
-        <StatCard label="Délai moyen"                       value={stats.avgDays !== '—' ? `${stats.avgDays}j` : '—'} delta={null} deltaLabel={null} />
+        <StatCard label={t('Entrées')} sublabel={`${period}j`}  value={stats.total}    delta={null} deltaLabel={null} />
+        <StatCard label={t('En attente')}                        value={stats.pending}  delta={null} deltaLabel={null} urgent={urgentCount > 0 ? t('{{count}} urgente(s)', { count: urgentCount }) : null} />
+        <StatCard label={t('Approuvées')}                        value={stats.approved} delta={null} deltaLabel={null} />
+        <StatCard label={t('Délai moyen')}                       value={stats.avgDays !== '—' ? `${stats.avgDays}j` : '—'} delta={null} deltaLabel={null} />
       </div>
 
       {/* ── Sankey card ────────────────────────────────────────────────────── */}
       <div className="ged-card" style={{ padding:'20px 24px', marginBottom:20 }}>
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
           <div>
-            <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)', marginBottom:2 }}>Flux de validation</div>
-            <div style={{ fontSize:12, color:'var(--fg-muted)' }}>Entrées → étapes → sorties</div>
+            <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)', marginBottom:2 }}>{t('Flux de validation')}</div>
+            <div style={{ fontSize:12, color:'var(--fg-muted)' }}>{t('Entrées → étapes → sorties')}</div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             {hasActiveFilter && (
@@ -387,17 +391,17 @@ export default function WorkflowDashboard() {
                 onClick={() => { setFilterService('all'); setFilterType('all'); }}
                 style={{ display:'inline-flex', alignItems:'center', gap:4, height:30, padding:'0 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--danger)', background:'var(--danger-soft)', color:'var(--danger)', fontSize:12, cursor:'pointer' }}
               >
-                <XIcon size={12} /> Réinitialiser
+                <XIcon size={12} /> {t('Réinitialiser')}
               </button>
             )}
             <FilterDropdown
-              label="Tous services"
+              label={t('Tous services')}
               options={serviceOptions}
               value={filterService}
               onChange={setFilterService}
             />
             <FilterDropdown
-              label="Tous types"
+              label={t('Tous types')}
               options={typeOptions}
               value={filterType}
               onChange={setFilterType}
@@ -410,13 +414,13 @@ export default function WorkflowDashboard() {
           <div style={{ display:'flex', gap:6, marginBottom:12 }}>
             {filterService !== 'all' && (
               <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:'var(--radius-full)', background:'var(--brand-soft)', color:'var(--brand)', fontSize:11, fontWeight:500 }}>
-                Service : {filterService}
+                {t('Service')} : {filterService}
                 <XIcon size={10} style={{ cursor:'pointer' }} onClick={() => setFilterService('all')} />
               </span>
             )}
             {filterType !== 'all' && (
               <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:'var(--radius-full)', background:'var(--brand-soft)', color:'var(--brand)', fontSize:11, fontWeight:500 }}>
-                Type : {filterType}
+                {t('Type')} : {filterType}
                 <XIcon size={10} style={{ cursor:'pointer' }} onClick={() => setFilterType('all')} />
               </span>
             )}
@@ -441,15 +445,15 @@ export default function WorkflowDashboard() {
         {/* Goulots d'étranglement */}
         <div className="ged-card" style={{ padding:'20px 24px' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-            <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>Goulots d'étranglement</div>
-            <button style={{ fontSize:12, color:'var(--brand)', background:'none', border:'none', cursor:'pointer', fontWeight:500 }}>Détails →</button>
+            <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>{t("Goulots d'étranglement")}</div>
+            <button style={{ fontSize:12, color:'var(--brand)', background:'none', border:'none', cursor:'pointer', fontWeight:500 }}>{t('Détails →')}</button>
           </div>
           {stats.bottlenecks.length > 0 ? (
             stats.bottlenecks.map((b,i) => (
               <BottleneckBar key={i} label={b.label} value={b.avg} maxValue={Math.max(...stats.bottlenecks.map(x=>x.avg), 1)} />
             ))
           ) : (
-            <div style={{ textAlign:'center', color:'var(--fg-muted)', fontSize:13, padding:'24px 0' }}>Aucune donnée sur la période</div>
+            <div style={{ textAlign:'center', color:'var(--fg-muted)', fontSize:13, padding:'24px 0' }}>{t('Aucune donnée sur la période')}</div>
           )}
         </div>
 
@@ -457,12 +461,12 @@ export default function WorkflowDashboard() {
         <div className="ged-card" style={{ padding:'20px 24px' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
             <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>
-              Top valideurs <span style={{ fontWeight:400, color:'var(--fg-muted)' }}>· {period}j</span>
+              {t('Top valideurs')} <span style={{ fontWeight:400, color:'var(--fg-muted)' }}>· {period}j</span>
             </div>
-            <button style={{ fontSize:12, color:'var(--brand)', background:'none', border:'none', cursor:'pointer', fontWeight:500 }}>Tous →</button>
+            <button style={{ fontSize:12, color:'var(--brand)', background:'none', border:'none', cursor:'pointer', fontWeight:500 }}>{t('Tous →')}</button>
           </div>
           {stats.topValidators.length === 0 ? (
-            <div style={{ textAlign:'center', color:'var(--fg-muted)', fontSize:13, padding:'24px 0' }}>Aucun valideur sur la période</div>
+            <div style={{ textAlign:'center', color:'var(--fg-muted)', fontSize:13, padding:'24px 0' }}>{t('Aucun valideur sur la période')}</div>
           ) : stats.topValidators.map((v, i, arr) => (
             <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom: i < arr.length-1 ? '1px solid var(--border)' : 'none' }}>
               <Avatar name={v.name} size={36} />
@@ -472,7 +476,7 @@ export default function WorkflowDashboard() {
               </div>
               <div style={{ textAlign:'right', flexShrink:0 }}>
                 <span style={{ fontSize:22, fontWeight:700, color:'var(--fg)', letterSpacing:'-0.5px' }}>{v.count}</span>
-                <span style={{ fontSize:12, color:'var(--fg-muted)', marginLeft:3 }}>docs</span>
+                <span style={{ fontSize:12, color:'var(--fg-muted)', marginLeft:3 }}>{t('docs')}</span>
               </div>
             </div>
           ))}

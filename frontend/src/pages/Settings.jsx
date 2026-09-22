@@ -1,6 +1,8 @@
 // frontend/src/pages/Settings.jsx — Redesign complet
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { authAPI, usersAPI, tenantBrandingAPI } from '../services/api';
 import {
   Home, Settings as SettingsIcon, Bell, Users, Sparkles, FileText,
@@ -70,14 +72,15 @@ function AvatarCircle({ firstName, lastName, size = 54 }) {
 
 // ── Section placeholder ────────────────────────────────────────────────────────
 function Placeholder({ title, sub }) {
+  const { t } = useTranslation();
   return (
     <div>
       <div style={{ marginBottom:20 }}>
         <h2 style={{ fontSize:20, fontWeight:700, color:'var(--fg)', margin:'0 0 6px' }}>{title}</h2>
-        <p style={{ fontSize:13, color:'var(--fg-muted)', margin:0 }}>Section en cours de design — la structure suit le même pattern (form + actions sticky).</p>
+        <p style={{ fontSize:13, color:'var(--fg-muted)', margin:0 }}>{t('Section en cours de design — la structure suit le même pattern (form + actions sticky).')}</p>
       </div>
       <div style={{ border:'1px solid var(--border)', borderRadius:'var(--radius-3)', padding:'48px 0', textAlign:'center', color:'var(--fg-subtle)', fontSize:13 }}>
-        Contenu à venir
+        {t('Contenu à venir')}
       </div>
     </div>
   );
@@ -85,7 +88,9 @@ function Placeholder({ title, sub }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function Settings() {
-  const { user } = useAuth();
+  const { t } = useTranslation();
+  const { user, updateUser } = useAuth();
+  const { setLang } = useLanguage();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading]     = useState(false);
 
@@ -113,7 +118,8 @@ export default function Settings() {
     authAPI.getProfile().then(res => {
       const u = res.data?.user || res.data;
       if (!u) return;
-      setProfileData(p => ({ ...p, firstName: u.firstName||'', lastName: u.lastName||'', email: u.email||'' }));
+      setProfileData(p => ({ ...p, firstName: u.firstName||'', lastName: u.lastName||'', email: u.email||'', lang: u.lang || 'fr' }));
+      if (u.lang) setLang(u.lang);
       if (u.signaturePath) setSignatureUrl(`/api/${u.signaturePath}?t=${Date.now()}`);
       if (u.stampPath)     setStampUrl(`/api/${u.stampPath}?t=${Date.now()}`);
     }).catch(() => {
@@ -141,8 +147,8 @@ export default function Settings() {
       const res = await tenantBrandingAPI.uploadLogo(fd);
       const path = res.data?.data?.logoUrl;
       setBranding(b => ({ ...b, logoUrl: path ? `/api/${path}?t=${Date.now()}` : null }));
-      toast.success('Logo mis à jour');
-    } catch (err) { toast.error(err.response?.data?.message || "Erreur lors de l'upload"); }
+      toast.success(t('Logo mis à jour'));
+    } catch (err) { toast.error(err.response?.data?.message || t("Erreur lors de l'upload")); }
   };
 
   const handleBrandingSave = async (e) => {
@@ -151,9 +157,9 @@ export default function Settings() {
     try {
       await tenantBrandingAPI.update({ primaryColor: branding.primaryColor || null });
       if (branding.primaryColor) document.documentElement.style.setProperty('--brand', branding.primaryColor);
-      toast.success('Couleur enregistrée');
+      toast.success(t('Couleur enregistrée'));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur lors de la mise à jour');
+      toast.error(err.response?.data?.message || t('Erreur lors de la mise à jour'));
     } finally { setBrandingSaving(false); }
   };
 
@@ -166,24 +172,26 @@ export default function Settings() {
         const res = await usersAPI.uploadSignature(user.id, fd);
         const path = res.data?.user?.signaturePath;
         setSignatureUrl(path ? `/api/${path}?t=${Date.now()}` : null);
-        toast.success('Signature mise à jour');
+        toast.success(t('Signature mise à jour'));
       } else {
         const res = await usersAPI.uploadStamp(user.id, fd);
         const path = res.data?.user?.stampPath;
         setStampUrl(path ? `/api/${path}?t=${Date.now()}` : null);
-        toast.success('Cachet mis à jour');
+        toast.success(t('Cachet mis à jour'));
       }
-    } catch { toast.error('Erreur lors de l\'upload'); }
+    } catch { toast.error(t("Erreur lors de l'upload")); }
   };
 
   const handleProfileSave = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await authAPI.updateProfile({ firstName: profileData.firstName, lastName: profileData.lastName, email: profileData.email });
-      toast.success('Profil enregistré');
+      const res = await authAPI.updateProfile({ firstName: profileData.firstName, lastName: profileData.lastName, email: profileData.email, lang: profileData.lang });
+      const updated = res.data?.user;
+      if (updated) updateUser({ ...user, ...updated });
+      toast.success(t('Profil enregistré'));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur lors de la mise à jour');
+      toast.error(err.response?.data?.message || t('Erreur lors de la mise à jour'));
     } finally {
       setLoading(false);
     }
@@ -191,15 +199,15 @@ export default function Settings() {
 
   const handlePasswordSave = async (e) => {
     e.preventDefault();
-    if (passwordData.newPwd !== passwordData.confirm) { toast.error('Les mots de passe ne correspondent pas'); return; }
-    if (passwordData.newPwd.length < 8) { toast.error('Minimum 8 caractères'); return; }
+    if (passwordData.newPwd !== passwordData.confirm) { toast.error(t('Les mots de passe ne correspondent pas')); return; }
+    if (passwordData.newPwd.length < 8) { toast.error(t('Minimum 8 caractères')); return; }
     setLoading(true);
     try {
       await usersAPI.resetPassword(user.id, passwordData.newPwd);
-      toast.success('Mot de passe modifié');
+      toast.success(t('Mot de passe modifié'));
       setPasswordData({ current:'', newPwd:'', confirm:'' });
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur');
+      toast.error(err.response?.data?.message || t('Erreur'));
     } finally {
       setLoading(false);
     }
@@ -212,12 +220,12 @@ export default function Settings() {
 
       {/* ── Left sidebar ────────────────────────────────────────────────── */}
       <aside className="settings-sidebar">
-        <div style={{ fontSize:18, fontWeight:700, color:'var(--fg)', padding:'0 20px', marginBottom:24 }}>Paramètres</div>
+        <div style={{ fontSize:18, fontWeight:700, color:'var(--fg)', padding:'0 20px', marginBottom:24 }}>{t('Paramètres')}</div>
 
         {NAV.map(group => (
           <div key={group.group} style={{ marginBottom:8 }}>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.8px', padding:'8px 20px 6px' }}>
-              {group.group}
+              {t(group.group)}
             </div>
             {group.items.map(item => {
               const active = activeTab === item.id;
@@ -234,12 +242,12 @@ export default function Settings() {
                     color: active ? 'var(--brand)' : 'var(--fg-muted)',
                     transition:'background .12s, color .12s',
                   }}
-                  title={item.label}
+                  title={t(item.label)}
                   onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--surface-2)'; }}
                   onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
                 >
                   <Icon size={16} />
-                  <span style={{ fontSize:13, fontWeight: active ? 600 : 400 }}>{item.label}</span>
+                  <span style={{ fontSize:13, fontWeight: active ? 600 : 400 }}>{t(item.label)}</span>
                 </button>
               );
             })}
@@ -254,21 +262,21 @@ export default function Settings() {
           {/* ── Profil ───────────────────────────────────────────────────── */}
           {activeTab === 'profile' && (
             <form onSubmit={handleProfileSave}>
-              <h2 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 6px' }}>Profil</h2>
-              <p style={{ fontSize:13, color:'var(--fg-muted)', marginBottom:28 }}>Informations visibles par votre organisation.</p>
+              <h2 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 6px' }}>{t('Profil')}</h2>
+              <p style={{ fontSize:13, color:'var(--fg-muted)', marginBottom:28 }}>{t('Informations visibles par votre organisation.')}</p>
 
               {/* Avatar */}
               <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:28 }}>
                 <AvatarCircle firstName={profileData.firstName} lastName={profileData.lastName} size={56} />
                 <div>
-                  <div style={{ fontSize:14, fontWeight:600, color:'var(--fg)', marginBottom:2 }}>Photo de profil</div>
-                  <div style={{ fontSize:12, color:'var(--fg-muted)', marginBottom:8 }}>PNG ou JPG · 2 MB max</div>
+                  <div style={{ fontSize:14, fontWeight:600, color:'var(--fg)', marginBottom:2 }}>{t('Photo de profil')}</div>
+                  <div style={{ fontSize:12, color:'var(--fg-muted)', marginBottom:8 }}>{t('PNG ou JPG · 2 MB max')}</div>
                   <div style={{ display:'flex', gap:8 }}>
                     <button type="button" style={{ height:28, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--fg)', fontSize:12, cursor:'pointer' }}>
-                      Changer
+                      {t('Changer')}
                     </button>
                     <button type="button" style={{ height:28, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'transparent', color:'var(--fg-muted)', fontSize:12, cursor:'pointer' }}>
-                      Supprimer
+                      {t('Supprimer')}
                     </button>
                   </div>
                 </div>
@@ -277,7 +285,7 @@ export default function Settings() {
               {/* Name fields */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
                 <div>
-                  <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:5 }}>Prénom</label>
+                  <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:5 }}>{t('Prénom')}</label>
                   <input
                     style={inputStyle} type="text"
                     value={profileData.firstName}
@@ -287,7 +295,7 @@ export default function Settings() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:5 }}>Nom</label>
+                  <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:5 }}>{t('Nom')}</label>
                   <input
                     style={inputStyle} type="text"
                     value={profileData.lastName}
@@ -300,7 +308,7 @@ export default function Settings() {
 
               {/* Email */}
               <div style={{ marginBottom:20 }}>
-                <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:5 }}>Email</label>
+                <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:5 }}>{t('Email')}</label>
                 <input
                   style={{ ...inputStyle, width:'100%' }} type="email"
                   value={profileData.email}
@@ -312,12 +320,12 @@ export default function Settings() {
 
               {/* Language */}
               <div style={{ marginBottom:20 }}>
-                <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:8 }}>Langue de l'interface</label>
+                <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:8 }}>{t("Langue de l'interface")}</label>
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                   {LANGUAGES.map(l => (
                     <button
                       key={l.code} type="button"
-                      onClick={() => setProfileData(p => ({ ...p, lang: l.code }))}
+                      onClick={() => { setLang(l.code); setProfileData(p => ({ ...p, lang: l.code })); }}
                       style={{
                         padding:'5px 12px', borderRadius:'var(--radius-full)', fontSize:12, cursor:'pointer', fontWeight:500,
                         border: profileData.lang === l.code ? 'none' : '1px solid var(--border)',
@@ -334,8 +342,8 @@ export default function Settings() {
               {/* Signature + Cachet */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:28 }}>
                 {[
-                  { label:'Signature électronique', url:signatureUrl, ref:sigInputRef,   type:'signature', icon:<Pen size={20}/> },
-                  { label:'Cachet électronique',    url:stampUrl,     ref:stampInputRef,  type:'stamp',     icon:<Stamp size={20}/> },
+                  { label:t('Signature électronique'), url:signatureUrl, ref:sigInputRef,   type:'signature', icon:<Pen size={20}/> },
+                  { label:t('Cachet électronique'),    url:stampUrl,     ref:stampInputRef,  type:'stamp',     icon:<Stamp size={20}/> },
                 ].map(item => (
                   <div key={item.type}>
                     <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:6 }}>{item.label}</label>
@@ -351,21 +359,21 @@ export default function Settings() {
                           <div style={{ display:'flex', gap:6 }}>
                             <button type="button" onClick={() => item.ref.current?.click()}
                               style={{ height:26, padding:'0 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:11, cursor:'pointer' }}>
-                              Changer
+                              {t('Changer')}
                             </button>
                             <button type="button" onClick={() => item.type==='signature' ? setSignatureUrl(null) : setStampUrl(null)}
                               style={{ height:26, padding:'0 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'transparent', color:'var(--danger)', fontSize:11, cursor:'pointer' }}>
-                              Supprimer
+                              {t('Supprimer')}
                             </button>
                           </div>
                         </>
                       ) : (
                         <>
                           <div style={{ color:'var(--fg-subtle)' }}>{item.icon}</div>
-                          <div style={{ fontSize:12, color:'var(--fg-muted)', textAlign:'center' }}>Aucun fichier</div>
+                          <div style={{ fontSize:12, color:'var(--fg-muted)', textAlign:'center' }}>{t('Aucun fichier')}</div>
                           <button type="button" onClick={() => item.ref.current?.click()}
                             style={{ height:28, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--brand)', background:'transparent', color:'var(--brand)', fontSize:12, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:5 }}>
-                            <UploadCloud size={13}/> Uploader
+                            <UploadCloud size={13}/> {t('Uploader')}
                           </button>
                         </>
                       )}
@@ -379,11 +387,11 @@ export default function Settings() {
               {/* Footer */}
               <div style={{ borderTop:'1px solid var(--border)', paddingTop:16, display:'flex', justifyContent:'flex-end', gap:10 }}>
                 <button type="button" style={{ height:36, padding:'0 16px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'transparent', color:'var(--fg)', fontSize:13, cursor:'pointer' }}>
-                  Annuler
+                  {t('Annuler')}
                 </button>
                 <button type="submit" disabled={loading} style={{ height:36, padding:'0 18px', borderRadius:'var(--radius-2)', background:'var(--brand)', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6, opacity:loading?0.7:1 }}>
                   {loading && <Loader size={13} className="animate-spin" />}
-                  Enregistrer
+                  {t('Enregistrer')}
                 </button>
               </div>
             </form>
@@ -393,14 +401,14 @@ export default function Settings() {
           {activeTab === 'security' && (
             <>
             <form onSubmit={handlePasswordSave}>
-              <h2 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 6px' }}>Sécurité · 2FA</h2>
-              <p style={{ fontSize:13, color:'var(--fg-muted)', marginBottom:28 }}>Modifiez votre mot de passe et activez l'authentification à deux facteurs.</p>
+              <h2 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 6px' }}>{t('Sécurité · 2FA')}</h2>
+              <p style={{ fontSize:13, color:'var(--fg-muted)', marginBottom:28 }}>{t("Modifiez votre mot de passe et activez l'authentification à deux facteurs.")}</p>
 
               <div style={{ display:'flex', flexDirection:'column', gap:14, marginBottom:28 }}>
                 {[
-                  { key:'current', label:'Mot de passe actuel', placeholder:'••••••••' },
-                  { key:'newPwd',  label:'Nouveau mot de passe', placeholder:'Minimum 8 caractères' },
-                  { key:'confirm', label:'Confirmer le nouveau mot de passe', placeholder:'••••••••' },
+                  { key:'current', label:t('Mot de passe actuel'), placeholder:'••••••••' },
+                  { key:'newPwd',  label:t('Nouveau mot de passe'), placeholder:t('Minimum 8 caractères') },
+                  { key:'confirm', label:t('Confirmer le nouveau mot de passe'), placeholder:'••••••••' },
                 ].map(f => (
                   <div key={f.key}>
                     <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:5 }}>{f.label}</label>
@@ -425,11 +433,11 @@ export default function Settings() {
 
               <div style={{ borderTop:'1px solid var(--border)', paddingTop:16, display:'flex', justifyContent:'flex-end', gap:10 }}>
                 <button type="button" style={{ height:36, padding:'0 16px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'transparent', color:'var(--fg)', fontSize:13, cursor:'pointer' }}>
-                  Annuler
+                  {t('Annuler')}
                 </button>
                 <button type="submit" disabled={loading} style={{ height:36, padding:'0 18px', borderRadius:'var(--radius-2)', background:'var(--brand)', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6, opacity:loading?0.7:1 }}>
                   {loading && <Loader size={13} className="animate-spin" />}
-                  Mettre à jour
+                  {t('Mettre à jour')}
                 </button>
               </div>
             </form>
@@ -446,7 +454,7 @@ export default function Settings() {
           {activeTab === 'team' && (
             ['admin','superadmin'].includes(user?.role)
               ? <UserManagement />
-              : <Placeholder title="Équipe" />
+              : <Placeholder title={t('Équipe')} />
           )}
 
           {/* ── Branding ──────────────────────────────────────────────────── */}
@@ -454,12 +462,12 @@ export default function Settings() {
             ['admin','superadmin'].includes(user?.role)
               ? (
                 <form onSubmit={handleBrandingSave}>
-                  <h2 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 6px' }}>Branding</h2>
-                  <p style={{ fontSize:13, color:'var(--fg-muted)', marginBottom:28 }}>Personnalisez le logo et la couleur de marque de {branding.name || 'votre organisation'}.</p>
+                  <h2 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 6px' }}>{t('Branding')}</h2>
+                  <p style={{ fontSize:13, color:'var(--fg-muted)', marginBottom:28 }}>{t('Personnalisez le logo et la couleur de marque de {{org}}.', { org: branding.name || t('votre organisation') })}</p>
 
                   {/* Logo */}
                   <div style={{ marginBottom:24 }}>
-                    <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:6 }}>Logo</label>
+                    <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:6 }}>{t('Logo')}</label>
                     <div style={{
                       border:'1px dashed var(--border)', borderRadius:'var(--radius-3)',
                       background:'var(--surface-2)', minHeight:100, width:220,
@@ -472,17 +480,17 @@ export default function Settings() {
                           <div style={{ display:'flex', gap:6 }}>
                             <button type="button" onClick={() => logoInputRef.current?.click()}
                               style={{ height:26, padding:'0 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:11, cursor:'pointer' }}>
-                              Changer
+                              {t('Changer')}
                             </button>
                           </div>
                         </>
                       ) : (
                         <>
                           <Sparkles size={20} style={{ color:'var(--fg-subtle)' }} />
-                          <div style={{ fontSize:12, color:'var(--fg-muted)', textAlign:'center' }}>Aucun logo</div>
+                          <div style={{ fontSize:12, color:'var(--fg-muted)', textAlign:'center' }}>{t('Aucun logo')}</div>
                           <button type="button" onClick={() => logoInputRef.current?.click()}
                             style={{ height:28, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--brand)', background:'transparent', color:'var(--brand)', fontSize:12, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:5 }}>
-                            <UploadCloud size={13}/> Uploader
+                            <UploadCloud size={13}/> {t('Uploader')}
                           </button>
                         </>
                       )}
@@ -493,7 +501,7 @@ export default function Settings() {
 
                   {/* Couleur principale */}
                   <div style={{ marginBottom:28 }}>
-                    <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:6 }}>Couleur principale</label>
+                    <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:6 }}>{t('Couleur principale')}</label>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                       <input
                         type="color"
@@ -510,45 +518,45 @@ export default function Settings() {
                       {branding.primaryColor && (
                         <button type="button" onClick={() => setBranding(b => ({ ...b, primaryColor: '' }))}
                           style={{ height:28, padding:'0 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'transparent', color:'var(--fg-muted)', fontSize:12, cursor:'pointer' }}>
-                          Réinitialiser
+                          {t('Réinitialiser')}
                         </button>
                       )}
                     </div>
                     <div style={{ fontSize:11, color:'var(--fg-subtle)', marginTop:6 }}>
-                      Remplace la couleur d'accent (boutons, liens, éléments actifs) dans toute l'interface.
+                      {t("Remplace la couleur d'accent (boutons, liens, éléments actifs) dans toute l'interface.")}
                     </div>
                   </div>
 
                   <div style={{ borderTop:'1px solid var(--border)', paddingTop:16, display:'flex', justifyContent:'flex-end', gap:10 }}>
                     <button type="submit" disabled={brandingSaving} style={{ height:36, padding:'0 18px', borderRadius:'var(--radius-2)', background:'var(--brand)', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6, opacity:brandingSaving?0.7:1 }}>
                       {brandingSaving && <Loader size={13} className="animate-spin" />}
-                      Enregistrer
+                      {t('Enregistrer')}
                     </button>
                   </div>
                 </form>
               )
-              : <Placeholder title="Branding" />
+              : <Placeholder title={t('Branding')} />
           )}
 
           {/* ── Licence ───────────────────────────────────────────────────── */}
           {activeTab === 'templates' && (
             ['admin','superadmin'].includes(user?.role)
               ? <div>
-                  <h2 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 6px' }}>Licence</h2>
-                  <p style={{ fontSize:13, color:'var(--fg-muted)', marginBottom:20 }}>Gérez la licence de votre application.</p>
+                  <h2 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 6px' }}>{t('Licence')}</h2>
+                  <p style={{ fontSize:13, color:'var(--fg-muted)', marginBottom:20 }}>{t('Gérez la licence de votre application.')}</p>
                   <LicenseManager />
                 </div>
-              : <Placeholder title="Licence" />
+              : <Placeholder title={t('Licence')} />
           )}
 
           {/* ── IA · OCR ──────────────────────────────────────────────────── */}
-          {activeTab === 'ia' && <Placeholder title="IA · OCR" />}
+          {activeTab === 'ia' && <Placeholder title={t('IA · OCR')} />}
 
           {/* ── Intégrations ──────────────────────────────────────────────── */}
-          {activeTab === 'integrations' && <Placeholder title="Intégrations" />}
+          {activeTab === 'integrations' && <Placeholder title={t('Intégrations')} />}
 
           {/* ── API · Webhooks ─────────────────────────────────────────────── */}
-          {activeTab === 'api' && <Placeholder title="API · Webhooks" />}
+          {activeTab === 'api' && <Placeholder title={t('API · Webhooks')} />}
 
         </div>
       </main>

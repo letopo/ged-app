@@ -3,11 +3,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Send, FileText, Plus, Trash2 } from 'lucide-react';
 import { formsAPI, documentsAPI, workflowAPI, servicesAPI, usersAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { CANVAS_WIDTH, GRID_SIZE } from '../../store/formBuilderStore';
 import useFormLogic from '../../hooks/useFormLogic';
+import i18n from '../../i18n/config';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -15,32 +17,32 @@ function validateField(field, value) {
   const v = field.validation || {};
 
   if (field.required && (value === null || value === undefined || value === '' || value === false)) {
-    return v.requiredMsg || 'Ce champ est obligatoire';
+    return v.requiredMsg || i18n.t('Ce champ est obligatoire');
   }
   if (!value && !field.required) return null;
 
   const str = String(value || '');
 
   if (v.minLength && str.length < v.minLength)
-    return `Minimum ${v.minLength} caractères`;
+    return i18n.t('Minimum {{count}} caractères', { count: v.minLength });
 
   if (v.maxLength && str.length > v.maxLength)
-    return `Maximum ${v.maxLength} caractères`;
+    return i18n.t('Maximum {{count}} caractères', { count: v.maxLength });
 
   if (field.type === 'number' || field.type === 'currency') {
     const num = Number(value);
-    if (isNaN(num)) return 'Valeur numérique requise';
-    if (v.min !== null && v.min !== undefined && num < v.min) return `Minimum ${v.min}`;
-    if (v.max !== null && v.max !== undefined && num > v.max) return `Maximum ${v.max}`;
+    if (isNaN(num)) return i18n.t('Valeur numérique requise');
+    if (v.min !== null && v.min !== undefined && num < v.min) return i18n.t('Minimum {{min}}', { min: v.min });
+    if (v.max !== null && v.max !== undefined && num > v.max) return i18n.t('Maximum {{max}}', { max: v.max });
   }
 
   if (field.type === 'email' && value) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Adresse email invalide';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return i18n.t('Adresse email invalide');
   }
 
   if (v.regex && value) {
     try {
-      if (!new RegExp(v.regex).test(value)) return v.regexMsg || 'Format invalide';
+      if (!new RegExp(v.regex).test(value)) return v.regexMsg || i18n.t('Format invalide');
     } catch {}
   }
 
@@ -83,14 +85,16 @@ function evalTemplate(template, values, allFields) {
       if (field?.type === 'selectcond' && typeof val === 'object') {
         return val.sub ? `${val.main} : ${val.sub}` : (val.main || match);
       }
+      const BCP47 = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
+      const locale = BCP47[i18n.language] || 'fr-FR';
       if (field?.type === 'date') {
-        try { return new Date(val).toLocaleDateString('fr-FR'); } catch { return String(val); }
+        try { return new Date(val).toLocaleDateString(locale); } catch { return String(val); }
       }
       if (field?.type === 'daterange') {
         const dr = typeof val === 'object' ? val : {};
-        const s = dr.start ? new Date(dr.start).toLocaleDateString('fr-FR') : '...';
-        const e = dr.end   ? new Date(dr.end).toLocaleDateString('fr-FR')   : '...';
-        return `${s} au ${e}`;
+        const s = dr.start ? new Date(dr.start).toLocaleDateString(locale) : '...';
+        const e = dr.end   ? new Date(dr.end).toLocaleDateString(locale)   : '...';
+        return `${s} ${i18n.t('au')} ${e}`;
       }
       if (typeof val === 'object') return JSON.stringify(val);
       return String(val);
@@ -115,6 +119,7 @@ function evalTableFormula(formula, row) {
 // ─── Rendu d'un champ interactif ─────────────────────────────────────────────
 
 function FillField({ field, value, onChange, error, services = [], users = [], allValues = {}, allFields = [] }) {
+  const { t } = useTranslation();
   const ff = field.fontFamily || 'inherit';
   const iStyle = {
     width: '100%', padding: '7px 10px',
@@ -144,7 +149,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
       const evaluated = evalTemplate(field.template || '', allValues, allFields);
       return (
         <p style={{ fontSize: 13, color: field.textColor || '#374151', margin: 0, lineHeight: 1.7, textAlign: field.textAlign || 'left', fontStyle: field.italic ? 'italic' : 'normal', textDecoration: field.underline ? 'underline' : 'none', fontFamily: ff }}>
-          {evaluated || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Texte dynamique…</span>}
+          {evaluated || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>{t('Texte dynamique…')}</span>}
         </p>
       );
     }
@@ -185,7 +190,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
           <label style={lStyle}>{field.label}{req}</label>
           {field.description && <p style={{ fontSize: 11, color: '#9ca3af', margin: '-2px 0 4px' }}>{field.description}</p>}
           <select value={value || ''} onChange={e => onChange(e.target.value)} style={{ ...iStyle, appearance: 'auto' }}>
-            <option value="">Sélectionner...</option>
+            <option value="">{t('Sélectionner...')}</option>
             {(field.options || []).map((o, i) => <option key={i} value={o}>{o}</option>)}
           </select>
         </>
@@ -206,16 +211,16 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
           <label style={lStyle}>{field.label}{req}</label>
           {field.description && <p style={{ fontSize: 11, color: '#9ca3af', margin: '-2px 0 4px' }}>{field.description}</p>}
           <select value={mainVal} onChange={e => setMain(e.target.value)} style={{ ...iStyle, appearance: 'auto' }}>
-            <option value="">Sélectionner...</option>
+            <option value="">{t('Sélectionner...')}</option>
             {condOpts.map((o, i) => <option key={i} value={o.label}>{o.label}</option>)}
           </select>
           {hasSubs && (
             <div style={{ marginTop: 6 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', display: 'block', marginBottom: 3 }}>
-                {field.subLabel || 'Préciser :'}
+                {field.subLabel || t('Préciser :')}
               </label>
               <select value={subVal} onChange={e => setSub(e.target.value)} style={{ ...iStyle, appearance: 'auto', borderColor: '#ef4444' }}>
-                <option value="">-- Choisir le motif --</option>
+                <option value="">{t('-- Choisir le motif --')}</option>
                 {selOpt.subOptions.map((s, i) => <option key={i} value={s}>{s}</option>)}
               </select>
             </div>
@@ -267,7 +272,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
         <>
           <label style={lStyle}>{field.label}{req}</label>
           <input type="email" value={value || ''} onChange={e => onChange(e.target.value)}
-            placeholder={field.placeholder || 'exemple@email.com'} style={iStyle} />
+            placeholder={field.placeholder || t('exemple@email.com')} style={iStyle} />
         </>
       );
 
@@ -276,7 +281,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
         <>
           <label style={lStyle}>{field.label}{req}</label>
           <input type="tel" value={value || ''} onChange={e => onChange(e.target.value)}
-            placeholder={field.placeholder || '+237 6XX XXX XXX'} style={iStyle} />
+            placeholder={field.placeholder || t('+237 6XX XXX XXX')} style={iStyle} />
         </>
       );
 
@@ -285,7 +290,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
         <>
           <label style={lStyle}>{field.label}{req}</label>
           <div style={{ border: `2px dashed ${error ? '#ef4444' : '#d1d5db'}`, borderRadius: 6, padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', minHeight: 60, fontSize: 12, color: '#9ca3af' }}>
-            ✍ Zone de signature
+            ✍ {t('Zone de signature')}
           </div>
         </>
       );
@@ -296,7 +301,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
           <label style={lStyle}>{field.label}{req}</label>
           <div style={{ border: `2px dashed ${error ? '#ef4444' : '#6366f1'}`, borderRadius: 6, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f5f3ff', minHeight: 60, fontSize: 12, color: '#6366f1', gap: 4 }}>
             <span style={{ fontSize: 22 }}>🔖</span>
-            <span>Zone de cachet officiel</span>
+            <span>{t('Zone de cachet officiel')}</span>
           </div>
         </>
       );
@@ -319,20 +324,20 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
           <label style={lStyle}>{field.label}{req}</label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
             <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 3 }}>{field.labelStart || 'Date début'}</span>
+              <span style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 3 }}>{field.labelStart || t('Date début')}</span>
               <input type="date" value={dr.start || ''} onChange={e => onChange({ ...dr, start: e.target.value })}
                 style={{ ...iStyle, fontSize: 12 }} max={dr.end || undefined} />
             </div>
             <span style={{ fontSize: 14, color: '#9ca3af', paddingBottom: 8 }}>→</span>
             <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 3 }}>{field.labelEnd || 'Date fin'}</span>
+              <span style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 3 }}>{field.labelEnd || t('Date fin')}</span>
               <input type="date" value={dr.end || ''} onChange={e => onChange({ ...dr, end: e.target.value })}
                 style={{ ...iStyle, fontSize: 12 }} min={dr.start || undefined} />
             </div>
           </div>
           {field.includeBusinessDays && dr.start && dr.end && (
             <div style={{ marginTop: 5, padding: '4px 10px', background: '#eff6ff', borderRadius: 6, fontSize: 12, color: '#1d4ed8', fontWeight: 600, display: 'inline-block' }}>
-              {bDays} jour{bDays > 1 ? 's' : ''} ouvré{bDays > 1 ? 's' : ''}
+              {t('{{count}} jour(s) ouvré(s)', { count: bDays })}
             </div>
           )}
         </>
@@ -368,7 +373,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
           <label style={lStyle}>{field.label}{req}</label>
           <select value={value || ''} onChange={e => onChange(e.target.value)}
             style={{ ...iStyle, appearance: 'auto', border: `1.5px solid ${error ? '#ef4444' : '#d1d5db'}` }}>
-            <option value="">Sélectionner un service...</option>
+            <option value="">{t('Sélectionner un service...')}</option>
             {services.map((s, i) => (
               <option key={i} value={s.name || s}>{s.name || s}</option>
             ))}
@@ -396,7 +401,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
                 type="text"
                 value={userSearch}
                 onChange={e => setUserSearch(e.target.value)}
-                placeholder="Rechercher un employé..."
+                placeholder={t('Rechercher un employé...')}
                 style={{ ...iStyle, border: `1.5px solid ${error ? '#ef4444' : '#d1d5db'}` }}
               />
               {userSearch && filtered.length > 0 && (
@@ -522,7 +527,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
               borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#6b7280',
               transition: 'all .15s',
             }}>
-              <Plus size={13} /> Ajouter une ligne
+              <Plus size={13} /> {t('Ajouter une ligne')}
             </button>
           </div>
         </>
@@ -544,6 +549,7 @@ function FillField({ field, value, onChange, error, services = [], users = [], a
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function FormFill() {
+  const { t } = useTranslation();
   const { id }    = useParams();
   const navigate  = useNavigate();
   const { user }  = useAuth();
@@ -573,7 +579,7 @@ export default function FormFill() {
           usersAPI.getAll().then(r => setUsers(r.data?.data || [])).catch(() => {});
         }
       })
-      .catch(e => setError(e?.response?.data?.message || 'Formulaire introuvable'))
+      .catch(e => setError(e?.response?.data?.message || t('Formulaire introuvable')))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -650,7 +656,7 @@ export default function FormFill() {
 
       setSubmitted(true);
     } catch (e) {
-      setError(e?.response?.data?.message || 'Erreur lors de la soumission');
+      setError(e?.response?.data?.message || t('Erreur lors de la soumission'));
     } finally {
       setSubmitting(false);
     }
@@ -669,7 +675,7 @@ export default function FormFill() {
       <AlertCircle size={40} style={{ color: '#ef4444', marginBottom: 12 }} />
       <p style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>{error}</p>
       <button onClick={() => navigate(-1)} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 8, background: '#1B3A6B', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14 }}>
-        Retour
+        {t('Retour')}
       </button>
     </div>
   );
@@ -677,7 +683,7 @@ export default function FormFill() {
   if (form?.status !== 'published') return (
     <div style={{ textAlign: 'center', padding: '60px 20px' }}>
       <AlertCircle size={40} style={{ color: '#f59e0b', marginBottom: 12 }} />
-      <p style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>Ce formulaire n'est pas disponible.</p>
+      <p style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>{t("Ce formulaire n'est pas disponible.")}</p>
     </div>
   );
 
@@ -697,14 +703,14 @@ export default function FormFill() {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '80px 20px', minHeight: '60vh' }}>
         <CheckCircle size={56} style={{ color: '#10b981', marginBottom: 16 }} />
         <h2 style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginBottom: 8 }}>
-          {form.settings?.successMessage || 'Formulaire soumis avec succès !'}
+          {form.settings?.successMessage || t('Formulaire soumis avec succès !')}
         </h2>
-        <p style={{ fontSize: 14, color: '#6b7280', marginBottom: hasWf ? 32 : 24 }}>Merci pour votre réponse.</p>
+        <p style={{ fontSize: 14, color: '#6b7280', marginBottom: hasWf ? 32 : 24 }}>{t('Merci pour votre réponse.')}</p>
 
         {hasWf && steps.length > 0 && (
           <div style={{ width: '100%', maxWidth: 480, marginBottom: 32 }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 12, textAlign: 'center' }}>
-              Circuit de validation — {wfData.templateName}
+              {t('Circuit de validation — {{name}}', { name: wfData.templateName })}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {steps.map((step, i) => {
@@ -730,11 +736,11 @@ export default function FormFill() {
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#111827' }}>{step.name}</p>
                       <p style={{ margin: 0, fontSize: 11, color: '#6b7280' }}>
                         {step.userLabel || step.role}
-                        {step.deadlineDays ? ` · délai ${step.deadlineDays}j` : ''}
+                        {step.deadlineDays ? ` · ${t('délai {{count}}j', { count: step.deadlineDays })}` : ''}
                       </p>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 600, color: sc.color, background: sc.bg, padding: '2px 8px', borderRadius: 10, flexShrink: 0 }}>
-                      {step.status === 'approved' ? 'Approuvé' : step.status === 'rejected' ? 'Rejeté' : isCurrent ? 'En attente' : 'À venir'}
+                      {step.status === 'approved' ? t('Approuvé') : step.status === 'rejected' ? t('Rejeté') : isCurrent ? t('En attente') : t('À venir')}
                     </span>
                   </div>
                 );
@@ -746,14 +752,14 @@ export default function FormFill() {
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
           {docId ? (
             <Link to={`/documents/${docId}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px', borderRadius: 8, background: '#10b981', color: '#fff', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>
-              <FileText size={16} /> Voir le document dans GED
+              <FileText size={16} /> {t('Voir le document dans GED')}
             </Link>
           ) : null}
           <button onClick={() => navigate('/documents')} style={{ padding: '10px 24px', borderRadius: 8, background: '#1B3A6B', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
-            Aller dans Documents
+            {t('Aller dans Documents')}
           </button>
           <button onClick={() => navigate('/dashboard')} style={{ padding: '10px 24px', borderRadius: 8, background: 'none', color: '#6b7280', border: '1.5px solid #d1d5db', cursor: 'pointer', fontSize: 14 }}>
-            Tableau de bord
+            {t('Tableau de bord')}
           </button>
         </div>
       </div>
@@ -837,7 +843,7 @@ export default function FormFill() {
             {Object.keys(errors).length > 0 && (
               <span style={{ fontSize: 12, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <AlertCircle size={13} />
-                {Object.keys(errors).length} erreur(s) à corriger
+                {t('{{count}} erreur(s) à corriger', { count: Object.keys(errors).length })}
               </span>
             )}
             <button type="submit" disabled={submitting} style={{
@@ -850,8 +856,8 @@ export default function FormFill() {
               boxShadow: '0 2px 8px rgba(27,58,107,.3)',
             }}>
               {submitting
-                ? <><Loader2 size={16} style={{ animation: 'spin .7s linear infinite' }} /> Envoi...</>
-                : <><Send size={16} /> {form.settings?.submitLabel || 'Soumettre'}</>
+                ? <><Loader2 size={16} style={{ animation: 'spin .7s linear infinite' }} /> {t('Envoi...')}</>
+                : <><Send size={16} /> {form.settings?.submitLabel || t('Soumettre')}</>
               }
             </button>
           </div>

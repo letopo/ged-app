@@ -3,10 +3,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
+import { useTranslation } from 'react-i18next';
 import scheduleService from '../services/scheduleService';
 import toast from 'react-hot-toast';
+import i18n from '../i18n/config';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 const ScheduleDetail = () => {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const printRef = useRef();
@@ -44,7 +49,7 @@ const ScheduleDetail = () => {
       organizeAssignments(data.assignments, monthDates);
     } catch (error) {
       console.error('Erreur chargement planning:', error);
-      toast('Erreur lors du chargement du planning');
+      toast(t('Erreur lors du chargement du planning'));
       navigate('/schedules');
     } finally {
       setLoading(false);
@@ -99,7 +104,7 @@ const ScheduleDetail = () => {
 
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
-    documentTitle: schedule?.title || 'Planning',
+    documentTitle: schedule?.title || t('Planning'),
     pageStyle: `
       @page {
         size: A4 landscape;
@@ -155,7 +160,7 @@ const ScheduleDetail = () => {
             <svg style={{ width: 20, height: 20, marginRight: 8 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Retour
+            {t('Retour')}
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -166,7 +171,7 @@ const ScheduleDetail = () => {
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
               >
-                Modifier
+                {t('Modifier')}
               </button>
             )}
 
@@ -177,7 +182,7 @@ const ScheduleDetail = () => {
               <svg style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
-              Imprimer
+              {t('Imprimer')}
             </button>
           </div>
         </div>
@@ -191,16 +196,16 @@ const ScheduleDetail = () => {
             {/* Logo et informations hôpital */}
             <div>
               <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>
-                HOPITAL ST-JEAN DE MALTE
+                {t('HOPITAL ST-JEAN DE MALTE')}
               </h1>
-              <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>ORDRE DE MALTE</p>
-              <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>BP 56 NJOMBE</p>
+              <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>{t('ORDRE DE MALTE')}</p>
+              <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>{t('BP 56 NJOMBE')}</p>
             </div>
 
             {/* Date du document */}
             <div style={{ textAlign: 'right' }}>
               <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>
-                {new Date().toLocaleDateString('fr-FR', {
+                {new Date().toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric'
@@ -215,7 +220,7 @@ const ScheduleDetail = () => {
               {scheduleTypeLabels[schedule.scheduleType]}
             </h2>
             <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>
-              MOIS DE {scheduleService.getMonthName(schedule.month).toUpperCase()} {schedule.year}
+              {t('MOIS DE {{month}} {{year}}', { month: scheduleService.getMonthName(schedule.month).toUpperCase(), year: schedule.year })}
             </h3>
             <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>
               ROT/{schedule.scheduleType.toUpperCase()}/{schedule.month}-{schedule.year.toString().slice(-2)}
@@ -246,7 +251,7 @@ const ScheduleDetail = () => {
               <thead>
                 <tr style={{ background: 'var(--surface-2)' }}>
                   <th style={{ border: '2px solid var(--fg)', padding: '8px 12px', textAlign: 'left', fontWeight: 700, fontSize: 13 }}>
-                    Noms
+                    {t('Noms')}
                   </th>
                   {dates.map((dateInfo, index) => (
                     <th
@@ -312,7 +317,7 @@ const ScheduleDetail = () => {
 
           {/* Légende */}
           <div style={{ marginTop: 24, padding: 16, border: '2px solid var(--border)', borderRadius: 'var(--radius-2)' }}>
-            <h4 style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)', marginBottom: 10 }}>Légende:</h4>
+            <h4 style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)', marginBottom: 10 }}>{t('Légende')}:</h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 }}>
               {shiftTypes.map(shift => (
                 <div key={shift.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
@@ -342,7 +347,7 @@ const ScheduleDetail = () => {
           {/* Notes */}
           {schedule.notes && (
             <div style={{ marginTop: 16, padding: 12, background: 'var(--warning-soft)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-2)' }}>
-              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>Notes:</p>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>{t('Notes')}:</p>
               <p style={{ fontSize: 11, color: 'var(--fg-muted)', whiteSpace: 'pre-wrap', margin: 0 }}>{schedule.notes}</p>
             </div>
           )}
@@ -350,7 +355,7 @@ const ScheduleDetail = () => {
           {/* Workflow de validation */}
           {schedule.validations && Array.isArray(schedule.validations) && schedule.validations.length > 0 && (
             <div style={{ marginTop: 24, borderTop: '2px solid var(--border)', paddingTop: 16 }}>
-              <h4 style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)', marginBottom: 10 }}>Validations:</h4>
+              <h4 style={{ fontWeight: 700, fontSize: 13, color: 'var(--fg)', marginBottom: 10 }}>{t('Validations')}:</h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                 {schedule.validations
                   .filter(validation => validation != null)
@@ -358,9 +363,9 @@ const ScheduleDetail = () => {
                     <div key={validation.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', padding: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg)' }}>
-                          {validation.validatorRole === 'dds' && 'Directrice des Soins'}
-                          {validation.validatorRole === 'medical_chief' && 'Médecin Chef'}
-                          {validation.validatorRole === 'dg' && 'Directeur Général'}
+                          {validation.validatorRole === 'dds' && t('Directrice des Soins')}
+                          {validation.validatorRole === 'medical_chief' && t('Médecin Chef')}
+                          {validation.validatorRole === 'dg' && t('Directeur Général')}
                         </span>
                         <span style={{
                           padding: '2px 8px',
@@ -370,9 +375,9 @@ const ScheduleDetail = () => {
                           background: validation.status === 'approved' ? 'var(--success-soft)' : validation.status === 'rejected' ? 'var(--danger-soft)' : 'var(--surface-3)',
                           color: validation.status === 'approved' ? 'var(--success)' : validation.status === 'rejected' ? 'var(--danger)' : 'var(--fg-muted)'
                         }}>
-                          {validation.status === 'approved' && '✓ Approuvé'}
-                          {validation.status === 'rejected' && '✗ Rejeté'}
-                          {validation.status === 'pending' && 'En attente'}
+                          {validation.status === 'approved' && `✓ ${t('Approuvé')}`}
+                          {validation.status === 'rejected' && `✗ ${t('Rejeté')}`}
+                          {validation.status === 'pending' && t('En attente')}
                         </span>
                       </div>
 
@@ -384,7 +389,7 @@ const ScheduleDetail = () => {
 
                       {validation.validatedAt && (
                         <p style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 4 }}>
-                          Le {new Date(validation.validatedAt).toLocaleDateString('fr-FR')}
+                          {t('Le {{date}}', { date: new Date(validation.validatedAt).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') })}
                         </p>
                       )}
 
@@ -397,7 +402,7 @@ const ScheduleDetail = () => {
                       {/* Signature et cachet */}
                       {validation.status === 'approved' && validation.validator && (
                         <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-                          <p style={{ fontSize: 11, color: 'var(--fg-subtle)', marginBottom: 8 }}>Signature:</p>
+                          <p style={{ fontSize: 11, color: 'var(--fg-subtle)', marginBottom: 8 }}>{t('Signature')}:</p>
 
                           {validation.validator.signaturePath ? (
                             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
@@ -439,7 +444,7 @@ const ScheduleDetail = () => {
               {/* Directrice des Soins */}
               <div>
                 <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>
-                  La Directrice des Soins
+                  {t('La Directrice des Soins')}
                 </p>
                 {(() => {
                   const ddsValidation = schedule.validations?.find(v =>
@@ -479,7 +484,7 @@ const ScheduleDetail = () => {
               {/* Directeur Général */}
               <div>
                 <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>
-                  Le Directeur Général
+                  {t('Le Directeur Général')}
                 </p>
                 {(() => {
                   const dgValidation = schedule.validations?.find(v =>
@@ -491,8 +496,8 @@ const ScheduleDetail = () => {
                       <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
                         {dgValidation.validator.firstName} {dgValidation.validator.lastName}
                       </p>
-                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>BP 56 NJOMBE - C.MEROUN Tél: (237)657.593.103</p>
-                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Directeur Général HSJM</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t('BP 56 NJOMBE - C.MEROUN Tél: (237)657.593.103')}</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t('Directeur Général HSJM')}</p>
                       <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{dgValidation.validator.email}</p>
                       <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 16 }}>
                         {dgValidation.validator.signaturePath && (
@@ -515,8 +520,8 @@ const ScheduleDetail = () => {
                   ) : (
                     <div style={{ marginTop: 32 }}>
                       <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Michel VAUTROT</p>
-                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>BP 56 NJOMBE - C.MEROUN Tél: (237)657.593.103</p>
-                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Directeur Général HSJM</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t('BP 56 NJOMBE - C.MEROUN Tél: (237)657.593.103')}</p>
+                      <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t('Directeur Général HSJM')}</p>
                       <p style={{ fontSize: 11, color: 'var(--fg-muted)' }}>hopitalcameroun@ordredemaltefrance.org</p>
                       <div style={{ marginTop: 16, borderTop: '1px solid var(--border)' }}></div>
                     </div>
@@ -529,11 +534,11 @@ const ScheduleDetail = () => {
           {/* Note de bas de page */}
           <div style={{ marginTop: 24, textAlign: 'center' }}>
             <p style={{ fontSize: 11, color: 'var(--fg-subtle)', margin: 0 }}>
-              (1 heure de pause par jour)
+              {t('(1 heure de pause par jour)')}
             </p>
             {schedule.publishedAt && (
               <p style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 8 }}>
-                Document publié le {new Date(schedule.publishedAt).toLocaleDateString('fr-FR')}
+                {t('Document publié le {{date}}', { date: new Date(schedule.publishedAt).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') })}
               </p>
             )}
           </div>
@@ -543,25 +548,25 @@ const ScheduleDetail = () => {
       {/* Statistiques (non imprimées) */}
       <div className="no-print" style={{ width: '100%', padding: '24px 16px' }}>
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-1)', padding: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)', marginBottom: 16 }}>Statistiques du planning</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)', marginBottom: 16 }}>{t('Statistiques du planning')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             <div style={{ textAlign: 'center', padding: 16, background: 'var(--brand-soft)', borderRadius: 'var(--radius-2)' }}>
               <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--brand)' }}>
                 {employeeAssignments.length}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>Employés</div>
+              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>{t('Employés')}</div>
             </div>
             <div style={{ textAlign: 'center', padding: 16, background: 'var(--success-soft)', borderRadius: 'var(--radius-2)' }}>
               <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--success)' }}>
                 {schedule.assignments?.length || 0}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>Affectations</div>
+              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>{t('Affectations')}</div>
             </div>
             <div style={{ textAlign: 'center', padding: 16, background: 'var(--surface-3)', borderRadius: 'var(--radius-2)' }}>
               <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--fg)' }}>
                 {dates.length}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>Jours</div>
+              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>{t('Jours')}</div>
             </div>
             <div style={{ textAlign: 'center', padding: 16, background: 'var(--warning-soft)', borderRadius: 'var(--radius-2)' }}>
               <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--warning)' }}>
@@ -569,7 +574,7 @@ const ScheduleDetail = () => {
                   ? Math.round((schedule.assignments?.length || 0) / (employeeAssignments.length * dates.length) * 100)
                   : 0}%
               </div>
-              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>Complété</div>
+              <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>{t('Complété')}</div>
             </div>
           </div>
         </div>

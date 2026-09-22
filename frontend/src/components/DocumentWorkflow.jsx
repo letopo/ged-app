@@ -1,7 +1,11 @@
 // frontend/src/components/DocumentWorkflow.jsx
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { workflowAPI } from '../services/api';
 import { Clock, CheckCircle, XCircle, Calendar, Loader, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 const STATUS_CFG = {
   pending:  { color: 'var(--warning)', bg: 'var(--warning-soft)', label: 'En attente' },
@@ -15,11 +19,6 @@ const OVERALL_CFG = {
   rejected:           { color: 'var(--danger)',  bg: 'var(--danger-soft)',  label: 'Document rejeté' },
 };
 
-const formatDate = (d) => {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
-
 const StatusIcon = ({ status, size = 20 }) => {
   const color = STATUS_CFG[status]?.color || 'var(--fg-subtle)';
   if (status === 'approved') return <CheckCircle size={size} color={color} />;
@@ -28,6 +27,12 @@ const StatusIcon = ({ status, size = 20 }) => {
 };
 
 export default function DocumentWorkflow({ documentId, onClose }) {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+  const formatDate = (d) => {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString(BCP47_LOCALES[lang] || 'fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
@@ -41,7 +46,7 @@ export default function DocumentWorkflow({ documentId, onClose }) {
       const res = await workflowAPI.getDocumentWorkflow(documentId);
       setWorkflows(res.data.workflows || []);
     } catch (err) {
-      setError(err.response?.data?.error || 'Erreur lors du chargement du workflow');
+      setError(err.response?.data?.error || t('Erreur lors du chargement du workflow'));
     } finally {
       setLoading(false);
     }
@@ -63,7 +68,7 @@ export default function DocumentWorkflow({ documentId, onClose }) {
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10, color: 'var(--fg-muted)', fontSize: 13 }}>
       <Loader size={20} color="var(--brand)" className="animate-spin" />
-      Chargement du workflow…
+      {t('Chargement du workflow…')}
     </div>
   );
 
@@ -72,15 +77,15 @@ export default function DocumentWorkflow({ documentId, onClose }) {
       <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-2)', background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
         <XCircle size={15} /> {error}
       </div>
-      {onClose && <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}><button onClick={onClose} style={closeBtnStyle}>Fermer</button></div>}
+      {onClose && <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}><button onClick={onClose} style={closeBtnStyle}>{t('Fermer')}</button></div>}
     </div>
   );
 
   if (workflows.length === 0) return (
     <div style={{ padding: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
       <AlertCircle size={40} color="var(--border-strong)" style={{ marginBottom: 10 }} />
-      <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 14 }}>Aucun workflow trouvé pour ce document</div>
-      {onClose && <button onClick={onClose} style={closeBtnStyle}>Fermer</button>}
+      <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 14 }}>{t('Aucun workflow trouvé pour ce document')}</div>
+      {onClose && <button onClick={onClose} style={closeBtnStyle}>{t('Fermer')}</button>}
     </div>
   );
 
@@ -90,7 +95,7 @@ export default function DocumentWorkflow({ documentId, onClose }) {
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)' }}>Circuit de validation</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)' }}>{t('Circuit de validation')}</div>
         {onClose && (
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-subtle)', display: 'flex' }}>
             <XCircle size={18} />
@@ -105,7 +110,7 @@ export default function DocumentWorkflow({ documentId, onClose }) {
           background: overallCfg.bg, border: `1px solid ${overallCfg.color}`,
           fontSize: 13, fontWeight: 600, color: overallCfg.color,
         }}>
-          {overallCfg.label}
+          {t(overallCfg.label)}
         </div>
       )}
 
@@ -129,7 +134,7 @@ export default function DocumentWorkflow({ documentId, onClose }) {
                 }}>
                   <StatusIcon status={wf.status} size={16} />
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--fg-subtle)', marginTop: 3 }}>Étape {wf.step}</div>
+                <div style={{ fontSize: 10, color: 'var(--fg-subtle)', marginTop: 3 }}>{t('Étape {{step}}', { step: wf.step })}</div>
               </div>
 
               {/* Content */}
@@ -142,25 +147,25 @@ export default function DocumentWorkflow({ documentId, onClose }) {
                     {wf.validator.fullName || wf.validator.username}
                   </div>
                   <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}>
-                    {cfg.label}
+                    {t(cfg.label)}
                   </span>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 8 }}>{wf.validator.email}</div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: 'var(--fg-muted)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Calendar size={11} /> Soumis le {formatDate(wf.createdAt)}
+                    <Calendar size={11} /> {t('Soumis le {{date}}', { date: formatDate(wf.createdAt) })}
                   </div>
                   {wf.validatedAt && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Calendar size={11} /> Traité le {formatDate(wf.validatedAt)}
+                      <Calendar size={11} /> {t('Traité le {{date}}', { date: formatDate(wf.validatedAt) })}
                     </div>
                   )}
                 </div>
 
                 {wf.comment && (
                   <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 'var(--radius-2)', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 12 }}>
-                    <div style={{ fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 3 }}>Commentaire :</div>
+                    <div style={{ fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 3 }}>{t('Commentaire :')}</div>
                     <div style={{ color: 'var(--fg)' }}>{wf.comment}</div>
                   </div>
                 )}
@@ -173,9 +178,9 @@ export default function DocumentWorkflow({ documentId, onClose }) {
       {/* Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
         {[
-          { value: workflows.length, label: 'Validateurs', color: 'var(--brand)' },
-          { value: workflows.filter(w => w.status === 'approved').length, label: 'Approuvés', color: 'var(--success)' },
-          { value: workflows.filter(w => w.status === 'pending').length,  label: 'En attente', color: 'var(--warning)' },
+          { value: workflows.length, label: t('Validateurs'), color: 'var(--brand)' },
+          { value: workflows.filter(w => w.status === 'approved').length, label: t('Approuvés'), color: 'var(--success)' },
+          { value: workflows.filter(w => w.status === 'pending').length,  label: t('En attente'), color: 'var(--warning)' },
         ].map(s => (
           <div key={s.label} className="ged-stat" style={{ textAlign: 'center', borderLeft: `3px solid ${s.color}` }}>
             <div style={{ fontSize: 24, fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -186,7 +191,7 @@ export default function DocumentWorkflow({ documentId, onClose }) {
 
       {onClose && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-          <button onClick={onClose} style={closeBtnStyle}>Fermer</button>
+          <button onClick={onClose} style={closeBtnStyle}>{t('Fermer')}</button>
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@
 // Page principale du Form Designer — layout 3 colonnes
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFormBuilderStore, FIELD_REGISTRY } from '../../store/formBuilderStore';
 import { formsAPI } from '../../services/api';
@@ -15,6 +16,7 @@ import FormRenderer     from '../../components/FormBuilder/Renderer/FormRenderer
 const AUTO_SAVE_DELAY = 30_000; // 30 secondes
 
 export default function FormDesigner() {
+  const { t } = useTranslation();
   const { id }    = useParams();
   const navigate  = useNavigate();
 
@@ -34,7 +36,7 @@ export default function FormDesigner() {
         const res = await formsAPI.getById(id);
         setForm(res.data.data);
       } catch (e) {
-        setError(e?.response?.data?.message || 'Formulaire introuvable');
+        setError(e?.response?.data?.message || t('Formulaire introuvable'));
       } finally {
         setLoading(false);
       }
@@ -100,7 +102,7 @@ export default function FormDesigner() {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
       <p style={{ fontSize: 15, color: 'var(--danger)', fontWeight: 600 }}>{error}</p>
       <button onClick={() => navigate('/forms')} style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--brand)', color: '#fff', border: 'none', cursor: 'pointer' }}>
-        Retour
+        {t('Retour')}
       </button>
     </div>
   );
@@ -146,7 +148,7 @@ export default function FormDesigner() {
                 fontSize: 13, color: '#92400e', fontWeight: 500,
               }}>
                 <span>👁</span>
-                Mode aperçu — les champs ne sont pas interactifs
+                {t('Mode aperçu — les champs ne sont pas interactifs')}
               </div>
 
               {/* Rendu du formulaire */}

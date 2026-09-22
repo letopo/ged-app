@@ -37,7 +37,13 @@ sequelize.addHook('beforeFind', (options) => {
 });
 
 // ── Hook global : injecte tenant_id à la création ────────────────────────────
-sequelize.addHook('beforeCreate', (instance) => {
+// Doit tourner sur `beforeValidate` (pas `beforeCreate`) : Sequelize valide
+// automatiquement les colonnes `allowNull: false` (dont tenant_id) juste après
+// beforeValidate et avant beforeCreate. Sur beforeCreate, la validation
+// notNull sur tenant_id échoue donc systématiquement pour tout Model.create()
+// qui ne passe pas tenantId explicitement — ce hook n'avait alors jamais
+// l'occasion de s'exécuter (bug constaté sur motifController.createMotif).
+sequelize.addHook('beforeValidate', (instance) => {
   const tenantId = tenantNamespace.get('tenantId');
   if (!tenantId) return;
   if (!instance.constructor?.rawAttributes?.tenantId) return;

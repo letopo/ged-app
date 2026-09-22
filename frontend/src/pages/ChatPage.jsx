@@ -1,6 +1,7 @@
 // frontend/src/pages/ChatPage.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   MessageSquare, Hash, User, Users, Plus, Search, Send, X,
   ChevronDown, Trash2, Edit2, Check, FileText, Lock, Loader,
@@ -9,23 +10,27 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
+import i18n from '../i18n/config';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
+const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 
 const fmt = (date) => {
   if (!date) return '';
   const d = new Date(date);
   const now = new Date();
   const diffDays = Math.floor((now - d) / 86_400_000);
-  if (diffDays === 0) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  if (diffDays === 1) return 'Hier';
-  if (diffDays < 7)  return d.toLocaleDateString('fr-FR', { weekday: 'short' });
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  if (diffDays === 0) return d.toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return i18n.t('Hier');
+  if (diffDays < 7)  return d.toLocaleDateString(currentLocale(), { weekday: 'short' });
+  return d.toLocaleDateString(currentLocale(), { day: '2-digit', month: 'short' });
 };
 
 const fmtFull = (date) => {
   if (!date) return '';
-  return new Date(date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return new Date(date).toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' });
 };
 
 const fmtDay = (date) => {
@@ -33,9 +38,9 @@ const fmtDay = (date) => {
   const d = new Date(date);
   const now = new Date();
   const diffDays = Math.floor((now - d) / 86_400_000);
-  if (diffDays === 0) return "Aujourd'hui";
-  if (diffDays === 1) return 'Hier';
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (diffDays === 0) return i18n.t("Aujourd'hui");
+  if (diffDays === 1) return i18n.t('Hier');
+  return d.toLocaleDateString(currentLocale(), { weekday: 'long', day: 'numeric', month: 'long' });
 };
 
 const initials = (fn, ln) => `${fn?.[0] || ''}${ln?.[0] || ''}`.toUpperCase() || '?';
@@ -44,9 +49,9 @@ const convName = (conv, user) => {
   if (conv.type === 'direct') {
     return conv.other_first_name
       ? `${conv.other_first_name} ${conv.other_last_name}`
-      : conv.name || 'Message direct';
+      : conv.name || i18n.t('Message direct');
   }
-  return conv.name || 'Sans nom';
+  return conv.name || i18n.t('Sans nom');
 };
 
 const convIcon = (conv) => {
@@ -112,6 +117,7 @@ const Avatar = ({ firstName, lastName, size = 32, isOnline = false }) => {
 // ─── Bulle de message ─────────────────────────────────────────────────────────
 
 const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onlineUsers = new Set(), currentUserId }) => {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState(msg.content);
@@ -130,7 +136,7 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
   if (msg.isDeleted) {
     return (
       <div style={{ padding: '2px 12px 2px 52px', color: 'var(--fg-muted)', fontStyle: 'italic', fontSize: 13 }}>
-        [Message supprimé]
+{t('[Message supprimé]')}
       </div>
     );
   }
@@ -161,7 +167,7 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
               {fmtFull(msg.created_at || msg.createdAt)}
             </span>
             {msg.editedAt && (
-              <span style={{ fontSize: 10, color: 'var(--fg-subtle)', marginLeft: 6 }}>(modifié)</span>
+              <span style={{ fontSize: 10, color: 'var(--fg-subtle)', marginLeft: 6 }}>({t('modifié')})</span>
             )}
           </div>
         </div>
@@ -193,12 +199,12 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
             />
             <div style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--fg-muted)' }}>
               <button onClick={submitEdit} style={{ background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: 12 }}>
-                Enregistrer
+                {t('Enregistrer')}
               </button>
               <button onClick={() => setEditing(false)} style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: 12 }}>
-                Annuler
+                {t('Annuler')}
               </button>
-              <span style={{ alignSelf: 'center' }}>Échap pour annuler, Entrée pour enregistrer</span>
+              <span style={{ alignSelf: 'center' }}>{t('Échap pour annuler, Entrée pour enregistrer')}</span>
             </div>
           </div>
         ) : (
@@ -214,7 +220,7 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
             rel="noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--brand)', marginTop: 4 }}
           >
-            <Paperclip size={12} /> {msg.attachment_name || 'Pièce jointe'}
+            <Paperclip size={12} /> {msg.attachment_name || t('Pièce jointe')}
           </a>
         )}
 
@@ -255,7 +261,7 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
           <div style={{ position: 'relative' }}>
             <ActionBtn
               icon={<span style={{ fontSize: 13 }}>😊</span>}
-              title="Réagir"
+              title={t('Réagir')}
               onClick={() => setShowPicker(v => !v)}
             />
             {showPicker && (
@@ -288,8 +294,8 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
           </div>
           {isMine && (
             <>
-              <ActionBtn icon={<Edit2 size={13} />} title="Modifier" onClick={() => { setEditVal(msg.content); setEditing(true); setShowPicker(false); }} />
-              <ActionBtn icon={<Trash2 size={13} />} title="Supprimer" onClick={() => onDelete(msg.id)} danger />
+              <ActionBtn icon={<Edit2 size={13} />} title={t('Modifier')} onClick={() => { setEditVal(msg.content); setEditing(true); setShowPicker(false); }} />
+              <ActionBtn icon={<Trash2 size={13} />} title={t('Supprimer')} onClick={() => onDelete(msg.id)} danger />
             </>
           )}
         </div>
@@ -315,6 +321,7 @@ const ActionBtn = ({ icon, title, onClick, danger }) => (
 // ─── Zone de saisie ───────────────────────────────────────────────────────────
 
 const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
+  const { t } = useTranslation();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
@@ -422,7 +429,7 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
             </div>
           ))}
           <div style={{ padding: '3px 12px 6px', fontSize: 10, color: 'var(--fg-muted)' }}>
-            ↑↓ naviguer · Tab/Entrée pour insérer · Échap pour fermer
+            {t('↑↓ naviguer · Tab/Entrée pour insérer · Échap pour fermer')}
           </div>
         </div>
       )}
@@ -438,7 +445,7 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
           onChange={handleChange}
           onKeyDown={handleKey}
           disabled={disabled || sending}
-          placeholder="Écrire un message… @ pour mentionner"
+          placeholder={t('Écrire un message… @ pour mentionner')}
           rows={1}
           style={{
             flex: 1, border: 'none', background: 'transparent', color: 'var(--fg)',
@@ -466,7 +473,7 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
         </button>
       </div>
       <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 4, paddingLeft: 2 }}>
-        @ pour mentionner · Maj+Entrée pour retour à la ligne
+        {t('@ pour mentionner · Maj+Entrée pour retour à la ligne')}
       </div>
     </div>
   );
@@ -475,6 +482,7 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
 // ─── Thread de messages ───────────────────────────────────────────────────────
 
 const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -519,7 +527,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
     const handleTyping = ({ userId: uid, conversationId }) => {
       if (conversationId !== conv.id || uid === user?.id) return;
       const typingUser = members.find(m => m.user_id === uid);
-      const name = typingUser ? `${typingUser.first_name} ${typingUser.last_name}` : 'Quelqu\'un';
+      const name = typingUser ? `${typingUser.first_name} ${typingUser.last_name}` : t("Quelqu'un");
       setTypingUsers(prev => ({ ...prev, [uid]: name }));
       clearTimeout(typingTimers.current[uid]);
       typingTimers.current[uid] = setTimeout(() => {
@@ -581,7 +589,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer ce message ?')) return;
+    if (!confirm(t('Supprimer ce message ?'))) return;
     await chatService.deleteMessage(id).catch(() => null);
     setMessages(prev => prev.map(m => m.id === id ? { ...m, isDeleted: true, content: '' } : m));
   };
@@ -643,7 +651,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
         </div>
         <button
           onClick={() => setShowMembers(v => !v)}
-          title="Membres"
+          title={t('Membres')}
           style={{
             padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)',
             background: showMembers ? 'var(--surface-2)' : 'transparent',
@@ -669,7 +677,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
             )}
             {!hasMore && messages.length > 0 && (
               <div style={{ textAlign: 'center', padding: '12px 0', fontSize: 12, color: 'var(--fg-muted)' }}>
-                Début de la conversation
+                {t('Début de la conversation')}
               </div>
             )}
 
@@ -680,8 +688,8 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
             ) : messages.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: 48, color: 'var(--fg-muted)' }}>
                 <MessageSquare size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
-                <div style={{ fontSize: 14 }}>Aucun message pour l'instant</div>
-                <div style={{ fontSize: 12, marginTop: 4 }}>Soyez le premier à écrire !</div>
+                <div style={{ fontSize: 14 }}>{t("Aucun message pour l'instant")}</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>{t('Soyez le premier à écrire !')}</div>
               </div>
             ) : (
               grouped.map(item => item.type === 'divider' ? (
@@ -710,7 +718,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
 
             {typingNames.length > 0 && (
               <div style={{ padding: '4px 16px 4px 54px', fontSize: 12, color: 'var(--fg-muted)', fontStyle: 'italic' }}>
-                {typingNames.join(', ')} {typingNames.length === 1 ? 'est en train d\'écrire…' : 'sont en train d\'écrire…'}
+                {typingNames.join(', ')} {typingNames.length === 1 ? t("est en train d'écrire…") : t("sont en train d'écrire…")}
               </div>
             )}
             <div ref={bottomRef} />
@@ -726,7 +734,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
             overflow: 'hidden auto', padding: '12px 0', flexShrink: 0,
           }}>
             <div style={{ padding: '0 12px 8px', fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
-              Membres — {members.length}
+              {t('Membres — {{count}}', { count: members.length })}
             </div>
             {members.map(m => {
               const online = onlineUsers.has(m.user_id);
@@ -738,7 +746,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
                       {m.first_name} {m.last_name}
                     </div>
                     <div style={{ fontSize: 11, color: online ? '#22c55e' : 'var(--fg-muted)' }}>
-                      {online ? 'En ligne' : m.role}
+                      {online ? t('En ligne') : m.role}
                     </div>
                   </div>
                 </div>
@@ -754,10 +762,11 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
 // ─── Élément de conversation dans la liste ────────────────────────────────────
 
 const ConvItem = ({ conv, active, onClick, user, onlineUsers = new Set() }) => {
+  const { t } = useTranslation();
   const name = convName(conv, user);
   const icon = convIcon(conv);
   const preview = conv.last_deleted
-    ? '[Message supprimé]'
+    ? t('[Message supprimé]')
     : conv.last_content
     ? (conv.last_content.length > 55 ? conv.last_content.slice(0, 55) + '…' : conv.last_content)
     : null;
@@ -826,6 +835,7 @@ const ConvItem = ({ conv, active, onClick, user, onlineUsers = new Set() }) => {
 // ─── Modal nouvelle conversation ──────────────────────────────────────────────
 
 const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() }) => {
+  const { t } = useTranslation();
   const [tab, setTab] = useState('channel');
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
@@ -888,7 +898,7 @@ const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() 
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)' }}>Nouvelle conversation</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)' }}>{t('Nouvelle conversation')}</div>
           <button onClick={onClose} style={{ padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--fg-muted)' }}>
             <X size={18} />
           </button>
@@ -896,19 +906,19 @@ const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() 
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, marginBottom: 16, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-          {[['channel', 'Canal', <Hash size={14} />], ['direct', 'Message direct', <User size={14} />]].map(([t, l, ic]) => (
+          {[['channel', 'Canal', <Hash size={14} />], ['direct', 'Message direct', <User size={14} />]].map(([tabKey, l, ic]) => (
             <button
-              key={t}
-              onClick={() => { setTab(t); setSelected([]); }}
+              key={tabKey}
+              onClick={() => { setTab(tabKey); setSelected([]); }}
               style={{
                 flex: 1, padding: '8px 12px', border: 'none', cursor: 'pointer',
-                background: tab === t ? 'var(--brand)' : 'transparent',
-                color: tab === t ? '#fff' : 'var(--fg-muted)',
-                fontSize: 13, fontWeight: tab === t ? 600 : 400,
+                background: tab === tabKey ? 'var(--brand)' : 'transparent',
+                color: tab === tabKey ? '#fff' : 'var(--fg-muted)',
+                fontSize: 13, fontWeight: tab === tabKey ? 600 : 400,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
-              {ic} {l}
+              {ic} {t(l)}
             </button>
           ))}
         </div>
@@ -917,13 +927,13 @@ const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() 
           <>
             <input
               autoFocus
-              placeholder="Nom du canal (ex: annonces)"
+              placeholder={t('Nom du canal (ex: annonces)')}
               value={name}
               onChange={e => setName(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 14, marginBottom: 10, outline: 'none', fontFamily: 'inherit' }}
             />
             <textarea
-              placeholder="Description (optionnel)"
+              placeholder={t('Description (optionnel)')}
               value={desc}
               onChange={e => setDesc(e.target.value)}
               rows={2}
@@ -936,7 +946,7 @@ const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() 
         <div style={{ position: 'relative', marginBottom: 8 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
           <input
-            placeholder={tab === 'direct' ? 'Chercher un utilisateur…' : 'Ajouter des membres…'}
+            placeholder={tab === 'direct' ? t('Chercher un utilisateur…') : t('Ajouter des membres…')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ width: '100%', padding: '7px 12px 7px 32px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
@@ -957,7 +967,7 @@ const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() 
         )}
 
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, maxHeight: 200 }}>
-          {searchLoading && <div style={{ textAlign: 'center', padding: 8, color: 'var(--fg-muted)', fontSize: 13 }}>Recherche…</div>}
+          {searchLoading && <div style={{ textAlign: 'center', padding: 8, color: 'var(--fg-muted)', fontSize: 13 }}>{t('Recherche…')}</div>}
           {users.map(u => (
             <div
               key={u.id}
@@ -992,7 +1002,7 @@ const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() 
             fontSize: 14, fontWeight: 600, cursor: canCreate ? 'pointer' : 'default',
           }}
         >
-          {saving ? 'Création…' : tab === 'direct' ? 'Ouvrir la conversation' : 'Créer le canal'}
+          {saving ? t('Création…') : tab === 'direct' ? t('Ouvrir la conversation') : t('Créer le canal')}
         </button>
       </div>
     </div>
@@ -1002,6 +1012,7 @@ const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() 
 // ─── Page principale Chat ─────────────────────────────────────────────────────
 
 const ChatPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { convId } = useParams();
   const navigate = useNavigate();
@@ -1088,10 +1099,10 @@ const ChatPage = () => {
   };
 
   const tabs = [
-    { key: 'all', label: 'Tout' },
-    { key: 'channel', label: 'Canaux' },
-    { key: 'direct', label: 'Messages' },
-    { key: 'document', label: 'Documents' },
+    { key: 'all', label: t('Tout') },
+    { key: 'channel', label: t('Canaux') },
+    { key: 'direct', label: t('Messages') },
+    { key: 'document', label: t('Documents') },
   ];
 
   const filtered = conversations.filter(c => {
@@ -1116,11 +1127,11 @@ const ChatPage = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <MessageSquare size={16} style={{ color: 'var(--brand)' }} />
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>Discussion</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{t('Discussion')}</span>
             </div>
             <button
               onClick={() => setShowNewModal(true)}
-              title="Nouvelle conversation"
+              title={t('Nouvelle conversation')}
               style={{
                 width: 26, height: 26, borderRadius: 6, border: 'none',
                 background: 'var(--brand)', color: '#fff',
@@ -1135,7 +1146,7 @@ const ChatPage = () => {
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
             <input
-              placeholder="Rechercher…"
+              placeholder={t('Rechercher…')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
@@ -1149,18 +1160,18 @@ const ChatPage = () => {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, padding: '6px 8px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          {tabs.map(t => (
+          {tabs.map(tb => (
             <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
+              key={tb.key}
+              onClick={() => setActiveTab(tb.key)}
               style={{
                 flex: 1, padding: '4px 0', border: 'none', background: 'transparent',
-                color: activeTab === t.key ? 'var(--brand)' : 'var(--fg-muted)',
-                fontWeight: activeTab === t.key ? 700 : 400,
-                fontSize: 11.5, cursor: 'pointer', borderBottom: activeTab === t.key ? '2px solid var(--brand)' : '2px solid transparent',
+                color: activeTab === tb.key ? 'var(--brand)' : 'var(--fg-muted)',
+                fontWeight: activeTab === tb.key ? 700 : 400,
+                fontSize: 11.5, cursor: 'pointer', borderBottom: activeTab === tb.key ? '2px solid var(--brand)' : '2px solid transparent',
               }}
             >
-              {t.label}
+              {tb.label}
             </button>
           ))}
         </div>
@@ -1173,7 +1184,7 @@ const ChatPage = () => {
             </div>
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24, color: 'var(--fg-muted)', fontSize: 13 }}>
-              {search ? 'Aucun résultat' : 'Aucune conversation'}
+              {search ? t('Aucun résultat') : t('Aucune conversation')}
             </div>
           ) : (
             filtered.map(c => (
@@ -1201,7 +1212,7 @@ const ChatPage = () => {
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.color = 'var(--brand)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--fg-muted)'; }}
           >
-            <Plus size={13} /> Nouvelle conversation
+            <Plus size={13} /> {t('Nouvelle conversation')}
           </button>
         </div>
       </div>
@@ -1224,10 +1235,10 @@ const ChatPage = () => {
           }}>
             <MessageSquare size={56} style={{ opacity: 0.2, marginBottom: 16 }} />
             <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--fg)', marginBottom: 8 }}>
-              Module Discussion
+              {t('Module Discussion')}
             </div>
             <div style={{ fontSize: 14, color: 'var(--fg-muted)', textAlign: 'center', maxWidth: 320 }}>
-              Sélectionnez une conversation dans la liste ou créez-en une nouvelle.
+              {t('Sélectionnez une conversation dans la liste ou créez-en une nouvelle.')}
             </div>
             <button
               onClick={() => setShowNewModal(true)}
@@ -1237,7 +1248,7 @@ const ChatPage = () => {
                 fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6,
               }}
             >
-              <Plus size={14} /> Nouvelle conversation
+              <Plus size={14} /> {t('Nouvelle conversation')}
             </button>
           </div>
         )}

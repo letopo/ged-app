@@ -3,19 +3,24 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   GitBranch, ThumbsUp, ThumbsDown, Loader2, RefreshCw,
   FileText, User, Calendar, CheckCircle, ClipboardCheck,
 } from 'lucide-react';
 import { formsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { fr, enUS, es, ar } from 'date-fns/locale';
+
+const DATE_FNS_LOCALES = { fr, en: enUS, es, ar };
 
 // ─── Modal Approuver / Rejeter ────────────────────────────────────────────────
 
 function ActionModal({ item, action, onClose, onConfirm }) {
+  const { t } = useTranslation();
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +46,7 @@ function ActionModal({ item, action, onClose, onConfirm }) {
             : <ThumbsDown size={16} style={{ color: '#ef4444' }} />
           }
           <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>
-            {isApprove ? 'Approuver l\'étape' : 'Rejeter la réponse'}
+            {isApprove ? t("Approuver l'étape") : t('Rejeter la réponse')}
           </p>
           <button onClick={onClose} style={{ marginLeft: 'auto', padding: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 18, lineHeight: 1 }}>×</button>
         </div>
@@ -50,17 +55,17 @@ function ActionModal({ item, action, onClose, onConfirm }) {
           {/* Info étape */}
           {step && (
             <div style={{ marginBottom: 14, padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 8 }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--fg-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Étape {item.workflowCurrentStep}</p>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--fg-muted)', textTransform: 'uppercase', fontWeight: 600 }}>{t('Étape {{num}}', { num: item.workflowCurrentStep })}</p>
               <p style={{ margin: '2px 0 0', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{step.name}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--fg-muted)' }}>{item.form?.title} · soumis par {item.submitter ? `${item.submitter.firstName} ${item.submitter.lastName}` : 'Anonyme'}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--fg-muted)' }}>{t('{{title}} · soumis par {{submitter}}', { title: item.form?.title, submitter: item.submitter ? `${item.submitter.firstName} ${item.submitter.lastName}` : t('Anonyme') })}</p>
             </div>
           )}
 
           <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', display: 'block', marginBottom: 6 }}>
-            Commentaire {isApprove ? '(optionnel)' : '(recommandé)'}
+            {t('Commentaire')} {isApprove ? t('(optionnel)') : t('(recommandé)')}
           </label>
           <textarea value={comment} onChange={e => setComment(e.target.value)}
-            placeholder={isApprove ? 'Approuvé sans réserve...' : 'Motif du rejet...'}
+            placeholder={isApprove ? t('Approuvé sans réserve...') : t('Motif du rejet...')}
             rows={3}
             style={{ width: '100%', padding: '9px 11px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'inherit', outline: 'none' }}
           />
@@ -77,10 +82,10 @@ function ActionModal({ item, action, onClose, onConfirm }) {
                 ? <Loader2 size={14} style={{ animation: 'spin .7s linear infinite' }} />
                 : (isApprove ? <ThumbsUp size={14} /> : <ThumbsDown size={14} />)
               }
-              {isApprove ? 'Confirmer l\'approbation' : 'Confirmer le rejet'}
+              {isApprove ? t("Confirmer l'approbation") : t('Confirmer le rejet')}
             </button>
             <button onClick={onClose} style={{ padding: '10px 16px', borderRadius: 9, background: 'var(--surface-2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontSize: 13, color: 'var(--fg)' }}>
-              Annuler
+              {t('Annuler')}
             </button>
           </div>
         </div>
@@ -93,6 +98,8 @@ function ActionModal({ item, action, onClose, onConfirm }) {
 // ─── Carte approbation ────────────────────────────────────────────────────────
 
 function ApprovalCard({ item, onApprove, onReject }) {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
   const step      = item.workflowData?.steps?.[(item.workflowCurrentStep || 1) - 1];
   const totalSteps = item.workflowData?.steps?.length || 1;
   const navigate  = useNavigate();
@@ -110,19 +117,19 @@ function ApprovalCard({ item, onApprove, onReject }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {item.form?.title || 'Formulaire'}
+            {item.form?.title || t('Formulaire')}
           </p>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 3, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, color: 'var(--fg-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
-              <User size={10} /> {item.submitter ? `${item.submitter.firstName} ${item.submitter.lastName}` : 'Anonyme'}
+              <User size={10} /> {item.submitter ? `${item.submitter.firstName} ${item.submitter.lastName}` : t('Anonyme')}
             </span>
             <span style={{ fontSize: 11, color: 'var(--fg-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Calendar size={10} /> {format(new Date(item.submittedAt || item.createdAt), 'dd MMM yyyy', { locale: fr })}
+              <Calendar size={10} /> {format(new Date(item.submittedAt || item.createdAt), 'dd MMM yyyy', { locale: DATE_FNS_LOCALES[lang] || fr })}
             </span>
           </div>
         </div>
         <span style={{ fontSize: 11, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '3px 10px', borderRadius: 10, flexShrink: 0 }}>
-          Ét. {item.workflowCurrentStep}/{totalSteps}
+          {t('Ét. {{step}}/{{total}}', { step: item.workflowCurrentStep, total: totalSteps })}
         </span>
       </div>
 
@@ -137,7 +144,7 @@ function ApprovalCard({ item, onApprove, onReject }) {
           </div>
           <p style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{step.name}</p>
           {step.deadlineDays && (
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#f59e0b' }}>Délai requis : {step.deadlineDays} jour{step.deadlineDays > 1 ? 's' : ''}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#f59e0b' }}>{t('Délai requis : {{count}} jour(s)', { count: step.deadlineDays })}</p>
           )}
         </div>
       )}
@@ -148,19 +155,19 @@ function ApprovalCard({ item, onApprove, onReject }) {
           onClick={() => navigate(`/forms/${item.formId}/responses`)}
           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px', borderRadius: 8, background: 'var(--surface-2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}
         >
-          Voir le formulaire
+          {t('Voir le formulaire')}
         </button>
         <button
           onClick={() => onApprove(item)}
           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px', borderRadius: 8, background: '#d1fae5', border: '1.5px solid #6ee7b7', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#065f46' }}
         >
-          <ThumbsUp size={13} /> Approuver
+          <ThumbsUp size={13} /> {t('Approuver')}
         </button>
         <button
           onClick={() => onReject(item)}
           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px', borderRadius: 8, background: '#fee2e2', border: '1.5px solid #fca5a5', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#991b1b' }}
         >
-          <ThumbsDown size={13} /> Rejeter
+          <ThumbsDown size={13} /> {t('Rejeter')}
         </button>
       </div>
     </div>
@@ -170,6 +177,7 @@ function ApprovalCard({ item, onApprove, onReject }) {
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function FormApprovalsPage() {
+  const { t } = useTranslation();
   const { user }   = useAuth();
   const [items,    setItems]   = useState([]);
   const [loading,  setLoading] = useState(true);
@@ -181,7 +189,7 @@ export default function FormApprovalsPage() {
       const res = await formsAPI.getPendingApprovals();
       setItems(res.data.data || []);
     } catch (e) {
-      toast.error('Erreur lors du chargement');
+      toast.error(t('Erreur lors du chargement'));
     } finally {
       setLoading(false);
     }
@@ -193,14 +201,14 @@ export default function FormApprovalsPage() {
     try {
       if (action === 'approve') {
         const res = await formsAPI.approveStep(item.formId, item.id, comment);
-        toast.success(res.data.message || 'Étape approuvée');
+        toast.success(res.data.message || t('Étape approuvée'));
       } else {
         const res = await formsAPI.rejectStep(item.formId, item.id, comment);
-        toast.success(res.data.message || 'Réponse rejetée');
+        toast.success(res.data.message || t('Réponse rejetée'));
       }
       load();
     } catch (e) {
-      toast.error(e?.response?.data?.message || 'Erreur');
+      toast.error(e?.response?.data?.message || t('Erreur'));
       throw e;
     }
   };
@@ -214,9 +222,9 @@ export default function FormApprovalsPage() {
           <ClipboardCheck size={22} />
         </div>
         <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--fg)' }}>Approbations en attente</h1>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--fg)' }}>{t('Approbations en attente')}</h1>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--fg-muted)' }}>
-            Formulaires dont vous êtes le validateur à l'étape en cours
+            {t("Formulaires dont vous êtes le validateur à l'étape en cours")}
           </p>
         </div>
         <button
@@ -225,7 +233,7 @@ export default function FormApprovalsPage() {
           style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'var(--surface)', border: '1.5px solid var(--border)', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}
         >
           <RefreshCw size={14} style={{ animation: loading ? 'spin .7s linear infinite' : 'none' }} />
-          Actualiser
+          {t('Actualiser')}
         </button>
       </div>
 
@@ -237,13 +245,13 @@ export default function FormApprovalsPage() {
       ) : items.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '80px 20px', gap: 12 }}>
           <CheckCircle size={56} style={{ color: '#10b981', opacity: .5 }} />
-          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Aucune approbation en attente</p>
-          <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>Toutes les soumissions ont été traitées.</p>
+          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('Aucune approbation en attente')}</p>
+          <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>{t('Toutes les soumissions ont été traitées.')}</p>
         </div>
       ) : (
         <>
           <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--fg-muted)' }}>
-            {items.length} soumission{items.length > 1 ? 's' : ''} à traiter
+            {t('{{count}} soumission(s) à traiter', { count: items.length })}
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
             {items.map(item => (

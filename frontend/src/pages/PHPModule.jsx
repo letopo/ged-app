@@ -2,6 +2,7 @@
 // Point focal PHP : enregistrement patients, bons, consultations, statistiques
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Users, UserPlus, FileText, Activity, Clock, Hospital,
   BedDouble, Stethoscope, TrendingUp, Search, Plus,
@@ -14,8 +15,12 @@ import { phpStatsAPI, phpPatientAPI, phpRendezVousAPI } from '../services/phpSer
 import PHPPatientRegistration from '../components/php/PHPPatientRegistration';
 import PHPConsultationForm from '../components/php/PHPConsultationForm';
 import PHPBonPrint from '../components/php/PHPBonPrint';
+import i18n from '../i18n/config';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 export default function PHPModule() {
+  const { t } = useTranslation();
   const { user } = useAuth();
 
   const [dashboard, setDashboard] = useState(null);
@@ -66,7 +71,7 @@ export default function PHPModule() {
       setStatsJour(jourRes.data.data);
     } catch (err) {
       console.error('Erreur chargement PHP dashboard:', err);
-      setError('Impossible de charger le tableau de bord PHP');
+      setError(t('Impossible de charger le tableau de bord PHP'));
     } finally {
       setLoading(false);
     }
@@ -88,7 +93,7 @@ export default function PHPModule() {
       const res = await phpPatientAPI.searchByMatricule(searchMatricule.trim());
       setSearchResult(res.data.data);
     } catch (err) {
-      setSearchError(err.response?.data?.message || 'Patient non trouvé');
+      setSearchError(err.response?.data?.message || t('Patient non trouvé'));
     } finally {
       setSearchLoading(false);
     }
@@ -142,10 +147,10 @@ export default function PHPModule() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
             <Activity style={{ color: 'var(--brand)' }} size={28} />
-            Module PHP — Point Focal Hôpital
+            {t('Module PHP — Point Focal Hôpital')}
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--fg-muted)' }}>
-            Protection Hygiène du Personnel • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {t('Protection Hygiène du Personnel')} • {new Date().toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <div className="flex gap-2">
@@ -155,7 +160,7 @@ export default function PHPModule() {
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            Actualiser
+            {t('Actualiser')}
           </button>
           <button
             onClick={() => setShowRegistration(true)}
@@ -163,7 +168,7 @@ export default function PHPModule() {
             style={{ background: 'var(--brand)', color: '#fff', boxShadow: 'var(--shadow-1)' }}
           >
             <UserPlus size={16} />
-            Nouveau Patient
+            {t('Nouveau Patient')}
           </button>
         </div>
       </div>
@@ -178,11 +183,11 @@ export default function PHPModule() {
 
       {/* KPIs globaux */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-        <KPICard icon={<Users size={20} />} label="Patients actifs" value={kpis.totalPatientsActifs ?? '–'} color="blue" loading={loading} />
-        <KPICard icon={<ClipboardList size={20} />} label="Consultations ce mois" value={kpis.totalConsultationsMois ?? '–'} color="indigo" loading={loading} />
-        <KPICard icon={<Stethoscope size={20} />} label="Consultations auj." value={kpis.consultationsDuJour ?? '–'} color="green" loading={loading} />
-        <KPICard icon={<BedDouble size={20} />} label="Hospitalisations en cours" value={kpis.hospitalisationsEnCours ?? '–'} color="orange" loading={loading} />
-        <KPICard icon={<Timer size={20} />} label="Repos maladie actifs" value={kpis.reposEnCours ?? '–'} color="purple" loading={loading} />
+        <KPICard icon={<Users size={20} />} label={t('Patients actifs')} value={kpis.totalPatientsActifs ?? '–'} color="blue" loading={loading} />
+        <KPICard icon={<ClipboardList size={20} />} label={t('Consultations ce mois')} value={kpis.totalConsultationsMois ?? '–'} color="indigo" loading={loading} />
+        <KPICard icon={<Stethoscope size={20} />} label={t('Consultations auj.')} value={kpis.consultationsDuJour ?? '–'} color="green" loading={loading} />
+        <KPICard icon={<BedDouble size={20} />} label={t('Hospitalisations en cours')} value={kpis.hospitalisationsEnCours ?? '–'} color="orange" loading={loading} />
+        <KPICard icon={<Timer size={20} />} label={t('Repos maladie actifs')} value={kpis.reposEnCours ?? '–'} color="purple" loading={loading} />
       </div>
 
       {/* Stats du jour */}
@@ -190,19 +195,19 @@ export default function PHPModule() {
         <div className="rounded-xl p-4 mb-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
             <BarChart3 size={16} style={{ color: 'var(--brand)' }} />
-            Résumé du jour
+            {t('Résumé du jour')}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatBadge label="Bons émis" value={statsResume.bonsEmis ?? 0} color="blue" />
-            <StatBadge label="Consultés" value={statsResume.totalConsultations ?? 0} color="green" />
-            <StatBadge label="En cours" value={statsResume.consultationsEnCours ?? 0} color="yellow" />
-            <StatBadge label="Hospitalisés" value={statsResume.hospitalisationsNouveaux ?? 0} color="red" />
+            <StatBadge label={t('Bons émis')} value={statsResume.bonsEmis ?? 0} color="blue" />
+            <StatBadge label={t('Consultés')} value={statsResume.totalConsultations ?? 0} color="green" />
+            <StatBadge label={t('En cours')} value={statsResume.consultationsEnCours ?? 0} color="yellow" />
+            <StatBadge label={t('Hospitalisés')} value={statsResume.hospitalisationsNouveaux ?? 0} color="red" />
           </div>
           {statsResume.tempsAttenteMoyenMinutes !== undefined && (
             <div className="mt-3 flex items-center gap-2">
               <Clock size={15} style={{ color: 'var(--fg-subtle)' }} />
               <span className="text-sm" style={{ color: 'var(--fg-muted)' }}>
-                Temps d'attente moyen aujourd'hui :
+                {t("Temps d'attente moyen aujourd'hui")} :
               </span>
               <span className="text-sm font-bold" style={{ color: getAttenteColor(statsResume.tempsAttenteMoyenMinutes) }}>
                 {formatMinutes(statsResume.tempsAttenteMoyenMinutes)}
@@ -211,7 +216,7 @@ export default function PHPModule() {
                 <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
                   style={{ color: 'var(--danger)', background: 'var(--danger-soft)' }}>
                   <AlertCircle size={11} />
-                  Attente élevée
+                  {t('Attente élevée')}
                 </span>
               )}
             </div>
@@ -224,14 +229,14 @@ export default function PHPModule() {
         <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
             <Search size={16} style={{ color: 'var(--brand)' }} />
-            Recherche patient par matricule
+            {t('Recherche patient par matricule')}
           </h2>
           <form onSubmit={handleSearchMatricule} className="flex gap-2">
             <input
               type="text"
               value={searchMatricule}
               onChange={(e) => setSearchMatricule(e.target.value.toUpperCase())}
-              placeholder="Ex: 100049"
+              placeholder={t('Ex: 100049')}
               style={{
                 flex: 1,
                 padding: '0.5rem 0.75rem',
@@ -249,7 +254,7 @@ export default function PHPModule() {
               className="px-4 py-2 text-sm rounded-lg disabled:opacity-50 transition-colors"
               style={{ background: 'var(--brand)', color: '#fff' }}
             >
-              {searchLoading ? '...' : 'Chercher'}
+              {searchLoading ? '...' : t('Chercher')}
             </button>
           </form>
 
@@ -262,7 +267,7 @@ export default function PHPModule() {
                 className="ml-auto flex items-center gap-1 hover:underline"
                 style={{ color: 'var(--brand)' }}
               >
-                <Plus size={14} /> Enregistrer
+                <Plus size={14} /> {t('Enregistrer')}
               </button>
             </div>
           )}
@@ -275,14 +280,14 @@ export default function PHPModule() {
                     {searchResult.nom} {searchResult.prenom || ''}
                   </p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
-                    Matricule : <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{searchResult.matricule}</span>
+                    {t('Matricule')} : <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{searchResult.matricule}</span>
                     {searchResult.infirmerie && ` • ${searchResult.infirmerie.nom}`}
                     {searchResult.secteur && ` • ${searchResult.secteur.nom}`}
                   </p>
                   {searchResult.bons?.length > 0 && (
                     <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--success)' }}>
                       <CheckCircle size={12} />
-                      Bon N° {searchResult.bons[0].numeroBon} en attente
+                      {t('Bon N° {{num}} en attente', { num: searchResult.bons[0].numeroBon })}
                     </p>
                   )}
                 </div>
@@ -292,7 +297,7 @@ export default function PHPModule() {
                   style={{ background: 'var(--brand)', color: '#fff' }}
                 >
                   <Stethoscope size={13} />
-                  Consulter
+                  {t('Consulter')}
                 </button>
               </div>
             </div>
@@ -304,10 +309,10 @@ export default function PHPModule() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
               <Stethoscope size={16} style={{ color: 'var(--success)' }} />
-              Dernières consultations
+              {t('Dernières consultations')}
             </h2>
             <Link to="/php/consultations" className="text-xs flex items-center gap-1 hover:underline" style={{ color: 'var(--brand)' }}>
-              Tout voir <ChevronRight size={12} />
+              {t('Tout voir')} <ChevronRight size={12} />
             </Link>
           </div>
           {loading ? (
@@ -335,7 +340,7 @@ export default function PHPModule() {
             </div>
           ) : (
             <p className="text-sm py-4 text-center" style={{ color: 'var(--fg-subtle)' }}>
-              Aucune consultation aujourd'hui
+              {t("Aucune consultation aujourd'hui")}
             </p>
           )}
         </div>
@@ -345,10 +350,10 @@ export default function PHPModule() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
               <FileText size={16} style={{ color: 'rgb(168,85,247)' }} />
-              Bons émis aujourd'hui
+              {t("Bons émis aujourd'hui")}
             </h2>
             <Link to="/php/patients" className="text-xs flex items-center gap-1 hover:underline" style={{ color: 'var(--brand)' }}>
-              Patients <ChevronRight size={12} />
+              {t('Patients')} <ChevronRight size={12} />
             </Link>
           </div>
           {loading ? (
@@ -367,7 +372,7 @@ export default function PHPModule() {
                       {b.patient?.nom} {b.patient?.prenom || ''}
                     </p>
                     <p className="text-xs" style={{ color: 'var(--fg-muted)' }}>
-                      Bon N° <span style={{ fontFamily: 'var(--font-mono)' }}>{b.numeroBon}</span>
+                      {t('Bon N°')} <span style={{ fontFamily: 'var(--font-mono)' }}>{b.numeroBon}</span>
                       {b.patient?.infirmerie && ` • ${b.patient.infirmerie.nom}`}
                     </p>
                   </div>
@@ -376,14 +381,14 @@ export default function PHPModule() {
                     b.status === 'utilise' ? { background: 'var(--success-soft)', color: 'var(--success)' } :
                     { background: 'var(--surface-2)', color: 'var(--fg-muted)' }
                   }>
-                    {b.status === 'emis' ? 'En attente' : b.status === 'utilise' ? 'Utilisé' : 'Annulé'}
+                    {b.status === 'emis' ? t('En attente') : b.status === 'utilise' ? t('Utilisé') : t('Annulé')}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
             <p className="text-sm py-4 text-center" style={{ color: 'var(--fg-subtle)' }}>
-              Aucun bon émis aujourd'hui
+              {t("Aucun bon émis aujourd'hui")}
             </p>
           )}
         </div>
@@ -393,7 +398,7 @@ export default function PHPModule() {
           <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
               <Hospital size={16} style={{ color: 'rgb(99,102,241)' }} />
-              Consultations par service — aujourd'hui
+              {t("Consultations par service — aujourd'hui")}
             </h2>
             <div className="space-y-2">
               {statsJour.statsParService.map((s, i) => {
@@ -421,11 +426,11 @@ export default function PHPModule() {
 
       {/* Liens rapides */}
       <div className="mt-6 grid grid-cols-2 sm:grid-cols-6 gap-3">
-        <QuickLink to="/php/patients" icon={<Users size={18} />} label="Patients" color="blue" />
-        <QuickLink to="/php/consultations" icon={<Stethoscope size={18} />} label="Consultations" color="green" />
-        <QuickLink to="/php/statistiques" icon={<BarChart3 size={18} />} label="Statistiques" color="indigo" />
-        <QuickLink to="/php/repos" icon={<BedDouble size={18} />} label="Repos / Hospit." color="orange" />
-        <QuickLink to="/php/factures" icon={<Receipt size={18} />} label="Factures" color="green" />
+        <QuickLink to="/php/patients" icon={<Users size={18} />} label={t('Patients')} color="blue" />
+        <QuickLink to="/php/consultations" icon={<Stethoscope size={18} />} label={t('Consultations')} color="green" />
+        <QuickLink to="/php/statistiques" icon={<BarChart3 size={18} />} label={t('Statistiques')} color="indigo" />
+        <QuickLink to="/php/repos" icon={<BedDouble size={18} />} label={t('Repos / Hospit.')} color="orange" />
+        <QuickLink to="/php/factures" icon={<Receipt size={18} />} label={t('Factures')} color="green" />
         <button
           onClick={() => { setShowRdvModal(true); loadRdv(); }}
           className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all text-center"
@@ -436,7 +441,7 @@ export default function PHPModule() {
           <div className="p-2 rounded-lg" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>
             <CalendarDays size={18} />
           </div>
-          <span className="text-xs font-semibold" style={{ color: 'var(--fg)' }}>Rendez-vous</span>
+          <span className="text-xs font-semibold" style={{ color: 'var(--fg)' }}>{t('Rendez-vous')}</span>
         </button>
       </div>
 
@@ -476,7 +481,7 @@ export default function PHPModule() {
             loadRdv();
           }}
           onDelete={async (id) => {
-            if (!window.confirm('Supprimer ce rendez-vous ?')) return;
+            if (!window.confirm(t('Supprimer ce rendez-vous ?'))) return;
             await phpRendezVousAPI.delete(id);
             loadRdv();
           }}
@@ -526,14 +531,15 @@ function StatBadge({ label, value, color }) {
 }
 
 function ResultatBadge({ resultat }) {
+  const { t } = useTranslation();
   const map = {
-    retour_travail:  { label: 'Retour',     style: { background: 'var(--success-soft)', color: 'var(--success)' } },
-    repos:           { label: 'Repos',      style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
-    hospitalisation: { label: 'Hospitalisé',style: { background: 'var(--danger-soft)',  color: 'var(--danger)' } },
-    operation:       { label: 'Opération',  style: { background: 'rgba(168,85,247,0.1)', color: 'rgb(147,51,234)' } },
-    transfert:       { label: 'Transféré',  style: { background: 'rgba(249,115,22,0.1)', color: 'rgb(234,88,12)' } },
-    en_cours:        { label: 'En cours',   style: { background: 'var(--brand-soft)',   color: 'var(--brand)' } },
-    deces:           { label: 'Décès',      style: { background: 'var(--surface-3)',    color: 'var(--fg-muted)' } },
+    retour_travail:  { label: t('Retour'),     style: { background: 'var(--success-soft)', color: 'var(--success)' } },
+    repos:           { label: t('Repos'),      style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
+    hospitalisation: { label: t('Hospitalisé'),style: { background: 'var(--danger-soft)',  color: 'var(--danger)' } },
+    operation:       { label: t('Opération'),  style: { background: 'rgba(168,85,247,0.1)', color: 'rgb(147,51,234)' } },
+    transfert:       { label: t('Transféré'),  style: { background: 'rgba(249,115,22,0.1)', color: 'rgb(234,88,12)' } },
+    en_cours:        { label: t('En cours'),   style: { background: 'var(--brand-soft)',   color: 'var(--brand)' } },
+    deces:           { label: t('Décès'),      style: { background: 'var(--surface-3)',    color: 'var(--fg-muted)' } },
   };
   const entry = map[resultat] || { label: resultat, style: { background: 'var(--surface-2)', color: 'var(--fg-muted)' } };
   return <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={entry.style}>{entry.label}</span>;
@@ -560,14 +566,16 @@ function QuickLink({ to, icon, label, color }) {
 }
 
 // ── Modal Rendez-vous ─────────────────────────────────────────────────────────
-const STATUS_RDV = {
-  planifie:  { label: 'Planifié',  style: { background: 'var(--brand-soft)', color: 'var(--brand)' } },
-  honore:    { label: 'Honoré',    style: { background: 'var(--success-soft)', color: 'var(--success)' } },
-  annule:    { label: 'Annulé',    style: { background: 'var(--danger-soft)', color: 'var(--danger)' } },
-  reporte:   { label: 'Reporté',   style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
-};
+const getStatusRdv = (t) => ({
+  planifie:  { label: t('Planifié'),  style: { background: 'var(--brand-soft)', color: 'var(--brand)' } },
+  honore:    { label: t('Honoré'),    style: { background: 'var(--success-soft)', color: 'var(--success)' } },
+  annule:    { label: t('Annulé'),    style: { background: 'var(--danger-soft)', color: 'var(--danger)' } },
+  reporte:   { label: t('Reporté'),   style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
+});
 
 function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatus, onDelete, onClose }) {
+  const { t } = useTranslation();
+  const STATUS_RDV = getStatusRdv(t);
   const [filter, setFilter] = useState('planifie');
   const [showAll, setShowAll] = useState(false);
 
@@ -576,7 +584,7 @@ function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatu
   const fmtDate = (d) => {
     if (!d) return '–';
     const dt = new Date(d + 'T00:00:00');
-    return dt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+    return dt.toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
   const fmtHeure = (h) => h ? h.slice(0, 5) : '';
@@ -588,7 +596,7 @@ function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatu
         <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2">
             <CalendarDays style={{ color: 'var(--brand)' }} size={20} />
-            <h2 className="text-base font-bold" style={{ color: 'var(--fg)' }}>Rendez-vous médicaux</h2>
+            <h2 className="text-base font-bold" style={{ color: 'var(--fg)' }}>{t('Rendez-vous médicaux')}</h2>
             <span className="text-xs px-2 py-0.5 rounded-full font-medium"
               style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>
               {filtered.length}
@@ -618,11 +626,11 @@ function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatu
             style={filter === 'tous'
               ? { background: 'var(--fg)', color: 'var(--surface)' }
               : { background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
-            Tous
+            {t('Tous')}
           </button>
           <button onClick={() => { setShowAll(!showAll); onLoadAll(); }}
             className="ml-auto text-xs hover:underline" style={{ color: 'var(--brand)' }}>
-            {showAll ? 'À partir d\'aujourd\'hui' : 'Voir tout'}
+            {showAll ? t("À partir d'aujourd'hui") : t('Voir tout')}
           </button>
           <button onClick={onRefresh} className="p-1 rounded"
             onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
@@ -640,7 +648,7 @@ function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatu
           ) : filtered.length === 0 ? (
             <div className="text-center py-10" style={{ color: 'var(--fg-subtle)' }}>
               <CalendarDays size={32} className="mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Aucun rendez-vous {filter !== 'tous' ? STATUS_RDV[filter]?.label?.toLowerCase() : ''}</p>
+              <p className="text-sm">{t('Aucun rendez-vous')} {filter !== 'tous' ? STATUS_RDV[filter]?.label?.toLowerCase() : ''}</p>
             </div>
           ) : (
             filtered.map(rdv => {
@@ -676,12 +684,12 @@ function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatu
                         onClick={() => onUpdateStatus(rdv.id, 'honore')}
                         className="text-[10px] px-2 py-1 rounded-lg font-medium"
                         style={{ background: 'var(--success)', color: '#fff' }}
-                      >✓ Honoré</button>
+                      >✓ {t('Honoré')}</button>
                       <button
                         onClick={() => onUpdateStatus(rdv.id, 'annule')}
                         className="text-[10px] px-2 py-1 rounded-lg"
                         style={{ background: 'var(--surface-3)', color: 'var(--fg-muted)' }}
-                      >Annuler</button>
+                      >{t('Annuler')}</button>
                     </div>
                   )}
                   <button onClick={() => onDelete(rdv.id)} className="shrink-0 p-1 transition-colors"

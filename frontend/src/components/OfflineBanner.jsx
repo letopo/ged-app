@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { WifiOff, Wifi, RefreshCw, Download, Server } from 'lucide-react';
 import useOnlineStatus from '../hooks/useOnlineStatus';
 import usePWAInstall from '../hooks/usePWAInstall';
 
 export default function OfflineBanner() {
+  const { t } = useTranslation();
   const status = useOnlineStatus();
   const { isInstallable, isInstalled, install } = usePWAInstall();
 
@@ -43,17 +45,17 @@ export default function OfflineBanner() {
             }
             <div>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>
-                {!isOnline ? 'Hors connexion' : 'Serveur inaccessible'}
+                {!isOnline ? t('Hors connexion') : t('Serveur inaccessible')}
               </span>
               <span style={{ fontSize: 11, color: 'var(--fg-muted)', marginLeft: 8 }}>
                 {!isOnline
-                  ? 'Données en cache disponibles'
-                  : 'Vérifiez le WiFi ou le serveur'}
+                  ? t('Données en cache disponibles')
+                  : t('Vérifiez le WiFi ou le serveur')}
               </span>
             </div>
             <button
               onClick={() => window.location.reload()}
-              title="Réessayer la connexion"
+              title={t('Réessayer la connexion')}
               style={{
                 marginLeft: 4, padding: 6, background: 'none', border: 'none',
                 cursor: 'pointer', color: 'var(--fg-muted)', borderRadius: 'var(--radius-2)',
@@ -81,8 +83,8 @@ export default function OfflineBanner() {
             boxShadow: 'var(--shadow-3)',
           }}>
             <Wifi size={15} style={{ color: 'var(--success)', flexShrink: 0 }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}>Reconnecté</span>
-            <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Synchronisation en cours…</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}>{t('Reconnecté')}</span>
+            <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t('Synchronisation en cours…')}</span>
           </div>
         </div>
       )}
@@ -103,7 +105,7 @@ export default function OfflineBanner() {
             }}
           >
             <Download size={15} />
-            Installer l'application
+            {t("Installer l'application")}
           </button>
         </div>
       )}

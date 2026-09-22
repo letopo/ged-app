@@ -3,16 +3,18 @@
 // 5 onglets : Journalier | Synthèse mensuelle | Trimestriel | Hospitalisations | Repos maladie
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart3, ChevronLeft, ChevronRight, Download, RefreshCw,
   ArrowLeft, BedDouble, Users, Activity, TrendingUp, FileSpreadsheet,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { phpStatsAPI } from '../services/phpService';
+import i18n from '../i18n/config';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
-const MOIS = ['','Janvier','Février','Mars','Avril','Mai','Juin',
-              'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const getMois = (t) => ['','Janvier','Février','Mars','Avril','Mai','Juin',
+              'Juillet','Août','Septembre','Octobre','Novembre','Décembre'].map(m => m ? t(m) : m);
 
 // Week colors as inline style objects (bg and text used in table headers)
 const WEEK_COLORS = [
@@ -46,8 +48,9 @@ function KpiCard({ icon, label, value, sub, colorStyle }) {
 
 // ─── Tableau Journalier ───────────────────────────────────────────────────────
 function TabJournalier({ data, loading }) {
+  const { t } = useTranslation();
   if (loading) return <LoadingBox />;
-  if (!data) return <EmptyBox label="Aucune donnée pour cette période" />;
+  if (!data) return <EmptyBox label={t('Aucune donnée pour cette période')} />;
 
   const { infirmeries, semaines, totauxMois } = data;
   const global = totauxMois.global;
@@ -62,16 +65,16 @@ function TabJournalier({ data, loading }) {
     <div className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <KpiCard icon={<Users size={18}/>} label="Déclarations" value={global.declarations}
+        <KpiCard icon={<Users size={18}/>} label={t('Déclarations')} value={global.declarations}
           colorStyle={{ background: 'rgba(99,102,241,0.1)', color: 'rgb(99,102,241)' }} />
-        <KpiCard icon={<Activity size={18}/>} label="Reçus à HSJM" value={global.recus}
+        <KpiCard icon={<Activity size={18}/>} label={t('Reçus à HSJM')} value={global.recus}
           colorStyle={{ background: 'rgba(245,158,11,0.1)', color: 'rgb(217,119,6)' }} />
-        <KpiCard icon={<BedDouble size={18}/>} label="Hospitalisés" value={global.hospi}
+        <KpiCard icon={<BedDouble size={18}/>} label={t('Hospitalisés')} value={global.hospi}
           colorStyle={{ background: 'var(--danger-soft)', color: 'var(--danger)' }} />
-        <KpiCard icon={<TrendingUp size={18}/>} label="Ratio Hospi/Reçus" value={ratioPct}
+        <KpiCard icon={<TrendingUp size={18}/>} label={t('Ratio Hospi/Reçus')} value={ratioPct}
           sub={`${global.hospi} / ${global.recus}`}
           colorStyle={{ background: 'rgba(168,85,247,0.1)', color: 'rgb(147,51,234)' }} />
-        <KpiCard icon={<FileSpreadsheet size={18}/>} label="Jours repos maladie" value={repos}
+        <KpiCard icon={<FileSpreadsheet size={18}/>} label={t('Jours repos maladie')} value={repos}
           colorStyle={{ background: 'var(--success-soft)', color: 'var(--success)' }} />
       </div>
 
@@ -85,7 +88,7 @@ function TabJournalier({ data, loading }) {
                 <th rowSpan={3}
                   className="sticky left-0 z-30 text-left text-xs font-bold px-3 py-2"
                   style={{ background: '#1f2937', color: '#fff', borderRight: '1px solid #4b5563', minWidth: '120px' }}>
-                  INFIRMERIE PHP
+                  {t('INFIRMERIE PHP')}
                 </th>
                 {semaines.map((s, si) => {
                   const c = WEEK_COLORS[si] || WEEK_COLORS[3];
@@ -94,14 +97,14 @@ function TabJournalier({ data, loading }) {
                     <th key={si} colSpan={span}
                       className="text-center px-2 py-1.5 font-bold text-xs"
                       style={{ background: c.bg, color: c.text, border: '1px solid rgba(255,255,255,0.2)' }}>
-                      SEMAINE {s.numero}
+                      {t('SEMAINE {{num}}', { num: s.numero })}
                     </th>
                   );
                 })}
                 <th colSpan={3}
                   className="text-center px-2 py-1.5 font-bold text-xs"
                   style={{ background: '#0891b2', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}>
-                  TOTAL DU MOIS
+                  {t('TOTAL DU MOIS')}
                 </th>
               </tr>
 
@@ -120,7 +123,7 @@ function TabJournalier({ data, loading }) {
                     <th key={`tot${si}`} colSpan={3}
                       className="text-center px-1 py-1 font-bold text-xs"
                       style={{ background: '#1f2937', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}>
-                      TOT S{s.numero}
+                      {t('TOT S{{num}}', { num: s.numero })}
                     </th>,
                   ];
                 })}
@@ -201,7 +204,7 @@ function TabJournalier({ data, loading }) {
               {/* Ligne TOTAL */}
               <tr style={{ background: '#111827', color: '#fff', fontWeight: 'bold' }}>
                 <td className="sticky left-0 z-20 px-3 py-2 text-xs" style={{ background: '#111827', borderRight: '1px solid #4b5563' }}>
-                  TOTAL
+                  {t('TOTAL')}
                 </td>
                 {semaines.map((s, si) => {
                   const gS = s.totaux.global;
@@ -226,9 +229,9 @@ function TabJournalier({ data, loading }) {
 
         {/* Légende */}
         <div className="px-4 py-2 flex flex-wrap gap-4 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--fg-muted)' }}>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded inline-block" style={{ background: '#c7d2fe' }}/>D = Déclarations des malades par infirmerie PHP</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded inline-block" style={{ background: '#fde68a' }}/>R = Patients reçus à HSJM</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded inline-block" style={{ background: '#fecaca' }}/>H = Hospitalisés</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded inline-block" style={{ background: '#c7d2fe' }}/>{t('D = Déclarations des malades par infirmerie PHP')}</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded inline-block" style={{ background: '#fde68a' }}/>{t('R = Patients reçus à HSJM')}</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded inline-block" style={{ background: '#fecaca' }}/>{t('H = Hospitalisés')}</span>
         </div>
       </div>
     </div>
@@ -237,13 +240,14 @@ function TabJournalier({ data, loading }) {
 
 // ─── Tableau Synthèse Mensuelle ───────────────────────────────────────────────
 function TabSyntheseMensuelle({ data, loading }) {
+  const { t } = useTranslation();
   if (loading) return <LoadingBox />;
-  if (!data) return <EmptyBox label="Aucune donnée pour cette période" />;
+  if (!data) return <EmptyBox label={t('Aucune donnée pour cette période')} />;
 
   const { infirmeries, semaines, totauxMois } = data;
   const colSpecs = [
-    ...semaines.map((s, i) => ({ label: `SYNTHÈSE S${s.numero}`, ...(WEEK_COLORS[i] || WEEK_COLORS[3]), data: s.totaux.parInfirmerie, global: s.totaux.global })),
-    { label: 'TOTAL GLOBAL', bg: '#1f2937', text: '#fff', light: 'var(--surface-2)', data: totauxMois.parInfirmerie, global: totauxMois.global },
+    ...semaines.map((s, i) => ({ label: t('SYNTHÈSE S{{num}}', { num: s.numero }), ...(WEEK_COLORS[i] || WEEK_COLORS[3]), data: s.totaux.parInfirmerie, global: s.totaux.global })),
+    { label: t('TOTAL GLOBAL'), bg: '#1f2937', text: '#fff', light: 'var(--surface-2)', data: totauxMois.parInfirmerie, global: totauxMois.global },
   ];
 
   return (
@@ -254,7 +258,7 @@ function TabSyntheseMensuelle({ data, loading }) {
             <tr>
               <th rowSpan={2} className="sticky left-0 z-20 text-left font-bold px-4 py-2"
                 style={{ background: '#1f2937', color: '#fff', borderRight: '1px solid #4b5563', minWidth: '120px' }}>
-                INFIRMERIE PHP
+                {t('INFIRMERIE PHP')}
               </th>
               {colSpecs.map((c, i) => (
                 <th key={i} colSpan={3}
@@ -266,7 +270,7 @@ function TabSyntheseMensuelle({ data, loading }) {
             </tr>
             <tr>
               {colSpecs.map((c, i) =>
-                ['DÉCL.', 'REÇUS', 'HOSPI'].map(lbl => (
+                [t('DÉCL.'), t('REÇUS'), t('HOSPI')].map(lbl => (
                   <th key={`${i}-${lbl}`}
                     className="text-center px-3 py-1 font-normal text-[10px]"
                     style={{ background: c.bg, color: c.text, opacity: 0.9, border: '1px solid rgba(255,255,255,0.2)', minWidth: '50px' }}>
@@ -295,7 +299,7 @@ function TabSyntheseMensuelle({ data, loading }) {
               </tr>
             ))}
             <tr style={{ background: '#111827', color: '#fff', fontWeight: 'bold' }}>
-              <td className="sticky left-0 z-10 px-4 py-2 text-xs" style={{ background: '#111827', borderRight: '1px solid #4b5563' }}>TOTAL</td>
+              <td className="sticky left-0 z-10 px-4 py-2 text-xs" style={{ background: '#111827', borderRight: '1px solid #4b5563' }}>{t('TOTAL')}</td>
               {colSpecs.map((col, ci) => {
                 const g = col.global || { declarations: 0, recus: 0, hospi: 0 };
                 return [
@@ -314,20 +318,21 @@ function TabSyntheseMensuelle({ data, loading }) {
 
 // ─── Tableau Trimestriel ──────────────────────────────────────────────────────
 function TabTrimestriel({ data, loading }) {
+  const { t } = useTranslation();
   if (loading) return <LoadingBox />;
-  if (!data) return <EmptyBox label="Aucune donnée trimestrielle" />;
+  if (!data) return <EmptyBox label={t('Aucune donnée trimestrielle')} />;
 
   const { infirmeries, mois, parMois, totauxTrimestre } = data;
 
   const colSpecs = [
     ...mois.map((m, i) => ({
-      label: parMois[m]?.label || `MOIS ${m}`,
+      label: parMois[m]?.label || t('MOIS {{num}}', { num: m }),
       ...(TRIM_COLORS[i] || TRIM_COLORS[2]),
       data: parMois[m]?.parInfirmerie || {},
       global: parMois[m]?.global || { declarations: 0, recus: 0, hospi: 0 },
     })),
     {
-      label: 'TOTAL TRIMESTRIEL',
+      label: t('TOTAL TRIMESTRIEL'),
       bg: '#1f2937', text: '#fff',
       data: totauxTrimestre.parInfirmerie,
       global: totauxTrimestre.global,
@@ -342,19 +347,19 @@ function TabTrimestriel({ data, loading }) {
             <tr>
               <th rowSpan={2} className="sticky left-0 z-20 text-left font-bold px-4 py-2"
                 style={{ background: '#1f2937', color: '#fff', borderRight: '1px solid #4b5563', minWidth: '120px' }}>
-                INFIRMERIE PHP
+                {t('INFIRMERIE PHP')}
               </th>
               {colSpecs.map((c, i) => (
                 <th key={i} colSpan={3}
                   className="text-center px-3 py-2 font-bold"
                   style={{ background: c.bg, color: c.text, border: '1px solid rgba(255,255,255,0.2)' }}>
-                  TOTAL GLOBAL {c.label}
+                  {t('TOTAL GLOBAL {{label}}', { label: c.label })}
                 </th>
               ))}
             </tr>
             <tr>
               {colSpecs.map((c, i) =>
-                ['DÉCL.', 'REÇUS', 'HOSPI'].map(lbl => (
+                [t('DÉCL.'), t('REÇUS'), t('HOSPI')].map(lbl => (
                   <th key={`${i}-${lbl}`}
                     className="text-center px-3 py-1 font-normal text-[10px]"
                     style={{ background: c.bg, color: c.text, opacity: 0.9, border: '1px solid rgba(255,255,255,0.2)', minWidth: '55px' }}>
@@ -383,7 +388,7 @@ function TabTrimestriel({ data, loading }) {
               </tr>
             ))}
             <tr style={{ background: '#111827', color: '#fff', fontWeight: 'bold' }}>
-              <td className="sticky left-0 z-10 px-4 py-2 text-xs" style={{ background: '#111827', borderRight: '1px solid #4b5563' }}>TOTAL</td>
+              <td className="sticky left-0 z-10 px-4 py-2 text-xs" style={{ background: '#111827', borderRight: '1px solid #4b5563' }}>{t('TOTAL')}</td>
               {colSpecs.map((col, ci) => {
                 const g = col.global;
                 const ratioPct = g.recus > 0 ? ` (${((g.hospi / g.recus) * 100).toFixed(1)}%)` : '';
@@ -403,8 +408,10 @@ function TabTrimestriel({ data, loading }) {
 
 // ─── Tab Motifs Hospitalisation ───────────────────────────────────────────────
 function TabMotifHospi({ data, loading, mois, annee }) {
+  const { t } = useTranslation();
+  const MOIS = getMois(t);
   if (loading) return <LoadingBox />;
-  if (!data?.motifHospi?.length) return <EmptyBox label="Aucune hospitalisation ce mois-ci" />;
+  if (!data?.motifHospi?.length) return <EmptyBox label={t('Aucune hospitalisation ce mois-ci')} />;
 
   const { motifHospi } = data;
   const grouped = {};
@@ -419,7 +426,7 @@ function TabMotifHospi({ data, loading, mois, annee }) {
     <div className="space-y-4">
       <div className="rounded-xl px-4 py-3 text-sm font-medium"
         style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: 'rgb(217,119,6)' }}>
-        MOTIFS D'HOSPITALISATION — {MOIS[mois].toUpperCase()} {annee} — Total : {total} hospitalisations
+        {t("MOTIFS D'HOSPITALISATION — {{month}} {{year}} — Total : {{count}} hospitalisations", { month: MOIS[mois].toUpperCase(), year: annee, count: total })}
       </div>
 
       {Object.entries(grouped).map(([infirmerie, motifs]) => {
@@ -428,13 +435,13 @@ function TabMotifHospi({ data, loading, mois, annee }) {
           <div key={infirmerie} className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="px-4 py-2 flex justify-between text-xs font-bold" style={{ background: '#1f2937', color: '#fff' }}>
               <span>{infirmerie}</span>
-              <span>{sousTotal} hospi</span>
+              <span>{t('{{count}} hospi', { count: sousTotal })}</span>
             </div>
             <table className="w-full text-xs">
               <thead style={{ background: 'var(--surface-2)' }}>
                 <tr>
-                  <th className="text-left px-4 py-2 font-semibold" style={{ color: 'var(--fg-muted)' }}>MOTIF / DIAGNOSTIC</th>
-                  <th className="text-center px-4 py-2 font-semibold w-20" style={{ color: 'var(--fg-muted)' }}>NOMBRE</th>
+                  <th className="text-left px-4 py-2 font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('MOTIF / DIAGNOSTIC')}</th>
+                  <th className="text-center px-4 py-2 font-semibold w-20" style={{ color: 'var(--fg-muted)' }}>{t('NOMBRE')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -460,8 +467,10 @@ function TabMotifHospi({ data, loading, mois, annee }) {
 
 // ─── Tab Repos Maladie ────────────────────────────────────────────────────────
 function TabReposMaladie({ data, loading, mois, annee }) {
+  const { t } = useTranslation();
+  const MOIS = getMois(t);
   if (loading) return <LoadingBox />;
-  if (!data?.reposMaladie?.length) return <EmptyBox label="Aucun repos maladie ce mois-ci" />;
+  if (!data?.reposMaladie?.length) return <EmptyBox label={t('Aucun repos maladie ce mois-ci')} />;
 
   const repos = data.reposMaladie;
   const totalJours = repos.reduce((s, r) => s + r.totalJours, 0);
@@ -472,9 +481,9 @@ function TabReposMaladie({ data, loading, mois, annee }) {
     <div className="space-y-4">
       <div className="rounded-xl px-4 py-3 text-sm font-medium flex justify-between"
         style={{ background: 'var(--success-soft)', border: '1px solid var(--success)', color: 'var(--success)' }}>
-        <span>REPOS MALADIES — {MOIS[mois].toUpperCase()} {annee}</span>
+        <span>{t('REPOS MALADIES — {{month}} {{year}}', { month: MOIS[mois].toUpperCase(), year: annee })}</span>
         {totalHospi > 0 && (
-          <span className="font-bold">{totalJours} JRS / {totalHospi} PRS</span>
+          <span className="font-bold">{t('{{jours}} JRS / {{hospi}} PRS', { jours: totalJours, hospi: totalHospi })}</span>
         )}
       </div>
 
@@ -482,9 +491,9 @@ function TabReposMaladie({ data, loading, mois, annee }) {
         <table className="w-full text-sm">
           <thead style={{ background: 'var(--surface-2)' }}>
             <tr>
-              <th className="text-left px-4 py-3 font-semibold" style={{ color: 'var(--fg)' }}>INFIRMERIE</th>
-              <th className="text-center px-4 py-3 font-semibold" style={{ color: 'var(--fg)' }}>Nb personnes</th>
-              <th className="text-center px-4 py-3 font-semibold" style={{ color: 'var(--fg)' }}>Jours repos maladie</th>
+              <th className="text-left px-4 py-3 font-semibold" style={{ color: 'var(--fg)' }}>{t('INFIRMERIE')}</th>
+              <th className="text-center px-4 py-3 font-semibold" style={{ color: 'var(--fg)' }}>{t('Nb personnes')}</th>
+              <th className="text-center px-4 py-3 font-semibold" style={{ color: 'var(--fg)' }}>{t('Jours repos maladie')}</th>
             </tr>
           </thead>
           <tbody>
@@ -495,15 +504,15 @@ function TabReposMaladie({ data, loading, mois, annee }) {
                 <td className="text-center px-4 py-3">
                   <span className="inline-flex items-center justify-center px-3 py-1 rounded-full font-bold text-sm"
                     style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
-                    {r.totalJours} jrs
+                    {t('{{count}} jrs', { count: r.totalJours })}
                   </span>
                 </td>
               </tr>
             ))}
             <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface-2)', fontWeight: 'bold' }}>
-              <td className="px-4 py-3" style={{ color: 'var(--fg)' }}>Total général</td>
+              <td className="px-4 py-3" style={{ color: 'var(--fg)' }}>{t('Total général')}</td>
               <td className="text-center px-4 py-3" style={{ color: 'var(--fg)' }}>{totalPersonnes}</td>
-              <td className="text-center px-4 py-3 text-base" style={{ color: 'var(--success)' }}>{totalJours} jrs</td>
+              <td className="text-center px-4 py-3 text-base" style={{ color: 'var(--success)' }}>{t('{{count}} jrs', { count: totalJours })}</td>
             </tr>
           </tbody>
         </table>
@@ -514,10 +523,11 @@ function TabReposMaladie({ data, loading, mois, annee }) {
 
 // ─── Helpers d'état ───────────────────────────────────────────────────────────
 function LoadingBox() {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl p-10 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <RefreshCw size={28} className="animate-spin mx-auto mb-3" style={{ color: 'var(--fg-subtle)' }} />
-      <p className="text-sm" style={{ color: 'var(--fg-subtle)' }}>Chargement des données...</p>
+      <p className="text-sm" style={{ color: 'var(--fg-subtle)' }}>{t('Chargement des données...')}</p>
     </div>
   );
 }
@@ -535,26 +545,26 @@ function EmptyBox({ label }) {
 function exportCSV(data, mois, annee) {
   if (!data) return;
   const { infirmeries, semaines, totauxMois } = data;
-  const MOIS_NOM = ['','Janvier','Février','Mars','Avril','Mai','Juin',
-                    'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const t = i18n.t;
+  const MOIS_NOM = getMois(t);
 
   const rows = [];
 
-  rows.push([`STATISTIC JOURNALIER DE ${MOIS_NOM[mois].toUpperCase()} ${annee}`]);
+  rows.push([t('STATISTIC JOURNALIER DE {{month}} {{year}}', { month: MOIS_NOM[mois].toUpperCase(), year: annee })]);
   rows.push([]);
 
-  const h1 = ['INFIRMERIE PHP'];
+  const h1 = [t('INFIRMERIE PHP')];
   const h2 = [''];
   semaines.forEach(s => {
     s.jours.forEach(j => {
-      h1.push(`SEMAINE ${s.numero} - Jour ${j.jourNum}`, '', '');
-      h2.push('DÉCLARATIONS', 'REÇUS HSJM', 'HOSPI');
+      h1.push(t('SEMAINE {{num}} - Jour {{jour}}', { num: s.numero, jour: j.jourNum }), '', '');
+      h2.push(t('DÉCLARATIONS'), t('REÇUS HSJM'), t('HOSPI'));
     });
-    h1.push(`TOT S${s.numero}`, '', '');
-    h2.push('DÉCLARATIONS', 'REÇUS HSJM', 'HOSPI');
+    h1.push(t('TOT S{{num}}', { num: s.numero }), '', '');
+    h2.push(t('DÉCLARATIONS'), t('REÇUS HSJM'), t('HOSPI'));
   });
-  h1.push('TOTAL MOIS', '', '');
-  h2.push('DÉCLARATIONS', 'REÇUS HSJM', 'HOSPI');
+  h1.push(t('TOTAL MOIS'), '', '');
+  h2.push(t('DÉCLARATIONS'), t('REÇUS HSJM'), t('HOSPI'));
   rows.push(h1);
   rows.push(h2);
 
@@ -573,7 +583,7 @@ function exportCSV(data, mois, annee) {
     rows.push(row);
   });
 
-  const totRow = ['TOTAL'];
+  const totRow = [t('TOTAL')];
   semaines.forEach(s => {
     s.jours.forEach(j => {
       totRow.push(j.totaux.declarations, j.totaux.recus, j.totaux.hospi);
@@ -595,9 +605,10 @@ function exportCSV(data, mois, annee) {
 
 // ─── Tab Pathologies par Infirmerie ───────────────────────────────────────────
 function TabPathologies({ data, loading, onRefresh }) {
+  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState('global');
   if (loading) return <LoadingBox />;
-  if (!data) return <EmptyBox label="Aucune donnée pathologie pour cette période" />;
+  if (!data) return <EmptyBox label={t('Aucune donnée pathologie pour cette période')} />;
 
   const { topGlobal, parInfirmerie } = data;
   const maxGlobal = topGlobal[0]?.count || 1;
@@ -622,7 +633,7 @@ function TabPathologies({ data, loading, onRefresh }) {
             ? { background: 'rgb(79,70,229)', color: '#fff' }
             : { background: 'var(--surface-2)', color: 'var(--fg-muted)' }}
         >
-          🌍 Toutes infirmeries
+          🌍 {t('Toutes infirmeries')}
         </button>
         {parInfirmerie.map(inf => (
           <button key={inf.infirmerie}
@@ -643,14 +654,14 @@ function TabPathologies({ data, loading, onRefresh }) {
         <div className="px-4 py-3" style={{ background: 'rgba(99,102,241,0.08)', borderBottom: '1px solid rgba(99,102,241,0.2)' }}>
           <h3 className="text-sm font-bold" style={{ color: 'rgb(67,56,202)' }}>
             {viewMode === 'global'
-              ? `Top pathologies — Toutes infirmeries (${topGlobal.reduce((s,p) => s+p.count, 0)} cas)`
-              : `Top pathologies — ${currentInf?.nom} (${currentInf?.total} cas)`
+              ? t('Top pathologies — Toutes infirmeries ({{count}} cas)', { count: topGlobal.reduce((s,p) => s+p.count, 0) })
+              : t('Top pathologies — {{nom}} ({{count}} cas)', { nom: currentInf?.nom, count: currentInf?.total })
             }
           </h3>
         </div>
         <div className="p-4 space-y-2">
           {currentList.length === 0 ? (
-            <p className="text-sm text-center py-4" style={{ color: 'var(--fg-subtle)' }}>Aucun diagnostic enregistré</p>
+            <p className="text-sm text-center py-4" style={{ color: 'var(--fg-subtle)' }}>{t('Aucun diagnostic enregistré')}</p>
           ) : currentList.map((p, i) => {
             const pct = Math.round((p.count / maxCurrent) * 100);
             const bar = barColors[Math.min(i, barColors.length - 1)];
@@ -663,7 +674,7 @@ function TabPathologies({ data, loading, onRefresh }) {
                       {p.diagnostic}
                     </span>
                     <span className="text-xs font-bold ml-2 shrink-0" style={{ color: 'var(--fg)' }}>
-                      {p.count} <span style={{ color: 'var(--fg-subtle)', fontWeight: 400 }}>cas</span>
+                      {p.count} <span style={{ color: 'var(--fg-subtle)', fontWeight: 400 }}>{t('cas')}</span>
                     </span>
                   </div>
                   <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
@@ -685,7 +696,7 @@ function TabPathologies({ data, loading, onRefresh }) {
                 <h4 className="text-xs font-bold" style={{ color: 'var(--fg)' }}>
                   {inf.infirmerie.replace('INF_','')}
                 </h4>
-                <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{inf.total} cas diagnostiqués</span>
+                <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('{{count}} cas diagnostiqués', { count: inf.total })}</span>
               </div>
               <ol className="space-y-1">
                 {inf.pathologies.slice(0, 5).map((p, i) => (
@@ -705,16 +716,19 @@ function TabPathologies({ data, loading, onRefresh }) {
 }
 
 // ─── Composant principal ───────────────────────────────────────────────────────
-const TABS = [
-  { key: 'journalier',   label: 'Rapport journalier'  },
-  { key: 'synthese',     label: 'Synthèse mensuelle'   },
-  { key: 'trimestriel',  label: 'Trimestriel'           },
-  { key: 'hospit',       label: 'Hospitalisations'      },
-  { key: 'repos',        label: 'Repos maladie'         },
-  { key: 'pathologies',  label: 'Pathologies'           },
+const getTabs = (t) => [
+  { key: 'journalier',   label: t('Rapport journalier')  },
+  { key: 'synthese',     label: t('Synthèse mensuelle')   },
+  { key: 'trimestriel',  label: t('Trimestriel')           },
+  { key: 'hospit',       label: t('Hospitalisations')      },
+  { key: 'repos',        label: t('Repos maladie')         },
+  { key: 'pathologies',  label: t('Pathologies')           },
 ];
 
 export default function PHPStatistiques() {
+  const { t } = useTranslation();
+  const TABS = getTabs(t);
+  const MOIS = getMois(t);
   const now = new Date();
   const [activeTab,  setActiveTab]  = useState('journalier');
   const [month,      setMonth]      = useState(now.getMonth() + 1);
@@ -794,7 +808,7 @@ export default function PHPStatistiques() {
   const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
   const loadingCurrent = activeTab === 'trimestriel' ? loadingTrim : loadingMens;
 
-  const TRIMESTRE_LABELS = { 1: 'T1 Jan–Mar', 2: 'T2 Avr–Jun', 3: 'T3 Jul–Sep', 4: 'T4 Oct–Déc' };
+  const TRIMESTRE_LABELS = { 1: t('T1 Jan–Mar'), 2: t('T2 Avr–Jun'), 3: t('T3 Jul–Sep'), 4: t('T4 Oct–Déc') };
 
   const navBtnStyle = {
     padding: '0.5rem',
@@ -817,10 +831,10 @@ export default function PHPStatistiques() {
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
               <BarChart3 style={{ color: 'rgb(99,102,241)' }} size={22} />
-              Statistiques PHP
+              {t('Statistiques PHP')}
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
-              Rapport journalier — Format HSJM
+              {t('Rapport journalier — Format HSJM')}
             </p>
           </div>
         </div>
@@ -839,7 +853,7 @@ export default function PHPStatistiques() {
               style={{ background: 'var(--success)', color: '#fff' }}
             >
               <Download size={15} />
-              Export CSV
+              {t('Export CSV')}
             </button>
           )}
         </div>
@@ -847,16 +861,16 @@ export default function PHPStatistiques() {
 
       {/* Onglets */}
       <div className="flex gap-1 rounded-xl p-1 mb-5 overflow-x-auto" style={{ background: 'var(--surface-3)' }}>
-        {TABS.map(t => (
+        {TABS.map(tb => (
           <button
-            key={t.key}
-            onClick={() => setActiveTab(t.key)}
+            key={tb.key}
+            onClick={() => setActiveTab(tb.key)}
             className="px-3 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-colors"
-            style={activeTab === t.key
+            style={activeTab === tb.key
               ? { background: 'var(--surface)', color: 'var(--fg)', boxShadow: 'var(--shadow-1)' }
               : { color: 'var(--fg-muted)' }}
           >
-            {t.label}
+            {tb.label}
           </button>
         ))}
       </div>
@@ -876,8 +890,8 @@ export default function PHPStatistiques() {
           </button>
           {rapportMensuel && (
             <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>
-              {rapportMensuel.semaines?.length || 0} semaine(s) —{' '}
-              {rapportMensuel.semaines?.reduce((s, w) => s + w.jours.length, 0) || 0} jours ouvrés
+              {t('{{count}} semaine(s)', { count: rapportMensuel.semaines?.length || 0 })} —{' '}
+              {t('{{count}} jours ouvrés', { count: rapportMensuel.semaines?.reduce((s, w) => s + w.jours.length, 0) || 0 })}
             </span>
           )}
         </div>

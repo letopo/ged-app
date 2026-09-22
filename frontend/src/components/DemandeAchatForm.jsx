@@ -1,5 +1,6 @@
 // frontend/src/components/DemandeAchatForm.jsx
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { demandeAchatAPI, usersAPI, servicesAPI, documentsAPI } from '../services/api';
 import { Loader, Send, Save, Trash2, X, FileText, User, ExternalLink, Eye, Upload, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -57,6 +58,7 @@ const toggleBtn = (active) => ({
 });
 
 export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [formData, setFormData]         = useState(initialFormData);
   const [loading, setLoading]           = useState(false);
@@ -95,7 +97,7 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
       } catch { /* ignore */ }
     } catch (err) {
       console.error('Erreur chargement données initiales', err);
-      setError('Erreur de chargement des données. Vérifiez votre connexion.');
+      setError(t('Erreur de chargement des données. Vérifiez votre connexion.'));
     }
   };
 
@@ -169,14 +171,14 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
       const response = demande ? await demandeAchatAPI.update(demande.id, fd) : await demandeAchatAPI.create(fd);
       const savedData = response.data.data;
       if (isDraft) {
-        setSuccess(demande ? 'Demande mise à jour (Brouillon)' : 'Demande créée (Brouillon)');
+        setSuccess(demande ? t('Demande mise à jour (Brouillon)') : t('Demande créée (Brouillon)'));
         setTimeout(() => onSuccess(), 1500);
       } else {
         setSavedDemande(savedData);
         setShowWorkflowModal(true);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement.');
+      setError(err.response?.data?.message || t("Erreur lors de l'enregistrement."));
       console.error(err);
     } finally { setLoading(false); }
   };
@@ -193,7 +195,7 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 18, fontWeight: 700, color: 'var(--fg)' }}>
             <FileText size={20} color="var(--brand)" />
-            {demande ? 'Modifier la Demande d\'Achat' : 'Nouvelle Demande d\'Achat'}
+            {demande ? t("Modifier la Demande d'Achat") : t("Nouvelle Demande d'Achat")}
           </div>
           <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 6 }}>
             <X size={18} />
@@ -205,36 +207,36 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
 
         {/* Informations générales */}
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>Informations générales</div>
+          <div style={sectionTitleStyle}>{t('Informations générales')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
             <div>
-              <label style={labelStyle}>Domaine ou Direction *</label>
+              <label style={labelStyle}>{t('Domaine ou Direction')} *</label>
               <select name="domain" value={formData.domain} onChange={handleChange} style={inputStyle} required disabled={!canEdit}>
-                <option value="">— Sélectionner un service —</option>
+                <option value="">{t('— Sélectionner un service —')}</option>
                 {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Description du domaine</label>
+              <label style={labelStyle}>{t('Description du domaine')}</label>
               <input type="text" name="domainDescription" value={formData.domainDescription} onChange={handleChange} style={inputStyle} disabled={!canEdit} />
             </div>
             <div>
-              <label style={labelStyle}>Date de livraison souhaitée</label>
+              <label style={labelStyle}>{t('Date de livraison souhaitée')}</label>
               <input type="date" name="deliveryDate" value={formData.deliveryDate} onChange={handleChange} style={inputStyle} disabled={!canEdit} />
             </div>
             <div>
-              <label style={labelStyle}>Type d'achat *</label>
+              <label style={labelStyle}>{t("Type d'achat")} *</label>
               <select name="purchaseType" value={formData.purchaseType} onChange={handleChange} style={inputStyle} required disabled={!canEdit}>
-                <option value="Non-Référencé">Non-Référencé</option>
-                <option value="Référencé">Référencé</option>
+                <option value="Non-Référencé">{t('Non-Référencé')}</option>
+                <option value="Référencé">{t('Référencé')}</option>
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Nature article *</label>
+              <label style={labelStyle}>{t('Nature article')} *</label>
               <input type="text" name="articleNature" value={formData.articleNature} onChange={handleChange} style={inputStyle} required disabled={!canEdit} />
             </div>
             <div>
-              <label style={labelStyle}>Description de la demande *</label>
+              <label style={labelStyle}>{t('Description de la demande')} *</label>
               <textarea name="requestDescription" value={formData.requestDescription} onChange={handleChange} style={{ ...textareaStyle, minHeight: 60 }} rows={2} required disabled={!canEdit} />
             </div>
           </div>
@@ -242,32 +244,32 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
 
         {/* Bénéficiaire */}
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}><User size={15} /> Informations bénéficiaire</div>
+          <div style={sectionTitleStyle}><User size={15} /> {t('Informations bénéficiaire')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 20px', marginBottom: 16 }}>
-            <div><label style={labelStyle}>Nom</label><input type="text" name="beneficiaryName" value={formData.beneficiaryName} onChange={handleChange} style={inputStyle} disabled={!canEdit} /></div>
-            <div><label style={labelStyle}>Email *</label><input type="email" name="beneficiaryEmail" value={formData.beneficiaryEmail} onChange={handleChange} style={inputStyle} required disabled={!canEdit} /></div>
-            <div><label style={labelStyle}>Téléphone *</label><input type="tel" name="beneficiaryPhone" value={formData.beneficiaryPhone} onChange={handleChange} style={inputStyle} required disabled={!canEdit} /></div>
+            <div><label style={labelStyle}>{t('Nom')}</label><input type="text" name="beneficiaryName" value={formData.beneficiaryName} onChange={handleChange} style={inputStyle} disabled={!canEdit} /></div>
+            <div><label style={labelStyle}>{t('Email')} *</label><input type="email" name="beneficiaryEmail" value={formData.beneficiaryEmail} onChange={handleChange} style={inputStyle} required disabled={!canEdit} /></div>
+            <div><label style={labelStyle}>{t('Téléphone')} *</label><input type="tel" name="beneficiaryPhone" value={formData.beneficiaryPhone} onChange={handleChange} style={inputStyle} required disabled={!canEdit} /></div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={labelStyle}>Sortie Magasin</span>
+              <span style={labelStyle}>{t('Sortie Magasin')}</span>
               <div style={{ display: 'flex', gap: 4 }}>
-                <button type="button" onClick={() => canEdit && setFormData(p => ({ ...p, isMagasinOutput: true }))} style={toggleBtn(formData.isMagasinOutput)} disabled={!canEdit}>Oui</button>
-                <button type="button" onClick={() => canEdit && setFormData(p => ({ ...p, isMagasinOutput: false }))} style={toggleBtn(!formData.isMagasinOutput)} disabled={!canEdit}>Non</button>
+                <button type="button" onClick={() => canEdit && setFormData(p => ({ ...p, isMagasinOutput: true }))} style={toggleBtn(formData.isMagasinOutput)} disabled={!canEdit}>{t('Oui')}</button>
+                <button type="button" onClick={() => canEdit && setFormData(p => ({ ...p, isMagasinOutput: false }))} style={toggleBtn(!formData.isMagasinOutput)} disabled={!canEdit}>{t('Non')}</button>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={labelStyle}>DA pour travaux ?</span>
+              <span style={labelStyle}>{t('DA pour travaux ?')}</span>
               <div style={{ display: 'flex', gap: 4 }}>
-                <button type="button" onClick={() => canEdit && handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: true } })} style={toggleBtn(formData.isForWorks)} disabled={!canEdit}>Oui</button>
-                <button type="button" onClick={() => canEdit && handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: false } })} style={toggleBtn(!formData.isForWorks)} disabled={!canEdit}>Non</button>
+                <button type="button" onClick={() => canEdit && handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: true } })} style={toggleBtn(formData.isForWorks)} disabled={!canEdit}>{t('Oui')}</button>
+                <button type="button" onClick={() => canEdit && handleChange({ target: { name: 'isForWorks', type: 'checkbox', checked: false } })} style={toggleBtn(!formData.isForWorks)} disabled={!canEdit}>{t('Non')}</button>
               </div>
             </div>
             {formData.isForWorks && (
               <div style={{ flex: 1, minWidth: 200 }}>
-                <label style={labelStyle}>Référence DT</label>
+                <label style={labelStyle}>{t('Référence DT')}</label>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input type="text" name="linkedDocNumber" value={formData.linkedDocNumber} onChange={handleChange} placeholder="Sélectionner une DT" style={{ ...inputStyle, flex: 1 }} disabled={!canEdit} />
+                  <input type="text" name="linkedDocNumber" value={formData.linkedDocNumber} onChange={handleChange} placeholder={t('Sélectionner une DT')} style={{ ...inputStyle, flex: 1 }} disabled={!canEdit} />
                   {canEdit && (
                     <button type="button" onClick={() => setShowDTModal(true)} style={{ height: 34, width: 34, borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--brand)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <ExternalLink size={14} />
@@ -281,15 +283,15 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
 
         {/* Articles */}
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>Articles non référencés</div>
+          <div style={sectionTitleStyle}>{t('Articles non référencés')}</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Désignation</th>
-                  <th style={{ ...thStyle, width: 70 }}>Qté</th>
-                  <th style={{ ...thStyle, width: 120 }}>P.U. (XAF)</th>
-                  <th style={{ ...thStyle, width: 120 }}>Total (XAF)</th>
+                  <th style={thStyle}>{t('Désignation')}</th>
+                  <th style={{ ...thStyle, width: 70 }}>{t('Qté')}</th>
+                  <th style={{ ...thStyle, width: 120 }}>{t('P.U. (XAF)')}</th>
+                  <th style={{ ...thStyle, width: 120 }}>{t('Total (XAF)')}</th>
                   {canEdit && <th style={{ ...thStyle, width: 36 }}></th>}
                 </tr>
               </thead>
@@ -314,12 +316,12 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
           </div>
           {canEdit && (
             <button type="button" onClick={addArticle} style={{ marginTop: 8, height: 28, padding: '0 10px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--success)', color: '#fff', fontSize: 12, cursor: 'pointer' }}>
-              + Ajouter un article
+              + {t('Ajouter un article')}
             </button>
           )}
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 2 }}>Total Non Référencé</div>
+              <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 2 }}>{t('Total Non Référencé')}</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--brand)' }}>{totalNonRefValue.toFixed(2)} XAF</div>
             </div>
           </div>
@@ -327,20 +329,20 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
 
         {/* Pièces jointes */}
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>Pièces jointes</div>
+          <div style={sectionTitleStyle}>{t('Pièces jointes')}</div>
           {canEdit && (
             <label style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               padding: '12px', border: '2px dashed var(--border)', borderRadius: 'var(--radius-3)',
               cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 13, marginBottom: 12,
             }}>
-              <Upload size={16} /> Ajouter des fichiers (PDF, Images, Excel)
+              <Upload size={16} /> {t('Ajouter des fichiers (PDF, Images, Excel)')}
               <input type="file" onChange={handleFileSelect} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls" multiple style={{ display: 'none' }} />
             </label>
           )}
           {existingFiles.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6 }}>Fichiers existants</div>
+              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6 }}>{t('Fichiers existants')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {existingFiles.map((file, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)' }}>
@@ -360,7 +362,7 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
           )}
           {attachedFiles.length > 0 && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6 }}>Nouveaux fichiers</div>
+              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6 }}>{t('Nouveaux fichiers')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {attachedFiles.map((file, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--brand-soft)', border: '1px solid var(--brand)', borderRadius: 'var(--radius-2)' }}>
@@ -381,18 +383,18 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
         {canEdit && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
             <button onClick={onCancel} style={{ height: 36, padding: '0 16px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-              Annuler
+              {t('Annuler')}
             </button>
             <button onClick={() => handleSubmit(true)} disabled={loading} style={btnStyle('var(--fg-muted)', '#fff', loading)}>
               {loading && <Loader size={13} className="animate-spin" />}
-              <Save size={13} /> Enregistrer en brouillon
+              <Save size={13} /> {t('Enregistrer en brouillon')}
             </button>
             <button
               onClick={() => handleSubmit(false)}
               disabled={loading || !formData.domain || !formData.requestDescription}
               style={btnStyle('var(--brand)', '#fff', loading || !formData.domain || !formData.requestDescription)}
             >
-              {loading ? <><Loader size={13} className="animate-spin" /> Soumission…</> : <><Send size={13} /> Soumettre</>}
+              {loading ? <><Loader size={13} className="animate-spin" /> {t('Soumission…')}</> : <><Send size={13} /> {t('Soumettre')}</>}
             </button>
           </div>
         )}
@@ -402,23 +404,23 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
             <div className="animate-fadeIn" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 680, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>Sélectionner une DT</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{t('Sélectionner une DT')}</div>
                 <button onClick={() => setShowDTModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex' }}><X size={16} /></button>
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px' }}>
                 {demandesTravaux.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--fg-muted)', fontSize: 13 }}>Aucune Demande de Travaux disponible.</div>
+                  <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--fg-muted)', fontSize: 13 }}>{t('Aucune Demande de Travaux disponible.')}</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {demandesTravaux.map(dt => (
                       <div key={dt.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', background: 'var(--surface-2)' }}>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{dt.title}</div>
-                          <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Service : {dt.metadata?.service || 'N/A'} · {new Date(dt.createdAt).toLocaleDateString()}</div>
+                          <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t('Service : {{service}}', { service: dt.metadata?.service || 'N/A' })} · {new Date(dt.createdAt).toLocaleDateString()}</div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <button type="button" onClick={() => setIsViewingDocument(dt)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 4 }}><Eye size={15} /></button>
-                          <button type="button" onClick={() => handleSelectDT(dt)} style={{ height: 30, padding: '0 12px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--success)', color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Sélectionner</button>
+                          <button type="button" onClick={() => handleSelectDT(dt)} style={{ height: 30, padding: '0 12px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--success)', color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>{t('Sélectionner')}</button>
                         </div>
                       </div>
                     ))}
@@ -434,7 +436,7 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
         {showWorkflowModal && savedDemande && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
             <WorkflowSubmission
-              document={{ ...savedDemande, title: savedDemande.daNumber ? `DA ${savedDemande.daNumber}` : 'Nouvelle Demande d\'Achat', filename: 'Demande d\'Achat' }}
+              document={{ ...savedDemande, title: savedDemande.daNumber ? `DA ${savedDemande.daNumber}` : t("Nouvelle Demande d'Achat"), filename: t("Demande d'Achat") }}
               onSuccess={handleWorkflowSuccess}
               onCancel={() => setShowWorkflowModal(false)}
             />

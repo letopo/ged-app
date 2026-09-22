@@ -1,7 +1,11 @@
 // frontend/src/pages/ArchivesPage.jsx — Redesign complet
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { documentsAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
+import i18n from '../i18n/config';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 import {
   Search, Download, RotateCcw, Loader, FolderOpen, AlertTriangle,
   Bell, FileText, ChevronDown, Share2, Clock,
@@ -10,7 +14,7 @@ import toast from 'react-hot-toast';
 import { useConfirm } from '../components/ConfirmModal';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmt = (d) => new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
+const fmt = (d) => new Date(d).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
 
 const fmtSize = (bytes) => {
   if (!bytes) return '';
@@ -79,16 +83,17 @@ function TypeCheckbox({ label, count, checked, onChange }) {
 
 // ── Timeline view ─────────────────────────────────────────────────────────────
 function TimelineView({ docs, onRestore, onView }) {
+  const { t } = useTranslation();
   const sorted = [...docs].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
   let lastMonth = null;
   return (
     <div style={{ position:'relative', paddingLeft:32 }}>
       <div style={{ position:'absolute', left:10, top:0, bottom:0, width:2, background:'var(--border)' }} />
       {sorted.map((doc, i) => {
-        const month = new Date(doc.createdAt).toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+        const month = new Date(doc.createdAt).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', { month:'long', year:'numeric' });
         const showMonth = month !== lastMonth;
         lastMonth = month;
-        const uploaderName = doc.uploadedBy ? `${doc.uploadedBy.firstName||''} ${doc.uploadedBy.lastName||''}`.trim() : 'Inconnu';
+        const uploaderName = doc.uploadedBy ? `${doc.uploadedBy.firstName||''} ${doc.uploadedBy.lastName||''}`.trim() : t('Inconnu');
         return (
           <React.Fragment key={doc.id}>
             {showMonth && (
@@ -106,11 +111,11 @@ function TimelineView({ docs, onRestore, onView }) {
                       <Avatar name={uploaderName} size={16} />
                       <span>{uploaderName}</span>
                       <span>·</span><span>{fmt(doc.createdAt)}</span>
-                      {doc.category && <><span>·</span><span style={{ color:'var(--brand)' }}>{doc.category}</span></>}
+                      {doc.category && <><span>·</span><span style={{ color:'var(--brand)' }}>{t(doc.category)}</span></>}
                     </div>
                   </div>
                   <button onClick={() => onRestore(doc)} style={{ height:28, padding:'0 12px', borderRadius:'var(--radius-2)', background:'var(--brand)', color:'#fff', border:'none', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
-                    <RotateCcw size={11} /> Restaurer
+                    <RotateCcw size={11} /> {t('Restaurer')}
                   </button>
                 </div>
               </div>
@@ -124,6 +129,7 @@ function TimelineView({ docs, onRestore, onView }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function ArchivesPage() {
+  const { t } = useTranslation();
   const { confirm, ConfirmModalRenderer } = useConfirm();
   const [grouped, setGrouped]         = useState({});
   const [loading, setLoading]         = useState(true);
@@ -150,7 +156,7 @@ export default function ArchivesPage() {
       setGrouped(data);
       setTotal(res.data.total || 0);
     } catch (err) {
-      setError('Erreur lors du chargement des archives.');
+      setError(t('Erreur lors du chargement des archives.'));
     } finally {
       setLoading(false);
     }
@@ -217,24 +223,24 @@ export default function ArchivesPage() {
 
   const handleUnarchive = async (doc) => {
     const ok = await confirm({
-      title: 'Restaurer le document',
-      message: `"${doc.title}" sera remis dans vos documents actifs.`,
-      confirmLabel: 'Restaurer',
+      title: t('Restaurer le document'),
+      message: t('"{{title}}" sera remis dans vos documents actifs.', { title: doc.title }),
+      confirmLabel: t('Restaurer'),
       variant: 'info',
     });
     if (!ok) return;
     try {
       await documentsAPI.unarchive(doc.id);
-      toast.success('Document restauré');
+      toast.success(t('Document restauré'));
       loadArchives();
-    } catch { toast.error('Erreur lors de la restauration.'); }
+    } catch { toast.error(t('Erreur lors de la restauration.')); }
   };
 
   const exportCSV = () => {
-    const rows = [['Titre','Catégorie','Auteur','Date','Taille','Conservation']];
+    const rows = [[t('Titre'), t('Catégorie'), t('Auteur'), t('Date'), t('Taille'), t('Conservation')]];
     filteredDocs.forEach(d => {
       const name = d.uploadedBy ? `${d.uploadedBy.firstName||''} ${d.uploadedBy.lastName||''}`.trim() : '';
-      rows.push([d.title, d.category, name, fmt(d.createdAt), fmtSize(d.fileSize), `${RETENTION[d.category]||5} ans`]);
+      rows.push([d.title, t(d.category), name, fmt(d.createdAt), fmtSize(d.fileSize), t('{{count}} ans', { count: RETENTION[d.category]||5 })]);
     });
     const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
     const a = document.createElement('a');
@@ -258,8 +264,6 @@ export default function ArchivesPage() {
     });
   };
 
-  const sortLabel = sort === 'name' ? 'Nom ↑' : sort === 'size' ? 'Taille ↓' : 'Date ↓';
-
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh' }}>
       <Loader size={24} color="var(--fg-muted)" className="animate-spin" />
@@ -277,17 +281,17 @@ export default function ArchivesPage() {
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:24, paddingTop:4 }}>
         <div>
-          <h1 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 4px', letterSpacing:'-0.3px' }}>Archives</h1>
+          <h1 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 4px', letterSpacing:'-0.3px' }}>{t('Archives')}</h1>
           <div style={{ fontSize:13, color:'var(--fg-muted)' }}>
-            {total} document{total !== 1 ? 's' : ''} archivé{total !== 1 ? 's' : ''} · recherche plein texte (OCR indexé)
+            {t('{{count}} document(s) archivé(s) · recherche plein texte (OCR indexé)', { count: total })}
           </div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           {/* View toggle */}
           <div style={{ display:'flex', border:'1px solid var(--border)', borderRadius:'var(--radius-2)', overflow:'hidden' }}>
             {[
-              { id:'list',     label:'Recherche', icon:<Search size={13}/> },
-              { id:'timeline', label:'Timeline',  icon:<Clock size={13}/> },
+              { id:'list',     label:t('Recherche'), icon:<Search size={13}/> },
+              { id:'timeline', label:t('Timeline'),  icon:<Clock size={13}/> },
             ].map(v => (
               <button key={v.id} onClick={() => setView(v.id)} style={{
                 display:'inline-flex', alignItems:'center', gap:5,
@@ -299,10 +303,10 @@ export default function ArchivesPage() {
             ))}
           </div>
           <button onClick={exportCSV} style={{ display:'inline-flex', alignItems:'center', gap:5, height:32, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:12, cursor:'pointer' }}>
-            Export CSV
+            {t('Export CSV')}
           </button>
           <button style={{ display:'inline-flex', alignItems:'center', gap:5, height:32, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:12, cursor:'pointer' }}>
-            Export ZIP
+            {t('Export ZIP')}
           </button>
           <div style={{ width:32, height:32, borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
             <Bell size={15} color="var(--fg-muted)" />
@@ -321,7 +325,7 @@ export default function ArchivesPage() {
               <Search size={13} color="var(--fg-subtle)" />
               <input
                 value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Plein texte (OCR)..."
+                placeholder={t('Plein texte (OCR)...')}
                 style={{ flex:1, border:'none', background:'transparent', outline:'none', fontSize:12, color:'var(--fg)' }}
               />
               {search && <button onClick={() => setSearch('')} style={{ border:'none', background:'none', cursor:'pointer', color:'var(--fg-subtle)', padding:0, lineHeight:1, fontSize:14 }}>×</button>}
@@ -330,27 +334,27 @@ export default function ArchivesPage() {
 
           {/* TYPE */}
           <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)' }}>
-            <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:8 }}>Type</div>
+            <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:8 }}>{t('Type')}</div>
             {Object.entries(typeCounts).sort((a,b) => b[1]-a[1]).map(([cat, cnt]) => (
               <TypeCheckbox
-                key={cat} label={cat} count={cnt}
+                key={cat} label={t(cat)} count={cnt}
                 checked={selectedTypes.has(cat)}
                 onChange={checked => toggleType(cat, checked)}
               />
             ))}
             {selectedTypes.size > 0 && (
               <button onClick={() => setSelectedTypes(new Set())} style={{ marginTop:6, fontSize:11, color:'var(--brand)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
-                Tout décocher
+                {t('Tout décocher')}
               </button>
             )}
           </div>
 
           {/* PÉRIODE */}
           <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)' }}>
-            <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:8 }}>Période</div>
+            <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:8 }}>{t('Période')}</div>
             {[
-              { label:'De', value:dateFrom, onChange:setDateFrom },
-              { label:'À',  value:dateTo,   onChange:setDateTo },
+              { label:t('De'), value:dateFrom, onChange:setDateFrom },
+              { label:t('À'),  value:dateTo,   onChange:setDateTo },
             ].map(f => (
               <div key={f.label} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6, padding:'5px 8px', border:'1px solid var(--border)', borderRadius:'var(--radius-2)', background:'var(--surface-2)' }}>
                 <span style={{ fontSize:11, color:'var(--fg-muted)', minWidth:14 }}>{f.label}</span>
@@ -362,7 +366,7 @@ export default function ArchivesPage() {
             ))}
             {(dateFrom || dateTo) && (
               <button onClick={() => { setDateFrom(''); setDateTo(''); }} style={{ fontSize:11, color:'var(--brand)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
-                Effacer
+                {t('Effacer')}
               </button>
             )}
           </div>
@@ -370,7 +374,7 @@ export default function ArchivesPage() {
           {/* AUTEUR */}
           {allAuthors.length > 0 && (
             <div style={{ padding:'12px 14px' }}>
-              <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:8 }}>Auteur</div>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:8 }}>{t('Auteur')}</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
                 {allAuthors.slice(0,3).map(a => (
                   <button key={a.key} onClick={() => toggleAuthor(a.key)} style={{
@@ -399,8 +403,8 @@ export default function ArchivesPage() {
           {/* Results bar */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
             <div style={{ fontSize:13, color:'var(--fg-muted)' }}>
-              <span style={{ color:'var(--fg)', fontWeight:500 }}>{filteredDocs.length} résultat{filteredDocs.length !== 1 ? 's' : ''}</span>
-              {' · '}<span>trié par {sort}</span>
+              <span style={{ color:'var(--fg)', fontWeight:500 }}>{t('{{count}} résultat(s)', { count: filteredDocs.length })}</span>
+              {' · '}<span>{t('trié par {{sort}}', { sort: t({ date: 'date', name: 'nom', size: 'taille' }[sort]) })}</span>
               {sort === 'date' && <span style={{ marginLeft:3 }}>↓</span>}
               {sort === 'name' && <span style={{ marginLeft:3 }}>↑</span>}
             </div>
@@ -410,9 +414,9 @@ export default function ArchivesPage() {
                 value={sort} onChange={e => setSort(e.target.value)}
                 style={{ appearance:'none', padding:'4px 28px 4px 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:12, cursor:'pointer', outline:'none' }}
               >
-                <option value="date">Tri: Date ↓</option>
-                <option value="name">Tri: Nom ↑</option>
-                <option value="size">Tri: Taille ↓</option>
+                <option value="date">{t('Tri: Date ↓')}</option>
+                <option value="name">{t('Tri: Nom ↑')}</option>
+                <option value="size">{t('Tri: Taille ↓')}</option>
               </select>
               <ChevronDown size={12} color="var(--fg-muted)" style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
             </div>
@@ -422,8 +426,8 @@ export default function ArchivesPage() {
           {filteredDocs.length === 0 ? (
             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center', padding:'80px 0' }}>
               <FolderOpen size={44} color="var(--border-strong)" style={{ marginBottom:12 }} />
-              <div style={{ fontSize:14, fontWeight:500, color:'var(--fg-muted)', marginBottom:4 }}>Aucun résultat</div>
-              <div style={{ fontSize:12, color:'var(--fg-subtle)' }}>Modifiez les filtres ou la recherche</div>
+              <div style={{ fontSize:14, fontWeight:500, color:'var(--fg-muted)', marginBottom:4 }}>{t('Aucun résultat')}</div>
+              <div style={{ fontSize:12, color:'var(--fg-subtle)' }}>{t('Modifiez les filtres ou la recherche')}</div>
             </div>
           ) : view === 'timeline' ? (
             <TimelineView docs={filteredDocs} onRestore={handleUnarchive} onView={setViewingDocument} />
@@ -432,7 +436,7 @@ export default function ArchivesPage() {
               {filteredDocs.map((doc, i) => {
                 const uploaderName = doc.uploadedBy
                   ? `${doc.uploadedBy.firstName||''} ${doc.uploadedBy.lastName||''}`.trim()
-                  : 'Inconnu';
+                  : t('Inconnu');
                 const retention = RETENTION[doc.category] || 5;
                 const size = fmtSize(doc.fileSize);
 
@@ -465,10 +469,10 @@ export default function ArchivesPage() {
                         {size && <><span>·</span><span>{size}</span></>}
                         <span>·</span>
                         <span style={{ padding:'2px 7px', borderRadius:'var(--radius-full)', background:'var(--surface-3)', color:'var(--fg-muted)', fontSize:10, fontWeight:500 }}>
-                          {doc.category}
+                          {t(doc.category)}
                         </span>
                         <span style={{ padding:'2px 7px', borderRadius:'var(--radius-full)', background:'var(--brand-soft)', color:'var(--brand-fg)', fontSize:10, fontWeight:500 }}>
-                          conserv. {retention} ans
+                          {t('conserv. {{count}} ans', { count: retention })}
                         </span>
                       </div>
                     </div>
@@ -479,22 +483,22 @@ export default function ArchivesPage() {
                         href={doc.filePath ? `/api/files/${doc.filePath}` : '#'}
                         download
                         style={{ width:30, height:30, borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--fg-muted)', textDecoration:'none' }}
-                        title="Télécharger"
+                        title={t('Télécharger')}
                       >
                         <Download size={13} />
                       </a>
                       <button
                         style={{ height:30, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--fg)', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}
-                        title="Partager"
-                        onClick={() => toast('Fonctionnalité de partage bientôt disponible')}
+                        title={t('Partager')}
+                        onClick={() => toast(t('Fonctionnalité de partage bientôt disponible'))}
                       >
-                        <Share2 size={12} /> Partager
+                        <Share2 size={12} /> {t('Partager')}
                       </button>
                       <button
                         onClick={() => handleUnarchive(doc)}
                         style={{ height:30, padding:'0 12px', borderRadius:'var(--radius-2)', background:'var(--brand)', color:'#fff', border:'none', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontWeight:500 }}
                       >
-                        <RotateCcw size={11} /> Restaurer
+                        <RotateCcw size={11} /> {t('Restaurer')}
                       </button>
                     </div>
                   </div>

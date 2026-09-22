@@ -1,6 +1,7 @@
 // frontend/src/components/FormBuilder/Designer/ComponentPanel.jsx
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Heading1, Heading2, AlignLeft, Type, AlignJustify, Hash,
   DollarSign, Mail, Phone, Calendar, Clock, CheckSquare,
@@ -45,6 +46,7 @@ const FIELD_ICONS = {
 };
 
 function FieldItem({ type, onDragStart }) {
+  const { t } = useTranslation();
   const reg  = FIELD_REGISTRY[type];
   const Icon = FIELD_ICONS[type] || Type;
   const cat  = FIELD_CATEGORIES[reg.category];
@@ -74,17 +76,18 @@ function FieldItem({ type, onDragStart }) {
         e.currentTarget.style.borderColor   = 'var(--border)';
         e.currentTarget.style.color         = 'var(--fg)';
       }}
-      title={`Glisser pour ajouter : ${reg.label}`}
+      title={t('Glisser pour ajouter : {{label}}', { label: t(reg.label) })}
     >
       <Icon size={13} style={{ flexShrink: 0 }} />
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {reg.label}
+        {t(reg.label)}
       </span>
     </div>
   );
 }
 
 export default function ComponentPanel({ onDragStart }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
 
   const grouped = Object.entries(
@@ -108,14 +111,14 @@ export default function ComponentPanel({ onDragStart }) {
       {/* Header */}
       <div style={{ padding: '14px 12px 10px', borderBottom: '1px solid var(--border)' }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '.5px', margin: '0 0 8px' }}>
-          Composants
+          {t('Composants')}
         </p>
         <div style={{ position: 'relative' }}>
           <Search size={12} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher..."
+            placeholder={t('Rechercher...')}
             style={{
               width: '100%', padding: '6px 8px 6px 26px',
               border: '1.5px solid var(--border)', borderRadius: 6,
@@ -137,7 +140,7 @@ export default function ComponentPanel({ onDragStart }) {
                 letterSpacing: '.6px', color: catInfo.color,
                 margin: '0 0 5px', paddingLeft: 2,
               }}>
-                {catInfo.label}
+                {t(catInfo.label)}
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                 {types.map(type => (
@@ -150,7 +153,7 @@ export default function ComponentPanel({ onDragStart }) {
 
         {grouped.length === 0 && (
           <p style={{ fontSize: 12, color: 'var(--fg-muted)', textAlign: 'center', marginTop: 20 }}>
-            Aucun composant trouvé
+            {t('Aucun composant trouvé')}
           </p>
         )}
       </div>
@@ -158,7 +161,7 @@ export default function ComponentPanel({ onDragStart }) {
       {/* Hint */}
       <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)' }}>
         <p style={{ fontSize: 10, color: 'var(--fg-muted)', margin: 0, textAlign: 'center', lineHeight: 1.4 }}>
-          Glisser un composant<br/>dans la zone de conception
+          {t('Glisser un composant')}<br/>{t('dans la zone de conception')}
         </p>
       </div>
     </div>

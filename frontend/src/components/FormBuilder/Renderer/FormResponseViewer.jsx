@@ -2,6 +2,8 @@
 // Affichage read-only d'une réponse de formulaire — même positionnement que FormFill
 
 import { useMemo, useRef, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../../i18n/config';
 import { GRID_SIZE, CANVAS_WIDTH } from '../../../store/formBuilderStore';
 import { getFileBaseUrl } from '../../../services/api';
 import logo from '../../../assets/logo-ordre-malte.png';
@@ -42,7 +44,7 @@ function evalDynamicTemplate(template, fields, responseData) {
       if (f?.type === 'daterange' && typeof v === 'object') {
         const s = v.start ? new Date(v.start).toLocaleDateString('fr-FR') : '...';
         const e = v.end   ? new Date(v.end).toLocaleDateString('fr-FR')   : '...';
-        return `${s} au ${e}`;
+        return i18n.t('{{start}} au {{end}}', { start: s, end: e });
       }
       if (typeof v === 'object') return JSON.stringify(v);
       return String(v);
@@ -61,7 +63,7 @@ function formatVal(field, value) {
     const dr = typeof value === 'object' ? value : {};
     const s = dr.start ? new Date(dr.start).toLocaleDateString('fr-FR') : '—';
     const e = dr.end   ? new Date(dr.end).toLocaleDateString('fr-FR')   : '—';
-    return `Du ${s} au ${e}`;
+    return i18n.t('Du {{start}} au {{end}}', { start: s, end: e });
   }
   if (field.type === 'selectcond' && typeof value === 'object' && value?.main) {
     return value.sub ? `${value.main} — ${value.sub}` : value.main;
@@ -72,6 +74,7 @@ function formatVal(field, value) {
 
 // ── Rendu d'un champ avec sa valeur (read-only) — tailles identiques à FormFill
 function FieldValue({ field, value, wfStep }) {
+  const { t } = useTranslation();
   const ff = field.fontFamily || 'inherit';
   const baseStyle = {
     fontWeight:     field.bold      ? 700         : 'normal',
@@ -171,7 +174,7 @@ function FieldValue({ field, value, wfStep }) {
                 )}
               </>
             ) : (
-              '✍ Zone de signature'
+              `✍ ${t('Zone de signature')}`
             )}
           </div>
         </div>
@@ -221,7 +224,7 @@ function FieldValue({ field, value, wfStep }) {
             ) : (
               <>
                 <span style={{ fontSize: 20 }}>🔖</span>
-                <span>Zone de cachet</span>
+                <span>{t('Zone de cachet')}</span>
               </>
             )}
           </div>
@@ -324,7 +327,7 @@ function FieldValue({ field, value, wfStep }) {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={cols.length} style={{ padding: '4px 6px', color: '#9ca3af', fontStyle: 'italic' }}>
-                    Aucune ligne
+                    {t('Aucune ligne')}
                   </td>
                 </tr>
               )}
@@ -358,6 +361,7 @@ function FieldValue({ field, value, wfStep }) {
 // ── Composant principal ───────────────────────────────────────────────────────
 
 export default function FormResponseViewer({ form, responseData = {}, submittedBy, refCode, wfSteps = [] }) {
+  const { t } = useTranslation();
   const fields = form?.schema?.fields || [];
 
   const canvasHeight = useMemo(() => Math.max(
@@ -436,14 +440,14 @@ export default function FormResponseViewer({ form, responseData = {}, submittedB
       }}>
         <img src={logo} alt="HSJM" style={{ height: 40, objectFit: 'contain' }} />
         <div style={{ textAlign: 'center', flex: 1, padding: '0 12px' }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: '#111827' }}>ORDRE DE MALTE</div>
-          <div style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>HÔPITAL SAINT JEAN DE MALTE</div>
-          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>Njombé — Cameroun</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#111827' }}>{t('ORDRE DE MALTE')}</div>
+          <div style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>{t('HÔPITAL SAINT JEAN DE MALTE')}</div>
+          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>{t('Njombé — Cameroun')}</div>
         </div>
         <div style={{ textAlign: 'right', fontSize: 12, color: '#6b7280', minWidth: 150 }}>
-          <div>Njombé le {now}</div>
-          {submittedBy && <div style={{ marginTop: 3 }}>Soumis par : <strong>{submittedBy}</strong></div>}
-          {refCode && <div style={{ marginTop: 2, fontSize: 11, color: '#9ca3af' }}>Réf. {refCode}</div>}
+          <div>{t('Njombé le {{date}}', { date: now })}</div>
+          {submittedBy && <div style={{ marginTop: 3 }}>{t('Soumis par')} : <strong>{submittedBy}</strong></div>}
+          {refCode && <div style={{ marginTop: 2, fontSize: 11, color: '#9ca3af' }}>{t('Réf. {{ref}}', { ref: refCode })}</div>}
         </div>
       </div>
 

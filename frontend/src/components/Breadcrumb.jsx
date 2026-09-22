@@ -1,5 +1,6 @@
 // frontend/src/components/Breadcrumb.jsx
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronRight, Home } from 'lucide-react';
 
 const ROUTE_LABELS = {
@@ -32,22 +33,23 @@ const ROUTE_LABELS = {
 const HIDDEN_ROUTES = ['/dashboard', '/login', '/register', '/display'];
 
 export default function Breadcrumb() {
+  const { t } = useTranslation();
   const { pathname } = useLocation();
 
   if (HIDDEN_ROUTES.includes(pathname)) return null;
 
   const segments = pathname.split('/').filter(Boolean);
-  const crumbs   = [{ label: 'Accueil', path: '/dashboard', isHome: true }];
+  const crumbs   = [{ label: t('Accueil'), path: '/dashboard', isHome: true }];
 
   let cumPath = '';
   for (const seg of segments) {
     cumPath += '/' + seg;
     const label = ROUTE_LABELS[cumPath];
     if (label) {
-      crumbs.push({ label, path: cumPath });
+      crumbs.push({ label: t(label), path: cumPath });
     } else {
       const parent = ROUTE_LABELS['/' + segments[0]];
-      if (parent) crumbs.push({ label: 'Détail', path: cumPath });
+      if (parent) crumbs.push({ label: t('Détail'), path: cumPath });
     }
   }
 

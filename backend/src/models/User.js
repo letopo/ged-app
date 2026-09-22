@@ -91,6 +91,12 @@ const User = sequelize.define('User', {
     allowNull: true,
     field: 'substitute_id',
   },
+  // Langue de l'interface choisie par l'utilisateur (fr/en/es/ar).
+  lang: {
+    type: DataTypes.STRING(5),
+    allowNull: false,
+    defaultValue: 'fr',
+  },
 }, {
   tableName: 'users',
   timestamps: true,

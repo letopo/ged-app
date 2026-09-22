@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
 export default function TwoFactorSetup() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const [status, setStatus]   = useState(null);   // null | 'enabled' | 'disabled'
   const [step, setStep]       = useState('idle'); // idle | setup | confirm_disable
@@ -50,7 +52,7 @@ export default function TwoFactorSetup() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success('2FA activée !');
+      toast.success(t('2FA activée !'));
       setStatus('enabled');
       setStep('idle');
       setCode('');
@@ -74,7 +76,7 @@ export default function TwoFactorSetup() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success('2FA désactivée.');
+      toast.success(t('2FA désactivée.'));
       setStatus('disabled');
       setStep('idle');
       setCode('');
@@ -96,9 +98,9 @@ export default function TwoFactorSetup() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <span style={{ fontSize: 22 }}>🔐</span>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>Double authentification (2FA)</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('Double authentification (2FA)')}</div>
           <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
-            Sécurisez votre compte avec Google Authenticator ou Authy
+            {t('Sécurisez votre compte avec Google Authenticator ou Authy')}
           </div>
         </div>
         <div style={{ marginLeft: 'auto' }}>
@@ -107,7 +109,7 @@ export default function TwoFactorSetup() {
             color: status === 'enabled' ? '#166534' : '#991b1b',
             padding: '3px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600
           }}>
-            {status === 'enabled' ? 'Activée' : 'Désactivée'}
+            {status === 'enabled' ? t('Activée') : t('Désactivée')}
           </span>
         </div>
       </div>
@@ -122,7 +124,7 @@ export default function TwoFactorSetup() {
             borderRadius: 8, padding: '9px 20px', fontWeight: 600, cursor: 'pointer', fontSize: 14
           }}
         >
-          {loading ? 'Chargement…' : 'Configurer la 2FA'}
+          {loading ? t('Chargement…') : t('Configurer la 2FA')}
         </button>
       )}
 
@@ -134,7 +136,7 @@ export default function TwoFactorSetup() {
             borderRadius: 8, padding: '9px 20px', fontWeight: 600, cursor: 'pointer', fontSize: 14
           }}
         >
-          Désactiver la 2FA
+          {t('Désactiver la 2FA')}
         </button>
       )}
 
@@ -142,8 +144,8 @@ export default function TwoFactorSetup() {
       {step === 'setup' && (
         <div>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16, lineHeight: 1.6 }}>
-            <strong>Étape 1 :</strong> Scannez ce QR code avec <strong>Google Authenticator</strong> ou <strong>Authy</strong>.<br />
-            <strong>Étape 2 :</strong> Entrez le code à 6 chiffres généré par l'application.
+            <strong>{t('Étape 1 :')}</strong> {t('Scannez ce QR code avec')} <strong>Google Authenticator</strong> {t('ou')} <strong>Authy</strong>.<br />
+            <strong>{t('Étape 2 :')}</strong> {t("Entrez le code à 6 chiffres généré par l'application.")}
           </p>
 
           {qrCode && (
@@ -159,7 +161,7 @@ export default function TwoFactorSetup() {
               textAlign: 'center', marginBottom: 20, wordBreak: 'break-all',
               border: '1px solid var(--border)'
             }}>
-              <div style={{ fontSize: 11, marginBottom: 4 }}>Clé manuelle (si QR indisponible)</div>
+              <div style={{ fontSize: 11, marginBottom: 4 }}>{t('Clé manuelle (si QR indisponible)')}</div>
               <strong style={{ color: 'var(--fg)', letterSpacing: 2 }}>{secret}</strong>
             </div>
           )}
@@ -170,7 +172,7 @@ export default function TwoFactorSetup() {
               type="text"
               inputMode="numeric"
               maxLength={6}
-              placeholder="Code à 6 chiffres"
+              placeholder={t('Code à 6 chiffres')}
               value={code}
               onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               onKeyDown={e => e.key === 'Enter' && confirmEnable()}
@@ -191,7 +193,7 @@ export default function TwoFactorSetup() {
                 opacity: loading || code.length < 6 ? 0.6 : 1, fontSize: 14
               }}
             >
-              {loading ? '…' : 'Activer'}
+              {loading ? '…' : t('Activer')}
             </button>
             <button
               onClick={() => { setStep('idle'); setCode(''); setQrCode(''); setSecret(''); }}
@@ -200,7 +202,7 @@ export default function TwoFactorSetup() {
                 borderRadius: 8, padding: '10px 16px', cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 14
               }}
             >
-              Annuler
+              {t('Annuler')}
             </button>
           </div>
         </div>
@@ -210,7 +212,7 @@ export default function TwoFactorSetup() {
       {step === 'confirm_disable' && (
         <div>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
-            Entrez votre code Google Authenticator pour confirmer la désactivation.
+            {t('Entrez votre code Google Authenticator pour confirmer la désactivation.')}
           </p>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <input
@@ -218,7 +220,7 @@ export default function TwoFactorSetup() {
               type="text"
               inputMode="numeric"
               maxLength={6}
-              placeholder="Code à 6 chiffres"
+              placeholder={t('Code à 6 chiffres')}
               value={code}
               onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               onKeyDown={e => e.key === 'Enter' && confirmDisable()}
@@ -239,7 +241,7 @@ export default function TwoFactorSetup() {
                 opacity: loading || code.length < 6 ? 0.6 : 1, fontSize: 14
               }}
             >
-              {loading ? '…' : 'Désactiver'}
+              {loading ? '…' : t('Désactiver')}
             </button>
             <button
               onClick={() => { setStep('idle'); setCode(''); }}
@@ -248,7 +250,7 @@ export default function TwoFactorSetup() {
                 borderRadius: 8, padding: '10px 16px', cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 14
               }}
             >
-              Annuler
+              {t('Annuler')}
             </button>
           </div>
         </div>
