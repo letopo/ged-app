@@ -472,10 +472,10 @@ const CreateWorkRequest = () => {
                                         style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)' }}
                                     >
                                         <option value="">{t('-- Choisissez un motif --')}</option>
+                                        <option value="autre">✏️ {t('Autre (à préciser)')}</option>
                                         {motifs.map(m => (
                                             <option key={m.id} value={m.id}>{m.name}</option>
                                         ))}
-                                        <option value="autre">✏️ {t('Autre (à préciser)')}</option>
                                     </select>
                                     {formData.motifId === 'autre' && (
                                         <textarea
