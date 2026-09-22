@@ -123,18 +123,19 @@ export const getProfile = async (req, res, next) => {
   
 export const updateProfile = async (req, res, next) => {
     try {
-        const { firstName, lastName, username, currentPassword, newPassword } = req.body;
-    
+        const { firstName, lastName, username, lang, currentPassword, newPassword } = req.body;
+
         // On doit récupérer l'utilisateur avec son mot de passe pour la comparaison
         const user = await User.scope('withPassword').findByPk(req.user.id);
-    
+
         if (!user) {
             return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
         }
-    
+
         if (firstName !== undefined) user.firstName = firstName;
         if (lastName !== undefined) user.lastName = lastName;
         if (username !== undefined) user.username = username;
+        if (lang !== undefined && ['fr', 'en', 'es', 'ar'].includes(lang)) user.lang = lang;
     
         // Changement de mot de passe
         if (newPassword) {

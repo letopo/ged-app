@@ -2,6 +2,15 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var lang = localStorage.getItem('lang') || 'fr';
+          document.documentElement.lang = lang;
+          document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GED - Gestion Electronique de Documents</title>
     <meta name="description" content="Systeme de gestion electronique de documents avec workflow" />
