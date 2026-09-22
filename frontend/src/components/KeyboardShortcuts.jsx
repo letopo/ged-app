@@ -1,5 +1,6 @@
 // frontend/src/components/KeyboardShortcuts.jsx
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Keyboard, X } from 'lucide-react';
 
@@ -27,6 +28,7 @@ const kbdStyle = {
 };
 
 export default function KeyboardShortcuts() {
+  const { t } = useTranslation();
   const navigate    = useNavigate();
   const [showHelp, setShowHelp] = useState(false);
   const [gPressed, setGPressed] = useState(false);
@@ -93,7 +95,7 @@ export default function KeyboardShortcuts() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Keyboard size={16} color="var(--brand)" />
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>Raccourcis clavier</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>{t('Raccourcis clavier')}</span>
               </div>
               <button
                 onClick={() => setShowHelp(false)}
@@ -108,16 +110,16 @@ export default function KeyboardShortcuts() {
               {SHORTCUTS.map(section => (
                 <div key={section.section}>
                   <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
-                    {section.section}
+                    {t(section.section)}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {section.items.map(item => (
                       <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0' }}>
-                        <span style={{ fontSize: 13, color: 'var(--fg)' }}>{item.label}</span>
+                        <span style={{ fontSize: 13, color: 'var(--fg)' }}>{t(item.label)}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           {item.keys.map((key, i) => (
                             <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              {i > 0 && <span style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>ou</span>}
+                              {i > 0 && <span style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>{t('ou')}</span>}
                               <kbd style={kbdStyle}>{key}</kbd>
                             </span>
                           ))}
@@ -135,7 +137,7 @@ export default function KeyboardShortcuts() {
               background: 'var(--surface-2)', textAlign: 'center',
               fontSize: 11, color: 'var(--fg-subtle)',
             }}>
-              Appuyez sur <kbd style={kbdStyle}>?</kbd> pour fermer
+              {t('Appuyez sur')} <kbd style={kbdStyle}>?</kbd> {t('pour fermer')}
             </div>
           </div>
         </div>

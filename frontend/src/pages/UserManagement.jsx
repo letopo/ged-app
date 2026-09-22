@@ -1,6 +1,8 @@
 // frontend/src/pages/UserManagement.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/config';
 import { usersAPI, servicesAPI } from '../services/api';
 import {
   Users, Edit, KeyRound, Trash2, PlusCircle, CheckCircle, XCircle,
@@ -32,17 +34,18 @@ function relativeTime(date) {
   if (!date) return '—';
   const diff = Date.now() - new Date(date).getTime();
   const s = Math.floor(diff / 1000);
-  if (s < 60)  return 'maintenant';
+  if (s < 60)  return i18n.t('maintenant');
   const m = Math.floor(s / 60);
-  if (m < 60)  return `il y a ${m}min`;
+  if (m < 60)  return i18n.t('il y a {{m}}min', { m });
   const h = Math.floor(m / 60);
-  if (h < 24)  return h === 1 ? 'aujourd\'hui' : `il y a ${h}h`;
+  if (h < 24)  return h === 1 ? i18n.t("aujourd'hui") : i18n.t('il y a {{h}}h', { h });
   const d = Math.floor(h / 24);
-  if (d === 1) return 'hier';
-  if (d < 30)  return `il y a ${d}j`;
+  if (d === 1) return i18n.t('hier');
+  if (d < 30)  return i18n.t('il y a {{d}}j', { d });
   const mo = Math.floor(d / 30);
-  if (mo < 12) return `il y a ${mo} mois`;
-  return `il y a ${Math.floor(mo/12)} an${Math.floor(mo/12)>1?'s':''}`;
+  if (mo < 12) return i18n.t('il y a {{mo}} mois', { mo });
+  const y = Math.floor(mo / 12);
+  return y > 1 ? i18n.t('il y a {{y}} ans', { y }) : i18n.t('il y a {{y}} an', { y });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -81,6 +84,7 @@ function Modal({ title, onClose, children, footer }) {
 
 // ── FilterDropdown ────────────────────────────────────────────────────────────
 function FilterDropdown({ label, value, options, onChange }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef();
   useEffect(() => {
@@ -99,7 +103,7 @@ function FilterDropdown({ label, value, options, onChange }) {
         color: active ? 'var(--brand)' : 'var(--fg)',
         fontWeight: active ? 600 : 400,
       }}>
-        {label}{value !== 'tous' ? `: ${options.find(o=>o.value===value)?.label || value}` : ': tous'}
+        {label}{value !== 'tous' ? `: ${t(options.find(o=>o.value===value)?.label || value)}` : `: ${t('tous')}`}
         <ChevronDown size={13} />
       </button>
       {open && (
@@ -116,7 +120,7 @@ function FilterDropdown({ label, value, options, onChange }) {
               color: value === o.value ? 'var(--brand)' : 'var(--fg)', fontSize: 13,
               cursor: 'pointer', fontWeight: value === o.value ? 600 : 400,
             }}>
-              {o.label}
+              {t(o.label)}
             </button>
           ))}
         </div>
@@ -127,6 +131,7 @@ function FilterDropdown({ label, value, options, onChange }) {
 
 // ── ActionMenu ────────────────────────────────────────────────────────────────
 function ActionMenu({ u, onEdit, onReset, onDelete, onUploadSig, onUploadStamp }) {
+  const { t } = useTranslation();
   const [open, setOpen]     = useState(false);
   const [pos, setPos]       = useState({ top: 0, left: 0 });
   const btnRef = useRef();
@@ -149,11 +154,11 @@ function ActionMenu({ u, onEdit, onReset, onDelete, onUploadSig, onUploadStamp }
   };
 
   const items = [
-    { label: 'Modifier',           icon: <Edit size={13}/>,        action: onEdit },
-    { label: 'Réinitialiser MDP',  icon: <KeyRound size={13}/>,    action: onReset },
-    { label: 'Uploader signature', icon: <UploadCloud size={13}/>, action: onUploadSig },
-    { label: 'Uploader cachet',    icon: <Stamp size={13}/>,       action: onUploadStamp },
-    { label: 'Supprimer',          icon: <Trash2 size={13}/>,      action: onDelete, danger: true },
+    { label: t('Modifier'),           icon: <Edit size={13}/>,        action: onEdit },
+    { label: t('Réinitialiser MDP'),  icon: <KeyRound size={13}/>,    action: onReset },
+    { label: t('Uploader signature'), icon: <UploadCloud size={13}/>, action: onUploadSig },
+    { label: t('Uploader cachet'),    icon: <Stamp size={13}/>,       action: onUploadStamp },
+    { label: t('Supprimer'),          icon: <Trash2 size={13}/>,      action: onDelete, danger: true },
   ];
 
   return (
@@ -188,6 +193,7 @@ function ActionMenu({ u, onEdit, onReset, onDelete, onUploadSig, onUploadStamp }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const UserManagement = () => {
+  const { t } = useTranslation();
   const { confirm, ConfirmModalRenderer } = useConfirm();
   const [users, setUsers]       = useState([]);
   const [services, setServices] = useState([]);
@@ -231,7 +237,7 @@ const UserManagement = () => {
         (svc.members || []).forEach(m => { map[m.userId] = svc.name; });
       });
       setUserServiceMap(map);
-    } catch { toast.error('Impossible de charger les utilisateurs.'); }
+    } catch { toast.error(t('Impossible de charger les utilisateurs.')); }
     finally { setLoading(false); }
   };
 
@@ -269,13 +275,13 @@ const UserManagement = () => {
     try {
       if (!editingUser) {
         await usersAPI.create(modalData);
-        toast.success('Utilisateur créé !');
+        toast.success(t('Utilisateur créé !'));
       } else {
         await usersAPI.update(editingUser.id, { firstName: modalData.firstName, lastName: modalData.lastName, email: modalData.email, username: modalData.username, role: modalData.role, substituteId: modalData.substituteId || null });
-        toast.success('Utilisateur mis à jour !');
+        toast.success(t('Utilisateur mis à jour !'));
       }
       handleCloseModal(); loadAll();
-    } catch (err) { toast.error(err.response?.data?.error || 'Erreur'); }
+    } catch (err) { toast.error(err.response?.data?.error || t('Erreur')); }
   };
 
   const handleToggleAbsence = async u => {
@@ -284,7 +290,7 @@ const UserManagement = () => {
       toast.success(res.data.message);
       loadAll();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur');
+      toast.error(err.response?.data?.message || t('Erreur'));
     }
   };
 
@@ -294,14 +300,14 @@ const UserManagement = () => {
       const res = await usersAPI.resetPassword(userToReset.id, resetPwdField.trim());
       setNewPassword({ username: userToReset.username, password: res.data.newPassword });
       setResetOpen(false); setUserToReset(null);
-    } catch { toast.error('Erreur lors de la réinitialisation.'); setResetOpen(false); }
+    } catch { toast.error(t('Erreur lors de la réinitialisation.')); setResetOpen(false); }
   };
 
   const handleDelete = async u => {
-    const ok = await confirm({ title: 'Supprimer l\'utilisateur', message: `Supprimer ${u.username} ?`, confirmLabel: 'Supprimer', variant: 'danger' });
+    const ok = await confirm({ title: t("Supprimer l'utilisateur"), message: t('Supprimer {{username}} ?', { username: u.username }), confirmLabel: t('Supprimer'), variant: 'danger' });
     if (!ok) return;
-    try { await usersAPI.delete(u.id); toast.success('Utilisateur supprimé.'); loadAll(); }
-    catch (err) { toast.error(err.response?.data?.error || 'Impossible de supprimer'); }
+    try { await usersAPI.delete(u.id); toast.success(t('Utilisateur supprimé.')); loadAll(); }
+    catch (err) { toast.error(err.response?.data?.error || t('Impossible de supprimer')); }
   };
 
   const handleUpload = async () => {
@@ -312,9 +318,9 @@ const UserManagement = () => {
     try {
       if (uploadType === 'signature') await usersAPI.uploadSignature(userToUpload.id, fd);
       else await usersAPI.uploadStamp(userToUpload.id, fd);
-      toast.success(`${uploadType === 'signature' ? 'Signature' : 'Cachet'} uploadé !`);
+      toast.success(t('{{type}} uploadé !', { type: uploadType === 'signature' ? t('Signature') : t('Cachet') }));
       setUploadOpen(false); setUserToUpload(null); setUploadType(''); setSelectedFile(null); loadAll();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur upload'); }
+    } catch (err) { toast.error(err.response?.data?.message || t('Erreur upload')); }
     finally { setUploading(false); }
   };
 
@@ -346,14 +352,14 @@ const UserManagement = () => {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, paddingTop: 4 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: '0 0 4px', letterSpacing: '-0.3px' }}>
-            Utilisateurs
+            {t('Utilisateurs')}
           </h1>
           <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
-            {users.length} membres · {activeCount} actifs · {inactiveCount} désactivés
+            {t('{{total}} membres · {{active}} actifs · {{inactive}} désactivés', { total: users.length, active: activeCount, inactive: inactiveCount })}
           </div>
         </div>
         <button onClick={handleCreate} style={btnPrimary}>
-          <PlusCircle size={14} /> Inviter un utilisateur
+          <PlusCircle size={14} /> {t('Inviter un utilisateur')}
         </button>
       </div>
 
@@ -364,15 +370,15 @@ const UserManagement = () => {
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} />
           <input
             type="text"
-            placeholder="Rechercher un utilisateur..."
+            placeholder={t('Rechercher un utilisateur...')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ ...inputStyle, paddingLeft: 32, marginBottom: 0 }}
           />
         </div>
 
-        <FilterDropdown label="Rôle"    value={filterRole}   options={roleOptions}   onChange={setFilterRole} />
-        <FilterDropdown label="Service" value={filterSvc}    options={svcOptions}    onChange={setFilterSvc} />
+        <FilterDropdown label={t('Rôle')}    value={filterRole}   options={roleOptions}   onChange={setFilterRole} />
+        <FilterDropdown label={t('Service')} value={filterSvc}    options={svcOptions}    onChange={setFilterSvc} />
 
         {/* Statut toggle */}
         <button
@@ -385,7 +391,7 @@ const UserManagement = () => {
             fontWeight: filterStatus === 'actifs' ? 600 : 400,
           }}
         >
-          Statut: {filterStatus}
+          {t('Statut: {{status}}', { status: t(filterStatus) })}
         </button>
       </div>
 
@@ -398,11 +404,11 @@ const UserManagement = () => {
                 <input type="checkbox" checked={allSelected} onChange={toggleAll}
                   style={{ cursor: 'pointer', width: 14, height: 14 }} />
               </th>
-              <th style={thStyle}>Utilisateur</th>
-              <th style={thStyle}>Rôle · Service</th>
-              <th style={thStyle}>Signature / Cachet</th>
-              <th style={thStyle}>Présence</th>
-              <th style={thStyle}>Dernière activité</th>
+              <th style={thStyle}>{t('Utilisateur')}</th>
+              <th style={thStyle}>{t('Rôle · Service')}</th>
+              <th style={thStyle}>{t('Signature / Cachet')}</th>
+              <th style={thStyle}>{t('Présence')}</th>
+              <th style={thStyle}>{t('Dernière activité')}</th>
               <th style={{ ...thStyle, width: 48 }}></th>
             </tr>
           </thead>
@@ -443,7 +449,7 @@ const UserManagement = () => {
                   <td style={tdStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', fontSize: 11, fontWeight: 600, background: role.bg, color: role.color }}>
-                        {role.label}
+                        {t(role.label)}
                       </span>
                       {svcName && (
                         <span style={{ fontSize: 12, color: 'var(--fg-muted)' }}>· {svcName.length > 15 ? svcName.slice(0,15)+'…' : svcName}</span>
@@ -460,7 +466,7 @@ const UserManagement = () => {
                         background: u.signaturePath ? '#dcfce7' : 'var(--surface-3)',
                         color: u.signaturePath ? '#166534' : 'var(--fg-muted)',
                       }}>
-                        {u.signaturePath ? <CheckCircle size={10}/> : <span style={{ fontSize: 13, lineHeight: 1 }}>—</span>} Signature
+                        {u.signaturePath ? <CheckCircle size={10}/> : <span style={{ fontSize: 13, lineHeight: 1 }}>—</span>} {t('Signature')}
                       </span>
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -468,7 +474,7 @@ const UserManagement = () => {
                         background: u.stampPath ? '#dcfce7' : 'var(--surface-3)',
                         color: u.stampPath ? '#166534' : 'var(--fg-muted)',
                       }}>
-                        {u.stampPath ? <CheckCircle size={10}/> : <span style={{ fontSize: 13, lineHeight: 1 }}>—</span>} Cachet
+                        {u.stampPath ? <CheckCircle size={10}/> : <span style={{ fontSize: 13, lineHeight: 1 }}>—</span>} {t('Cachet')}
                       </span>
                     </div>
                   </td>
@@ -477,7 +483,7 @@ const UserManagement = () => {
                   <td style={tdStyle}>
                     <button
                       onClick={() => handleToggleAbsence(u)}
-                      title={u.isAbsent ? 'Cliquer pour repasser en ligne' : 'Cliquer pour se mettre absent'}
+                      title={u.isAbsent ? t('Cliquer pour repasser en ligne') : t('Cliquer pour se mettre absent')}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
                         padding: '2px 9px', borderRadius: 'var(--radius-full)', fontSize: 11, fontWeight: 500,
@@ -486,7 +492,7 @@ const UserManagement = () => {
                         color: u.isAbsent ? 'var(--warning)' : '#166534',
                       }}
                     >
-                      {u.isAbsent ? 'Absent' : 'En ligne'}
+                      {u.isAbsent ? t('Absent') : t('En ligne')}
                     </button>
                   </td>
 
@@ -513,23 +519,23 @@ const UserManagement = () => {
         </table>
         {filtered.length === 0 && (
           <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>
-            Aucun utilisateur trouvé.
+            {t('Aucun utilisateur trouvé.')}
           </div>
         )}
       </div>
 
       {/* ── Modal Upload ─────────────────────────────────────────────── */}
       {isUploadOpen && (
-        <Modal title={`Uploader ${uploadType === 'signature' ? 'une signature' : 'un cachet'}`} onClose={() => setUploadOpen(false)}
+        <Modal title={uploadType === 'signature' ? t('Uploader une signature') : t('Uploader un cachet')} onClose={() => setUploadOpen(false)}
           footer={<>
-            <button onClick={() => setUploadOpen(false)} style={btnOutline}>Annuler</button>
+            <button onClick={() => setUploadOpen(false)} style={btnOutline}>{t('Annuler')}</button>
             <button onClick={handleUpload} disabled={!selectedFile || uploading} style={{ ...btnPrimary, opacity: (!selectedFile || uploading) ? 0.5 : 1 }}>
               {uploading && <Loader size={13} className="animate-spin" />}
-              {uploading ? 'Upload…' : 'Uploader'}
+              {uploading ? t('Upload…') : t('Uploader')}
             </button>
           </>}>
           <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 14 }}>
-            Pour : <strong style={{ color: 'var(--fg)' }}>{userToUpload?.firstName} {userToUpload?.lastName}</strong>
+            {t('Pour :')} <strong style={{ color: 'var(--fg)' }}>{userToUpload?.firstName} {userToUpload?.lastName}</strong>
           </div>
           <input type="file" accept="image/png,image/jpeg"
             onChange={e => setSelectedFile(e.target.files[0])}
@@ -540,20 +546,20 @@ const UserManagement = () => {
 
       {/* ── Modal Reset MDP ──────────────────────────────────────────── */}
       {isResetOpen && userToReset && (
-        <Modal title="Réinitialiser le mot de passe" onClose={() => setResetOpen(false)}
+        <Modal title={t('Réinitialiser le mot de passe')} onClose={() => setResetOpen(false)}
           footer={<>
-            <button onClick={() => setResetOpen(false)} style={btnOutline}>Annuler</button>
+            <button onClick={() => setResetOpen(false)} style={btnOutline}>{t('Annuler')}</button>
             <button onClick={confirmReset}
               disabled={resetPwdField.length > 0 && resetPwdField.length < 6}
               style={{ ...btnPrimary, background: 'var(--warning)', opacity: (resetPwdField.length > 0 && resetPwdField.length < 6) ? 0.5 : 1 }}>
-              Confirmer
+              {t('Confirmer')}
             </button>
           </>}>
           <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 14 }}>
-            Utilisateur : <strong style={{ color: 'var(--fg)' }}>{userToReset.username}</strong>
+            {t('Utilisateur :')} <strong style={{ color: 'var(--fg)' }}>{userToReset.username}</strong>
           </div>
-          <label style={labelStyle}>Nouveau mot de passe (min. 6 caractères)</label>
-          <input type="text" placeholder="Laisser vide pour générer automatiquement"
+          <label style={labelStyle}>{t('Nouveau mot de passe (min. 6 caractères)')}</label>
+          <input type="text" placeholder={t('Laisser vide pour générer automatiquement')}
             value={resetPwdField} onChange={e => setResetPwdField(e.target.value)}
             style={{ ...inputStyle, marginBottom: 0 }} />
         </Modal>
@@ -561,12 +567,12 @@ const UserManagement = () => {
 
       {/* ── Modal Nouveau MDP ────────────────────────────────────────── */}
       {newPassword && (
-        <Modal title="Mot de passe réinitialisé" onClose={() => setNewPassword(null)}
-          footer={<button onClick={() => setNewPassword(null)} style={btnPrimary}>Fermer</button>}>
+        <Modal title={t('Mot de passe réinitialisé')} onClose={() => setNewPassword(null)}
+          footer={<button onClick={() => setNewPassword(null)} style={btnPrimary}>{t('Fermer')}</button>}>
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <CheckCircle size={40} color="var(--success)" style={{ marginBottom: 12 }} />
             <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 8 }}>
-              Nouveau mot de passe pour <strong style={{ color: 'var(--fg)' }}>{newPassword.username}</strong> :
+              {t('Nouveau mot de passe pour')} <strong style={{ color: 'var(--fg)' }}>{newPassword.username}</strong> :
             </p>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--brand)', background: 'var(--brand-soft)', padding: '10px 16px', borderRadius: 'var(--radius-3)', letterSpacing: '0.5px' }}>
               {newPassword.password}
@@ -577,69 +583,69 @@ const UserManagement = () => {
 
       {/* ── Modal Créer / Éditer ─────────────────────────────────────── */}
       {(isCreateOpen || editingUser) && (
-        <Modal title={isCreateOpen ? 'Inviter un utilisateur' : 'Modifier l\'utilisateur'} onClose={handleCloseModal}
+        <Modal title={isCreateOpen ? t('Inviter un utilisateur') : t("Modifier l'utilisateur")} onClose={handleCloseModal}
           footer={<>
-            <button type="button" onClick={handleCloseModal} style={btnOutline}>Annuler</button>
-            <button form="user-form" type="submit" style={btnPrimary}>Sauvegarder</button>
+            <button type="button" onClick={handleCloseModal} style={btnOutline}>{t('Annuler')}</button>
+            <button form="user-form" type="submit" style={btnPrimary}>{t('Sauvegarder')}</button>
           </>}>
           <form id="user-form" onSubmit={handleSave}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
-                <label style={labelStyle}>Prénom</label>
-                <input type="text" required placeholder="Prénom" value={modalData.firstName || ''}
+                <label style={labelStyle}>{t('Prénom')}</label>
+                <input type="text" required placeholder={t('Prénom')} value={modalData.firstName || ''}
                   onChange={e => setModalData({ ...modalData, firstName: e.target.value })} style={{ ...inputStyle, marginBottom: 0 }} />
               </div>
               <div>
-                <label style={labelStyle}>Nom</label>
-                <input type="text" required placeholder="Nom" value={modalData.lastName || ''}
+                <label style={labelStyle}>{t('Nom')}</label>
+                <input type="text" required placeholder={t('Nom')} value={modalData.lastName || ''}
                   onChange={e => setModalData({ ...modalData, lastName: e.target.value })} style={{ ...inputStyle, marginBottom: 0 }} />
               </div>
             </div>
-            <label style={labelStyle}>Nom d'utilisateur</label>
-            <input type="text" required placeholder="Nom d'utilisateur" value={modalData.username || ''}
+            <label style={labelStyle}>{t("Nom d'utilisateur")}</label>
+            <input type="text" required placeholder={t("Nom d'utilisateur")} value={modalData.username || ''}
               onChange={e => setModalData({ ...modalData, username: e.target.value })}
               style={{ ...inputStyle, marginBottom: 12 }} />
-            <label style={labelStyle}>Email</label>
-            <input type="email" required placeholder="Email" value={modalData.email || ''}
+            <label style={labelStyle}>{t('Email')}</label>
+            <input type="email" required placeholder={t('Email')} value={modalData.email || ''}
               onChange={e => setModalData({ ...modalData, email: e.target.value })}
               style={{ ...inputStyle, marginBottom: 12 }} />
             {isCreateOpen && <>
-              <label style={labelStyle}>Mot de passe</label>
-              <input type="password" required placeholder="Mot de passe" value={modalData.password || ''}
+              <label style={labelStyle}>{t('Mot de passe')}</label>
+              <input type="password" required placeholder={t('Mot de passe')} value={modalData.password || ''}
                 onChange={e => setModalData({ ...modalData, password: e.target.value })}
                 style={{ ...inputStyle, marginBottom: 12 }} />
             </>}
-            <label style={labelStyle}>Rôle</label>
+            <label style={labelStyle}>{t('Rôle')}</label>
             <select value={modalData.role || 'user'} onChange={e => setModalData({ ...modalData, role: e.target.value })}
               style={{ ...inputStyle, cursor: 'pointer', marginBottom: 0 }}>
-              <option value="user">Utilisateur</option>
-              <option value="validator">Validateur</option>
-              <option value="chef_de_service">Chef de service</option>
-              <option value="director">Directeur</option>
-              <option value="admin">Administrateur</option>
-              <optgroup label="Files d'attente">
-                <option value="gardien">Gardien (Portail)</option>
-                <option value="agent_accueil_php">Agent Accueil PHP</option>
-                <option value="agent_accueil_normal">Agent Accueil Normal</option>
-                <option value="caissier">Caissier</option>
+              <option value="user">{t('Utilisateur')}</option>
+              <option value="validator">{t('Validateur')}</option>
+              <option value="chef_de_service">{t('Chef de service')}</option>
+              <option value="director">{t('Directeur')}</option>
+              <option value="admin">{t('Administrateur')}</option>
+              <optgroup label={t("Files d'attente")}>
+                <option value="gardien">{t('Gardien (Portail)')}</option>
+                <option value="agent_accueil_php">{t('Agent Accueil PHP')}</option>
+                <option value="agent_accueil_normal">{t('Agent Accueil Normal')}</option>
+                <option value="caissier">{t('Caissier')}</option>
               </optgroup>
             </select>
 
             {editingUser && (
               <>
-                <label style={{ ...labelStyle, marginTop: 12 }}>Remplaçant (n-1)</label>
+                <label style={{ ...labelStyle, marginTop: 12 }}>{t('Remplaçant (n-1)')}</label>
                 <select
                   value={modalData.substituteId || ''}
                   onChange={e => setModalData({ ...modalData, substituteId: e.target.value })}
                   style={{ ...inputStyle, cursor: 'pointer', marginBottom: 0 }}
                 >
-                  <option value="">— Aucun —</option>
+                  <option value="">{t('— Aucun —')}</option>
                   {users.filter(u => u.id !== editingUser.id).map(u => (
                     <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
                   ))}
                 </select>
                 <p style={{ fontSize: 11, color: 'var(--fg-muted)', margin: '4px 0 0' }}>
-                  Reçoit automatiquement les tâches de validation en attente quand cette personne passe en "Absent".
+                  {t('Reçoit automatiquement les tâches de validation en attente quand cette personne passe en "Absent".')}
                 </p>
               </>
             )}

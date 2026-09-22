@@ -2,6 +2,7 @@
 // Shell applicatif — Design System GED (premium SaaS, bleu marine)
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, FileText, Upload, CheckSquare, BarChart3, LogOut,
@@ -15,6 +16,7 @@ import {
 import { workflowAPI, tenantBrandingAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import i18n from '../i18n/config';
 import GlobalSearch from './GlobalSearch';
 import GlobalChatBubble from './GlobalChatBubble';
 import useChatUnread from '../hooks/useChatUnread';
@@ -117,6 +119,7 @@ const NavSection = ({ title, children }) => (
 /* ─── Sidebar ──────────────────────────────────────────────────────── */
 
 const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
+  const { t } = useTranslation();
   const location = useLocation();
   const isActive = (path) =>
     location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path + '/'));
@@ -145,37 +148,37 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
     : 'HSJM';
 
   const gestionItems = [
-    { path: '/schedules',          icon: Calendar,    label: 'Plannings',        managementOnly: true },
-    { path: '/employees',          icon: Users,       label: 'Employés',         rhOrAdminOnly: true },
-    { path: '/user-management',    icon: Users,       label: 'Utilisateurs',     adminOnly: true },
-    { path: '/admin/droits-acces', icon: Shield,      label: 'Droits d\'accès',  adminOnly: true },
-    { path: '/postes',             icon: Briefcase,   label: 'Postes & Fonctions', adminOnly: true },
-    { path: '/services',           icon: LayoutGrid,  label: 'Services',         adminOnly: true },
-    { path: '/audit-log',          icon: Shield,      label: "Journal d'audit",  adminOnly: true },
-    { path: '/statistiques',       icon: BarChart3,   label: 'Statistiques',     adminOnly: true },
-    { path: '/workflow-templates', icon: LayoutGrid,    label: 'Modèles workflow', adminOnly: true },
-    { path: '/forms',              icon: ClipboardList, label: 'Formulaires',      adminOnly: true },
+    { path: '/schedules',          icon: Calendar,    label: t('Plannings'),        managementOnly: true },
+    { path: '/employees',          icon: Users,       label: t('Employés'),         rhOrAdminOnly: true },
+    { path: '/user-management',    icon: Users,       label: t('Utilisateurs'),     adminOnly: true },
+    { path: '/admin/droits-acces', icon: Shield,      label: t("Droits d'accès"),  adminOnly: true },
+    { path: '/postes',             icon: Briefcase,   label: t('Postes & Fonctions'), adminOnly: true },
+    { path: '/services',           icon: LayoutGrid,  label: t('Services'),         adminOnly: true },
+    { path: '/audit-log',          icon: Shield,      label: t("Journal d'audit"),  adminOnly: true },
+    { path: '/statistiques',       icon: BarChart3,   label: t('Statistiques'),     adminOnly: true },
+    { path: '/workflow-templates', icon: LayoutGrid,    label: t('Modèles workflow'), adminOnly: true },
+    { path: '/forms',              icon: ClipboardList, label: t('Formulaires'),      adminOnly: true },
   ].filter(canAccess);
 
   const appsItems = [
-    { path: '/portail',         icon: UserPlus,    label: 'Portail',            gardienOnly: true },
-    { path: '/accueil',         icon: DoorOpen,    label: 'Accueil',            accueilOnly: true },
-    { path: '/caisse',          icon: DollarSign,  label: 'Caisse',             caisseOnly: true },
-    { path: '/demandes-achat',  icon: ShoppingCart,label: "Demandes d'achat",   demandeAchatOnly: true },
-    { path: '/php',             icon: Stethoscope, label: 'Module PHP',         phpOnly: true },
-    { path: '/php/factures',    icon: Receipt,     label: 'Factures PHP',       phpOnly: true },
-    { path: '/sage-factures-php', icon: FileSpreadsheet, label: 'Factures PHP (Sage)', adminOnly: true },
-    { path: '/compta',          icon: Calculator,  label: 'Comptabilité',       comptaOnly: true },
+    { path: '/portail',         icon: UserPlus,    label: t('Portail'),            gardienOnly: true },
+    { path: '/accueil',         icon: DoorOpen,    label: t('Accueil'),            accueilOnly: true },
+    { path: '/caisse',          icon: DollarSign,  label: t('Caisse'),             caisseOnly: true },
+    { path: '/demandes-achat',  icon: ShoppingCart,label: t("Demandes d'achat"),   demandeAchatOnly: true },
+    { path: '/php',             icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
+    { path: '/php/factures',    icon: Receipt,     label: t('Factures PHP'),       phpOnly: true },
+    { path: '/sage-factures-php', icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), adminOnly: true },
+    { path: '/compta',          icon: Calculator,  label: t('Comptabilité'),       comptaOnly: true },
   ].filter(canAccess);
 
   const toolsItems = [
-    { path: '/kanban/MG', icon: Kanban,   label: 'Suivi technique', kanbanOnly: true },
-    { path: '/invoices',  icon: Receipt,  label: 'Factures',        managementOnly: true },
-    { path: '/gmao',      icon: Wrench,   label: 'GMAO',            gmaoOnly: true },
+    { path: '/kanban/MG', icon: Kanban,   label: t('Suivi technique'), kanbanOnly: true },
+    { path: '/invoices',  icon: Receipt,  label: t('Factures'),        managementOnly: true },
+    { path: '/gmao',      icon: Wrench,   label: t('GMAO'),            gmaoOnly: true },
   ].filter(canAccess);
 
   const superAdminItems = [
-    { path: '/super-admin', icon: Shield, label: 'Clients SaaS', superAdminOnly: true },
+    { path: '/super-admin', icon: Shield, label: t('Clients SaaS'), superAdminOnly: true },
   ].filter(canAccess);
 
   const initials = ((user?.firstName?.[0] || user?.username?.[0] || '?') + (user?.lastName?.[0] || '')).toUpperCase();
@@ -223,7 +226,7 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
           fontSize: 13, color: 'var(--fg-subtle)', cursor: 'pointer',
         }}>
           <Search size={14} strokeWidth={1.5} />
-          <span style={{ flex: 1 }}>Rechercher…</span>
+          <span style={{ flex: 1 }}>{t('Rechercher…')}</span>
           <kbd style={{
             fontFamily: 'var(--font-mono)', fontSize: 10,
             padding: '1px 5px', border: '1px solid var(--border)',
@@ -234,18 +237,18 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
 
       {/* ── Navigation ── */}
       <div style={{ padding: '0 10px', overflowY: 'auto', flex: 1 }}>
-        <NavSection title="Travail">
-          <NavItem icon={Home}        label="Tableau de bord"  to="/dashboard"           active={isActive('/dashboard')} />
-          <NavItem icon={FileText}    label="Documents"        to="/documents"            active={isActive('/documents')} />
-          <NavItem icon={Upload}      label="Upload"           to="/upload"               active={isActive('/upload')} />
-          <NavItem icon={Archive}     label="Archives"         to="/archives"             active={isActive('/archives')} />
-          <NavItem icon={CheckSquare}    label="Mes tâches"       to="/my-tasks"             active={isActive('/my-tasks')} badge={pendingCount} urgent={pendingCount > 0} />
-          <NavItem icon={GitBranch}      label="Workflow"         to="/workflow-dashboard"   active={isActive('/workflow-dashboard')} />
-          <NavItem icon={MessageSquare} label="Discussion"      to="/chat"                 active={isActive('/chat')} badge={chatUnread} urgent={chatUnread > 0} />
+        <NavSection title={t('Travail')}>
+          <NavItem icon={Home}        label={t('Tableau de bord')}  to="/dashboard"           active={isActive('/dashboard')} />
+          <NavItem icon={FileText}    label={t('Documents')}        to="/documents"            active={isActive('/documents')} />
+          <NavItem icon={Upload}      label={t('Upload')}           to="/upload"               active={isActive('/upload')} />
+          <NavItem icon={Archive}     label={t('Archives')}         to="/archives"             active={isActive('/archives')} />
+          <NavItem icon={CheckSquare}    label={t('Mes tâches')}       to="/my-tasks"             active={isActive('/my-tasks')} badge={pendingCount} urgent={pendingCount > 0} />
+          <NavItem icon={GitBranch}      label={t('Workflow')}         to="/workflow-dashboard"   active={isActive('/workflow-dashboard')} />
+          <NavItem icon={MessageSquare} label={t('Discussion')}      to="/chat"                 active={isActive('/chat')} badge={chatUnread} urgent={chatUnread > 0} />
         </NavSection>
 
         {(gestionItems.length > 0 || appsItems.length > 0 || toolsItems.length > 0) && (
-          <NavSection title="Organisation">
+          <NavSection title={t('Organisation')}>
             {gestionItems.map(item => (
               <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
             ))}
@@ -259,15 +262,15 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
         )}
 
         {superAdminItems.length > 0 && (
-          <NavSection title="Super Admin">
+          <NavSection title={t('Super Admin')}>
             {superAdminItems.map(item => (
               <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
             ))}
           </NavSection>
         )}
 
-        <NavSection title="Système">
-          <NavItem icon={Settings} label="Paramètres" to="/settings" active={isActive('/settings')} />
+        <NavSection title={t('Système')}>
+          <NavItem icon={Settings} label={t('Paramètres')} to="/settings" active={isActive('/settings')} />
         </NavSection>
       </div>
 
@@ -287,11 +290,11 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
             <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user?.firstName || user?.username}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{getRoleLabel(user?.role)}</div>
+            <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t(getRoleLabel(user?.role))}</div>
           </div>
           <button
             onClick={onLogout}
-            title="Déconnexion"
+            title={t('Déconnexion')}
             style={{ padding: 4, border: 'none', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', borderRadius: 4 }}
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.background = 'var(--danger-soft)'; }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--fg-muted)'; e.currentTarget.style.background = 'transparent'; }}
@@ -337,13 +340,14 @@ const ROUTE_CRUMBS = {
 
 const timeAgo = (date) => {
   const s = Math.floor((Date.now() - new Date(date)) / 1000);
-  if (s < 60) return "à l'instant";
-  const m = Math.floor(s / 60); if (m < 60) return `il y a ${m} min`;
-  const h = Math.floor(m / 60); if (h < 24) return `il y a ${h} h`;
-  const d = Math.floor(h / 24); return `il y a ${d} j`;
+  if (s < 60) return i18n.t("à l'instant");
+  const m = Math.floor(s / 60); if (m < 60) return i18n.t('il y a {{m}} min', { m });
+  const h = Math.floor(m / 60); if (h < 24) return i18n.t('il y a {{h}} h', { h });
+  const d = Math.floor(h / 24); return i18n.t('il y a {{d}} j', { d });
 };
 
 const Topbar = ({ onToggleSidebar }) => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -357,7 +361,7 @@ const Topbar = ({ onToggleSidebar }) => {
   const handleToggleMyAbsence = async () => {
     if (!user?.id) return;
     if (!user.isAbsent && !user.substituteId) {
-      toast.error('Aucun remplaçant configuré sur votre compte — demandez à un administrateur d\'en désigner un avant de vous mettre absent.');
+      toast.error(t("Aucun remplaçant configuré sur votre compte — demandez à un administrateur d'en désigner un avant de vous mettre absent."));
       return;
     }
     setTogglingAbsence(true);
@@ -366,7 +370,7 @@ const Topbar = ({ onToggleSidebar }) => {
       updateUser({ ...user, isAbsent: !user.isAbsent });
       toast.success(res.data.message);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur lors du changement de statut.');
+      toast.error(err.response?.data?.message || t('Erreur lors du changement de statut.'));
     } finally {
       setTogglingAbsence(false);
     }
@@ -443,8 +447,8 @@ const Topbar = ({ onToggleSidebar }) => {
           <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {i > 0 && <ChevronRight size={12} style={{ opacity: 0.4 }} />}
             {i === crumbs.length - 1
-              ? <strong style={{ color: 'var(--fg)', fontWeight: 600 }}>{c}</strong>
-              : <span>{c}</span>}
+              ? <strong style={{ color: 'var(--fg)', fontWeight: 600 }}>{t(c)}</strong>
+              : <span>{t(c)}</span>}
           </span>
         ))}
       </div>
@@ -459,7 +463,7 @@ const Topbar = ({ onToggleSidebar }) => {
           value={search}
           onChange={e => setSearch(e.target.value)}
           onKeyDown={handleSearch}
-          placeholder="Rechercher…"
+          placeholder={t('Rechercher…')}
           style={{
             width: '100%', boxSizing: 'border-box',
             font: '400 12.5px/1 var(--font-sans)',
@@ -478,7 +482,7 @@ const Topbar = ({ onToggleSidebar }) => {
       {/* Thème */}
       <button
         onClick={toggleTheme}
-        title={isDarkMode ? 'Mode clair' : 'Mode sombre'}
+        title={isDarkMode ? t('Mode clair') : t('Mode sombre')}
         style={iconBtnStyle}
         onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -490,7 +494,7 @@ const Topbar = ({ onToggleSidebar }) => {
       <button
         onClick={handleToggleMyAbsence}
         disabled={togglingAbsence}
-        title={user?.isAbsent ? 'Absent — cliquer pour repasser en ligne' : 'En ligne — cliquer pour se mettre absent'}
+        title={user?.isAbsent ? t('Absent — cliquer pour repasser en ligne') : t('En ligne — cliquer pour se mettre absent')}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           height: 32, padding: '0 10px', borderRadius: 'var(--radius-2)',
@@ -504,13 +508,13 @@ const Topbar = ({ onToggleSidebar }) => {
           width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
           background: user?.isAbsent ? 'var(--warning)' : 'var(--success, #2e9e5b)',
         }} />
-        <span className="hidden md:inline">{user?.isAbsent ? 'Absent' : 'En ligne'}</span>
+        <span className="hidden md:inline">{user?.isAbsent ? t('Absent') : t('En ligne')}</span>
       </button>
 
       {/* Notifications */}
       <div ref={notifRef} style={{ position: 'relative' }}>
         <button
-          title="Notifications"
+          title={t('Notifications')}
           onClick={() => setNotifOpen(o => !o)}
           style={{ ...iconBtnStyle, position: 'relative' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
@@ -540,20 +544,20 @@ const Topbar = ({ onToggleSidebar }) => {
               fontSize: 13, fontWeight: 700, color: 'var(--fg)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-              <span>Notifications</span>
+              <span>{t('Notifications')}</span>
               <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)' }}>
-                {notifs.length} en attente
+                {t('{{count}} en attente', { count: notifs.length })}
               </span>
             </div>
             {notifs.length === 0 ? (
               <div style={{ padding: '28px 14px', textAlign: 'center', fontSize: 12.5, color: 'var(--fg-muted)' }}>
-                Aucune tâche en attente de validation.
+                {t('Aucune tâche en attente de validation.')}
               </div>
             ) : (
-              notifs.map(t => (
+              notifs.map(n => (
                 <button
-                  key={t.id}
-                  onClick={() => { setNotifOpen(false); navigate(`/documents/${t.documentId}`); }}
+                  key={n.id}
+                  onClick={() => { setNotifOpen(false); navigate(`/documents/${n.documentId}`); }}
                   style={{
                     width: '100%', display: 'block', textAlign: 'left',
                     padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--border)',
@@ -563,11 +567,11 @@ const Topbar = ({ onToggleSidebar }) => {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg)', marginBottom: 2 }}>
-                    {t.document?.title || 'Document'}
-                    {t.isOverdue && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--danger, #e5484d)' }}>· en retard</span>}
+                    {n.document?.title || t('Document')}
+                    {n.isOverdue && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--danger, #e5484d)' }}>{t('· en retard')}</span>}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
-                    {t.document?.uploadedBy ? `${t.document.uploadedBy.firstName} ${t.document.uploadedBy.lastName} · ` : ''}{timeAgo(t.assignedAt)}
+                    {n.document?.uploadedBy ? `${n.document.uploadedBy.firstName} ${n.document.uploadedBy.lastName} · ` : ''}{timeAgo(n.assignedAt)}
                   </div>
                 </button>
               ))
@@ -579,7 +583,7 @@ const Topbar = ({ onToggleSidebar }) => {
                 color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
               }}
             >
-              Voir toutes mes tâches
+              {t('Voir toutes mes tâches')}
             </button>
           </div>
         )}
@@ -591,14 +595,15 @@ const Topbar = ({ onToggleSidebar }) => {
 /* ─── Mobile bottom tab bar ────────────────────────────────────────── */
 
 const MobileTabBar = ({ pendingCount, onMore }) => {
+  const { t } = useTranslation();
   const location = useLocation();
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   const tabs = [
-    { to: '/dashboard',  icon: Home,        label: 'Accueil' },
-    { to: '/documents',  icon: FileText,    label: 'Documents' },
-    { to: '/my-tasks',   icon: CheckSquare, label: 'Tâches', badge: pendingCount },
-    { to: '/statistiques', icon: BarChart3, label: 'Stats' },
+    { to: '/dashboard',  icon: Home,        label: t('Accueil') },
+    { to: '/documents',  icon: FileText,    label: t('Documents') },
+    { to: '/my-tasks',   icon: CheckSquare, label: t('Tâches'), badge: pendingCount },
+    { to: '/statistiques', icon: BarChart3, label: t('Stats') },
   ];
 
   return (
@@ -644,7 +649,7 @@ const MobileTabBar = ({ pendingCount, onMore }) => {
         color: 'var(--fg-muted)', fontSize: 10.5, fontWeight: 500, cursor: 'pointer',
       }}>
         <MoreHorizontal size={20} strokeWidth={1.5} />
-        <span>Plus</span>
+        <span>{t('Plus')}</span>
       </button>
     </nav>
   );
@@ -653,13 +658,14 @@ const MobileTabBar = ({ pendingCount, onMore }) => {
 /* ─── Mobile "Plus" sheet ──────────────────────────────────────────── */
 
 const MoreSheet = ({ onClose }) => {
+  const { t } = useTranslation();
   const MORE_ITEMS = [
-    { to: '/upload',           icon: Upload,      label: 'Upload' },
-    { to: '/workflow-dashboard', icon: GitBranch, label: 'Workflow' },
-    { to: '/archives',         icon: Archive,     label: 'Archives' },
-    { to: '/services',         icon: LayoutGrid,  label: 'Services' },
-    { to: '/user-management',  icon: Users,       label: 'Utilisateurs' },
-    { to: '/settings',         icon: Settings,    label: 'Paramètres' },
+    { to: '/upload',           icon: Upload,      label: t('Upload') },
+    { to: '/workflow-dashboard', icon: GitBranch, label: t('Workflow') },
+    { to: '/archives',         icon: Archive,     label: t('Archives') },
+    { to: '/services',         icon: LayoutGrid,  label: t('Services') },
+    { to: '/user-management',  icon: Users,       label: t('Utilisateurs') },
+    { to: '/settings',         icon: Settings,    label: t('Paramètres') },
   ];
   const location = useLocation();
 

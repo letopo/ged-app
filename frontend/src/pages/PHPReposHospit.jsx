@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BedDouble, RefreshCw, ArrowLeft, Clock, CheckCircle,
   AlertCircle, Calendar, ChevronRight, Timer, Activity,
@@ -10,8 +11,13 @@ import {
 } from 'lucide-react';
 import { phpConsultationAPI } from '../services/phpService';
 import toast from 'react-hot-toast';
+import i18n from '../i18n/config';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
+const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 
 export default function PHPReposHospit() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('repos');
   const [repos, setRepos] = useState([]);
   const [hospitalisations, setHospitalisations] = useState([]);
@@ -54,7 +60,7 @@ export default function PHPReposHospit() {
       setSelectedRepos(null);
       loadData();
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur lors de la prolongation');
+      toast(err.response?.data?.message || t('Erreur lors de la prolongation'));
     } finally {
       setProlongLoading(false);
     }
@@ -69,7 +75,7 @@ export default function PHPReposHospit() {
       setSelectedHospit(null);
       loadData();
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur lors de la clôture');
+      toast(err.response?.data?.message || t('Erreur lors de la clôture'));
     } finally {
       setClotureLoading(false);
     }
@@ -99,10 +105,10 @@ export default function PHPReposHospit() {
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
               <BedDouble style={{ color: 'rgb(234,88,12)' }} size={22} />
-              Repos & Hospitalisations
+              {t('Repos & Hospitalisations')}
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
-              {repos.length} repos en cours • {hospitalisations.length} hospitalisation{hospitalisations.length !== 1 ? 's' : ''} en cours
+              {t('{{repos}} repos en cours • {{hospit}} hospitalisation(s) en cours', { repos: repos.length, hospit: hospitalisations.length })}
             </p>
           </div>
         </div>
@@ -112,7 +118,7 @@ export default function PHPReposHospit() {
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Actualiser
+          {t('Actualiser')}
         </button>
       </div>
 
@@ -126,7 +132,7 @@ export default function PHPReposHospit() {
             : { color: 'var(--fg-muted)' }}
         >
           <Timer size={15} />
-          Repos maladie
+          {t('Repos maladie')}
           {repos.length > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
               style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
@@ -142,7 +148,7 @@ export default function PHPReposHospit() {
             : { color: 'var(--fg-muted)' }}
         >
           <BedDouble size={15} />
-          Hospitalisations
+          {t('Hospitalisations')}
           {hospitalisations.length > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
               style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
@@ -160,7 +166,7 @@ export default function PHPReposHospit() {
           ) : repos.length === 0 ? (
             <EmptyState
               icon={<Timer size={40} style={{ color: 'var(--fg-subtle)' }} />}
-              message="Aucun repos maladie en cours"
+              message={t('Aucun repos maladie en cours')}
             />
           ) : (
             <div className="space-y-3">
@@ -205,17 +211,16 @@ export default function PHPReposHospit() {
                         <div className="flex flex-wrap gap-3 text-xs">
                           <span className="flex items-center gap-1" style={{ color: 'var(--fg-muted)' }}>
                             <Calendar size={12} />
-                            Du {new Date(r.dateDebut).toLocaleDateString('fr-FR')}
-                            {' '}au {new Date(r.dateFin).toLocaleDateString('fr-FR')}
+                            {t('Du {{start}} au {{end}}', { start: new Date(r.dateDebut).toLocaleDateString(currentLocale()), end: new Date(r.dateFin).toLocaleDateString(currentLocale()) })}
                           </span>
                           <span className="flex items-center gap-1" style={{ color: 'var(--fg-muted)' }}>
                             <Clock size={12} />
-                            {r.dureeJours} jour{r.dureeJours !== 1 ? 's' : ''}
+                            {t('{{count}} jour(s)', { count: r.dureeJours })}
                           </span>
                           {r.prolongations?.length > 0 && (
                             <span className="flex items-center gap-1" style={{ color: 'var(--brand)' }}>
                               <Plus size={11} />
-                              {r.prolongations.length} prolongation{r.prolongations.length !== 1 ? 's' : ''}
+                              {t('{{count}} prolongation(s)', { count: r.prolongations.length })}
                             </span>
                           )}
                         </div>
@@ -224,17 +229,17 @@ export default function PHPReposHospit() {
                         {expire ? (
                           <div className="mt-2 flex items-center gap-1 text-xs" style={{ color: 'var(--danger)' }}>
                             <AlertCircle size={12} />
-                            Repos expiré depuis {Math.abs(jours)} jour{Math.abs(jours) !== 1 ? 's' : ''}
+                            {t('Repos expiré depuis {{count}} jour(s)', { count: Math.abs(jours) })}
                           </div>
                         ) : urgence ? (
                           <div className="mt-2 flex items-center gap-1 text-xs" style={{ color: 'var(--warning)' }}>
                             <AlertCircle size={12} />
-                            Expire dans {jours} jour{jours !== 1 ? 's' : ''}
+                            {t('Expire dans {{count}} jour(s)', { count: jours })}
                           </div>
                         ) : (
                           <div className="mt-2 flex items-center gap-1 text-xs" style={{ color: 'var(--success)' }}>
                             <CheckCircle size={12} />
-                            {jours} jour{jours !== 1 ? 's' : ''} restant{jours !== 1 ? 's' : ''}
+                            {t('{{count}} jour(s) restant(s)', { count: jours })}
                           </div>
                         )}
 
@@ -251,23 +256,23 @@ export default function PHPReposHospit() {
                           style={{ background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand)' }}
                         >
                           <Plus size={12} />
-                          Prolonger
+                          {t('Prolonger')}
                         </button>
                         <button
                           onClick={async () => {
-                            if (!window.confirm(`Terminer le repos de ${r.patient?.nom} ?`)) return;
+                            if (!window.confirm(t('Terminer le repos de {{name}} ?', { name: r.patient?.nom }))) return;
                             try {
                               await phpConsultationAPI.prolongerRepos(r.id, { terminer: true });
                               loadData();
                             } catch (err) {
-                              toast('Erreur lors de la clôture');
+                              toast(t('Erreur lors de la clôture'));
                             }
                           }}
                           className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition-colors"
                           style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)', border: '1px solid var(--border)' }}
                         >
                           <X size={12} />
-                          Terminer
+                          {t('Terminer')}
                         </button>
                       </div>
                     </div>
@@ -287,7 +292,7 @@ export default function PHPReposHospit() {
           ) : hospitalisations.length === 0 ? (
             <EmptyState
               icon={<BedDouble size={40} style={{ color: 'var(--fg-subtle)' }} />}
-              message="Aucune hospitalisation en cours"
+              message={t('Aucune hospitalisation en cours')}
             />
           ) : (
             <div className="space-y-3">
@@ -325,16 +330,16 @@ export default function PHPReposHospit() {
                         <div className="flex flex-wrap gap-3 text-xs">
                           <span className="flex items-center gap-1 font-medium" style={{ color: 'var(--danger)' }}>
                             <BedDouble size={12} />
-                            {h.serviceHospitalisation || 'Service non précisé'}
+                            {h.serviceHospitalisation || t('Service non précisé')}
                           </span>
                           <span className="flex items-center gap-1" style={{ color: 'var(--fg-muted)' }}>
                             <Calendar size={12} />
-                            Entrée le {new Date(h.dateEntree).toLocaleDateString('fr-FR')}
+                            {t('Entrée le {{date}}', { date: new Date(h.dateEntree).toLocaleDateString(currentLocale()) })}
                           </span>
                           <span className="flex items-center gap-1 font-medium"
                             style={{ color: longSejour ? 'rgb(234,88,12)' : 'var(--fg-muted)' }}>
                             <Clock size={12} />
-                            {nbJours} jour{nbJours !== 1 ? 's' : ''} d'hospitalisation
+                            {t("{{count}} jour(s) d'hospitalisation", { count: nbJours })}
                             {longSejour && ' ⚠️'}
                           </span>
                         </div>
@@ -350,7 +355,7 @@ export default function PHPReposHospit() {
                         style={{ background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' }}
                       >
                         <CheckCircle size={12} />
-                        Sortie
+                        {t('Sortie')}
                       </button>
                     </div>
                   </div>
@@ -407,6 +412,7 @@ function EmptyState({ icon, message }) {
 }
 
 function ProlongerReposModal({ repos, loading, onClose, onSubmit }) {
+  const { t } = useTranslation();
   const [dureeJours, setDureeJours] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -433,16 +439,16 @@ function ProlongerReposModal({ repos, loading, onClose, onSubmit }) {
         <div className="p-5" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
             <Plus size={18} style={{ color: 'var(--brand)' }} />
-            Prolonger le repos maladie
+            {t('Prolonger le repos maladie')}
           </h2>
           <p className="text-xs mt-1" style={{ color: 'var(--fg-muted)' }}>
-            {repos.patient?.nom} {repos.patient?.prenom} — actuellement {repos.dureeJours} jour{repos.dureeJours !== 1 ? 's' : ''}
+            {t('{{name}} {{firstName}} — actuellement {{count}} jour(s)', { name: repos.patient?.nom, firstName: repos.patient?.prenom, count: repos.dureeJours })}
           </p>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>
-              Durée de prolongation (jours) *
+              {t('Durée de prolongation (jours)')} *
             </label>
             <input
               type="number"
@@ -451,31 +457,31 @@ function ProlongerReposModal({ repos, loading, onClose, onSubmit }) {
               value={dureeJours}
               onChange={(e) => setDureeJours(e.target.value)}
               style={inp}
-              placeholder="Ex: 3"
+              placeholder={t('Ex: 3')}
             />
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>
-              Motif de prolongation
+              {t('Motif de prolongation')}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               style={{ ...inp, resize: 'none' }}
-              placeholder="Motif médical..."
+              placeholder={t('Motif médical...')}
             />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2 text-sm rounded-xl transition-colors"
               style={{ border: '1px solid var(--border)', color: 'var(--fg)' }}>
-              Annuler
+              {t('Annuler')}
             </button>
             <button type="submit" disabled={loading}
               className="flex-1 px-4 py-2 text-sm rounded-xl disabled:opacity-50 transition-colors font-medium"
               style={{ background: 'var(--brand)', color: '#fff' }}>
-              {loading ? 'Enregistrement...' : 'Prolonger'}
+              {loading ? t('Enregistrement...') : t('Prolonger')}
             </button>
           </div>
         </form>
@@ -485,6 +491,7 @@ function ProlongerReposModal({ repos, loading, onClose, onSubmit }) {
 }
 
 function SortieHospitalisationModal({ hospit, loading, onClose, onSubmit }) {
+  const { t } = useTranslation();
   const [dateSortie, setDateSortie] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
 
@@ -510,7 +517,7 @@ function SortieHospitalisationModal({ hospit, loading, onClose, onSubmit }) {
         <div className="p-5" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
             <CheckCircle size={18} style={{ color: 'var(--success)' }} />
-            Sortie d'hospitalisation
+            {t("Sortie d'hospitalisation")}
           </h2>
           <p className="text-xs mt-1" style={{ color: 'var(--fg-muted)' }}>
             {hospit.patient?.nom} {hospit.patient?.prenom} — {hospit.serviceHospitalisation || 'N/A'}
@@ -519,7 +526,7 @@ function SortieHospitalisationModal({ hospit, loading, onClose, onSubmit }) {
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>
-              Date de sortie *
+              {t('Date de sortie')} *
             </label>
             <input
               type="date"
@@ -531,26 +538,26 @@ function SortieHospitalisationModal({ hospit, loading, onClose, onSubmit }) {
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--fg)' }}>
-              Notes de sortie
+              {t('Notes de sortie')}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               style={{ ...inp, resize: 'none' }}
-              placeholder="Observations à la sortie..."
+              placeholder={t('Observations à la sortie...')}
             />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2 text-sm rounded-xl transition-colors"
               style={{ border: '1px solid var(--border)', color: 'var(--fg)' }}>
-              Annuler
+              {t('Annuler')}
             </button>
             <button type="submit" disabled={loading}
               className="flex-1 px-4 py-2 text-sm rounded-xl disabled:opacity-50 transition-colors font-medium"
               style={{ background: 'var(--success)', color: '#fff' }}>
-              {loading ? 'Enregistrement...' : 'Confirmer sortie'}
+              {loading ? t('Enregistrement...') : t('Confirmer sortie')}
             </button>
           </div>
         </form>

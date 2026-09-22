@@ -1,9 +1,13 @@
 // frontend/src/pages/ScheduleValidate.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import scheduleService from '../services/scheduleService';
 import { ArrowLeft, Check, X, Loader, Users, CalendarDays, User, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
+import i18n from '../i18n/config';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 // ── Style constants ───────────────────────────────────────────────────────────
 const textareaStyle = {
@@ -15,13 +19,15 @@ const textareaStyle = {
 const dtStyle = { fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 3 };
 const ddStyle = { fontSize: 13, fontWeight: 500, color: 'var(--fg)' };
 
-const VALIDATOR_ROLE_LABELS = {
-  dds: 'Directrice des Soins',
-  medical_chief: 'Médecin Chef',
-  dg: 'Directeur Général',
-};
+const getValidatorRoleLabels = (t) => ({
+  dds: t('Directrice des Soins'),
+  medical_chief: t('Médecin Chef'),
+  dg: t('Directeur Général'),
+});
 
 export default function ScheduleValidate() {
+  const { t } = useTranslation();
+  const VALIDATOR_ROLE_LABELS = getValidatorRoleLabels(t);
   const { id } = useParams();
   const navigate = useNavigate();
   const [schedule, setSchedule] = useState(null);
@@ -39,7 +45,7 @@ export default function ScheduleValidate() {
       const data = await scheduleService.getScheduleById(id);
       setSchedule(data);
     } catch {
-      toast('Erreur lors du chargement du planning');
+      toast(t('Erreur lors du chargement du planning'));
       navigate('/schedules');
     } finally {
       setLoading(false);
@@ -48,21 +54,21 @@ export default function ScheduleValidate() {
 
   const handleValidate = async (validateAction) => {
     if (validateAction === 'reject' && !rejectionReason.trim()) {
-      toast('Veuillez indiquer la raison du rejet');
+      toast(t('Veuillez indiquer la raison du rejet'));
       return;
     }
     const confirmMsg = validateAction === 'approve'
-      ? 'Êtes-vous sûr de vouloir approuver ce planning ?'
-      : 'Êtes-vous sûr de vouloir rejeter ce planning ?';
+      ? t('Êtes-vous sûr de vouloir approuver ce planning ?')
+      : t('Êtes-vous sûr de vouloir rejeter ce planning ?');
     if (!window.confirm(confirmMsg)) return;
 
     setSubmitting(true);
     try {
       await scheduleService.validateSchedule(id, validateAction, comments, rejectionReason);
-      toast(validateAction === 'approve' ? 'Planning approuvé avec succès!' : 'Planning rejeté');
+      toast(validateAction === 'approve' ? t('Planning approuvé avec succès!') : t('Planning rejeté'));
       navigate('/schedules');
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur lors de la validation');
+      toast(err.response?.data?.message || t('Erreur lors de la validation'));
     } finally {
       setSubmitting(false);
     }
@@ -106,12 +112,12 @@ export default function ScheduleValidate() {
             color: 'var(--fg-muted)', fontSize: 12, marginBottom: 10,
           }}
         >
-          <ArrowLeft size={14} /> Retour à la liste
+          <ArrowLeft size={14} /> {t('Retour à la liste')}
         </button>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>
-              Validation du planning
+              {t('Validation du planning')}
             </h1>
             <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>{schedule.title}</div>
           </div>
@@ -126,16 +132,16 @@ export default function ScheduleValidate() {
 
           {/* Details */}
           <div className="ged-card" style={{ padding: '16px 18px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 14 }}>Détails du planning</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 14 }}>{t('Détails du planning')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
-              <div><div style={dtStyle}>Type de planning</div><div style={ddStyle}>{scheduleService.getScheduleTypeLabels()[schedule.scheduleType]}</div></div>
-              <div><div style={dtStyle}>Période</div><div style={ddStyle}>{scheduleService.getMonthName(schedule.month)} {schedule.year}</div></div>
-              <div><div style={dtStyle}>Créé par</div><div style={ddStyle}>{schedule.creator?.firstName} {schedule.creator?.lastName}</div></div>
-              <div><div style={dtStyle}>Date de création</div><div style={ddStyle}>{new Date(schedule.createdAt).toLocaleDateString('fr-FR')}</div></div>
+              <div><div style={dtStyle}>{t('Type de planning')}</div><div style={ddStyle}>{scheduleService.getScheduleTypeLabels()[schedule.scheduleType]}</div></div>
+              <div><div style={dtStyle}>{t('Période')}</div><div style={ddStyle}>{scheduleService.getMonthName(schedule.month)} {schedule.year}</div></div>
+              <div><div style={dtStyle}>{t('Créé par')}</div><div style={ddStyle}>{schedule.creator?.firstName} {schedule.creator?.lastName}</div></div>
+              <div><div style={dtStyle}>{t('Date de création')}</div><div style={ddStyle}>{new Date(schedule.createdAt).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')}</div></div>
             </div>
             {schedule.notes && (
               <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-                <div style={dtStyle}>Notes</div>
+                <div style={dtStyle}>{t('Notes')}</div>
                 <div style={{ fontSize: 13, color: 'var(--fg)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{schedule.notes}</div>
               </div>
             )}
@@ -143,12 +149,12 @@ export default function ScheduleValidate() {
 
           {/* Stats */}
           <div className="ged-card" style={{ padding: '16px 18px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 12 }}>Statistiques</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 12 }}>{t('Statistiques')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {[
-                { value: employeeAssignments.length, label: 'Employés',   color: 'var(--brand)' },
-                { value: schedule.assignments?.length || 0, label: 'Affectations', color: 'var(--success)' },
-                { value: new Date(schedule.year, schedule.month, 0).getDate(), label: 'Jours', color: 'var(--warning)' },
+                { value: employeeAssignments.length, label: t('Employés'),   color: 'var(--brand)' },
+                { value: schedule.assignments?.length || 0, label: t('Affectations'), color: 'var(--success)' },
+                { value: new Date(schedule.year, schedule.month, 0).getDate(), label: t('Jours'), color: 'var(--warning)' },
               ].map(stat => (
                 <div key={stat.label} className="ged-stat" style={{ textAlign: 'center', borderLeft: `3px solid ${stat.color}` }}>
                   <div style={{ fontSize: 28, fontWeight: 700, color: stat.color, marginBottom: 4 }}>{stat.value}</div>
@@ -161,7 +167,7 @@ export default function ScheduleValidate() {
           {/* Assignments preview */}
           <div className="ged-card" style={{ padding: '16px 18px' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 12 }}>
-              Aperçu des affectations ({employeeAssignments.length} employés)
+              {t('Aperçu des affectations ({{count}} employés)', { count: employeeAssignments.length })}
             </div>
             <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {employeeAssignments.map((emp, index) => (
@@ -181,7 +187,7 @@ export default function ScheduleValidate() {
                               borderRadius: 'var(--radius-2)', fontSize: 11,
                               background: bg, color: isLight ? '#000' : '#fff',
                             }}
-                            title={`${new Date(assignment.assignmentDate).toLocaleDateString('fr-FR')} — ${assignment.shiftType?.name}`}
+                            title={`${new Date(assignment.assignmentDate).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')} — ${assignment.shiftType?.name}`}
                           >
                             {assignment.shiftCode}
                           </span>
@@ -199,7 +205,7 @@ export default function ScheduleValidate() {
 
           {/* Validation workflow */}
           <div className="ged-card" style={{ padding: '16px 18px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 12 }}>Workflow de validation</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 12 }}>{t('Workflow de validation')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {schedule.validations?.map((v, i) => {
                 const isApproved = v.status === 'approved';
@@ -215,7 +221,7 @@ export default function ScheduleValidate() {
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{VALIDATOR_ROLE_LABELS[v.validatorRole] || v.validatorRole}</div>
                       {v.validator && <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{v.validator.firstName} {v.validator.lastName}</div>}
                       <div style={{ fontSize: 11, color, marginTop: 1 }}>
-                        {isApproved ? 'Approuvé' : isRejected ? 'Rejeté' : 'En attente'}
+                        {isApproved ? t('Approuvé') : isRejected ? t('Rejeté') : t('En attente')}
                       </div>
                     </div>
                   </div>
@@ -227,16 +233,16 @@ export default function ScheduleValidate() {
           {/* Decision form */}
           {schedule.status.startsWith('pending_') && (
             <div className="ged-card" style={{ padding: '16px 18px' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 14 }}>Votre décision</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 14 }}>{t('Votre décision')}</div>
 
               <div style={{ marginBottom: 12 }}>
-                <label style={{ ...dtStyle, marginBottom: 5 }}>Commentaires (optionnel)</label>
+                <label style={{ ...dtStyle, marginBottom: 5 }}>{t('Commentaires (optionnel)')}</label>
                 <textarea
                   value={comments}
                   onChange={e => setComments(e.target.value)}
                   rows={3}
                   style={textareaStyle}
-                  placeholder="Ajoutez des commentaires…"
+                  placeholder={t('Ajoutez des commentaires…')}
                 />
               </div>
 
@@ -252,7 +258,7 @@ export default function ScheduleValidate() {
                   }}
                 >
                   {submitting ? <Loader size={14} className="animate-spin" /> : <Check size={14} />}
-                  {submitting ? 'Traitement…' : 'Approuver le planning'}
+                  {submitting ? t('Traitement…') : t('Approuver le planning')}
                 </button>
 
                 <button
@@ -264,7 +270,7 @@ export default function ScheduleValidate() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}
                 >
-                  <X size={14} /> Rejeter le planning
+                  <X size={14} /> {t('Rejeter le planning')}
                 </button>
               </div>
 
@@ -272,14 +278,14 @@ export default function ScheduleValidate() {
               {action === 'reject' && (
                 <div style={{ marginTop: 10, padding: '12px 14px', background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-2)' }}>
                   <label style={{ ...dtStyle, color: 'var(--danger)', marginBottom: 6 }}>
-                    Raison du rejet *
+                    {t('Raison du rejet')} *
                   </label>
                   <textarea
                     value={rejectionReason}
                     onChange={e => setRejectionReason(e.target.value)}
                     rows={3}
                     style={{ ...textareaStyle, borderColor: 'var(--danger)' }}
-                    placeholder="Expliquez pourquoi vous rejetez ce planning…"
+                    placeholder={t('Expliquez pourquoi vous rejetez ce planning…')}
                   />
                   <button
                     onClick={() => handleValidate('reject')}
@@ -291,7 +297,7 @@ export default function ScheduleValidate() {
                       opacity: (submitting || !rejectionReason.trim()) ? 0.5 : 1,
                     }}
                   >
-                    {submitting ? 'Traitement…' : 'Confirmer le rejet'}
+                    {submitting ? t('Traitement…') : t('Confirmer le rejet')}
                   </button>
                 </div>
               )}

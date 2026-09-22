@@ -1,5 +1,6 @@
 // frontend/src/components/Layout.jsx
 import { Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Navbar from './Navbar';
 import Breadcrumb from './Breadcrumb';
 import ScrollToTop from './ScrollToTop';
@@ -7,6 +8,7 @@ import KeyboardShortcuts from './KeyboardShortcuts';
 import PageTransition from './PageTransition';
 
 const Layout = () => {
+  const { t } = useTranslation();
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
       <Navbar />
@@ -29,7 +31,7 @@ const Layout = () => {
               <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>v3.0</span>
             </div>
             <p style={{ fontSize: 11, color: 'var(--fg-subtle)', margin: 0 }}>
-              © {new Date().getFullYear()} Gestion Électronique de Documents — Tous droits réservés
+              {t('© {{year}} Gestion Électronique de Documents — Tous droits réservés', { year: new Date().getFullYear() })}
             </p>
           </div>
         </div>

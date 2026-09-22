@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { workflowTemplatesAPI, usersAPI } from '../services/api';
 import {
   Plus, Trash2, Edit3, Save, X, Loader, Users, LayoutGrid,
@@ -87,6 +88,7 @@ function makeStep(index) {
 }
 
 function RoleTag({ role }) {
+  const { t } = useTranslation();
   const r = ROLES.find(x => x.value === role);
   if (!r) return null;
   return (
@@ -95,19 +97,20 @@ function RoleTag({ role }) {
       padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
       background: r.color + '18', color: r.color,
     }}>
-      <Shield size={10} /> {r.label}
+      <Shield size={10} /> {t(r.label)}
     </span>
   );
 }
 
 function StepCard({ step, index, total, onChange, onMove, onDelete, availableUsers, loadingUsers }) {
+  const { t } = useTranslation();
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [search, setSearch] = useState('');
   const searchRef = useRef(null);
 
   const filtered = availableUsers.filter(u => {
-    const t = search.toLowerCase();
-    return `${u.firstName} ${u.lastName}`.toLowerCase().includes(t) || u.role?.toLowerCase().includes(t);
+    const q = search.toLowerCase();
+    return `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q);
   });
 
   const roleColor = ROLES.find(r => r.value === step.role)?.color || 'var(--brand)';
@@ -141,16 +144,16 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
           <input
             value={step.name}
             onChange={e => onChange({ name: e.target.value })}
-            placeholder="Nom de l'étape…"
+            placeholder={t("Nom de l'étape…")}
             style={{
               border: 'none', background: 'transparent', fontSize: 13, fontWeight: 600,
               color: 'var(--fg)', outline: 'none', flex: 1,
             }}
           />
           <div style={{ display: 'flex', gap: 2, marginLeft: 8 }}>
-            <button onClick={() => onMove('up')} disabled={index === 0} title="Monter" style={{ ...s.iconBtn, opacity: index === 0 ? 0.3 : 1 }}><ChevronUp size={13} /></button>
-            <button onClick={() => onMove('down')} disabled={index === total - 1} title="Descendre" style={{ ...s.iconBtn, opacity: index === total - 1 ? 0.3 : 1 }}><ChevronDown size={13} /></button>
-            <button onClick={onDelete} title="Supprimer" style={{ ...s.iconBtn, color: 'var(--danger)', borderColor: 'var(--danger)' }}><Trash2 size={13} /></button>
+            <button onClick={() => onMove('up')} disabled={index === 0} title={t('Monter')} style={{ ...s.iconBtn, opacity: index === 0 ? 0.3 : 1 }}><ChevronUp size={13} /></button>
+            <button onClick={() => onMove('down')} disabled={index === total - 1} title={t('Descendre')} style={{ ...s.iconBtn, opacity: index === total - 1 ? 0.3 : 1 }}><ChevronDown size={13} /></button>
+            <button onClick={onDelete} title={t('Supprimer')} style={{ ...s.iconBtn, color: 'var(--danger)', borderColor: 'var(--danger)' }}><Trash2 size={13} /></button>
           </div>
         </div>
 
@@ -170,7 +173,7 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
               }}
             >
-              <Shield size={12} /> Par rôle
+              <Shield size={12} /> {t('Par rôle')}
             </button>
             <button
               onClick={() => onChange({ validatorType: 'user', role: '' })}
@@ -183,16 +186,16 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
               }}
             >
-              <UserCheck size={12} /> Personne précise
+              <UserCheck size={12} /> {t('Personne précise')}
             </button>
           </div>
 
           {/* Role selector */}
           {step.validatorType === 'role' && (
             <div>
-              <label style={s.label}>Rôle du validateur</label>
+              <label style={s.label}>{t('Rôle du validateur')}</label>
               <select value={step.role} onChange={e => onChange({ role: e.target.value })} style={s.select}>
-                {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                {ROLES.map(r => <option key={r.value} value={r.value}>{t(r.label)}</option>)}
               </select>
               {step.role && <div style={{ marginTop: 6 }}><RoleTag role={step.role} /></div>}
             </div>
@@ -201,7 +204,7 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
           {/* Person selector */}
           {step.validatorType === 'user' && (
             <div>
-              <label style={s.label}>Personne spécifique</label>
+              <label style={s.label}>{t('Personne spécifique')}</label>
               {step.userLabel ? (
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -224,7 +227,7 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
                     value={search}
                     onChange={e => { setSearch(e.target.value); setShowUserSearch(true); }}
                     onFocus={() => setShowUserSearch(true)}
-                    placeholder="Rechercher par nom ou rôle…"
+                    placeholder={t('Rechercher par nom ou rôle…')}
                     style={{ ...s.input, paddingLeft: 28 }}
                   />
                   {showUserSearch && (
@@ -237,7 +240,7 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
                       {loadingUsers ? (
                         <div style={{ padding: 12, textAlign: 'center' }}><Loader size={14} className="animate-spin" color="var(--brand)" /></div>
                       ) : filtered.length === 0 ? (
-                        <div style={{ padding: 10, fontSize: 12, color: 'var(--fg-muted)', textAlign: 'center' }}>Aucun utilisateur trouvé</div>
+                        <div style={{ padding: 10, fontSize: 12, color: 'var(--fg-muted)', textAlign: 'center' }}>{t('Aucun utilisateur trouvé')}</div>
                       ) : filtered.map(u => (
                         <button
                           key={u.id}
@@ -256,7 +259,7 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
                           <span style={{ fontWeight: 500, color: 'var(--fg)' }}>{u.firstName} {u.lastName}</span>
-                          <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{ROLES.find(r => r.value === u.role)?.label || u.role}</span>
+                          <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t(ROLES.find(r => r.value === u.role)?.label || u.role)}</span>
                         </button>
                       ))}
                     </div>
@@ -269,19 +272,19 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
           {/* Deadline + On reject — row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
-              <label style={s.label}><Clock size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} />Délai (jours)</label>
+              <label style={s.label}><Clock size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} />{t('Délai (jours)')}</label>
               <input
                 type="number" min="1" max="365"
                 value={step.deadlineDays}
                 onChange={e => onChange({ deadlineDays: e.target.value })}
-                placeholder="Aucun"
+                placeholder={t('Aucun')}
                 style={{ ...s.input, width: '100%' }}
               />
             </div>
             <div>
-              <label style={s.label}><AlertCircle size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} />Si rejeté</label>
+              <label style={s.label}><AlertCircle size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} />{t('Si rejeté')}</label>
               <select value={step.onReject} onChange={e => onChange({ onReject: e.target.value })} style={s.select}>
-                {REJECT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {REJECT_OPTIONS.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
               </select>
             </div>
           </div>
@@ -295,6 +298,7 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function WorkflowTemplatesPage() {
+  const { t } = useTranslation();
   const [templates, setTemplates]   = useState([]);
   const [loading, setLoading]       = useState(true);
   const [showForm, setShowForm]     = useState(false);
@@ -317,7 +321,7 @@ export default function WorkflowTemplatesPage() {
       setLoading(true);
       const res = await workflowTemplatesAPI.getAll();
       setTemplates(res.data?.data || []);
-    } catch { toast.error('Erreur chargement des modèles'); }
+    } catch { toast.error(t('Erreur chargement des modèles')); }
     finally { setLoading(false); }
   };
 
@@ -325,9 +329,9 @@ export default function WorkflowTemplatesPage() {
     try {
       setSeeding(true);
       const res = await workflowTemplatesAPI.seed();
-      toast.success(res.data?.message || 'Modèles créés');
+      toast.success(res.data?.message || t('Modèles créés'));
       loadTemplates();
-    } catch { toast.error('Erreur lors de la création des modèles manquants'); }
+    } catch { toast.error(t('Erreur lors de la création des modèles manquants')); }
     finally { setSeeding(false); }
   };
 
@@ -385,17 +389,17 @@ export default function WorkflowTemplatesPage() {
         categories: tpl.categories,
         validators: tpl.validators,
       });
-      toast.success('Modèle dupliqué');
+      toast.success(t('Modèle dupliqué'));
       loadTemplates();
-    } catch { toast.error('Erreur duplication'); }
+    } catch { toast.error(t('Erreur duplication')); }
   };
 
   const handleSave = async () => {
-    if (!formName.trim()) { toast.error('Le nom est requis'); return; }
-    if (formSteps.length === 0) { toast.error('Ajoutez au moins une étape'); return; }
+    if (!formName.trim()) { toast.error(t('Le nom est requis')); return; }
+    if (formSteps.length === 0) { toast.error(t('Ajoutez au moins une étape')); return; }
     for (const step of formSteps) {
       if (step.validatorType === 'user' && !step.userId) {
-        toast.error(`L'étape "${step.name}" nécessite une personne sélectionnée`); return;
+        toast.error(t('L\'étape "{{name}}" nécessite une personne sélectionnée', { name: step.name })); return;
       }
     }
     try {
@@ -406,17 +410,17 @@ export default function WorkflowTemplatesPage() {
         categories: formCategories.length ? formCategories : null,
         validators: stepsToValidators(formSteps),
       };
-      if (editingId) { await workflowTemplatesAPI.update(editingId, payload); toast.success('Modèle mis à jour'); }
-      else           { await workflowTemplatesAPI.create(payload);            toast.success('Modèle créé'); }
+      if (editingId) { await workflowTemplatesAPI.update(editingId, payload); toast.success(t('Modèle mis à jour')); }
+      else           { await workflowTemplatesAPI.create(payload);            toast.success(t('Modèle créé')); }
       setShowForm(false); loadTemplates();
-    } catch { toast.error('Erreur lors de la sauvegarde'); }
+    } catch { toast.error(t('Erreur lors de la sauvegarde')); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id, name) => {
-    if (!window.confirm(`Supprimer le modèle "${name}" ?`)) return;
-    try { await workflowTemplatesAPI.delete(id); toast.success('Supprimé'); loadTemplates(); }
-    catch { toast.error('Erreur suppression'); }
+    if (!window.confirm(t('Supprimer le modèle "{{name}}" ?', { name }))) return;
+    try { await workflowTemplatesAPI.delete(id); toast.success(t('Supprimé')); loadTemplates(); }
+    catch { toast.error(t('Erreur suppression')); }
   };
 
   const updateStep = (index, patch) => {
@@ -453,18 +457,18 @@ export default function WorkflowTemplatesPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, paddingTop: 4 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <LayoutGrid size={20} color="var(--brand)" /> Modèles de workflow
+            <LayoutGrid size={20} color="var(--brand)" /> {t('Modèles de workflow')}
           </h1>
           <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>
-            Circuits de validation configurables — {templates.length} modèle{templates.length !== 1 ? 's' : ''}
+            {t('Circuits de validation configurables — {{count}} modèle(s)', { count: templates.length })}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleSeed} disabled={seeding} style={{ ...s.btnOutline, opacity: seeding ? 0.6 : 1 }} title="Créer un modèle par défaut pour chaque template codé en dur qui n'en a pas encore">
-            {seeding ? <Loader size={14} className="animate-spin" /> : <Copy size={14} />} Créer les modèles manquants
+          <button onClick={handleSeed} disabled={seeding} style={{ ...s.btnOutline, opacity: seeding ? 0.6 : 1 }} title={t("Créer un modèle par défaut pour chaque template codé en dur qui n'en a pas encore")}>
+            {seeding ? <Loader size={14} className="animate-spin" /> : <Copy size={14} />} {t('Créer les modèles manquants')}
           </button>
           <button onClick={openCreate} style={s.btnPrimary}>
-            <Plus size={14} /> Nouveau modèle
+            <Plus size={14} /> {t('Nouveau modèle')}
           </button>
         </div>
       </div>
@@ -475,11 +479,11 @@ export default function WorkflowTemplatesPage() {
           <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--brand-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
             <LayoutGrid size={28} color="var(--brand)" />
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', marginBottom: 6 }}>Aucun modèle de workflow</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', marginBottom: 6 }}>{t('Aucun modèle de workflow')}</div>
           <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 20, maxWidth: 360 }}>
-            Créez des circuits de validation adaptés à vos processus. Chaque modèle définit les étapes, les validateurs et les délais.
+            {t('Créez des circuits de validation adaptés à vos processus. Chaque modèle définit les étapes, les validateurs et les délais.')}
           </div>
-          <button onClick={openCreate} style={s.btnPrimary}><Plus size={14} /> Créer le premier modèle</button>
+          <button onClick={openCreate} style={s.btnPrimary}><Plus size={14} /> {t('Créer le premier modèle')}</button>
         </div>
       )}
 
@@ -517,8 +521,8 @@ export default function WorkflowTemplatesPage() {
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>{i + 1}</span>
                             {isRole ? <Shield size={10} /> : <UserCheck size={10} />}
-                            {v.name || (isRole ? roleData?.label || v.role : v.label)}
-                            {v.deadlineDays && <span style={{ opacity: 0.7 }}>· {v.deadlineDays}j</span>}
+                            {v.name || (isRole ? t(roleData?.label || v.role) : v.label)}
+                            {v.deadlineDays && <span style={{ opacity: 0.7 }}>· {t('{{days}}j', { days: v.deadlineDays })}</span>}
                           </div>
                           {i < steps.length - 1 && (
                             <ArrowDown size={12} color="var(--fg-subtle)" style={{ transform: 'rotate(-90deg)' }} />
@@ -535,7 +539,7 @@ export default function WorkflowTemplatesPage() {
                         <span key={i} style={{
                           fontSize: 11, padding: '1px 7px', borderRadius: 'var(--radius-2)',
                           background: 'var(--surface-2)', color: 'var(--fg-muted)', border: '1px solid var(--border)',
-                        }}>{c}</span>
+                        }}>{t(c)}</span>
                       ))}
                     </div>
                   )}
@@ -543,17 +547,17 @@ export default function WorkflowTemplatesPage() {
 
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                  <button onClick={() => duplicateTemplate(tpl)} title="Dupliquer" style={s.iconBtn}
+                  <button onClick={() => duplicateTemplate(tpl)} title={t('Dupliquer')} style={s.iconBtn}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.color = 'var(--brand)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--fg-muted)'; }}>
                     <Copy size={13} />
                   </button>
-                  <button onClick={() => openEdit(tpl)} title="Modifier" style={s.iconBtn}
+                  <button onClick={() => openEdit(tpl)} title={t('Modifier')} style={s.iconBtn}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.color = 'var(--brand)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--fg-muted)'; }}>
                     <Edit3 size={13} />
                   </button>
-                  <button onClick={() => handleDelete(tpl.id, tpl.name)} title="Supprimer" style={s.iconBtn}
+                  <button onClick={() => handleDelete(tpl.id, tpl.name)} title={t('Supprimer')} style={s.iconBtn}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--danger)'; e.currentTarget.style.color = 'var(--danger)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--fg-muted)'; }}>
                     <Trash2 size={13} />
@@ -582,10 +586,10 @@ export default function WorkflowTemplatesPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>
-                  {editingId ? 'Modifier le modèle' : 'Nouveau modèle de workflow'}
+                  {editingId ? t('Modifier le modèle') : t('Nouveau modèle de workflow')}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 1 }}>
-                  Définissez les étapes, les validateurs et les délais
+                  {t('Définissez les étapes, les validateurs et les délais')}
                 </div>
               </div>
               <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex' }}>
@@ -599,27 +603,27 @@ export default function WorkflowTemplatesPage() {
               {/* Name + Description */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={s.label}>Nom du modèle *</label>
-                  <input style={s.input} value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex : Validation RH, Circuit direction…" />
+                  <label style={s.label}>{t('Nom du modèle')} *</label>
+                  <input style={s.input} value={formName} onChange={e => setFormName(e.target.value)} placeholder={t('Ex : Validation RH, Circuit direction…')} />
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={s.label}>Description</label>
-                  <input style={s.input} value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Brève description du circuit…" />
+                  <label style={s.label}>{t('Description')}</label>
+                  <input style={s.input} value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder={t('Brève description du circuit…')} />
                 </div>
               </div>
 
               {/* Categories */}
               <div>
-                <label style={s.label}>Catégories de documents concernés</label>
+                <label style={s.label}>{t('Catégories de documents concernés')}</label>
                 <div style={{ display: 'flex', gap: 6, marginBottom: formCategories.length ? 8 : 0 }}>
                   <select
                     value=""
                     onChange={e => { if (e.target.value) addCategory(e.target.value); }}
                     style={{ ...s.input, flex: 1 }}
                   >
-                    <option value="">Sélectionner un type de document…</option>
+                    <option value="">{t('Sélectionner un type de document…')}</option>
                     {HARDCODED_CATEGORIES.filter(c => !formCategories.includes(c)).map(c => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c} value={c}>{t(c)}</option>
                     ))}
                   </select>
                 </div>
@@ -631,7 +635,7 @@ export default function WorkflowTemplatesPage() {
                         padding: '3px 8px', borderRadius: 999, fontSize: 11,
                         background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--fg-muted)',
                       }}>
-                        {c}
+                        {t(c)}
                         <button onClick={() => setFormCategories(prev => prev.filter((_, j) => j !== i))}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-subtle)', padding: 0, display: 'flex' }}>
                           <X size={10} />
@@ -641,16 +645,16 @@ export default function WorkflowTemplatesPage() {
                   </div>
                 )}
                 <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 4 }}>
-                  Laisser vide = applicable à tous les types de documents
+                  {t('Laisser vide = applicable à tous les types de documents')}
                 </div>
               </div>
 
               {/* Steps builder */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <label style={{ ...s.label, margin: 0 }}>Étapes du circuit ({formSteps.length})</label>
+                  <label style={{ ...s.label, margin: 0 }}>{t('Étapes du circuit ({{count}})', { count: formSteps.length })}</label>
                   <button onClick={addStep} style={{ ...s.btnOutline, height: 28, fontSize: 12 }}>
-                    <Plus size={12} /> Ajouter une étape
+                    <Plus size={12} /> {t('Ajouter une étape')}
                   </button>
                 </div>
 
@@ -675,8 +679,8 @@ export default function WorkflowTemplatesPage() {
                     display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
                     padding: '32px 16px', border: '2px dashed var(--border)', borderRadius: 'var(--radius-3)',
                   }}>
-                    <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 10 }}>Aucune étape définie</div>
-                    <button onClick={addStep} style={s.btnPrimary}><Plus size={13} /> Ajouter la première étape</button>
+                    <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 10 }}>{t('Aucune étape définie')}</div>
+                    <button onClick={addStep} style={s.btnPrimary}><Plus size={13} /> {t('Ajouter la première étape')}</button>
                   </div>
                 )}
               </div>
@@ -684,14 +688,14 @@ export default function WorkflowTemplatesPage() {
 
             {/* Modal footer */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 18px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-              <button onClick={() => setShowForm(false)} style={s.btnOutline}>Annuler</button>
+              <button onClick={() => setShowForm(false)} style={s.btnOutline}>{t('Annuler')}</button>
               <button
                 onClick={handleSave}
                 disabled={saving || !formName.trim() || formSteps.length === 0}
                 style={{ ...s.btnPrimary, opacity: (saving || !formName.trim() || formSteps.length === 0) ? 0.5 : 1 }}
               >
                 {saving ? <Loader size={13} className="animate-spin" /> : <Save size={13} />}
-                {editingId ? 'Mettre à jour' : 'Créer le modèle'}
+                {editingId ? t('Mettre à jour') : t('Créer le modèle')}
               </button>
             </div>
           </div>

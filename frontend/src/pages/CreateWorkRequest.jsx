@@ -1,6 +1,7 @@
 // frontend/src/pages/CreateWorkRequest.jsx - VERSION AVEC TRI CORRECT DES VALIDATEURS
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { listsAPI, documentsAPI, workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +13,7 @@ import toast from 'react-hot-toast';
 
 const CreateWorkRequest = () => {
     const { user } = useAuth();
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const pdfContainerRef = useRef(null);
 
@@ -43,7 +45,7 @@ const CreateWorkRequest = () => {
                 const response = await listsAPI.getServicesWithMembers();
                 setServices(response.data.data || []);
             } catch (err) {
-                setError('Impossible de charger les services.');
+                setError(t('Impossible de charger les services.'));
                 console.error(err);
             } finally {
                 setLoading(false);
@@ -61,7 +63,7 @@ const CreateWorkRequest = () => {
                     const response = await listsAPI.getMotifs(formData.type);
                     setMotifs(response.data.data || []);
                 } catch (err) {
-                    setError('Impossible de charger les motifs.');
+                    setError(t('Impossible de charger les motifs.'));
                     console.error(err);
                 } finally {
                     setLoading(false);
@@ -101,7 +103,7 @@ const CreateWorkRequest = () => {
                     const allValidators = response.data.data || [];
                     setAvailableValidators(allValidators);
                 } catch (err) {
-                    setError('Impossible de charger les validateurs.');
+                    setError(t('Impossible de charger les validateurs.'));
                     console.error(err);
                 }
             };
@@ -144,7 +146,7 @@ const CreateWorkRequest = () => {
                     firstName: chefDeService.user.firstName,
                     lastName: chefDeService.user.lastName,
                     email: chefDeService.user.email,
-                    position: `Chef de Service - ${formData.service}`,
+                    position: t('Chef de Service - {{service}}', { service: formData.service }),
                     ordre: 1,
                     isChefService: true,
                 });
@@ -197,7 +199,7 @@ const CreateWorkRequest = () => {
                         firstName: m.user.firstName,
                         lastName: m.user.lastName,
                         email: m.user.email,
-                        position: `Service Informatique - ${m.fonction}`,
+                        position: t('Service Informatique - {{fonction}}', { fonction: m.fonction }),
                         ordre: 2,
                     });
                 });
@@ -230,19 +232,19 @@ const CreateWorkRequest = () => {
 
         // Validations par étape
         if (step === 1 && !formData.service) {
-            return setError("Veuillez choisir un service.");
+            return setError(t("Veuillez choisir un service."));
         }
         if (step === 2 && !formData.type) {
-            return setError("Veuillez choisir un type de problème.");
+            return setError(t("Veuillez choisir un type de problème."));
         }
         if (step === 3 && !formData.motifId) {
-            return setError("Veuillez choisir ou créer un motif.");
+            return setError(t("Veuillez choisir ou créer un motif."));
         }
         if (step === 3 && formData.motifId === 'autre' && !formData.customMotif.trim()) {
-            return setError("Veuillez spécifier le motif personnalisé.");
+            return setError(t("Veuillez spécifier le motif personnalisé."));
         }
         if (step === 4 && selectedValidators.length === 0) {
-            return setError("Veuillez sélectionner au moins un validateur.");
+            return setError(t("Veuillez sélectionner au moins un validateur."));
         }
 
         setStep(stepNumber);
@@ -340,11 +342,11 @@ const CreateWorkRequest = () => {
                 validatorIds: orderedValidators
             });
 
-            toast.success('Demande de travaux créée et soumise avec succès !');
+            toast.success(t('Demande de travaux créée et soumise avec succès !'));
             navigate('/documents');
 
         } catch (err) {
-            setError(err.response?.data?.message || "Une erreur est survenue lors de la soumission.");
+            setError(err.response?.data?.message || t("Une erreur est survenue lors de la soumission."));
             console.error('Erreur soumission:', err);
         } finally {
             setSubmitting(false);
@@ -362,8 +364,8 @@ const CreateWorkRequest = () => {
 
     return (
         <div className="max-w-4xl mx-auto p-8 min-h-screen" style={{ background: 'var(--surface-2)' }}>
-            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--fg)' }}>Nouvelle Demande de Travaux</h1>
-            <p className="mb-8" style={{ color: 'var(--fg-muted)' }}>Suivez les étapes pour compléter votre demande.</p>
+            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--fg)' }}>{t('Nouvelle Demande de Travaux')}</h1>
+            <p className="mb-8" style={{ color: 'var(--fg-muted)' }}>{t('Suivez les étapes pour compléter votre demande.')}</p>
 
             {/* Indicateur de progression */}
             <div className="mb-8 flex items-center justify-center gap-2">
@@ -394,7 +396,7 @@ const CreateWorkRequest = () => {
                     {/* Étape 1: Service */}
                     {step === 1 && (
                         <div>
-                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>Étape 1 : Quel est votre service ?</h2>
+                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>{t('Étape 1 : Quel est votre service ?')}</h2>
                             {loading ? (
                                 <Loader className="animate-spin mx-auto" />
                             ) : (
@@ -404,7 +406,7 @@ const CreateWorkRequest = () => {
                                     className="w-full p-3 rounded-lg"
                                     style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)' }}
                                 >
-                                    <option value="">-- Sélectionnez un service --</option>
+                                    <option value="">{t('-- Sélectionnez un service --')}</option>
                                     {services.map(s => (
                                         <option key={s.id} value={s.id}>{s.name}</option>
                                     ))}
@@ -416,7 +418,7 @@ const CreateWorkRequest = () => {
                     {/* Étape 2: Type */}
                     {step === 2 && (
                         <div>
-                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>Étape 2 : Type de problème</h2>
+                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>{t('Étape 2 : Type de problème')}</h2>
                             <div className="grid grid-cols-3 gap-4">
                                 <button
                                     onClick={() => setFormData({...formData, type: 'MG'})}
@@ -426,8 +428,8 @@ const CreateWorkRequest = () => {
                                         : { border: '2px solid var(--border)', background: 'var(--surface)' }
                                     }
                                 >
-                                    <p className="font-bold text-lg" style={{ color: 'var(--fg)' }}>Moyens Généraux</p>
-                                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>Plomberie, électricité, bâtiment...</p>
+                                    <p className="font-bold text-lg" style={{ color: 'var(--fg)' }}>{t('Moyens Généraux')}</p>
+                                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>{t('Plomberie, électricité, bâtiment...')}</p>
                                 </button>
                                 <button
                                     onClick={() => setFormData({...formData, type: 'Biomedical'})}
@@ -437,8 +439,8 @@ const CreateWorkRequest = () => {
                                         : { border: '2px solid var(--border)', background: 'var(--surface)' }
                                     }
                                 >
-                                    <p className="font-bold text-lg" style={{ color: 'var(--fg)' }}>Biomédical</p>
-                                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>Équipements médicaux</p>
+                                    <p className="font-bold text-lg" style={{ color: 'var(--fg)' }}>{t('Biomédical')}</p>
+                                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>{t('Équipements médicaux')}</p>
                                 </button>
                                 <button
                                     onClick={() => setFormData({...formData, type: 'Informatique'})}
@@ -448,8 +450,8 @@ const CreateWorkRequest = () => {
                                         : { border: '2px solid var(--border)', background: 'var(--surface)' }
                                     }
                                 >
-                                    <p className="font-bold text-lg" style={{ color: 'var(--fg)' }}>Informatique</p>
-                                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>Matériel, réseau, logiciels...</p>
+                                    <p className="font-bold text-lg" style={{ color: 'var(--fg)' }}>{t('Informatique')}</p>
+                                    <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>{t('Matériel, réseau, logiciels...')}</p>
                                 </button>
                             </div>
                         </div>
@@ -458,7 +460,7 @@ const CreateWorkRequest = () => {
                     {/* Étape 3: Motif */}
                     {step === 3 && (
                         <div>
-                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>Étape 3 : Motif de la demande</h2>
+                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>{t('Étape 3 : Motif de la demande')}</h2>
                             {loading ? (
                                 <Loader className="animate-spin mx-auto" />
                             ) : (
@@ -469,17 +471,17 @@ const CreateWorkRequest = () => {
                                         className="w-full p-3 rounded-lg"
                                         style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)' }}
                                     >
-                                        <option value="">-- Choisissez un motif --</option>
+                                        <option value="">{t('-- Choisissez un motif --')}</option>
                                         {motifs.map(m => (
                                             <option key={m.id} value={m.id}>{m.name}</option>
                                         ))}
-                                        <option value="autre">✏️ Autre (à préciser)</option>
+                                        <option value="autre">✏️ {t('Autre (à préciser)')}</option>
                                     </select>
                                     {formData.motifId === 'autre' && (
                                         <textarea
                                             value={formData.customMotif}
                                             onChange={(e) => setFormData({...formData, customMotif: e.target.value})}
-                                            placeholder="Décrivez précisément le problème..."
+                                            placeholder={t('Décrivez précisément le problème...')}
                                             className="w-full p-3 rounded-lg h-32"
                                             style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)' }}
                                         />
@@ -492,15 +494,15 @@ const CreateWorkRequest = () => {
                     {/* Étape 4: Sélection des validateurs */}
                     {step === 4 && (
                         <div>
-                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>Étape 4 : Sélectionnez les validateurs</h2>
+                            <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--fg)' }}>{t('Étape 4 : Sélectionnez les validateurs')}</h2>
 
                             <div className="p-4 rounded-lg mb-4 flex gap-3" style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
                                 <Info className="flex-shrink-0 mt-1" size={20} style={{ color: 'var(--brand)' }} />
                                 <div className="text-sm" style={{ color: 'var(--brand)' }}>
                                     {formData.type === 'MG' ? (
-                                        <p><strong>Demande Moyens Généraux :</strong> Chef de Service → MG → SécuLog → <strong style={{ color: 'var(--danger)' }}>Directeur du Soutien (EN DERNIER)</strong></p>
+                                        <p><strong>{t('Demande Moyens Généraux :')}</strong> {t('Chef de Service → MG → SécuLog →')} <strong style={{ color: 'var(--danger)' }}>{t('Directeur du Soutien (EN DERNIER)')}</strong></p>
                                     ) : (
-                                        <p><strong>Demande Biomédical :</strong> Chef de Service → Cellule Biomédical → Directrice Adjointe</p>
+                                        <p><strong>{t('Demande Biomédical :')}</strong> {t('Chef de Service → Cellule Biomédical → Directrice Adjointe')}</p>
                                     )}
                                 </div>
                             </div>
@@ -509,8 +511,8 @@ const CreateWorkRequest = () => {
                                 <div className="p-4 rounded-lg mb-4 flex gap-3" style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning)' }}>
                                     <Users className="flex-shrink-0 mt-1" size={20} style={{ color: 'var(--warning)' }} />
                                     <div className="text-sm" style={{ color: 'var(--warning)' }}>
-                                        <p><strong>Aucun Chef de Service disponible pour ce service.</strong></p>
-                                        <p className="mt-1">Veuillez contacter l'administrateur pour configurer un Chef de Service pour <strong>{formData.service}</strong>.</p>
+                                        <p><strong>{t('Aucun Chef de Service disponible pour ce service.')}</strong></p>
+                                        <p className="mt-1">{t('Veuillez contacter l\'administrateur pour configurer un Chef de Service pour')} <strong>{formData.service}</strong>.</p>
                                     </div>
                                 </div>
                             )}
@@ -518,7 +520,7 @@ const CreateWorkRequest = () => {
                             <div className="space-y-3">
                                 {dynamicValidators.length === 0 ? (
                                     <p className="text-center py-4" style={{ color: 'var(--fg-muted)' }}>
-                                        Aucun validateur disponible pour ce type de demande.
+                                        {t('Aucun validateur disponible pour ce type de demande.')}
                                     </p>
                                 ) : (
                                     dynamicValidators.map((validator, index) => {
@@ -544,19 +546,19 @@ const CreateWorkRequest = () => {
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs font-bold px-2 py-1 rounded" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>
-                                                            Étape {index + 1}
+                                                            {t('Étape {{num}}', { num: index + 1 })}
                                                         </span>
                                                         <p className="font-semibold" style={{ color: 'var(--fg)' }}>
                                                             {validator.firstName} {validator.lastName}
                                                         </p>
                                                         {validator.isChefService && (
                                                             <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
-                                                                Chef de Service
+                                                                {t('Chef de Service')}
                                                             </span>
                                                         )}
                                                         {isDirecteur && (
                                                             <span className="text-xs px-2 py-1 rounded font-bold" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
-                                                                ⚠️ EN DERNIER
+                                                                ⚠️ {t('EN DERNIER')}
                                                             </span>
                                                         )}
                                                     </div>
@@ -585,7 +587,7 @@ const CreateWorkRequest = () => {
                                 className="px-6 py-2 rounded-lg transition"
                                 style={{ background: 'var(--surface-3)', color: 'var(--fg)' }}
                             >
-                                Retour
+                                {t('Retour')}
                             </button>
                         )}
                         <button
@@ -593,7 +595,7 @@ const CreateWorkRequest = () => {
                             className="px-6 py-2 font-semibold rounded-lg flex items-center gap-2 ml-auto transition"
                             style={{ background: 'var(--brand)', color: '#fff' }}
                         >
-                            Suivant <ArrowRight size={18}/>
+                            {t('Suivant')} <ArrowRight size={18}/>
                         </button>
                     </div>
                 </div>
@@ -603,7 +605,7 @@ const CreateWorkRequest = () => {
             {step === 5 && (
                 <div>
                     <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--fg)' }}>
-                        <CheckCircle style={{ color: 'var(--success)' }}/> Prévisualisation du document
+                        <CheckCircle style={{ color: 'var(--success)' }}/> {t('Prévisualisation du document')}
                     </h2>
 
                     <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-2)' }}>
@@ -626,7 +628,7 @@ const CreateWorkRequest = () => {
                             className="px-6 py-3 rounded-lg transition"
                             style={{ background: 'var(--surface-3)', color: 'var(--fg)' }}
                         >
-                            Retour
+                            {t('Retour')}
                         </button>
                         <button
                             onClick={handleFinalSubmit}
@@ -637,12 +639,12 @@ const CreateWorkRequest = () => {
                             {submitting ? (
                                 <>
                                     <Loader className="animate-spin w-5 h-5" />
-                                    Génération en cours...
+                                    {t('Génération en cours...')}
                                 </>
                             ) : (
                                 <>
                                     <Send size={18}/>
-                                    Générer et Soumettre
+                                    {t('Générer et Soumettre')}
                                 </>
                             )}
                         </button>

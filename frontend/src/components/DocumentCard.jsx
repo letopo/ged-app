@@ -1,6 +1,10 @@
 // frontend/src/components/DocumentCard.jsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Download, Eye, Trash2 } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 const CATEGORY_COLOR = {
   facture:    'var(--success)',
@@ -43,9 +47,11 @@ const formatFileSize = (bytes) => {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
 
-const formatDate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-
 export default function DocumentCard({ document, onDelete, onView }) {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+  const formatDate = (d) => new Date(d).toLocaleDateString(BCP47_LOCALES[lang] || 'fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+
   const workflows    = document.Workflows || [];
   const currentWf    = workflows[0] || null;
   const totalSteps   = currentWf?.steps?.length || 0;
@@ -64,7 +70,7 @@ export default function DocumentCard({ document, onDelete, onView }) {
         background: statusColor, color: '#fff',
         padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
       }}>
-        {STATUS_LABEL[document.status] || document.status}
+        {t(STATUS_LABEL[document.status] || document.status)}
       </span>
 
       {/* Title row */}
@@ -75,7 +81,7 @@ export default function DocumentCard({ document, onDelete, onView }) {
             {document.title}
           </div>
           <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 1 }}>
-            Par {document.User?.username || 'Inconnu'}
+            {t('Par {{name}}', { name: document.User?.username || t('Inconnu') })}
           </div>
           <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 1 }}>
             {formatDate(document.createdAt)}
@@ -87,7 +93,7 @@ export default function DocumentCard({ document, onDelete, onView }) {
       {currentWf && totalSteps > 0 && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 5 }}>
-            Progression ({approvedSteps}/{totalSteps})
+            {t('Progression ({{done}}/{{total}})', { done: approvedSteps, total: totalSteps })}
           </div>
           <div style={{ height: 6, background: 'var(--border)', borderRadius: 999, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${progress}%`, background: 'var(--brand)', borderRadius: 999, transition: 'width .3s' }} />
@@ -97,7 +103,7 @@ export default function DocumentCard({ document, onDelete, onView }) {
               const c = step.status === 'approved' ? 'var(--success)' : step.status === 'rejected' ? 'var(--danger)' : 'var(--fg-muted)';
               return (
                 <div key={i} style={{ fontSize: 11, color: c }}>
-                  {step.User?.username} ({step.status})
+                  {step.User?.username} ({t(step.status)})
                 </div>
               );
             })}
@@ -131,7 +137,7 @@ export default function DocumentCard({ document, onDelete, onView }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
           }}
         >
-          <Eye size={13} /> Voir
+          <Eye size={13} /> {t('Voir')}
         </button>
 
         <a
@@ -145,12 +151,12 @@ export default function DocumentCard({ document, onDelete, onView }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
           }}
         >
-          <Download size={13} /> Télécharger
+          <Download size={13} /> {t('Télécharger')}
         </a>
 
         <button
           onClick={() => onDelete(document.id)}
-          title="Supprimer"
+          title={t('Supprimer')}
           style={{
             width: 32, height: 32, borderRadius: 'var(--radius-2)', border: 'none',
             background: 'var(--danger-soft)', color: 'var(--danger)',

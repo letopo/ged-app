@@ -1,7 +1,11 @@
 // frontend/src/pages/GMAOPage.jsx
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { gmaoAPI, listsAPI } from '../services/api';
 import { useConfirm } from '../components/ConfirmModal';
+import i18n from '../i18n/config';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 import {
   Wrench, Plus, Edit2, Trash2, X, Save, ChevronLeft, ChevronRight,
   AlertCircle, CheckCircle, Clock, BarChart2, Calendar, List,
@@ -115,6 +119,7 @@ function StatCard({ label, value, icon: Icon, color, bg }) {
 // ─── EQUIPMENT MODAL ─────────────────────────────────────────────────────────
 
 function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(initial || EMPTY_EQ);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -130,14 +135,14 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.nom.trim()) { setError('Le nom est requis.'); return; }
+    if (!form.nom.trim()) { setError(t('Le nom est requis.')); return; }
     setSaving(true);
     setError('');
     try {
       await onSave(form);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde');
+      setError(err.response?.data?.message || err.message || t('Erreur lors de la sauvegarde'));
     } finally {
       setSaving(false);
     }
@@ -148,7 +153,7 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
       <div className="shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
         <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>
-            {initial?.id ? 'Modifier l\'équipement' : 'Ajouter un équipement'}
+            {initial?.id ? t("Modifier l'équipement") : t('Ajouter un équipement')}
           </h2>
           <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
             <X className="w-5 h-5" />
@@ -166,18 +171,18 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
-                Nom <span style={{ color: 'var(--danger)' }}>*</span>
+                {t('Nom')} <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <input
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.nom}
                 onChange={e => set('nom', e.target.value)}
-                placeholder="Ex: Moniteur multi-paramètres"
+                placeholder={t('Ex: Moniteur multi-paramètres')}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Référence</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Référence')}</label>
               <input
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.reference}
@@ -187,7 +192,7 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Numéro de série</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Numéro de série')}</label>
               <input
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.numero_serie}
@@ -197,42 +202,42 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Service</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Service')}</label>
               <select
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.service}
                 onChange={e => set('service', e.target.value)}
               >
-                <option value="">-- Sélectionner --</option>
+                <option value="">{t('-- Sélectionner --')}</option>
                 {form.service && !services.includes(form.service) && (
-                  <option value={form.service}>{form.service} (ancien)</option>
+                  <option value={form.service}>{t('{{service}} (ancien)', { service: form.service })}</option>
                 )}
                 {services.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Type d'équipement</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t("Type d'équipement")}</label>
               <input
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.type_equipement}
                 onChange={e => set('type_equipement', e.target.value)}
-                placeholder="Ex: Monitoring, Respirateur..."
+                placeholder={t('Ex: Monitoring, Respirateur...')}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Marque</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Marque')}</label>
               <input
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.marque}
                 onChange={e => set('marque', e.target.value)}
-                placeholder="Ex: Philips, GE, Mindray..."
+                placeholder={t('Ex: Philips, GE, Mindray...')}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Modèle</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Modèle')}</label>
               <input
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.modele}
@@ -242,7 +247,7 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Date mise en service</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Date mise en service')}</label>
               <input
                 type="date"
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
@@ -261,20 +266,20 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Statut</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Statut')}</label>
               <select
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.statut}
                 onChange={e => set('statut', e.target.value)}
               >
-                <option value="actif">Actif</option>
-                <option value="en_reparation">En réparation</option>
-                <option value="hors_service">Hors service</option>
+                <option value="actif">{t('Actif')}</option>
+                <option value="en_reparation">{t('En réparation')}</option>
+                <option value="hors_service">{t('Hors service')}</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Matricule</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Matricule')}</label>
               <input
                 name="matricule"
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
@@ -285,34 +290,34 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Origine</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Origine')}</label>
               <select
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.origine || ''}
                 onChange={e => set('origine', e.target.value)}
               >
-                <option value="">-- Sélectionner --</option>
-                <option value="achat">Achat</option>
-                <option value="don">Don</option>
-                <option value="transfert">Transfert</option>
-                <option value="autre">Autre</option>
+                <option value="">{t('-- Sélectionner --')}</option>
+                <option value="achat">{t('Achat')}</option>
+                <option value="don">{t('Don')}</option>
+                <option value="transfert">{t('Transfert')}</option>
+                <option value="autre">{t('Autre')}</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Fournisseur</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Fournisseur')}</label>
               <input
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.fournisseur || ''}
                 onChange={e => set('fournisseur', e.target.value)}
-                placeholder="Ex: BIOECOMS, Philips..."
+                placeholder={t('Ex: BIOECOMS, Philips...')}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
-                Date de mise au rebus
-                <span className="ml-2 text-xs font-normal" style={{ color: 'var(--brand)' }}>(auto : mise en service + 10 ans)</span>
+                {t('Date de mise au rebus')}
+                <span className="ml-2 text-xs font-normal" style={{ color: 'var(--brand)' }}>({t('auto : mise en service + 10 ans')})</span>
               </label>
               <input
                 type="date"
@@ -324,13 +329,13 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Notes</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Notes')}</label>
               <textarea
                 rows={3}
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.notes}
                 onChange={e => set('notes', e.target.value)}
-                placeholder="Remarques, localisation précise..."
+                placeholder={t('Remarques, localisation précise...')}
               />
             </div>
           </div>
@@ -341,7 +346,7 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium rounded-lg transition-colors" style={{ color: 'var(--fg-muted)', background: 'var(--surface-2)' }}
             >
-              Annuler
+              {t('Annuler')}
             </button>
             <button
               type="submit"
@@ -349,7 +354,7 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
               className="flex items-center space-x-2 px-5 py-2 text-sm font-medium rounded-lg disabled:opacity-60 transition-colors" style={{ background: 'var(--brand)', color: '#fff' }}
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>{saving ? 'Sauvegarde...' : 'Enregistrer'}</span>
+              <span>{saving ? t('Sauvegarde...') : t('Enregistrer')}</span>
             </button>
           </div>
         </form>
@@ -361,6 +366,7 @@ function EquipementModal({ open, onClose, initial, onSave, services = [] }) {
 // ─── PLAN MODAL ──────────────────────────────────────────────────────────────
 
 function PlanModal({ open, onClose, initial, equipements, onSave }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(initial || EMPTY_PLAN);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -383,15 +389,15 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.equipement_id) { setError('Veuillez sélectionner un équipement.'); return; }
-    if (!form.mois || form.mois.length === 0) { setError('Sélectionnez au moins un mois.'); return; }
+    if (!form.equipement_id) { setError(t('Veuillez sélectionner un équipement.')); return; }
+    if (!form.mois || form.mois.length === 0) { setError(t('Sélectionnez au moins un mois.')); return; }
     setSaving(true);
     setError('');
     try {
       await onSave({ ...form, equipement_id: parseInt(form.equipement_id), jour_du_mois: parseInt(form.jour_du_mois), duree_estimee: form.duree_estimee ? parseFloat(form.duree_estimee) : null, technicien_id: form.technicien_id ? parseInt(form.technicien_id) : null });
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde');
+      setError(err.response?.data?.message || err.message || t('Erreur lors de la sauvegarde'));
     } finally {
       setSaving(false);
     }
@@ -404,7 +410,7 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
       <div className="shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
         <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>
-            {initial?.id ? 'Modifier le plan' : 'Nouveau plan de maintenance'}
+            {initial?.id ? t('Modifier le plan') : t('Nouveau plan de maintenance')}
           </h2>
           <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
             <X className="w-5 h-5" />
@@ -421,14 +427,14 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
 
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
-              Équipement <span style={{ color: 'var(--danger)' }}>*</span>
+              {t('Équipement')} <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <select
               className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.equipement_id}
               onChange={e => set('equipement_id', e.target.value)}
             >
-              <option value="">-- Sélectionner un équipement --</option>
+              <option value="">{t('-- Sélectionner un équipement --')}</option>
               {equipements.map(eq => (
                 <option key={eq.id} value={eq.id}>{eq.nom} {eq.service ? `(${eq.service})` : ''}</option>
               ))}
@@ -437,7 +443,7 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
 
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: 'var(--fg-muted)' }}>
-              Mois de maintenance <span style={{ color: 'var(--danger)' }}>*</span>
+              {t('Mois de maintenance')} <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <div className="grid grid-cols-4 gap-2">
               {MONTH_LABELS.map((lbl, idx) => {
@@ -453,14 +459,17 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
                       ? { background: 'var(--brand)', border: '2px solid var(--brand)', color: '#fff' }
                       : { background: 'var(--surface)', border: '2px solid var(--border)', color: 'var(--fg-muted)' }}
                   >
-                    {lbl}
+                    {t(lbl)}
                   </button>
                 );
               })}
             </div>
             {selectedMois.length > 0 && (
               <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>
-                {selectedMois.length} mois sélectionné{selectedMois.length > 1 ? 's' : ''} — fréquence : {selectedMois.length === 1 ? 'annuelle' : selectedMois.length === 2 ? 'semestrielle' : selectedMois.length === 3 ? 'trimestrielle' : selectedMois.length === 4 ? 'trimestrielle' : selectedMois.length === 12 ? 'mensuelle' : 'personnalisée'}
+                {t('{{count}} mois sélectionné(s) — fréquence : {{freq}}', {
+                  count: selectedMois.length,
+                  freq: selectedMois.length === 1 ? t('annuelle') : selectedMois.length === 2 ? t('semestrielle') : selectedMois.length === 3 ? t('trimestrielle') : selectedMois.length === 4 ? t('trimestrielle') : selectedMois.length === 12 ? t('mensuelle') : t('personnalisée'),
+                })}
               </p>
             )}
           </div>
@@ -468,7 +477,7 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
-                Jour du mois
+                {t('Jour du mois')}
               </label>
               <input
                 type="number"
@@ -481,7 +490,7 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
-                Durée estimée (h)
+                {t('Durée estimée (h)')}
               </label>
               <input
                 type="number"
@@ -496,23 +505,23 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Notes</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Notes')}</label>
             <textarea
               rows={2}
               className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.notes}
               onChange={e => set('notes', e.target.value)}
-              placeholder="Instructions de maintenance, matériel requis..."
+              placeholder={t('Instructions de maintenance, matériel requis...')}
             />
           </div>
 
           <div className="flex justify-end space-x-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg transition-colors" style={{ color: 'var(--fg-muted)', background: 'var(--surface-2)' }}>
-              Annuler
+              {t('Annuler')}
             </button>
             <button type="submit" disabled={saving} className="flex items-center space-x-2 px-5 py-2 text-sm font-medium rounded-lg disabled:opacity-60 transition-colors" style={{ background: 'var(--brand)', color: '#fff' }}>
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>{saving ? 'Sauvegarde...' : 'Enregistrer'}</span>
+              <span>{saving ? t('Sauvegarde...') : t('Enregistrer')}</span>
             </button>
           </div>
         </form>
@@ -524,6 +533,7 @@ function PlanModal({ open, onClose, initial, equipements, onSave }) {
 // ─── INTERVENTION MODAL ───────────────────────────────────────────────────────
 
 function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ ...EMPTY_INTERVENTION_FORM });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -541,15 +551,15 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.equipement_id) { setError('Veuillez sélectionner un équipement.'); return; }
-    if (!form.date_planifiee) { setError('La date planifiée est requise.'); return; }
+    if (!form.equipement_id) { setError(t('Veuillez sélectionner un équipement.')); return; }
+    if (!form.date_planifiee) { setError(t('La date planifiée est requise.')); return; }
     setSaving(true);
     setError('');
     try {
       await onSave({ ...form, equipement_id: parseInt(form.equipement_id) });
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde');
+      setError(err.response?.data?.message || err.message || t('Erreur lors de la sauvegarde'));
     } finally {
       setSaving(false);
     }
@@ -562,7 +572,7 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
       <div className="shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
         <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>
-            {isCorrective ? 'Déclarer une panne' : 'Nouvelle intervention'}
+            {isCorrective ? t('Déclarer une panne') : t('Nouvelle intervention')}
           </h2>
           <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
             <X className="w-5 h-5" />
@@ -578,28 +588,28 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Type</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Type')}</label>
             <select
               className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.type}
               onChange={e => set('type', e.target.value)}
               disabled={!!forcedType}
             >
-              <option value="preventive">Préventive</option>
-              <option value="corrective">Corrective</option>
+              <option value="preventive">{t('Préventive')}</option>
+              <option value="corrective">{t('Corrective')}</option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
-              Équipement <span style={{ color: 'var(--danger)' }}>*</span>
+              {t('Équipement')} <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <select
               className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.equipement_id}
               onChange={e => set('equipement_id', e.target.value)}
             >
-              <option value="">-- Sélectionner un équipement --</option>
+              <option value="">{t('-- Sélectionner un équipement --')}</option>
               {equipements.map(eq => (
                 <option key={eq.id} value={eq.id}>{eq.nom}{eq.service ? ` (${eq.service})` : ''}</option>
               ))}
@@ -608,20 +618,20 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Priorité</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Priorité')}</label>
               <select
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.priorite}
                 onChange={e => set('priorite', e.target.value)}
               >
-                <option value="faible">Faible</option>
-                <option value="normal">Normal</option>
-                <option value="urgent">Urgent</option>
+                <option value="faible">{t('Faible')}</option>
+                <option value="normal">{t('Normal')}</option>
+                <option value="urgent">{t('Urgent')}</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>
-                Date planifiée <span style={{ color: 'var(--danger)' }}>*</span>
+                {t('Date planifiée')} <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <input
                 type="date"
@@ -633,41 +643,41 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Technicien</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Technicien')}</label>
             <input
               className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.technicien_id}
               onChange={e => set('technicien_id', e.target.value)}
-              placeholder="Nom du technicien..."
+              placeholder={t('Nom du technicien...')}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Description</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Description')}</label>
             <textarea
               rows={3}
               className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.description}
               onChange={e => set('description', e.target.value)}
-              placeholder="Description de l'intervention..."
+              placeholder={t("Description de l'intervention...")}
             />
           </div>
 
           {isCorrective && (
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Signalé par</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Signalé par')}</label>
               <input
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.signale_par}
                 onChange={e => set('signale_par', e.target.value)}
-                placeholder="Nom de la personne ayant signalé la panne..."
+                placeholder={t('Nom de la personne ayant signalé la panne...')}
               />
             </div>
           )}
 
           <div className="flex justify-end space-x-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg transition-colors" style={{ color: 'var(--fg-muted)', background: 'var(--surface-2)' }}>
-              Annuler
+              {t('Annuler')}
             </button>
             <button
               type="submit"
@@ -676,7 +686,7 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
               style={{ background: isCorrective ? 'var(--danger)' : 'var(--brand)', color: '#fff' }}
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>{saving ? 'Sauvegarde...' : isCorrective ? 'Déclarer' : 'Créer'}</span>
+              <span>{saving ? t('Sauvegarde...') : isCorrective ? t('Déclarer') : t('Créer')}</span>
             </button>
           </div>
         </form>
@@ -688,6 +698,7 @@ function InterventionModal({ open, onClose, equipements, forcedType, onSave }) {
 // ─── COMPLETE MODAL ───────────────────────────────────────────────────────────
 
 function CompleteModal({ open, onClose, intervention, onComplete }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ ...EMPTY_COMPLETE_FORM });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -714,15 +725,15 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
       });
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Erreur lors de la clôture');
+      setError(err.response?.data?.message || err.message || t('Erreur lors de la clôture'));
     } finally {
       setSaving(false);
     }
   };
 
-  const eqName = intervention.equipement?.nom || intervention.equipement_nom || 'Équipement';
+  const eqName = intervention.equipement?.nom || intervention.equipement_nom || t('Équipement');
   const datePlan = intervention.date_planifiee
-    ? new Date(intervention.date_planifiee).toLocaleDateString('fr-FR')
+    ? new Date(intervention.date_planifiee).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')
     : '';
 
   return (
@@ -730,7 +741,7 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
       <div className="shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
         <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border)' }}>
           <div>
-            <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>Clôturer l'intervention</h2>
+            <h2 className="text-xl font-bold" style={{ color: 'var(--fg)' }}>{t("Clôturer l'intervention")}</h2>
             <p className="text-sm mt-0.5" style={{ color: 'var(--fg-subtle)' }}>{eqName}{datePlan ? ` — ${datePlan}` : ''}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
@@ -747,29 +758,29 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Actions effectuées</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Actions effectuées')}</label>
             <textarea
               rows={3}
               className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.actions_effectuees}
               onChange={e => set('actions_effectuees', e.target.value)}
-              placeholder="Décrivez les actions réalisées..."
+              placeholder={t('Décrivez les actions réalisées...')}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Pièces/consommables remplacés</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Pièces/consommables remplacés')}</label>
             <textarea
               rows={2}
               className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.pieces_remplacees}
               onChange={e => set('pieces_remplacees', e.target.value)}
-              placeholder="Pièces, filtres, consommables remplacés..."
+              placeholder={t('Pièces, filtres, consommables remplacés...')}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Durée réelle (heures)</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Durée réelle (heures)')}</label>
             <input
               type="number"
               min="0"
@@ -782,19 +793,19 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>Observations</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Observations')}</label>
             <textarea
               rows={2}
               className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={form.observations}
               onChange={e => set('observations', e.target.value)}
-              placeholder="Remarques, recommandations..."
+              placeholder={t('Remarques, recommandations...')}
             />
           </div>
 
           <div className="flex justify-end space-x-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg transition-colors" style={{ color: 'var(--fg-muted)', background: 'var(--surface-2)' }}>
-              Annuler
+              {t('Annuler')}
             </button>
             <button
               type="submit"
@@ -802,7 +813,7 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
               className="flex items-center space-x-2 px-5 py-2 text-sm font-medium rounded-lg disabled:opacity-60 transition-colors" style={{ background: 'var(--success)', color: '#fff' }}
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-              <span>{saving ? 'Clôture...' : 'Clôturer'}</span>
+              <span>{saving ? t('Clôture...') : t('Clôturer')}</span>
             </button>
           </div>
         </form>
@@ -814,12 +825,13 @@ function CompleteModal({ open, onClose, intervention, onComplete }) {
 // ─── INTERVENTION CARD ────────────────────────────────────────────────────────
 
 function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [actioning, setActioning] = useState(false);
   const { confirm, ConfirmModalRenderer } = useConfirm();
 
   const eq = intervention.equipement || {};
-  const eqName = eq.nom || intervention.equipement_nom || 'Équipement inconnu';
+  const eqName = eq.nom || intervention.equipement_nom || t('Équipement inconnu');
   const service = eq.service || intervention.service || '';
   const sc = getServiceColor(service);
 
@@ -828,10 +840,10 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
 
   const isPreventive = intervention.type === 'preventive';
   const datePlan = intervention.date_planifiee
-    ? new Date(intervention.date_planifiee).toLocaleDateString('fr-FR')
+    ? new Date(intervention.date_planifiee).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')
     : '—';
   const dateReal = intervention.date_realisation
-    ? new Date(intervention.date_realisation).toLocaleDateString('fr-FR')
+    ? new Date(intervention.date_realisation).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')
     : null;
 
   const doStatusChange = async (newStatut) => {
@@ -842,7 +854,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
   };
 
   const doDelete = async () => {
-    if (!(await confirm({ title: 'Supprimer l\'intervention', message: 'Supprimer cette intervention ?', confirmLabel: 'Supprimer', variant: 'danger' }))) return;
+    if (!(await confirm({ title: t("Supprimer l'intervention"), message: t('Supprimer cette intervention ?'), confirmLabel: t('Supprimer'), variant: 'danger' }))) return;
     setActioning(true);
     try { await onDelete(intervention.id); }
     catch (e) { toast(e.response?.data?.message || e.message); }
@@ -864,7 +876,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
               </span>
             )}
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border" style={isPreventive ? { background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand)' } : { background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger)' }}>
-              {isPreventive ? 'Préventive' : 'Corrective'}
+              {isPreventive ? t('Préventive') : t('Corrective')}
             </span>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={prCfg.style}>
               {prCfg.label}
@@ -897,28 +909,28 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
           <div className="mb-3">
             <div className="flex items-center gap-2 text-xs mb-1" style={{ color: 'var(--success)' }}>
               <CheckCircle className="w-3.5 h-3.5" />
-              <span>Terminée le {dateReal}</span>
+              <span>{t('Terminée le {{date}}', { date: dateReal })}</span>
             </div>
             <button
               onClick={() => setExpanded(v => !v)}
               className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--brand)' }}
             >
               {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              {expanded ? 'Masquer les détails' : 'Voir les détails'}
+              {expanded ? t('Masquer les détails') : t('Voir les détails')}
             </button>
             {expanded && (
               <div className="mt-2 p-3 rounded-lg space-y-2 text-xs" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
                 {intervention.actions_effectuees && (
-                  <div><span className="font-medium">Actions effectuées :</span> {intervention.actions_effectuees}</div>
+                  <div><span className="font-medium">{t('Actions effectuées')} :</span> {intervention.actions_effectuees}</div>
                 )}
                 {intervention.pieces_remplacees && (
-                  <div><span className="font-medium">Pièces remplacées :</span> {intervention.pieces_remplacees}</div>
+                  <div><span className="font-medium">{t('Pièces remplacées')} :</span> {intervention.pieces_remplacees}</div>
                 )}
                 {intervention.duree_reelle != null && (
-                  <div><span className="font-medium">Durée réelle :</span> {intervention.duree_reelle}h</div>
+                  <div><span className="font-medium">{t('Durée réelle')} :</span> {intervention.duree_reelle}h</div>
                 )}
                 {intervention.observations && (
-                  <div><span className="font-medium">Observations :</span> {intervention.observations}</div>
+                  <div><span className="font-medium">{t('Observations')} :</span> {intervention.observations}</div>
                 )}
               </div>
             )}
@@ -935,7 +947,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}
               >
                 <PlayCircle className="w-3.5 h-3.5" />
-                Démarrer
+                {t('Démarrer')}
               </button>
               <button
                 onClick={() => onComplete(intervention)}
@@ -943,7 +955,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                Terminer
+                {t('Terminer')}
               </button>
               <button
                 onClick={() => doStatusChange('reportee')}
@@ -951,7 +963,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'rgba(234,88,12,0.1)', color: '#c2410c' }}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                Reporter
+                {t('Reporter')}
               </button>
             </>
           )}
@@ -963,7 +975,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                Terminer
+                {t('Terminer')}
               </button>
               <button
                 onClick={() => doStatusChange('reportee')}
@@ -971,7 +983,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'rgba(234,88,12,0.1)', color: '#c2410c' }}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                Reporter
+                {t('Reporter')}
               </button>
             </>
           )}
@@ -982,7 +994,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
               className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}
             >
               <Calendar className="w-3.5 h-3.5" />
-              Réplanifier
+              {t('Réplanifier')}
             </button>
           )}
           <button
@@ -991,7 +1003,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
             className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ml-auto" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}
           >
             {actioning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-            Supprimer
+            {t('Supprimer')}
           </button>
         </div>
       </div>
@@ -1003,6 +1015,7 @@ function InterventionCard({ intervention, onStatusChange, onComplete, onDelete }
 // ─── INTERVENTIONS TAB ────────────────────────────────────────────────────────
 
 function InterventionsTab({ equipements, services = [] }) {
+  const { t } = useTranslation();
   const [interventions, setInterventions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -1025,7 +1038,7 @@ function InterventionsTab({ equipements, services = [] }) {
       const res = await gmaoAPI.getInterventions(params);
       setInterventions(res.data.data || res.data || []);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Erreur de chargement');
+      setError(err.response?.data?.message || err.message || t('Erreur de chargement'));
     } finally {
       setLoading(false);
     }
@@ -1055,15 +1068,15 @@ function InterventionsTab({ equipements, services = [] }) {
 
   const handleGenerateInterventions = async () => {
     const year = new Date().getFullYear();
-    if (!(await confirm({ title: 'Générer les interventions', message: `Générer les interventions préventives pour ${year} depuis les plans de maintenance ?`, confirmLabel: 'Générer', variant: 'info' }))) return;
+    if (!(await confirm({ title: t('Générer les interventions'), message: t('Générer les interventions préventives pour {{year}} depuis les plans de maintenance ?', { year }), confirmLabel: t('Générer'), variant: 'info' }))) return;
     setGenerating(true);
     try {
       const res = await gmaoAPI.generatePreventiveInterventions({ annee: year });
       const count = res.data?.created || res.data?.count || 0;
-      toast(`${count} intervention${count > 1 ? 's' : ''} préventive${count > 1 ? 's' : ''} générée${count > 1 ? 's' : ''} pour ${year}.`);
+      toast(t('{{count}} intervention(s) préventive(s) générée(s) pour {{year}}.', { count, year }));
       await fetchInterventions();
     } catch (err) {
-      toast(err.response?.data?.message || err.message || 'Erreur lors de la génération');
+      toast(err.response?.data?.message || err.message || t('Erreur lors de la génération'));
     } finally {
       setGenerating(false);
     }
@@ -1095,10 +1108,10 @@ function InterventionsTab({ equipements, services = [] }) {
     <div className="space-y-6">
       {/* Mini stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Planifiées" value={countByStatut.planifiee} icon={Calendar} color="var(--brand)" bg="var(--brand-soft)" />
-        <StatCard label="En cours" value={countByStatut.en_cours} icon={PlayCircle} color="var(--warning)" bg="var(--warning-soft)" />
-        <StatCard label="Terminées" value={countByStatut.terminee} icon={CheckCircle} color="var(--success)" bg="var(--success-soft)" />
-        <StatCard label="Reportées" value={countByStatut.reportee} icon={RotateCcw} color="var(--info)" bg="var(--info-soft)" />
+        <StatCard label={t('Planifiées')} value={countByStatut.planifiee} icon={Calendar} color="var(--brand)" bg="var(--brand-soft)" />
+        <StatCard label={t('En cours')} value={countByStatut.en_cours} icon={PlayCircle} color="var(--warning)" bg="var(--warning-soft)" />
+        <StatCard label={t('Terminées')} value={countByStatut.terminee} icon={CheckCircle} color="var(--success)" bg="var(--success-soft)" />
+        <StatCard label={t('Reportées')} value={countByStatut.reportee} icon={RotateCcw} color="var(--info)" bg="var(--info-soft)" />
       </div>
 
       {/* Top action bar */}
@@ -1109,7 +1122,7 @@ function InterventionsTab({ equipements, services = [] }) {
             className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors" style={{ background: 'var(--danger)', color: '#fff' }}
           >
             <AlertTriangle className="w-4 h-4" />
-            <span>Déclarer une panne</span>
+            <span>{t('Déclarer une panne')}</span>
           </button>
 
           <button
@@ -1118,7 +1131,7 @@ function InterventionsTab({ equipements, services = [] }) {
             className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60 transition-colors" style={{ background: 'var(--brand)', color: '#fff' }}
           >
             {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            <span>Générer préventives</span>
+            <span>{t('Générer préventives')}</span>
           </button>
 
           <div className="flex items-center space-x-2 ml-auto">
@@ -1128,27 +1141,27 @@ function InterventionsTab({ equipements, services = [] }) {
               value={filters.type}
               onChange={e => setFilter('type', e.target.value)}
             >
-              <option value="">Toutes (types)</option>
-              <option value="preventive">Préventive</option>
-              <option value="corrective">Corrective</option>
+              <option value="">{t('Toutes (types)')}</option>
+              <option value="preventive">{t('Préventive')}</option>
+              <option value="corrective">{t('Corrective')}</option>
             </select>
             <select
               className="rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={filters.statut}
               onChange={e => setFilter('statut', e.target.value)}
             >
-              <option value="">Tous (statuts)</option>
-              <option value="planifiee">Planifiée</option>
-              <option value="en_cours">En cours</option>
-              <option value="terminee">Terminée</option>
-              <option value="reportee">Reportée</option>
+              <option value="">{t('Tous (statuts)')}</option>
+              <option value="planifiee">{t('Planifiée')}</option>
+              <option value="en_cours">{t('En cours')}</option>
+              <option value="terminee">{t('Terminée')}</option>
+              <option value="reportee">{t('Reportée')}</option>
             </select>
             <select
               className="rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
               value={filters.service}
               onChange={e => setFilter('service', e.target.value)}
             >
-              <option value="">Tous (services)</option>
+              <option value="">{t('Tous (services)')}</option>
               {services.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -1472,6 +1485,7 @@ function EquipementsTab({ equipements, stats, loading, onRefresh, services = [],
 // ─── CALENDAR TAB ─────────────────────────────────────────────────────────────
 
 function CalendarTab({ stats }) {
+  const { t } = useTranslation();
   const [year, setYear] = useState(new Date().getFullYear());
   const [calendarData, setCalendarData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -1523,11 +1537,11 @@ function CalendarTab({ stats }) {
             </div>
             <div className="flex items-center space-x-3">
               <div className="px-3 py-1 rounded-lg text-sm font-semibold" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>
-                {totalInterventions} intervention{totalInterventions > 1 ? 's' : ''} planifiée{totalInterventions > 1 ? 's' : ''}
+                {t('{{count}} intervention(s) planifiée(s)', { count: totalInterventions })}
               </div>
               {stats && (
                 <div className="px-3 py-1 rounded-lg text-sm font-semibold" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
-                  {stats.totalPlans ?? 0} plan{(stats.totalPlans ?? 0) > 1 ? 's' : ''} actif{(stats.totalPlans ?? 0) > 1 ? 's' : ''}
+                  {t('{{count}} plan(s) actif(s)', { count: stats.totalPlans ?? 0 })}
                 </div>
               )}
             </div>
@@ -1560,7 +1574,7 @@ function CalendarTab({ stats }) {
         {loading ? (
           <div className="flex items-center justify-center py-20" style={{ color: 'var(--fg-muted)' }}>
             <RefreshCw className="w-6 h-6 animate-spin mr-2" />
-            <span>Chargement du calendrier...</span>
+            <span>{t('Chargement du calendrier...')}</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -1604,7 +1618,7 @@ function CalendarTab({ stats }) {
                                 return (
                                   <div
                                     key={eIdx}
-                                    title={`${entry.nom}\nService: ${entry.service || 'N/A'}\nDurée: ${entry.duree ? entry.duree + 'h' : 'N/A'}${entry.notes ? '\n' + entry.notes : ''}`}
+                                    title={`${entry.nom}\n${t('Service')}: ${entry.service || 'N/A'}\n${t('Durée')}: ${entry.duree ? entry.duree + 'h' : 'N/A'}${entry.notes ? '\n' + entry.notes : ''}`}
                                     className="flex items-center px-1.5 py-0.5 rounded text-xs font-medium cursor-default truncate"
                                     style={{ background: sc.chip, color: '#fff', fontSize: '10px', lineHeight: '1.4' }}
                                   >
@@ -1630,7 +1644,7 @@ function CalendarTab({ stats }) {
         <div className="rounded-lg shadow-sm p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h3 className="font-semibold mb-3 flex items-center space-x-2" style={{ color: 'var(--fg)' }}>
             <List className="w-4 h-4" style={{ color: 'var(--brand)' }} />
-            <span>Répartition par mois</span>
+            <span>{t('Répartition par mois')}</span>
           </h3>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
             {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
@@ -1655,6 +1669,7 @@ function CalendarTab({ stats }) {
 const MONTH_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
 const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
+  const { t } = useTranslation();
   const [selectedEquipement, setSelectedEquipement] = useState('');
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8" style={{ borderBottom: '2px solid var(--brand)' }} /></div>;
@@ -1671,11 +1686,11 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
         {/* Taux de conformité */}
         <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>Taux de conformité</span>
+            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('Taux de conformité')}</span>
             <CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />
           </div>
           <div className="text-3xl font-bold" style={{ color: 'var(--success)' }}>{analytics.tauxConformite}%</div>
-          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{analytics.termineeThisYear} / {analytics.totalThisYear} préventives</div>
+          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('{{done}} / {{total}} préventives', { done: analytics.termineeThisYear, total: analytics.totalThisYear })}</div>
           {/* Progress bar */}
           <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
             <div className="h-full rounded-full transition-all" style={{ width: `${analytics.tauxConformite}%`, background: 'var(--success)' }} />
@@ -1685,31 +1700,31 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
         {/* En retard */}
         <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>En retard</span>
+            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('En retard')}</span>
             <AlertTriangle className="w-4 h-4" style={{ color: 'var(--danger)' }} />
           </div>
           <div className="text-3xl font-bold" style={{ color: analytics.enRetard > 0 ? 'var(--danger)' : 'var(--fg-subtle)' }}>{analytics.enRetard}</div>
-          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>interventions en retard</div>
+          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('interventions en retard')}</div>
         </div>
 
         {/* En cours */}
         <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>En cours</span>
+            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('En cours')}</span>
             <PlayCircle className="w-4 h-4" style={{ color: 'var(--warning)' }} />
           </div>
           <div className="text-3xl font-bold" style={{ color: 'var(--warning)' }}>{analytics.enCours}</div>
-          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>en cours actuellement</div>
+          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('en cours actuellement')}</div>
         </div>
 
         {/* Durée moyenne */}
         <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>Durée moy. réalisation</span>
+            <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('Durée moy. réalisation')}</span>
             <Clock className="w-4 h-4" style={{ color: 'var(--brand)' }} />
           </div>
           <div className="text-3xl font-bold" style={{ color: 'var(--brand)' }}>{analytics.avgDuree ?? '—'}{analytics.avgDuree ? 'h' : ''}</div>
-          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>par intervention terminée</div>
+          <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('par intervention terminée')}</div>
         </div>
       </div>
 
@@ -1717,7 +1732,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Bar chart: Interventions par mois */}
         <div className="lg:col-span-2 rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>Interventions par mois ({new Date().getFullYear()})</h3>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>{t('Interventions par mois ({{year}})', { year: new Date().getFullYear() })}</h3>
           <div className="flex items-end gap-1 h-32">
             {analytics.byMonth.map((m) => (
               <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
@@ -1725,7 +1740,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
                   <div
                     className="w-full rounded-t opacity-80 hover:opacity-100 transition-opacity cursor-default relative"
                     style={{ height: `${maxMonth > 0 ? Math.max((m.total / maxMonth) * 96, m.total > 0 ? 4 : 0) : 0}px`, background: 'var(--brand)' }}
-                    title={`${m.total} interventions`}
+                    title={t('{{count}} interventions', { count: m.total })}
                   >
                     {m.corrective > 0 && (
                       <div
@@ -1743,20 +1758,20 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
             ))}
           </div>
           <div className="flex gap-4 mt-3">
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm" style={{ background: 'var(--brand)' }}/><span className="text-xs" style={{ color: 'var(--fg-muted)' }}>Préventive</span></div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm" style={{ background: 'var(--danger)' }}/><span className="text-xs" style={{ color: 'var(--fg-muted)' }}>Corrective</span></div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm" style={{ background: 'var(--brand)' }}/><span className="text-xs" style={{ color: 'var(--fg-muted)' }}>{t('Préventive')}</span></div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm" style={{ background: 'var(--danger)' }}/><span className="text-xs" style={{ color: 'var(--fg-muted)' }}>{t('Corrective')}</span></div>
           </div>
         </div>
 
         {/* Preventive vs Corrective donut-style */}
         <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>Répartition par type</h3>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>{t('Répartition par type')}</h3>
           {totalTypes > 0 ? (
             <>
               <div className="space-y-3">
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="font-medium" style={{ color: 'var(--brand)' }}>Préventives</span>
+                    <span className="font-medium" style={{ color: 'var(--brand)' }}>{t('Préventives')}</span>
                     <span style={{ color: 'var(--fg-subtle)' }}>{analytics.preventiveCount} ({Math.round(analytics.preventiveCount/totalTypes*100)}%)</span>
                   </div>
                   <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
@@ -1765,7 +1780,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
                 </div>
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="font-medium" style={{ color: 'var(--danger)' }}>Correctives</span>
+                    <span className="font-medium" style={{ color: 'var(--danger)' }}>{t('Correctives')}</span>
                     <span style={{ color: 'var(--fg-subtle)' }}>{analytics.correctiveCount} ({Math.round(analytics.correctiveCount/totalTypes*100)}%)</span>
                   </div>
                   <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
@@ -1775,11 +1790,11 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
               </div>
               <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
                 <div className="text-center text-2xl font-bold" style={{ color: 'var(--fg-muted)' }}>{totalTypes}</div>
-                <div className="text-center text-xs" style={{ color: 'var(--fg-subtle)' }}>total interventions {new Date().getFullYear()}</div>
+                <div className="text-center text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('total interventions {{year}}', { year: new Date().getFullYear() })}</div>
               </div>
             </>
           ) : (
-            <div className="text-center text-sm mt-8" style={{ color: 'var(--fg-subtle)' }}>Aucune donnée</div>
+            <div className="text-center text-sm mt-8" style={{ color: 'var(--fg-subtle)' }}>{t('Aucune donnée')}</div>
           )}
         </div>
       </div>
@@ -1788,7 +1803,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Service distribution */}
         <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>Interventions par service</h3>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>{t('Interventions par service')}</h3>
           {analytics.byService.length > 0 ? (
             <div className="space-y-2">
               {analytics.byService.slice(0, 8).map(s => {
@@ -1798,7 +1813,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
                   <div key={s.service}>
                     <div className="flex items-center justify-between text-xs mb-0.5">
                       <span className="font-medium" style={{ color: color.text }}>{s.service}</span>
-                      <span style={{ color: 'var(--fg-subtle)' }}>{s.total} ({pct}% terminées)</span>
+                      <span style={{ color: 'var(--fg-subtle)' }}>{t('{{total}} ({{pct}}% terminées)', { total: s.total, pct })}</span>
                     </div>
                     <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
                       <div className="h-full rounded-full" style={{ width: `${(s.total / maxService) * 100}%`, background: color.chip }} />
@@ -1808,13 +1823,13 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
               })}
             </div>
           ) : (
-            <div className="text-center text-sm mt-8" style={{ color: 'var(--fg-subtle)' }}>Aucune donnée</div>
+            <div className="text-center text-sm mt-8" style={{ color: 'var(--fg-subtle)' }}>{t('Aucune donnée')}</div>
           )}
         </div>
 
         {/* Top équipements défaillants */}
         <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>Top équipements défaillants</h3>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--fg-muted)' }}>{t('Top équipements défaillants')}</h3>
           {analytics.topDefaillants.length > 0 ? (
             <div className="space-y-2">
               {analytics.topDefaillants.slice(0, 6).map((item, idx) => {
@@ -1826,13 +1841,13 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
                       <div className="text-xs font-medium truncate" style={{ color: 'var(--fg-muted)' }}>{item.equipement?.nom}</div>
                       <span className="text-[10px] px-1 rounded" style={{ background: color.bg, color: color.text }}>{item.equipement?.service}</span>
                     </div>
-                    <span className="text-sm font-bold" style={{ color: 'var(--danger)' }}>{item.nbPannes} pannes</span>
+                    <span className="text-sm font-bold" style={{ color: 'var(--danger)' }}>{t('{{count}} pannes', { count: item.nbPannes })}</span>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="text-center text-sm mt-8" style={{ color: 'var(--fg-subtle)' }}>Aucune panne enregistrée</div>
+            <div className="text-center text-sm mt-8" style={{ color: 'var(--fg-subtle)' }}>{t('Aucune panne enregistrée')}</div>
           )}
         </div>
       </div>
@@ -1842,12 +1857,12 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
         <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--danger)' }}>
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--danger)' }}>
             <AlertTriangle className="w-4 h-4" />
-            Interventions en retard ({analytics.enRetard})
+            {t('Interventions en retard ({{count}})', { count: analytics.enRetard })}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead><tr className="text-left" style={{ borderBottom: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
-                <th className="pb-2">Équipement</th><th className="pb-2">Service</th><th className="pb-2">Type</th><th className="pb-2">Date planifiée</th><th className="pb-2">Retard</th>
+                <th className="pb-2">{t('Équipement')}</th><th className="pb-2">{t('Service')}</th><th className="pb-2">{t('Type')}</th><th className="pb-2">{t('Date planifiée')}</th><th className="pb-2">{t('Retard')}</th>
               </tr></thead>
               <tbody>
                 {analytics.overdueList.map(i => {
@@ -1859,7 +1874,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
                       <td className="py-1.5">
                         <span className="px-1.5 py-0.5 rounded text-[10px]" style={i.type === 'corrective' ? { background: 'var(--danger-soft)', color: 'var(--danger)' } : { background: 'var(--brand-soft)', color: 'var(--brand)' }}>{i.type}</span>
                       </td>
-                      <td className="py-1.5">{new Date(i.date_planifiee).toLocaleDateString('fr-FR')}</td>
+                      <td className="py-1.5">{new Date(i.date_planifiee).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')}</td>
                       <td className="py-1.5 font-bold" style={{ color: 'var(--danger)' }}>{days}j</td>
                     </tr>
                   );
@@ -1874,7 +1889,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
       <div className="rounded-lg p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
           <FileText className="w-4 h-4" />
-          Rapport par équipement
+          {t('Rapport par équipement')}
         </h3>
         <div className="flex gap-3 items-end">
           <div className="flex-1">
@@ -1883,7 +1898,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
               onChange={e => setSelectedEquipement(e.target.value)}
               className="w-full px-3 py-2 text-sm rounded-lg outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             >
-              <option value="">-- Sélectionner un équipement --</option>
+              <option value="">{t('-- Sélectionner un équipement --')}</option>
               {equipements.map(eq => (
                 <option key={eq.id} value={eq.id}>{eq.nom} ({eq.service})</option>
               ))}
@@ -1895,7 +1910,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
             className="px-4 py-2 text-sm rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2" style={{ background: 'var(--brand)', color: '#fff' }}
           >
             <FileText className="w-4 h-4" />
-            Générer rapport
+            {t('Générer rapport')}
           </button>
         </div>
       </div>
@@ -1906,6 +1921,7 @@ const AnalyseTab = ({ analytics, loading, onViewRapport, equipements }) => {
 // ─── RAPPORT MODAL ────────────────────────────────────────────────────────────
 
 const RapportModal = ({ rapport, loading, onClose }) => {
+  const { t } = useTranslation();
   const rapportRef = useRef(null);
 
   const handlePrint = async () => {
@@ -1928,12 +1944,12 @@ const RapportModal = ({ rapport, loading, onClose }) => {
         <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
             <FileText className="w-5 h-5" style={{ color: 'var(--brand)' }} />
-            Rapport d&apos;équipement
+            {t("Rapport d'équipement")}
           </h2>
           <div className="flex gap-2">
             {rapport && (
               <button onClick={handlePrint} className="px-3 py-1.5 text-sm rounded-lg flex items-center gap-1" style={{ background: 'var(--brand)', color: '#fff' }}>
-                <Download className="w-4 h-4" /> Exporter PDF
+                <Download className="w-4 h-4" /> {t('Exporter PDF')}
               </button>
             )}
             <button onClick={onClose} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--fg-muted)' }}>
@@ -1956,24 +1972,24 @@ const RapportModal = ({ rapport, loading, onClose }) => {
                   <p style={{ color: '#6b7280' }}>{rapport.equipement.reference} • {rapport.equipement.service}</p>
                 </div>
                 <span className="px-3 py-1 rounded-full text-sm font-medium" style={rapport.equipement.statut === 'actif' ? { background: '#d1fae5', color: '#065f46' } : rapport.equipement.statut === 'en_reparation' ? { background: '#fef9c3', color: '#854d0e' } : { background: '#fee2e2', color: '#991b1b' }}>
-                  {rapport.equipement.statut}
+                  {t(rapport.equipement.statut)}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-4 text-sm">
-                {rapport.equipement.marque && <div><span style={{ color: '#9ca3af' }}>Marque:</span> <span className="font-medium">{rapport.equipement.marque}</span></div>}
-                {rapport.equipement.modele && <div><span style={{ color: '#9ca3af' }}>Modèle:</span> <span className="font-medium">{rapport.equipement.modele}</span></div>}
-                {rapport.equipement.numero_serie && <div><span style={{ color: '#9ca3af' }}>N° Série:</span> <span className="font-medium">{rapport.equipement.numero_serie}</span></div>}
-                {rapport.equipement.date_mise_en_service && <div><span style={{ color: '#9ca3af' }}>Mise en service:</span> <span className="font-medium">{new Date(rapport.equipement.date_mise_en_service).toLocaleDateString('fr-FR')}</span></div>}
+                {rapport.equipement.marque && <div><span style={{ color: '#9ca3af' }}>{t('Marque')}:</span> <span className="font-medium">{rapport.equipement.marque}</span></div>}
+                {rapport.equipement.modele && <div><span style={{ color: '#9ca3af' }}>{t('Modèle')}:</span> <span className="font-medium">{rapport.equipement.modele}</span></div>}
+                {rapport.equipement.numero_serie && <div><span style={{ color: '#9ca3af' }}>{t('N° Série')}:</span> <span className="font-medium">{rapport.equipement.numero_serie}</span></div>}
+                {rapport.equipement.date_mise_en_service && <div><span style={{ color: '#9ca3af' }}>{t('Mise en service')}:</span> <span className="font-medium">{new Date(rapport.equipement.date_mise_en_service).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')}</span></div>}
               </div>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-4 gap-3 mb-6">
               {[
-                { label: 'Total interventions', value: rapport.stats.total, bg: '#f9fafb', color: '#374151' },
-                { label: 'Terminées', value: rapport.stats.terminee, bg: '#d1fae5', color: '#065f46' },
-                { label: 'Correctives', value: rapport.stats.corrective, bg: '#fee2e2', color: '#991b1b' },
-                { label: 'Durée moy.', value: rapport.stats.avgDuree ? `${rapport.stats.avgDuree}h` : '—', bg: '#dbeafe', color: '#1e40af' },
+                { label: t('Total interventions'), value: rapport.stats.total, bg: '#f9fafb', color: '#374151' },
+                { label: t('Terminées'), value: rapport.stats.terminee, bg: '#d1fae5', color: '#065f46' },
+                { label: t('Correctives'), value: rapport.stats.corrective, bg: '#fee2e2', color: '#991b1b' },
+                { label: t('Durée moy.'), value: rapport.stats.avgDuree ? `${rapport.stats.avgDuree}h` : '—', bg: '#dbeafe', color: '#1e40af' },
               ].map(s => (
                 <div key={s.label} className="rounded-lg p-3" style={{ background: s.bg, color: s.color }}>
                   <div className="text-xl font-bold">{s.value}</div>
@@ -1983,11 +1999,11 @@ const RapportModal = ({ rapport, loading, onClose }) => {
             </div>
 
             {/* Interventions table */}
-            <h3 className="font-semibold mb-3" style={{ color: '#111827' }}>Historique des interventions</h3>
+            <h3 className="font-semibold mb-3" style={{ color: '#111827' }}>{t('Historique des interventions')}</h3>
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr style={{ background: '#f9fafb' }}>
-                  {['Date', 'Type', 'Statut', 'Technicien', 'Durée', 'Actions / Observations'].map(h => (
+                  {[t('Date'), t('Type'), t('Statut'), t('Technicien'), t('Durée'), t('Actions / Observations')].map(h => (
                     <th key={h} className="text-left p-2 font-medium" style={{ border: '1px solid #e5e7eb', color: '#4b5563' }}>{h}</th>
                   ))}
                 </tr>
@@ -1995,12 +2011,12 @@ const RapportModal = ({ rapport, loading, onClose }) => {
               <tbody>
                 {rapport.interventions.map(i => (
                   <tr key={i.id}>
-                    <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>{new Date(i.date_planifiee).toLocaleDateString('fr-FR')}</td>
+                    <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>{new Date(i.date_planifiee).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')}</td>
                     <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={i.type === 'corrective' ? { background: '#fee2e2', color: '#991b1b' } : { background: '#dbeafe', color: '#1e40af' }}>{i.type}</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={i.type === 'corrective' ? { background: '#fee2e2', color: '#991b1b' } : { background: '#dbeafe', color: '#1e40af' }}>{t(i.type)}</span>
                     </td>
                     <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={i.statut === 'terminee' ? { background: '#d1fae5', color: '#065f46' } : i.statut === 'en_cours' ? { background: '#fef9c3', color: '#854d0e' } : i.statut === 'reportee' ? { background: '#ffedd5', color: '#9a3412' } : { background: '#f3f4f6', color: '#4b5563' }}>{i.statut}</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={i.statut === 'terminee' ? { background: '#d1fae5', color: '#065f46' } : i.statut === 'en_cours' ? { background: '#fef9c3', color: '#854d0e' } : i.statut === 'reportee' ? { background: '#ffedd5', color: '#9a3412' } : { background: '#f3f4f6', color: '#4b5563' }}>{t(i.statut)}</span>
                     </td>
                     <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>{i.technicien ? `${i.technicien.firstName} ${i.technicien.lastName}` : '—'}</td>
                     <td className="p-2" style={{ border: '1px solid #e5e7eb' }}>{i.duree_reelle ? `${i.duree_reelle}h` : '—'}</td>
@@ -2011,7 +2027,7 @@ const RapportModal = ({ rapport, loading, onClose }) => {
                 ))}
               </tbody>
             </table>
-            <div className="mt-4 text-xs text-right" style={{ color: '#9ca3af' }}>Rapport généré le {new Date().toLocaleDateString('fr-FR')} — HSJM Workflow</div>
+            <div className="mt-4 text-xs text-right" style={{ color: '#9ca3af' }}>{t('Rapport généré le {{date}} — HSJM Workflow', { date: new Date().toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') })}</div>
           </div>
         ) : null}
       </div>
@@ -2022,6 +2038,7 @@ const RapportModal = ({ rapport, loading, onClose }) => {
 // ─── PANORAMA PANEL ──────────────────────────────────────────────────────────
 
 function PanoramaPanel({ equipements = [], onRefresh }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [rapport, setRapport] = useState(null);
@@ -2060,7 +2077,7 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
             <Search className="absolute left-2.5 top-2.5 w-4 h-4" style={{ color: 'var(--fg-subtle)' }} />
             <input
               className="w-full pl-8 pr-3 py-2 text-sm rounded-lg focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-              placeholder="Rechercher un équipement…"
+              placeholder={t('Rechercher un équipement…')}
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -2068,7 +2085,7 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
         </div>
         <div className="flex-1 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="text-center py-8 text-sm" style={{ color: 'var(--fg-subtle)' }}>Aucun équipement</div>
+            <div className="text-center py-8 text-sm" style={{ color: 'var(--fg-subtle)' }}>{t('Aucun équipement')}</div>
           ) : filtered.map(eq => {
             const col = STATUT_CONFIG[eq.statut] || STATUT_CONFIG.actif;
             const isSelected = selectedId === eq.id;
@@ -2091,7 +2108,7 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
           })}
         </div>
         <div className="p-2 text-center text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
-          {filtered.length} équipement{filtered.length > 1 ? 's' : ''}
+          {t('{{count}} équipement(s)', { count: filtered.length })}
         </div>
       </div>
 
@@ -2100,8 +2117,8 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
         {!selectedId ? (
           <div className="flex flex-col items-center justify-center h-full text-center" style={{ color: 'var(--fg-subtle)' }}>
             <Package className="w-12 h-12 mb-3 opacity-20" />
-            <p className="text-sm font-medium">Sélectionnez un équipement</p>
-            <p className="text-xs mt-1">pour afficher sa fiche d'identité</p>
+            <p className="text-sm font-medium">{t('Sélectionnez un équipement')}</p>
+            <p className="text-xs mt-1">{t("pour afficher sa fiche d'identité")}</p>
           </div>
         ) : loadingR ? (
           <div className="flex justify-center items-center h-full">
@@ -2110,7 +2127,7 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
         ) : !rapport ? (
           <div className="flex flex-col items-center justify-center h-full" style={{ color: 'var(--fg-subtle)' }}>
             <AlertCircle className="w-8 h-8 mb-2" style={{ color: 'var(--danger)' }} />
-            <p className="text-sm">Erreur de chargement</p>
+            <p className="text-sm">{t('Erreur de chargement')}</p>
           </div>
         ) : (
           <div className="max-w-3xl mx-auto space-y-5">
@@ -2139,7 +2156,7 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
                 </div>
                 {eq.matricule && (
                   <div className="text-right">
-                    <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>Matricule</div>
+                    <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('Matricule')}</div>
                     <div className="font-mono font-bold text-sm" style={{ color: 'var(--fg-muted)' }}>{eq.matricule}</div>
                   </div>
                 )}
@@ -2149,13 +2166,13 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
             {/* Spécifications techniques */}
             <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
-                <FileText className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Spécifications
+                <FileText className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> {t('Spécifications')}
               </h3>
               <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
                 {[
-                  ['Marque', eq.marque], ['Modèle', eq.modele],
-                  ['Type', eq.type_equipement], ['Référence', eq.reference],
-                  ['N° Série', eq.numero_serie], ['Fournisseur', eq.fournisseur],
+                  [t('Marque'), eq.marque], [t('Modèle'), eq.modele],
+                  [t('Type'), eq.type_equipement], [t('Référence'), eq.reference],
+                  [t('N° Série'), eq.numero_serie], [t('Fournisseur'), eq.fournisseur],
                 ].map(([label, val]) => val ? (
                   <div key={label}>
                     <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>{label}</span>
@@ -2168,22 +2185,22 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
             {/* Dates importantes */}
             <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
-                <Calendar className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Dates
+                <Calendar className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> {t('Dates')}
               </h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>Mise en service</span>
+                  <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>{t('Mise en service')}</span>
                   <span className="font-medium" style={{ color: 'var(--fg)' }}>
                     {eq.date_mise_en_service
-                      ? new Date(eq.date_mise_en_service).toLocaleDateString('fr-FR')
+                      ? new Date(eq.date_mise_en_service).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')
                       : '—'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>Fin de vie estimée</span>
+                  <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>{t('Fin de vie estimée')}</span>
                   <span className="font-medium" style={{ color: eq.date_mise_au_rebus && new Date(eq.date_mise_au_rebus) < new Date() ? 'var(--danger)' : 'var(--fg)' }}>
                     {eq.date_mise_au_rebus
-                      ? new Date(eq.date_mise_au_rebus).toLocaleDateString('fr-FR')
+                      ? new Date(eq.date_mise_au_rebus).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')
                       : '—'}
                   </span>
                 </div>
@@ -2194,14 +2211,14 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
             {rapport.stats && (
               <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
-                  <Wrench className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Bilan Maintenance
+                  <Wrench className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> {t('Bilan Maintenance')}
                 </h3>
                 <div className="grid grid-cols-4 gap-3">
                   {[
-                    { label: 'Total', val: rapport.stats.total, bg: 'var(--brand-soft)', color: 'var(--brand)' },
-                    { label: 'Terminées', val: rapport.stats.terminee, bg: 'var(--success-soft)', color: 'var(--success)' },
-                    { label: 'Correctives', val: rapport.stats.corrective, bg: 'rgba(234,88,12,0.1)', color: '#c2410c' },
-                    { label: 'Préventives', val: rapport.stats.preventive, bg: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' },
+                    { label: t('Total'), val: rapport.stats.total, bg: 'var(--brand-soft)', color: 'var(--brand)' },
+                    { label: t('Terminées'), val: rapport.stats.terminee, bg: 'var(--success-soft)', color: 'var(--success)' },
+                    { label: t('Correctives'), val: rapport.stats.corrective, bg: 'rgba(234,88,12,0.1)', color: '#c2410c' },
+                    { label: t('Préventives'), val: rapport.stats.preventive, bg: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' },
                   ].map(({ label, val, bg, color }) => (
                     <div key={label} className="rounded-lg p-3 text-center" style={{ background: bg, color }}>
                       <div className="text-2xl font-bold">{val}</div>
@@ -2211,7 +2228,7 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
                 </div>
                 {rapport.stats.avgDuree && (
                   <p className="text-xs mt-3 text-center" style={{ color: 'var(--fg-subtle)' }}>
-                    Durée moyenne d'intervention : <span className="font-semibold" style={{ color: 'var(--fg-muted)' }}>{rapport.stats.avgDuree}h</span>
+                    {t("Durée moyenne d'intervention")} : <span className="font-semibold" style={{ color: 'var(--fg-muted)' }}>{rapport.stats.avgDuree}h</span>
                   </p>
                 )}
               </div>
@@ -2221,7 +2238,7 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
             {rapport.interventions?.length > 0 && (
               <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
-                  <Clock className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Dernières interventions
+                  <Clock className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> {t('Dernières interventions')}
                 </h3>
                 <div className="space-y-2">
                   {rapport.interventions.slice(0, 5).map(iv => {
@@ -2229,13 +2246,13 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
                     return (
                       <div key={iv.id} className="flex items-center gap-3 p-2.5 rounded-lg text-sm" style={{ background: 'var(--surface-2)' }}>
                         <span className="text-xs w-20 flex-shrink-0" style={{ color: 'var(--fg-subtle)' }}>
-                          {iv.date_planifiee ? new Date(iv.date_planifiee).toLocaleDateString('fr-FR') : '—'}
+                          {iv.date_planifiee ? new Date(iv.date_planifiee).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') : '—'}
                         </span>
                         <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0" style={sc.style}>
                           {sc.label}
                         </span>
                         <span className="text-xs px-2 py-0.5 rounded flex-shrink-0" style={iv.type === 'corrective' ? { background: 'rgba(234,88,12,0.1)', color: '#c2410c' } : { background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' }}>
-                          {iv.type}
+                          {t(iv.type)}
                         </span>
                         <span className="truncate" style={{ color: 'var(--fg-muted)' }}>{iv.description || '—'}</span>
                       </div>
@@ -2248,7 +2265,7 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
             {/* Notes */}
             {eq.notes && (
               <div className="rounded-lg p-4" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)' }}>
-                <h3 className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#d97706' }}>Notes</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#d97706' }}>{t('Notes')}</h3>
                 <p className="text-sm" style={{ color: '#92400e' }}>{eq.notes}</p>
               </div>
             )}
@@ -2262,6 +2279,7 @@ function PanoramaPanel({ equipements = [], onRefresh }) {
 // ─── LOCALISATION PANEL ───────────────────────────────────────────────────────
 
 function LocalisationPanel({ equipements = [] }) {
+  const { t } = useTranslation();
   const [filterStatut, setFilterStatut] = useState('');
   const [search, setSearch] = useState('');
 
@@ -2276,7 +2294,7 @@ function LocalisationPanel({ equipements = [] }) {
   // Group by service
   const byService = {};
   filtered.forEach(eq => {
-    const svc = eq.service || 'Non assigné';
+    const svc = eq.service || t('Non assigné');
     if (!byService[svc]) byService[svc] = [];
     byService[svc].push(eq);
   });
@@ -2296,7 +2314,7 @@ function LocalisationPanel({ equipements = [] }) {
           <Search className="absolute left-2.5 top-2.5 w-4 h-4" style={{ color: 'var(--fg-subtle)' }} />
           <input
             className="w-full pl-8 pr-3 py-2 text-sm rounded-lg focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-            placeholder="Rechercher…"
+            placeholder={t('Rechercher…')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -2306,17 +2324,17 @@ function LocalisationPanel({ equipements = [] }) {
           value={filterStatut}
           onChange={e => setFilterStatut(e.target.value)}
         >
-          <option value="">Tous les statuts</option>
-          <option value="actif">Actif</option>
-          <option value="en_reparation">En réparation</option>
-          <option value="hors_service">Hors service</option>
+          <option value="">{t('Tous les statuts')}</option>
+          <option value="actif">{t('Actif')}</option>
+          <option value="en_reparation">{t('En réparation')}</option>
+          <option value="hors_service">{t('Hors service')}</option>
         </select>
-        <span className="text-sm" style={{ color: 'var(--fg-subtle)' }}>{filtered.length} équipement{filtered.length > 1 ? 's' : ''}</span>
+        <span className="text-sm" style={{ color: 'var(--fg-subtle)' }}>{t('{{count}} équipement(s)', { count: filtered.length })}</span>
       </div>
 
       {/* Légende */}
       <div className="flex items-center gap-4 mb-5">
-        {[['actif', 'Actif', 'var(--success)'], ['en_reparation', 'En réparation', 'var(--warning)'], ['hors_service', 'Hors service', 'var(--danger)']].map(([key, label, color]) => (
+        {[['actif', t('Actif'), 'var(--success)'], ['en_reparation', t('En réparation'), 'var(--warning)'], ['hors_service', t('Hors service'), 'var(--danger)']].map(([key, label, color]) => (
           <div key={key} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--fg-muted)' }}>
             <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
             {label}
@@ -2326,7 +2344,7 @@ function LocalisationPanel({ equipements = [] }) {
 
       {/* Grille par service */}
       {services.length === 0 ? (
-        <div className="text-center py-12" style={{ color: 'var(--fg-subtle)' }}>Aucun équipement trouvé</div>
+        <div className="text-center py-12" style={{ color: 'var(--fg-subtle)' }}>{t('Aucun équipement trouvé')}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {services.map(svc => {
@@ -2876,24 +2894,27 @@ function ReformePanel({ equipements = [], onRefresh }) {
 
 // ─── CONTRATS PANEL ───────────────────────────────────────────────────────────
 
-const TYPE_CONTRAT_LABELS = {
-  maintenance_preventive: 'Maintenance préventive',
-  maintenance_corrective: 'Maintenance corrective',
-  maintenance_totale:     'Maintenance totale',
-  piece_rechange:         'Pièce de rechange',
-  calibration:            'Calibration',
-  autre:                  'Autre',
-};
+const getTypeContratLabels = (t) => ({
+  maintenance_preventive: t('Maintenance préventive'),
+  maintenance_corrective: t('Maintenance corrective'),
+  maintenance_totale:     t('Maintenance totale'),
+  piece_rechange:         t('Pièce de rechange'),
+  calibration:            t('Calibration'),
+  autre:                  t('Autre'),
+});
 
-const STATUT_CONTRAT = {
-  actif:             { label: 'Actif',             style: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' } },
-  expire:            { label: 'Expiré',            style: { background: 'var(--danger-soft)',  color: 'var(--danger)',  border: '1px solid var(--danger)'  } },
-  resilie:           { label: 'Résilié',           style: { background: 'var(--surface-2)',    color: 'var(--fg-muted)', border: '1px solid var(--border)' } },
-  en_renouvellement: { label: 'En renouvellement', style: { background: 'var(--brand-soft)',   color: 'var(--brand)',   border: '1px solid var(--brand)'   } },
-  suspendu:          { label: 'Suspendu',          style: { background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)' } },
-};
+const getStatutContrat = (t) => ({
+  actif:             { label: t('Actif'),             style: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' } },
+  expire:            { label: t('Expiré'),            style: { background: 'var(--danger-soft)',  color: 'var(--danger)',  border: '1px solid var(--danger)'  } },
+  resilie:           { label: t('Résilié'),           style: { background: 'var(--surface-2)',    color: 'var(--fg-muted)', border: '1px solid var(--border)' } },
+  en_renouvellement: { label: t('En renouvellement'), style: { background: 'var(--brand-soft)',   color: 'var(--brand)',   border: '1px solid var(--brand)'   } },
+  suspendu:          { label: t('Suspendu'),          style: { background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)' } },
+});
 
 function ContratsPanel() {
+  const { t } = useTranslation();
+  const TYPE_CONTRAT_LABELS = getTypeContratLabels(t);
+  const STATUT_CONTRAT = getStatutContrat(t);
   const [contrats, setContrats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -2931,12 +2952,12 @@ function ContratsPanel() {
       else await gmaoAPI.createContrat(form);
       setShowForm(false); setEditTarget(null); setForm(EMPTY);
       load();
-    } catch (err) { toast(err.response?.data?.message || 'Erreur'); }
+    } catch (err) { toast(err.response?.data?.message || t('Erreur')); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
-    if (!(await confirm({ title: 'Supprimer le contrat', message: 'Supprimer ce contrat ?', confirmLabel: 'Supprimer', variant: 'danger' }))) return;
+    if (!(await confirm({ title: t('Supprimer le contrat'), message: t('Supprimer ce contrat ?'), confirmLabel: t('Supprimer'), variant: 'danger' }))) return;
     await gmaoAPI.deleteContrat(id);
     load();
   };
@@ -2954,10 +2975,10 @@ function ContratsPanel() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Contrats actifs', val: actifs, bg: 'var(--success-soft)', color: 'var(--success)' },
-          { label: 'Expirent bientôt', val: expiresBientot, bg: expiresBientot > 0 ? 'rgba(245,158,11,0.1)' : 'var(--surface-2)', color: expiresBientot > 0 ? '#d97706' : 'var(--fg-subtle)' },
-          { label: 'Expirés', val: expires, bg: expires > 0 ? 'var(--danger-soft)' : 'var(--surface-2)', color: expires > 0 ? 'var(--danger)' : 'var(--fg-subtle)' },
-          { label: 'Montant annuel total', val: `${montantTotal.toLocaleString('fr-FR')} €`, bg: 'var(--brand-soft)', color: 'var(--brand)' },
+          { label: t('Contrats actifs'), val: actifs, bg: 'var(--success-soft)', color: 'var(--success)' },
+          { label: t('Expirent bientôt'), val: expiresBientot, bg: expiresBientot > 0 ? 'rgba(245,158,11,0.1)' : 'var(--surface-2)', color: expiresBientot > 0 ? '#d97706' : 'var(--fg-subtle)' },
+          { label: t('Expirés'), val: expires, bg: expires > 0 ? 'var(--danger-soft)' : 'var(--surface-2)', color: expires > 0 ? 'var(--danger)' : 'var(--fg-subtle)' },
+          { label: t('Montant annuel total'), val: `${montantTotal.toLocaleString(BCP47_LOCALES[i18n.language] || 'fr-FR')} €`, bg: 'var(--brand-soft)', color: 'var(--brand)' },
         ].map(({ label, val, bg, color }) => (
           <div key={label} className="rounded-lg p-4" style={{ background: bg, border: `1px solid ${color}` }}>
             <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1" style={{ color }}>{label}</div>
@@ -2970,12 +2991,12 @@ function ContratsPanel() {
       <div className="flex items-center gap-3 flex-wrap">
         <select className="rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
           value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
-          <option value="">Tous les statuts</option>
+          <option value="">{t('Tous les statuts')}</option>
           {Object.entries(STATUT_CONTRAT).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
         <button onClick={() => { setEditTarget(null); setForm(EMPTY); setShowForm(true); }}
           className="ml-auto flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors" style={{ background: 'var(--accent-teal)', color: '#fff' }}>
-          <Plus className="w-4 h-4" /> Nouveau contrat
+          <Plus className="w-4 h-4" /> {t('Nouveau contrat')}
         </button>
       </div>
 
@@ -2983,70 +3004,70 @@ function ContratsPanel() {
       {showForm && (
         <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--accent-teal)' }}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold" style={{ color: 'var(--fg)' }}>{editTarget ? 'Modifier le contrat' : 'Nouveau contrat'}</h3>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--fg)' }}>{editTarget ? t('Modifier le contrat') : t('Nouveau contrat')}</h3>
             <button onClick={() => { setShowForm(false); setEditTarget(null); }}><X className="w-4 h-4" style={{ color: 'var(--fg-subtle)' }} /></button>
           </div>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Prestataire *</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Prestataire')} *</label>
               <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-                placeholder="Nom du prestataire…" value={form.prestataire} onChange={e => set('prestataire', e.target.value)} required />
+                placeholder={t('Nom du prestataire…')} value={form.prestataire} onChange={e => set('prestataire', e.target.value)} required />
             </div>
             <div>
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Type de contrat</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Type de contrat')}</label>
               <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.type_contrat} onChange={e => set('type_contrat', e.target.value)}>
                 {Object.entries(TYPE_CONTRAT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Montant (€/an)</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Montant (€/an)')}</label>
               <input type="number" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder="0" value={form.montant} onChange={e => set('montant', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Date début *</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Date début')} *</label>
               <input type="date" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.date_debut} onChange={e => set('date_debut', e.target.value)} required />
             </div>
             <div>
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Date fin *</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Date fin')} *</label>
               <input type="date" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.date_fin} onChange={e => set('date_fin', e.target.value)} required />
             </div>
             <div>
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Contact</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Contact')}</label>
               <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-                placeholder="Nom du contact" value={form.contact_prestataire} onChange={e => set('contact_prestataire', e.target.value)} />
+                placeholder={t('Nom du contact')} value={form.contact_prestataire} onChange={e => set('contact_prestataire', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Téléphone</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Téléphone')}</label>
               <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 placeholder="+237 6XX XXX XXX" value={form.telephone} onChange={e => set('telephone', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Statut</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Statut')}</label>
               <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.statut} onChange={e => set('statut', e.target.value)}>
                 {Object.entries(STATUT_CONTRAT).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Alerte renouvellement (jours avant)</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Alerte renouvellement (jours avant)')}</label>
               <input type="number" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                 value={form.alerte_renouvellement} onChange={e => set('alerte_renouvellement', e.target.value)} />
             </div>
             <div className="md:col-span-2">
-              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>Description / Périmètre couvert</label>
+              <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Description / Périmètre couvert')}</label>
               <textarea rows={2} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-                placeholder="Services ou équipements couverts…" value={form.description} onChange={e => set('description', e.target.value)} />
+                placeholder={t('Services ou équipements couverts…')} value={form.description} onChange={e => set('description', e.target.value)} />
             </div>
             <div className="md:col-span-2 flex gap-3 justify-end">
               <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}
-                className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>Annuler</button>
+                className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>{t('Annuler')}</button>
               <button type="submit" disabled={saving}
                 className="px-5 py-2 text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--accent-teal)', color: '#fff' }}>
-                {saving ? 'Enregistrement…' : editTarget ? 'Mettre à jour' : 'Créer le contrat'}
+                {saving ? t('Enregistrement…') : editTarget ? t('Mettre à jour') : t('Créer le contrat')}
               </button>
             </div>
           </form>
@@ -3059,19 +3080,19 @@ function ContratsPanel() {
       ) : contrats.length === 0 ? (
         <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}>
           <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
-          <p className="text-sm">Aucun contrat enregistré</p>
+          <p className="text-sm">{t('Aucun contrat enregistré')}</p>
         </div>
       ) : (
         <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-xs uppercase tracking-wider" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg-subtle)' }}>
-                <th className="text-left px-4 py-3">Prestataire</th>
-                <th className="text-left px-4 py-3">Type</th>
-                <th className="text-left px-4 py-3">Période</th>
-                <th className="text-right px-4 py-3">Montant</th>
-                <th className="text-left px-4 py-3">Statut</th>
-                <th className="text-left px-4 py-3">Échéance</th>
+                <th className="text-left px-4 py-3">{t('Prestataire')}</th>
+                <th className="text-left px-4 py-3">{t('Type')}</th>
+                <th className="text-left px-4 py-3">{t('Période')}</th>
+                <th className="text-right px-4 py-3">{t('Montant')}</th>
+                <th className="text-left px-4 py-3">{t('Statut')}</th>
+                <th className="text-left px-4 py-3">{t('Échéance')}</th>
                 <th className="px-4 py-3"></th>
               </tr></thead>
               <tbody>
@@ -3085,10 +3106,10 @@ function ContratsPanel() {
                       </td>
                       <td className="px-4 py-3" style={{ color: 'var(--fg-muted)' }}>{TYPE_CONTRAT_LABELS[c.type_contrat] || c.type_contrat}</td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--fg-subtle)' }}>
-                        {c.date_debut && new Date(c.date_debut).toLocaleDateString('fr-FR')} → {c.date_fin && new Date(c.date_fin).toLocaleDateString('fr-FR')}
+                        {c.date_debut && new Date(c.date_debut).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')} → {c.date_fin && new Date(c.date_fin).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold" style={{ color: 'var(--fg-muted)' }}>
-                        {c.montant ? `${parseFloat(c.montant).toLocaleString('fr-FR')} €` : '—'}
+                        {c.montant ? `${parseFloat(c.montant).toLocaleString(BCP47_LOCALES[i18n.language] || 'fr-FR')} €` : '—'}
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={sc.style}>{sc.label}</span>
@@ -3096,10 +3117,10 @@ function ContratsPanel() {
                       <td className="px-4 py-3">
                         {c.joursRestants > 0 ? (
                           <span className="text-xs font-semibold" style={{ color: c.expirationProche ? '#d97706' : 'var(--fg-subtle)' }}>
-                            {c.joursRestants}j restants
+                            {t('{{count}}j restants', { count: c.joursRestants })}
                           </span>
                         ) : (
-                          <span className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>Expiré</span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>{t('Expiré')}</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -3124,6 +3145,7 @@ function ContratsPanel() {
 // ─── PIÈCES DE RECHANGE PANEL ─────────────────────────────────────────────────
 
 function PiecesPanel({ subSection }) {
+  const { t } = useTranslation();
   const [pieces, setPieces] = useState([]);
   const [mouvements, setMouvements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3171,7 +3193,7 @@ function PiecesPanel({ subSection }) {
       else await gmaoAPI.createPiece(form);
       setShowForm(false); setEditTarget(null); setForm(EMPTY_PIECE);
       loadPieces();
-    } catch (err) { toast(err.response?.data?.message || 'Erreur'); }
+    } catch (err) { toast(err.response?.data?.message || t('Erreur')); }
     finally { setSaving(false); }
   };
 
@@ -3183,21 +3205,21 @@ function PiecesPanel({ subSection }) {
       setShowMvtForm(null);
       setMvtForm({ type:'entree', quantite:1, date: new Date().toISOString().split('T')[0], motif:'', prix_unitaire:'' });
       loadPieces();
-    } catch (err) { toast(err.response?.data?.message || 'Erreur'); }
+    } catch (err) { toast(err.response?.data?.message || t('Erreur')); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
-    if (!(await confirm({ title: 'Supprimer la pièce', message: 'Supprimer cette pièce ?', confirmLabel: 'Supprimer', variant: 'danger' }))) return;
+    if (!(await confirm({ title: t('Supprimer la pièce'), message: t('Supprimer cette pièce ?'), confirmLabel: t('Supprimer'), variant: 'danger' }))) return;
     await gmaoAPI.deletePiece(id);
     loadPieces();
   };
 
   const MVT_TYPE = {
-    entree:     { label: 'Entrée',      style: { background: 'var(--success-soft)', color: 'var(--success)' } },
-    sortie:     { label: 'Sortie',      style: { background: 'var(--danger-soft)',  color: 'var(--danger)'  } },
-    ajustement: { label: 'Ajustement',  style: { background: 'var(--brand-soft)',   color: 'var(--brand)'   } },
-    retour:     { label: 'Retour',      style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
+    entree:     { label: t('Entrée'),      style: { background: 'var(--success-soft)', color: 'var(--success)' } },
+    sortie:     { label: t('Sortie'),      style: { background: 'var(--danger-soft)',  color: 'var(--danger)'  } },
+    ajustement: { label: t('Ajustement'),  style: { background: 'var(--brand-soft)',   color: 'var(--brand)'   } },
+    retour:     { label: t('Retour'),      style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
   };
 
   const stockCritiques = pieces.filter(p => p.stockCritique).length;
@@ -3207,31 +3229,31 @@ function PiecesPanel({ subSection }) {
     return (
       <div className="p-6 space-y-4">
         <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
-          <List className="w-5 h-5" style={{ color: 'var(--accent-teal)' }} /> Listing des mouvements de stock
-          <span className="ml-auto text-sm font-normal" style={{ color: 'var(--fg-subtle)' }}>{mouvements.length} mouvement{mouvements.length > 1 ? 's' : ''}</span>
+          <List className="w-5 h-5" style={{ color: 'var(--accent-teal)' }} /> {t('Listing des mouvements de stock')}
+          <span className="ml-auto text-sm font-normal" style={{ color: 'var(--fg-subtle)' }}>{t('{{count}} mouvement(s)', { count: mouvements.length })}</span>
         </h3>
         {loading ? (
           <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>
         ) : mouvements.length === 0 ? (
-          <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}><Package className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--border)' }} /><p>Aucun mouvement enregistré</p></div>
+          <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}><Package className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--border)' }} /><p>{t('Aucun mouvement enregistré')}</p></div>
         ) : (
           <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="text-xs uppercase tracking-wider" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg-subtle)' }}>
-                  <th className="text-left px-4 py-3">Date</th>
-                  <th className="text-left px-4 py-3">Pièce</th>
-                  <th className="text-left px-4 py-3">Type</th>
-                  <th className="text-right px-4 py-3">Quantité</th>
-                  <th className="text-left px-4 py-3">Motif</th>
-                  <th className="text-left px-4 py-3">Par</th>
+                  <th className="text-left px-4 py-3">{t('Date')}</th>
+                  <th className="text-left px-4 py-3">{t('Pièce')}</th>
+                  <th className="text-left px-4 py-3">{t('Type')}</th>
+                  <th className="text-right px-4 py-3">{t('Quantité')}</th>
+                  <th className="text-left px-4 py-3">{t('Motif')}</th>
+                  <th className="text-left px-4 py-3">{t('Par')}</th>
                 </tr></thead>
                 <tbody>
                   {mouvements.map(m => {
                     const mt = MVT_TYPE[m.type] || MVT_TYPE.entree;
                     return (
                       <tr key={m.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--fg-muted)' }}>{m.date ? new Date(m.date).toLocaleDateString('fr-FR') : '—'}</td>
+                        <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--fg-muted)' }}>{m.date ? new Date(m.date).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') : '—'}</td>
                         <td className="px-4 py-2.5"><div className="font-medium" style={{ color: 'var(--fg)' }}>{m.piece?.designation || '—'}</div><div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{m.piece?.reference}</div></td>
                         <td className="px-4 py-2.5"><span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={mt.style}>{mt.label}</span></td>
                         <td className="px-4 py-2.5 text-right font-bold" style={{ color: 'var(--fg-muted)' }}>{m.quantite} {m.piece?.unite || ''}</td>
@@ -3258,17 +3280,17 @@ function PiecesPanel({ subSection }) {
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-lg p-4 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="text-2xl font-bold" style={{ color: 'var(--fg)' }}>{pieces.length}</div>
-          <div className="text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>Références</div>
+          <div className="text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>{t('Références')}</div>
         </div>
         <div className="rounded-lg border p-4 text-center" style={stockCritiques > 0 ? { background: 'var(--danger-soft)', border: '1px solid var(--danger)' } : { background: 'var(--success-soft)', border: '1px solid var(--success)' }}>
           <div className="text-2xl font-bold" style={{ color: stockCritiques > 0 ? 'var(--danger)' : 'var(--success)' }}>{stockCritiques}</div>
-          <div className="text-xs mt-0.5" style={{ color: stockCritiques > 0 ? 'var(--danger)' : 'var(--success)' }}>Stock critique{stockCritiques > 1 ? 's' : ''}</div>
+          <div className="text-xs mt-0.5" style={{ color: stockCritiques > 0 ? 'var(--danger)' : 'var(--success)' }}>{t('Stock critique(s)', { count: stockCritiques })}</div>
         </div>
         <div className="rounded-lg p-4 text-center" style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
           <div className="text-2xl font-bold" style={{ color: 'var(--brand)' }}>
-            {pieces.reduce((s, p) => s + (p.quantite_stock * (p.prix_unitaire || 0)), 0).toLocaleString('fr-FR')} €
+            {pieces.reduce((s, p) => s + (p.quantite_stock * (p.prix_unitaire || 0)), 0).toLocaleString(BCP47_LOCALES[i18n.language] || 'fr-FR')} €
           </div>
-          <div className="text-xs mt-0.5" style={{ color: 'var(--brand)' }}>Valeur du stock</div>
+          <div className="text-xs mt-0.5" style={{ color: 'var(--brand)' }}>{t('Valeur du stock')}</div>
         </div>
       </div>
 
@@ -3277,18 +3299,18 @@ function PiecesPanel({ subSection }) {
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 w-4 h-4" style={{ color: 'var(--fg-subtle)' }} />
           <input className="pl-8 pr-3 py-2 text-sm rounded-lg focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-            placeholder="Référence, désignation…" value={search} onChange={e => setSearch(e.target.value)} />
+            placeholder={t('Référence, désignation…')} value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <button
           onClick={() => setAlerteOnly(a => !a)}
           className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors"
           style={alerteOnly ? { background: 'var(--danger)', color: '#fff', borderColor: 'var(--danger)' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg-muted)' }}
         >
-          <AlertCircle className="w-4 h-4" /> Stock critique seulement
+          <AlertCircle className="w-4 h-4" /> {t('Stock critique seulement')}
         </button>
         <button onClick={() => { setEditTarget(null); setForm(EMPTY_PIECE); setShowForm(true); }}
           className="ml-auto flex items-center gap-2 px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>
-          <Plus className="w-4 h-4" /> Ajouter une pièce
+          <Plus className="w-4 h-4" /> {t('Ajouter une pièce')}
         </button>
       </div>
 
@@ -3296,20 +3318,20 @@ function PiecesPanel({ subSection }) {
       {showForm && (
         <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--accent-teal)' }}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold" style={{ color: 'var(--fg)' }}>{editTarget ? 'Modifier la pièce' : 'Nouvelle pièce de rechange'}</h3>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--fg)' }}>{editTarget ? t('Modifier la pièce') : t('Nouvelle pièce de rechange')}</h3>
             <button onClick={() => { setShowForm(false); setEditTarget(null); }}><X className="w-4 h-4" style={{ color: 'var(--fg-subtle)' }} /></button>
           </div>
           <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {[
-              { k:'reference', label:'Référence *', type:'text', placeholder:'REF-001' },
-              { k:'designation', label:'Désignation *', type:'text', placeholder:'Nom de la pièce…' },
-              { k:'categorie', label:'Catégorie', type:'text', placeholder:'Électronique, Mécanique…' },
-              { k:'quantite_stock', label:'Stock actuel', type:'number', placeholder:'0' },
-              { k:'quantite_min', label:'Stock minimum (alerte)', type:'number', placeholder:'1' },
-              { k:'unite', label:'Unité', type:'text', placeholder:'unité, lot, paire…' },
-              { k:'prix_unitaire', label:'Prix unitaire (€)', type:'number', placeholder:'0' },
-              { k:'fournisseur', label:'Fournisseur', type:'text', placeholder:'Nom du fournisseur…' },
-              { k:'localisation', label:'Localisation (armoire…)', type:'text', placeholder:'Armoire A-1…' },
+              { k:'reference', label:t('Référence *'), type:'text', placeholder:'REF-001' },
+              { k:'designation', label:t('Désignation *'), type:'text', placeholder:t('Nom de la pièce…') },
+              { k:'categorie', label:t('Catégorie'), type:'text', placeholder:t('Électronique, Mécanique…') },
+              { k:'quantite_stock', label:t('Stock actuel'), type:'number', placeholder:'0' },
+              { k:'quantite_min', label:t('Stock minimum (alerte)'), type:'number', placeholder:'1' },
+              { k:'unite', label:t('Unité'), type:'text', placeholder:t('unité, lot, paire…') },
+              { k:'prix_unitaire', label:t('Prix unitaire (€)'), type:'number', placeholder:'0' },
+              { k:'fournisseur', label:t('Fournisseur'), type:'text', placeholder:t('Nom du fournisseur…') },
+              { k:'localisation', label:t('Localisation (armoire…)'), type:'text', placeholder:t('Armoire A-1…') },
             ].map(({ k, label, type, placeholder }) => (
               <div key={k}>
                 <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{label}</label>
@@ -3319,10 +3341,10 @@ function PiecesPanel({ subSection }) {
             ))}
             <div className="col-span-full flex gap-3 justify-end">
               <button type="button" onClick={() => { setShowForm(false); setEditTarget(null); }}
-                className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>Annuler</button>
+                className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>{t('Annuler')}</button>
               <button type="submit" disabled={saving}
                 className="px-5 py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--accent-teal)' }}>
-                {saving ? 'Enregistrement…' : editTarget ? 'Mettre à jour' : 'Ajouter'}
+                {saving ? t('Enregistrement…') : editTarget ? t('Mettre à jour') : t('Ajouter')}
               </button>
             </div>
           </form>
@@ -3334,41 +3356,41 @@ function PiecesPanel({ subSection }) {
         <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(0,0,0,0.4)' }}>
           <div className="shadow-xl p-6 w-full max-w-md" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)' }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold" style={{ color: 'var(--fg)' }}>Mouvement de stock — {showMvtForm.designation}</h3>
+              <h3 className="font-bold" style={{ color: 'var(--fg)' }}>{t('Mouvement de stock — {{name}}', { name: showMvtForm.designation })}</h3>
               <button onClick={() => setShowMvtForm(null)}><X className="w-5 h-5" style={{ color: 'var(--fg-subtle)' }} /></button>
             </div>
             <form onSubmit={handleMouvement} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Type de mouvement</label>
+                <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Type de mouvement')}</label>
                 <select className="w-full rounded-lg px-3 py-2 text-sm" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                   value={mvtForm.type} onChange={e => setMvtForm(f => ({ ...f, type: e.target.value }))}>
-                  <option value="entree">Entrée (réapprovisionnement)</option>
-                  <option value="sortie">Sortie (utilisation)</option>
-                  <option value="ajustement">Ajustement inventaire</option>
-                  <option value="retour">Retour fournisseur</option>
+                  <option value="entree">{t('Entrée (réapprovisionnement)')}</option>
+                  <option value="sortie">{t('Sortie (utilisation)')}</option>
+                  <option value="ajustement">{t('Ajustement inventaire')}</option>
+                  <option value="retour">{t('Retour fournisseur')}</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Quantité *</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Quantité *')}</label>
                   <input type="number" min="1" className="w-full rounded-lg px-3 py-2 text-sm" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={mvtForm.quantite} onChange={e => setMvtForm(f => ({ ...f, quantite: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Date</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Date')}</label>
                   <input type="date" className="w-full rounded-lg px-3 py-2 text-sm" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={mvtForm.date} onChange={e => setMvtForm(f => ({ ...f, date: e.target.value }))} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Motif</label>
+                <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Motif')}</label>
                 <input className="w-full rounded-lg px-3 py-2 text-sm" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-                  placeholder="Raison du mouvement…" value={mvtForm.motif} onChange={e => setMvtForm(f => ({ ...f, motif: e.target.value }))} />
+                  placeholder={t('Raison du mouvement…')} value={mvtForm.motif} onChange={e => setMvtForm(f => ({ ...f, motif: e.target.value }))} />
               </div>
               <div className="flex gap-3 justify-end">
-                <button type="button" onClick={() => setShowMvtForm(null)} className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>Annuler</button>
+                <button type="button" onClick={() => setShowMvtForm(null)} className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>{t('Annuler')}</button>
                 <button type="submit" disabled={saving} className="px-5 py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--accent-teal)' }}>
-                  {saving ? 'Enregistrement…' : 'Enregistrer'}
+                  {saving ? t('Enregistrement…') : t('Enregistrer')}
                 </button>
               </div>
             </form>
@@ -3380,18 +3402,18 @@ function PiecesPanel({ subSection }) {
       {loading ? (
         <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>
       ) : pieces.length === 0 ? (
-        <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}><Package className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--border)' }} /><p className="text-sm">Aucune pièce enregistrée</p></div>
+        <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}><Package className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--border)' }} /><p className="text-sm">{t('Aucune pièce enregistrée')}</p></div>
       ) : (
         <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-xs uppercase tracking-wider" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg-subtle)' }}>
-                <th className="text-left px-4 py-3">Référence</th>
-                <th className="text-left px-4 py-3">Désignation</th>
-                <th className="text-left px-4 py-3">Catégorie</th>
-                <th className="text-center px-4 py-3">Stock</th>
-                <th className="text-right px-4 py-3">Prix unit.</th>
-                <th className="text-left px-4 py-3">Localisation</th>
+                <th className="text-left px-4 py-3">{t('Référence')}</th>
+                <th className="text-left px-4 py-3">{t('Désignation')}</th>
+                <th className="text-left px-4 py-3">{t('Catégorie')}</th>
+                <th className="text-center px-4 py-3">{t('Stock')}</th>
+                <th className="text-right px-4 py-3">{t('Prix unit.')}</th>
+                <th className="text-left px-4 py-3">{t('Localisation')}</th>
                 <th className="px-4 py-3"></th>
               </tr></thead>
               <tbody>
@@ -3406,16 +3428,16 @@ function PiecesPanel({ subSection }) {
                         {p.quantite_stock} {p.unite}
                         {p.stockCritique && <AlertCircle className="w-3 h-3" />}
                       </span>
-                      <div className="text-[10px] mt-0.5" style={{ color: 'var(--fg-subtle)' }}>min: {p.quantite_min}</div>
+                      <div className="text-[10px] mt-0.5" style={{ color: 'var(--fg-subtle)' }}>{t('min: {{count}}', { count: p.quantite_min })}</div>
                     </td>
                     <td className="px-4 py-2.5 text-right" style={{ color: 'var(--fg-muted)' }}>
-                      {p.prix_unitaire ? `${parseFloat(p.prix_unitaire).toLocaleString('fr-FR')} €` : '—'}
+                      {p.prix_unitaire ? `${parseFloat(p.prix_unitaire).toLocaleString(BCP47_LOCALES[i18n.language] || 'fr-FR')} €` : '—'}
                     </td>
                     <td className="px-4 py-2.5" style={{ color: 'var(--fg-subtle)' }}>{p.localisation || '—'}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => setShowMvtForm(p)} title="Mouvement de stock"
-                          className="text-xs px-2 py-1 rounded font-medium" style={{ background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' }}>±Stock</button>
+                        <button onClick={() => setShowMvtForm(p)} title={t('Mouvement de stock')}
+                          className="text-xs px-2 py-1 rounded font-medium" style={{ background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)' }}>{t('±Stock')}</button>
                         <button onClick={() => { setEditTarget(p); setForm({ ...EMPTY_PIECE, ...p }); setShowForm(true); }}
                           style={{ color: 'var(--fg-subtle)' }}><Edit2 className="w-3.5 h-3.5" /></button>
                         <button onClick={() => handleDelete(p.id)} style={{ color: 'var(--fg-subtle)' }}><Trash2 className="w-3.5 h-3.5" /></button>
@@ -3435,18 +3457,20 @@ function PiecesPanel({ subSection }) {
 
 // ─── ACQUISITION PANEL ────────────────────────────────────────────────────────
 
-const STATUT_ACQ = {
-  en_attente:   { label: 'En attente',   style: { background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)' }, step: 0 },
-  approuvee:    { label: 'Approuvée',    style: { background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand)' },       step: 1 },
-  rejetee:      { label: 'Rejetée',      style: { background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger)' },    step: -1 },
-  commandee:    { label: 'Commandée',    style: { background: 'var(--info-soft)', color: 'var(--info)', border: '1px solid var(--info)' }, step: 2 },
-  receptionnee: { label: 'Réceptionnée', style: { background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)', border: '1px solid var(--accent-teal)' },  step: 3 },
-  affectee:     { label: 'Affectée',     style: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' }, step: 4 },
-};
+const getStatutAcq = (t) => ({
+  en_attente:   { label: t('En attente'),   style: { background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)' }, step: 0 },
+  approuvee:    { label: t('Approuvée'),    style: { background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand)' },       step: 1 },
+  rejetee:      { label: t('Rejetée'),      style: { background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger)' },    step: -1 },
+  commandee:    { label: t('Commandée'),    style: { background: 'var(--info-soft)', color: 'var(--info)', border: '1px solid var(--info)' }, step: 2 },
+  receptionnee: { label: t('Réceptionnée'), style: { background: 'var(--accent-teal-soft)', color: 'var(--accent-teal)', border: '1px solid var(--accent-teal)' },  step: 3 },
+  affectee:     { label: t('Affectée'),     style: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' }, step: 4 },
+});
 
 const WORKFLOW_STEPS = ['en_attente','approuvee','commandee','receptionnee','affectee'];
 
 function AcquisitionPanel() {
+  const { t } = useTranslation();
+  const STATUT_ACQ = getStatutAcq(t);
   const [acquisitions, setAcquisitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -3477,14 +3501,14 @@ function AcquisitionPanel() {
       await gmaoAPI.createAcquisition(form);
       setShowForm(false); setForm(EMPTY);
       load();
-    } catch (err) { toast(err.response?.data?.message || 'Erreur'); }
+    } catch (err) { toast(err.response?.data?.message || t('Erreur')); }
     finally { setSaving(false); }
   };
 
   const handleStatutChange = async (acq, newStatut) => {
     const updates = { statut: newStatut };
     if (newStatut === 'rejetee') {
-      const motif = prompt('Motif de rejet (optionnel):');
+      const motif = prompt(t('Motif de rejet (optionnel):'));
       if (motif !== null) updates.motif_rejet = motif;
     }
     if (newStatut === 'commandee') {
@@ -3492,7 +3516,7 @@ function AcquisitionPanel() {
       updates.numero_commande = selected?.numero_commande || acq.numero_commande || '';
     }
     if (newStatut === 'affectee' && !acq.prix_achat) {
-      const prix = prompt('Prix d\'achat final (€):');
+      const prix = prompt(t("Prix d'achat final (€):"));
       if (prix) updates.prix_achat = parseFloat(prix);
     }
     await gmaoAPI.updateAcquisition(acq.id, updates);
@@ -3521,7 +3545,7 @@ function AcquisitionPanel() {
       <div className="w-80 flex flex-col flex-shrink-0" style={{ borderRight: '1px solid var(--border)', background: 'var(--surface)' }}>
         {/* Stats rapides */}
         <div className="grid grid-cols-3" style={{ borderBottom: '1px solid var(--border)' }}>
-          {[['En attente', counts.en_attente, 'var(--warning)'],['Approuvées', counts.approuvee, 'var(--brand)'],['Commandées', counts.commandee, '#6366f1']].map(([label, count, color]) => (
+          {[[t('En attente'), counts.en_attente, 'var(--warning)'],[t('Approuvées'), counts.approuvee, 'var(--brand)'],[t('Commandées'), counts.commandee, '#6366f1']].map(([label, count, color]) => (
             <div key={label} className="py-3 text-center" style={{ borderRight: '1px solid var(--border)' }}>
               <div className="text-xl font-bold" style={{ color }}>{count}</div>
               <div className="text-[10px]" style={{ color: 'var(--fg-subtle)' }}>{label}</div>
@@ -3532,13 +3556,13 @@ function AcquisitionPanel() {
         <div className="p-3 flex gap-2" style={{ borderBottom: '1px solid var(--border)' }}>
           <select className="flex-1 rounded-lg px-2 py-1.5 text-xs focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
-            <option value="">Tous</option>
+            <option value="">{t('Tous')}</option>
             {Object.entries(STATUT_ACQ).filter(([k]) => k !== 'rejetee').map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            <option value="rejetee">Rejetées</option>
+            <option value="rejetee">{t('Rejetées')}</option>
           </select>
           <button onClick={() => { setShowForm(true); setSelected(null); }}
             className="flex items-center gap-1 px-2 py-1.5 text-white text-xs font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>
-            <Plus className="w-3 h-3" /> Nouvelle
+            <Plus className="w-3 h-3" /> {t('Nouvelle')}
           </button>
         </div>
         {/* Liste */}
@@ -3546,7 +3570,7 @@ function AcquisitionPanel() {
           {loading ? (
             <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--accent-teal)' }} /></div>
           ) : acquisitions.length === 0 ? (
-            <div className="text-center py-8 text-xs" style={{ color: 'var(--fg-subtle)' }}>Aucune demande</div>
+            <div className="text-center py-8 text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('Aucune demande')}</div>
           ) : acquisitions.map(a => {
             const sc = STATUT_ACQ[a.statut] || STATUT_ACQ.en_attente;
             const isSelected = selected?.id === a.id;
@@ -3573,61 +3597,61 @@ function AcquisitionPanel() {
       <div className="flex-1 overflow-y-auto p-6" style={{ background: 'var(--surface-2)' }}>
         {showForm ? (
           <div className="rounded-lg shadow-sm p-6 max-w-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <h3 className="text-base font-bold mb-5" style={{ color: 'var(--fg)' }}>Nouvelle demande d'acquisition</h3>
+            <h3 className="text-base font-bold mb-5" style={{ color: 'var(--fg)' }}>{t("Nouvelle demande d'acquisition")}</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Désignation de l'équipement *</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t("Désignation de l'équipement *")}</label>
                   <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-                    placeholder="Nom de l'équipement demandé…" value={form.designation} onChange={e => set('designation', e.target.value)} required />
+                    placeholder={t("Nom de l'équipement demandé…")} value={form.designation} onChange={e => set('designation', e.target.value)} required />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Type d'équipement</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t("Type d'équipement")}</label>
                   <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-                    placeholder="Moniteur, Défibrillateur…" value={form.type_equipement} onChange={e => set('type_equipement', e.target.value)} />
+                    placeholder={t('Moniteur, Défibrillateur…')} value={form.type_equipement} onChange={e => set('type_equipement', e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Quantité</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Quantité')}</label>
                   <input type="number" min="1" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={form.quantite} onChange={e => set('quantite', e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Service demandeur</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Service demandeur')}</label>
                   <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={form.service_demandeur} onChange={e => set('service_demandeur', e.target.value)}>
-                    <option value="">— Sélectionner —</option>
+                    <option value="">{t('— Sélectionner —')}</option>
                     {SERVICES.map(s => <option key={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Priorité</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Priorité')}</label>
                   <select className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     value={form.priorite} onChange={e => set('priorite', e.target.value)}>
-                    <option value="normale">Normale</option>
-                    <option value="urgente">Urgente</option>
-                    <option value="critique">Critique</option>
+                    <option value="normale">{t('Normale')}</option>
+                    <option value="urgente">{t('Urgente')}</option>
+                    <option value="critique">{t('Critique')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Budget estimé (€)</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Budget estimé (€)')}</label>
                   <input type="number" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
                     placeholder="0" value={form.budget_estime} onChange={e => set('budget_estime', e.target.value)} />
                 </div>
                 <div className="col-span-2">
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Motif / Justification</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Motif / Justification')}</label>
                   <textarea rows={2} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-                    placeholder="Pourquoi cet équipement est-il nécessaire ?" value={form.motif} onChange={e => set('motif', e.target.value)} />
+                    placeholder={t('Pourquoi cet équipement est-il nécessaire ?')} value={form.motif} onChange={e => set('motif', e.target.value)} />
                 </div>
                 <div className="col-span-2">
-                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>Spécifications techniques</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--fg-muted)' }}>{t('Spécifications techniques')}</label>
                   <textarea rows={2} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none resize-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
-                    placeholder="Caractéristiques techniques requises…" value={form.specifications} onChange={e => set('specifications', e.target.value)} />
+                    placeholder={t('Caractéristiques techniques requises…')} value={form.specifications} onChange={e => set('specifications', e.target.value)} />
                 </div>
               </div>
               <div className="flex gap-3 justify-end pt-2">
-                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>Annuler</button>
+                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>{t('Annuler')}</button>
                 <button type="submit" disabled={saving} className="px-5 py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50" style={{ background: 'var(--accent-teal)' }}>
-                  {saving ? 'Enregistrement…' : 'Soumettre la demande'}
+                  {saving ? t('Enregistrement…') : t('Soumettre la demande')}
                 </button>
               </div>
             </form>
@@ -3646,9 +3670,9 @@ function AcquisitionPanel() {
                     <span className="text-xs px-2 py-0.5 rounded-full" style={PRIORITE_BADGE[selected.priorite] || {}}>{selected.priorite}</span>
                   </div>
                   <h2 className="text-lg font-bold" style={{ color: 'var(--fg)' }}>{selected.designation}</h2>
-                  <div className="text-sm mt-0.5" style={{ color: 'var(--fg-muted)' }}>{selected.type_equipement} — {selected.service_demandeur || '—'} — Qté: {selected.quantite}</div>
+                  <div className="text-sm mt-0.5" style={{ color: 'var(--fg-muted)' }}>{selected.type_equipement} — {selected.service_demandeur || '—'} — {t('Qté: {{count}}', { count: selected.quantite })}</div>
                 </div>
-                <button onClick={async () => { if (await confirm({ title: 'Supprimer la demande', message: 'Supprimer cette demande ?', confirmLabel: 'Supprimer', variant: 'danger' })) { gmaoAPI.deleteAcquisition(selected.id); setSelected(null); load(); } }}
+                <button onClick={async () => { if (await confirm({ title: t('Supprimer la demande'), message: t('Supprimer cette demande ?'), confirmLabel: t('Supprimer'), variant: 'danger' })) { gmaoAPI.deleteAcquisition(selected.id); setSelected(null); load(); } }}
                   style={{ color: 'var(--fg-subtle)' }}><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
@@ -3656,7 +3680,7 @@ function AcquisitionPanel() {
             {/* Stepper workflow */}
             {selected.statut !== 'rejetee' && (
               <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <h3 className="text-xs font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--fg-muted)' }}>Progression</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--fg-muted)' }}>{t('Progression')}</h3>
                 <div className="flex items-center gap-0">
                   {WORKFLOW_STEPS.map((step, i) => {
                     const sc = STATUT_ACQ[step];
@@ -3687,40 +3711,40 @@ function AcquisitionPanel() {
 
             {/* Actions workflow */}
             <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--fg-muted)' }}>Actions</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--fg-muted)' }}>{t('Actions')}</h3>
               <div className="flex flex-wrap gap-2">
                 {selected.statut === 'en_attente' && <>
-                  <button onClick={() => handleStatutChange(selected, 'approuvee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--brand)' }}>✓ Approuver</button>
-                  <button onClick={() => handleStatutChange(selected, 'rejetee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--danger)' }}>✗ Rejeter</button>
+                  <button onClick={() => handleStatutChange(selected, 'approuvee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--brand)' }}>✓ {t('Approuver')}</button>
+                  <button onClick={() => handleStatutChange(selected, 'rejetee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--danger)' }}>✗ {t('Rejeter')}</button>
                 </>}
                 {selected.statut === 'approuvee' && (
-                  <button onClick={() => handleStatutChange(selected, 'commandee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: '#6366f1' }}>📦 Marquer commandé</button>
+                  <button onClick={() => handleStatutChange(selected, 'commandee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: '#6366f1' }}>📦 {t('Marquer commandé')}</button>
                 )}
                 {selected.statut === 'commandee' && (
-                  <button onClick={() => handleStatutChange(selected, 'receptionnee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>✓ Marquer réceptionné</button>
+                  <button onClick={() => handleStatutChange(selected, 'receptionnee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>✓ {t('Marquer réceptionné')}</button>
                 )}
                 {selected.statut === 'receptionnee' && (
-                  <button onClick={() => handleStatutChange(selected, 'affectee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--success)' }}>✓ Affecter au service</button>
+                  <button onClick={() => handleStatutChange(selected, 'affectee')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--success)' }}>✓ {t('Affecter au service')}</button>
                 )}
                 {selected.statut === 'rejetee' && (
-                  <button onClick={() => handleStatutChange(selected, 'en_attente')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--fg-subtle)' }}>↺ Remettre en attente</button>
+                  <button onClick={() => handleStatutChange(selected, 'en_attente')} className="px-4 py-2 text-white text-sm font-semibold rounded-lg" style={{ background: 'var(--fg-subtle)' }}>↺ {t('Remettre en attente')}</button>
                 )}
               </div>
             </div>
 
             {/* Détails */}
             <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--fg-muted)' }}>Détails</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--fg-muted)' }}>{t('Détails')}</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {[
-                  ['Budget estimé', selected.budget_estime ? `${parseFloat(selected.budget_estime).toLocaleString('fr-FR')} €` : '—'],
-                  ['Prix d\'achat final', selected.prix_achat ? `${parseFloat(selected.prix_achat).toLocaleString('fr-FR')} €` : '—'],
-                  ['Fournisseur', selected.fournisseur || '—'],
-                  ['N° commande', selected.numero_commande || '—'],
-                  ['Date demande', selected.date_demande ? new Date(selected.date_demande).toLocaleDateString('fr-FR') : '—'],
-                  ['Date approbation', selected.date_approbation ? new Date(selected.date_approbation).toLocaleDateString('fr-FR') : '—'],
-                  ['Date commande', selected.date_commande ? new Date(selected.date_commande).toLocaleDateString('fr-FR') : '—'],
-                  ['Date réception', selected.date_reception ? new Date(selected.date_reception).toLocaleDateString('fr-FR') : '—'],
+                  [t('Budget estimé'), selected.budget_estime ? `${parseFloat(selected.budget_estime).toLocaleString(BCP47_LOCALES[i18n.language] || 'fr-FR')} €` : '—'],
+                  [t("Prix d'achat final"), selected.prix_achat ? `${parseFloat(selected.prix_achat).toLocaleString(BCP47_LOCALES[i18n.language] || 'fr-FR')} €` : '—'],
+                  [t('Fournisseur'), selected.fournisseur || '—'],
+                  [t('N° commande'), selected.numero_commande || '—'],
+                  [t('Date demande'), selected.date_demande ? new Date(selected.date_demande).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') : '—'],
+                  [t('Date approbation'), selected.date_approbation ? new Date(selected.date_approbation).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') : '—'],
+                  [t('Date commande'), selected.date_commande ? new Date(selected.date_commande).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') : '—'],
+                  [t('Date réception'), selected.date_reception ? new Date(selected.date_reception).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') : '—'],
                 ].map(([label, val]) => (
                   <div key={label}>
                     <span className="text-xs block" style={{ color: 'var(--fg-subtle)' }}>{label}</span>
@@ -3730,19 +3754,19 @@ function AcquisitionPanel() {
               </div>
               {selected.motif && (
                 <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <span className="text-xs block mb-1" style={{ color: 'var(--fg-subtle)' }}>Motif / Justification</span>
+                  <span className="text-xs block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Motif / Justification')}</span>
                   <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>{selected.motif}</p>
                 </div>
               )}
               {selected.specifications && (
                 <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <span className="text-xs block mb-1" style={{ color: 'var(--fg-subtle)' }}>Spécifications</span>
+                  <span className="text-xs block mb-1" style={{ color: 'var(--fg-subtle)' }}>{t('Spécifications')}</span>
                   <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>{selected.specifications}</p>
                 </div>
               )}
               {selected.motif_rejet && (
                 <div className="mt-3 p-3 rounded-lg" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)' }}>
-                  <span className="text-xs font-semibold block mb-1" style={{ color: 'var(--danger)' }}>Motif de rejet</span>
+                  <span className="text-xs font-semibold block mb-1" style={{ color: 'var(--danger)' }}>{t('Motif de rejet')}</span>
                   <p className="text-sm" style={{ color: 'var(--danger)' }}>{selected.motif_rejet}</p>
                 </div>
               )}
@@ -3751,7 +3775,7 @@ function AcquisitionPanel() {
         ) : (
           <div className="flex flex-col items-center justify-center h-full" style={{ color: 'var(--fg-subtle)' }}>
             <ShoppingCart className="w-12 h-12 mb-3" style={{ color: 'var(--border)' }} />
-            <p className="text-sm">Sélectionnez une demande ou créez-en une nouvelle</p>
+            <p className="text-sm">{t('Sélectionnez une demande ou créez-en une nouvelle')}</p>
           </div>
         )}
       </div>
@@ -4289,6 +4313,8 @@ function StatsPersonnelsPanel() {
 // ─── STATS FINANCE PANEL ──────────────────────────────────────────────────────
 
 function StatsFinancePanel({ analytics }) {
+  const { t } = useTranslation();
+  const locale = BCP47_LOCALES[i18n.language] || 'fr-FR';
   const RATE_KEY = 'gmao_taux_horaire';
   const [tauxHoraire, setTauxHoraire] = useState(() => {
     return parseFloat(localStorage.getItem(RATE_KEY) || '50');
@@ -4309,7 +4335,7 @@ function StatsFinancePanel({ analytics }) {
     </div>
   );
 
-  const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const MONTHS = [t('Jan'),t('Fév'),t('Mar'),t('Avr'),t('Mai'),t('Jun'),t('Jul'),t('Aoû'),t('Sep'),t('Oct'),t('Nov'),t('Déc')];
 
   const monthCosts = analytics.byMonth.map(m => ({
     ...m,
@@ -4332,8 +4358,8 @@ function StatsFinancePanel({ analytics }) {
       {/* Header + taux horaire */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold" style={{ color: 'var(--fg)' }}>Analyse Financière de la Maintenance</h3>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>Estimation basée sur la durée réelle × taux horaire configuré</p>
+          <h3 className="text-base font-bold" style={{ color: 'var(--fg)' }}>{t('Analyse Financière de la Maintenance')}</h3>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--fg-subtle)' }}>{t('Estimation basée sur la durée réelle × taux horaire configuré')}</p>
         </div>
         <div className="flex items-center gap-2">
           {editRate ? (
@@ -4345,8 +4371,8 @@ function StatsFinancePanel({ analytics }) {
                 onChange={e => setTmpRate(e.target.value)}
               />
               <span className="text-sm" style={{ color: 'var(--fg-muted)' }}>€/h</span>
-              <button onClick={saveRate} className="px-3 py-1.5 text-white text-xs font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>OK</button>
-              <button onClick={() => setEditRate(false)} className="px-3 py-1.5 text-xs rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>Annuler</button>
+              <button onClick={saveRate} className="px-3 py-1.5 text-white text-xs font-semibold rounded-lg" style={{ background: 'var(--accent-teal)' }}>{t('OK')}</button>
+              <button onClick={() => setEditRate(false)} className="px-3 py-1.5 text-xs rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>{t('Annuler')}</button>
             </>
           ) : (
             <button
@@ -4354,7 +4380,7 @@ function StatsFinancePanel({ analytics }) {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors" style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)' }}
             >
               <Settings2 className="w-3.5 h-3.5" />
-              Taux : {tauxHoraire} €/h
+              {t('Taux : {{taux}} €/h', { taux: tauxHoraire })}
             </button>
           )}
         </div>
@@ -4363,10 +4389,10 @@ function StatsFinancePanel({ analytics }) {
       {/* KPIs financiers */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Coût total estimé', val: `${totalCout.toLocaleString('fr-FR')} €`, icon: <DollarSign className="w-5 h-5" style={{ color: 'var(--brand)' }} />, bg: 'var(--brand-soft)', border: 'var(--brand)', color: 'var(--brand)' },
-          { label: 'Coût préventif', val: `${coutPrev.toLocaleString('fr-FR')} €`, icon: <TrendingUp className="w-5 h-5" style={{ color: 'var(--accent-teal)' }} />, bg: 'var(--accent-teal-soft)', border: 'var(--accent-teal)', color: 'var(--accent-teal)', sub: `${Math.round(coutPrev/totalTypes*100)}% du total` },
-          { label: 'Coût correctif', val: `${coutCorr.toLocaleString('fr-FR')} €`, icon: <AlertTriangle className="w-5 h-5" style={{ color: '#ea580c' }} />, bg: 'rgba(234,88,12,0.1)', border: '#ea580c', color: '#ea580c', sub: `${Math.round(coutCorr/totalTypes*100)}% du total` },
-          { label: 'Durée moy / inter.', val: analytics.avgDuree ? `${analytics.avgDuree}h` : '—', icon: <Clock className="w-5 h-5" style={{ color: 'var(--fg-muted)' }} />, bg: 'var(--surface-2)', border: 'var(--border)', color: 'var(--fg-muted)', sub: 'durée réelle moyenne' },
+          { label: t('Coût total estimé'), val: `${totalCout.toLocaleString(locale)} €`, icon: <DollarSign className="w-5 h-5" style={{ color: 'var(--brand)' }} />, bg: 'var(--brand-soft)', border: 'var(--brand)', color: 'var(--brand)' },
+          { label: t('Coût préventif'), val: `${coutPrev.toLocaleString(locale)} €`, icon: <TrendingUp className="w-5 h-5" style={{ color: 'var(--accent-teal)' }} />, bg: 'var(--accent-teal-soft)', border: 'var(--accent-teal)', color: 'var(--accent-teal)', sub: t('{{pct}}% du total', { pct: Math.round(coutPrev/totalTypes*100) }) },
+          { label: t('Coût correctif'), val: `${coutCorr.toLocaleString(locale)} €`, icon: <AlertTriangle className="w-5 h-5" style={{ color: '#ea580c' }} />, bg: 'rgba(234,88,12,0.1)', border: '#ea580c', color: '#ea580c', sub: t('{{pct}}% du total', { pct: Math.round(coutCorr/totalTypes*100) }) },
+          { label: t('Durée moy / inter.'), val: analytics.avgDuree ? `${analytics.avgDuree}h` : '—', icon: <Clock className="w-5 h-5" style={{ color: 'var(--fg-muted)' }} />, bg: 'var(--surface-2)', border: 'var(--border)', color: 'var(--fg-muted)', sub: t('durée réelle moyenne') },
         ].map(({ label, val, icon, bg, border, color, sub }) => (
           <div key={label} className="rounded-lg p-4" style={{ background: bg, border: `1px solid ${border}` }}>
             <div className="flex items-center justify-between mb-1">{icon}<span className="text-xs" style={{ color }}>{label}</span></div>
@@ -4380,7 +4406,7 @@ function StatsFinancePanel({ analytics }) {
         {/* Évolution mensuelle du coût */}
         <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
-            <BarChart2 className="w-4 h-4" style={{ color: 'var(--brand)' }} /> Coût mensuel estimé
+            <BarChart2 className="w-4 h-4" style={{ color: 'var(--brand)' }} /> {t('Coût mensuel estimé')}
           </h3>
           <div className="flex items-end gap-1 h-32">
             {monthCosts.map((m, i) => (
@@ -4388,7 +4414,7 @@ function StatsFinancePanel({ analytics }) {
                 <div
                   className="w-full rounded-t-sm transition-all"
                   style={{ height: `${m.cout ? Math.max(4, (m.cout / maxCout) * 100) : 0}%`, background: 'var(--brand)' }}
-                  title={`${MONTHS[i]} : ${m.cout.toLocaleString('fr-FR')} €`}
+                  title={t('{{month}} : {{cout}} €', { month: MONTHS[i], cout: m.cout.toLocaleString(locale) })}
                 />
                 <span className="text-[9px]" style={{ color: 'var(--fg-subtle)' }}>{MONTHS[i]}</span>
               </div>
@@ -4399,17 +4425,17 @@ function StatsFinancePanel({ analytics }) {
         {/* Répartition préventif / correctif */}
         <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
-            <PieChart className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> Répartition du coût
+            <PieChart className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} /> {t('Répartition du coût')}
           </h3>
           <div className="space-y-3 mt-4">
             {[
-              { label: 'Préventif', val: coutPrev, barColor: 'var(--accent-teal)', pct: Math.round(coutPrev/totalTypes*100) },
-              { label: 'Correctif', val: coutCorr, barColor: '#ea580c', pct: Math.round(coutCorr/totalTypes*100) },
+              { label: t('Préventif'), val: coutPrev, barColor: 'var(--accent-teal)', pct: Math.round(coutPrev/totalTypes*100) },
+              { label: t('Correctif'), val: coutCorr, barColor: '#ea580c', pct: Math.round(coutCorr/totalTypes*100) },
             ].map(({ label, val, barColor, pct }) => (
               <div key={label}>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="font-medium" style={{ color: 'var(--fg-muted)' }}>{label}</span>
-                  <span className="font-bold" style={{ color: 'var(--fg)' }}>{val.toLocaleString('fr-FR')} € <span className="font-normal text-xs" style={{ color: 'var(--fg-subtle)' }}>({pct}%)</span></span>
+                  <span className="font-bold" style={{ color: 'var(--fg)' }}>{val.toLocaleString(locale)} € <span className="font-normal text-xs" style={{ color: 'var(--fg-subtle)' }}>({pct}%)</span></span>
                 </div>
                 <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
                   <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
@@ -4418,7 +4444,7 @@ function StatsFinancePanel({ analytics }) {
             ))}
           </div>
           <div className="mt-4 pt-4 text-xs italic" style={{ borderTop: '1px solid var(--border)', color: 'var(--fg-subtle)' }}>
-            * Estimation : nb interventions × durée moy ({analytics.avgDuree || 2}h) × {tauxHoraire} €/h
+            {t('* Estimation : nb interventions × durée moy ({{duree}}h) × {{taux}} €/h', { duree: analytics.avgDuree || 2, taux: tauxHoraire })}
           </div>
         </div>
       </div>
@@ -4427,7 +4453,7 @@ function StatsFinancePanel({ analytics }) {
       {serviceCosts.length > 0 && (
         <div className="rounded-lg shadow-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h3 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
-            <Layers className="w-4 h-4" style={{ color: '#9333ea' }} /> Coût par service
+            <Layers className="w-4 h-4" style={{ color: '#9333ea' }} /> {t('Coût par service')}
           </h3>
           <div className="space-y-2.5">
             {serviceCosts.slice(0,8).map((s) => (
@@ -4440,7 +4466,7 @@ function StatsFinancePanel({ analytics }) {
                   />
                 </div>
                 <span className="text-sm font-semibold w-28 text-right flex-shrink-0" style={{ color: 'var(--fg-muted)' }}>
-                  {s.cout.toLocaleString('fr-FR')} €
+                  {s.cout.toLocaleString(locale)} €
                 </span>
               </div>
             ))}
@@ -4735,6 +4761,9 @@ function ToolAnalyse2080Panel({ analytics }) {
     </div>
   );
 }
+
+// ─── TOOL CONSOMMATION BUDGET PANEL ──────────────────────────────────────────
+
 
 // ─── TOOL CONSOMMATION BUDGET PANEL ──────────────────────────────────────────
 

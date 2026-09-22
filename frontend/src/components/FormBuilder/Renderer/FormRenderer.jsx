@@ -2,12 +2,14 @@
 // Rendu du formulaire respectant exactement les positions du designer
 
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GRID_SIZE, CANVAS_WIDTH } from '../../../store/formBuilderStore';
 import useFormLogic from '../../../hooks/useFormLogic';
 
 // ─── Rendu d'un champ interactif ─────────────────────────────────────────────
 
 function FieldInput({ field, value, onChange, error }) {
+  const { t } = useTranslation();
   const inputStyle = {
     width: '100%', padding: '7px 12px',
     border: `1.5px solid ${error ? '#ef4444' : '#d1d5db'}`,
@@ -42,7 +44,7 @@ function FieldInput({ field, value, onChange, error }) {
     case 'select':
       return <>{labelEl}{descEl}
         <select style={inputStyle} value={value || ''} onChange={e => onChange(e.target.value)}>
-          <option value="">Sélectionner...</option>
+          <option value="">{t('Sélectionner...')}</option>
           {field.options?.map((o, i) => <option key={i} value={o}>{o}</option>)}
         </select></>;
 
@@ -83,14 +85,14 @@ function FieldInput({ field, value, onChange, error }) {
     case 'signature':
       return <>{labelEl}{descEl}
         <div style={{ border: '2px dashed #d1d5db', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 60, fontSize: 12, color: '#9ca3af', background: '#f9fafb' }}>
-          ✍ Signer ici
+          ✍ {t('Signer ici')}
         </div></>;
 
     case 'cachet':
       return <>{labelEl}{descEl}
         <div style={{ border: '2px dashed #6366f1', borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 60, fontSize: 12, color: '#6366f1', background: '#f5f3ff', gap: 4 }}>
           <span style={{ fontSize: 20 }}>🔖</span>
-          <span>Zone de cachet</span>
+          <span>{t('Zone de cachet')}</span>
         </div></>;
 
     case 'file':
@@ -105,6 +107,7 @@ function FieldInput({ field, value, onChange, error }) {
 // ─── FormRenderer principal ───────────────────────────────────────────────────
 
 export default function FormRenderer({ form, onSubmit, readOnly = true }) {
+  const { t } = useTranslation();
   const [values,    setValues]    = useState({});
   const [errors,    setErrors]    = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -129,7 +132,7 @@ export default function FormRenderer({ form, onSubmit, readOnly = true }) {
   const validate = () => {
     const errs = {};
     fields.forEach(f => {
-      if (f.required && !values[f.id]) errs[f.id] = 'Ce champ est obligatoire';
+      if (f.required && !values[f.id]) errs[f.id] = t('Ce champ est obligatoire');
     });
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -147,14 +150,14 @@ export default function FormRenderer({ form, onSubmit, readOnly = true }) {
       <div style={{ textAlign: 'center', padding: '60px 20px' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827' }}>
-          {form.settings?.successMessage || 'Formulaire soumis avec succès !'}
+          {form.settings?.successMessage || t('Formulaire soumis avec succès !')}
         </h2>
       </div>
     );
   }
 
   if (!fields.length) {
-    return <p style={{ textAlign: 'center', color: '#9ca3af', padding: 40 }}>Aucun champ dans ce formulaire.</p>;
+    return <p style={{ textAlign: 'center', color: '#9ca3af', padding: 40 }}>{t('Aucun champ dans ce formulaire.')}</p>;
   }
 
   return (
@@ -214,7 +217,7 @@ export default function FormRenderer({ form, onSubmit, readOnly = true }) {
             border: 'none', cursor: 'pointer',
             fontSize: 14, fontWeight: 700,
           }}>
-            {form.settings?.submitLabel || 'Soumettre'}
+            {form.settings?.submitLabel || t('Soumettre')}
           </button>
         </div>
       )}

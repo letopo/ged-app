@@ -1,16 +1,14 @@
 // frontend/src/components/DocumentDiscussion.jsx
 // Composant embarquable dans les pages document pour ouvrir la discussion associée
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MessageSquare, Send, X, Loader, Hash } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
 
-const fmtTime = (date) => {
-  if (!date) return '';
-  const d = new Date(date);
-  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-};
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 const avatarColor = (str = '') => {
   const colors = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
@@ -31,6 +29,12 @@ const Avatar = ({ fn, ln, size = 26 }) => (
 );
 
 const DocumentDiscussion = ({ documentId, documentTitle }) => {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+  const fmtTime = (date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleTimeString(BCP47_LOCALES[lang] || 'fr-FR', { hour: '2-digit', minute: '2-digit' });
+  };
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [conv, setConv] = useState(null);
@@ -106,7 +110,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
       {/* Bouton flottant */}
       <button
         onClick={() => setOpen(v => !v)}
-        title={open ? 'Fermer la discussion' : 'Discussion du document'}
+        title={open ? t('Fermer la discussion') : t('Discussion du document')}
         style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
           width: 48, height: 48, borderRadius: '50%', border: 'none',
@@ -147,9 +151,9 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
             <Hash size={14} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {documentTitle || 'Discussion du document'}
+                {documentTitle || t('Discussion du document')}
               </div>
-              <div style={{ fontSize: 11, opacity: 0.8 }}>Discussion</div>
+              <div style={{ fontSize: 11, opacity: 0.8 }}>{t('Discussion')}</div>
             </div>
             <button onClick={() => setOpen(false)} style={{ padding: 4, border: 'none', background: 'rgba(255,255,255,0.2)', borderRadius: 4, color: '#fff', cursor: 'pointer' }}>
               <X size={14} />
@@ -165,8 +169,8 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
             ) : messages.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 32, color: 'var(--fg-muted)' }}>
                 <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
-                <div style={{ fontSize: 13 }}>Aucun message</div>
-                <div style={{ fontSize: 12, marginTop: 4 }}>Démarrez la discussion sur ce document</div>
+                <div style={{ fontSize: 13 }}>{t('Aucun message')}</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>{t('Démarrez la discussion sur ce document')}</div>
               </div>
             ) : (
               messages.map((msg, i) => {
@@ -182,7 +186,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, marginBottom: 2 }}>
                         <Avatar fn={fn} ln={ln} size={24} />
                         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg)' }}>
-                          {isMine ? 'Vous' : `${fn} ${ln}`}
+                          {isMine ? t('Vous') : `${fn} ${ln}`}
                         </span>
                         <span style={{ fontSize: 10, color: 'var(--fg-muted)' }}>
                           {fmtTime(msg.created_at || msg.createdAt)}
@@ -195,7 +199,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
                       fontStyle: msg.isDeleted ? 'italic' : 'normal',
                       color: msg.isDeleted ? 'var(--fg-muted)' : 'var(--fg)',
                     }}>
-                      {msg.isDeleted ? '[Message supprimé]' : msg.content}
+                      {msg.isDeleted ? t('[Message supprimé]') : msg.content}
                     </div>
                   </div>
                 );
@@ -213,7 +217,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                 }}
-                placeholder="Écrire un message…"
+                placeholder={t('Écrire un message…')}
                 rows={1}
                 style={{
                   flex: 1, padding: '7px 10px', borderRadius: 7, fontFamily: 'inherit',

@@ -5,6 +5,7 @@
 // Onglet 3 — Audit              (journal des changements de droits)
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Shield, Grid3x3, Users, ClipboardList, Check, X, AlertTriangle, ChevronRight, Search, Loader, RefreshCw, Key, Info } from 'lucide-react';
 import { accessControlService } from '../services/accessControlService';
 import { ROLES, MODULES, CATEGORIES, POSTES_STATIC, getUserModules, getRoleInfo } from '../config/accessDefinitions';
@@ -610,6 +611,7 @@ function AuditTab({ logs, loading }) {
 // Composant principal
 // ════════════════════════════════════════════════════════════════════════════
 export default function AccessControlPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState('matrix');
   const [users, setUsers] = useState([]);
   const [dbPostes, setDbPostes] = useState([]);
@@ -744,7 +746,7 @@ export default function AccessControlPage() {
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 60, gap: 12 }}>
           <Loader size={28} style={{ animation: 'spin 1s linear infinite', color: 'var(--brand)' }} />
-          <div style={{ color: 'var(--fg-muted)', fontSize: 14 }}>Chargement…</div>
+          <div style={{ color: 'var(--fg-muted)', fontSize: 14 }}>{t('Chargement…')}</div>
         </div>
       ) : error ? (
         <div style={{

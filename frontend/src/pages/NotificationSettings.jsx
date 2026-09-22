@@ -1,6 +1,7 @@
 // frontend/src/pages/NotificationSettings.jsx
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bell, CheckCircle, XCircle, Info, Loader2, RefreshCw, Mail } from 'lucide-react';
 import useNotifications from '../hooks/useNotifications';
 import {
@@ -12,6 +13,7 @@ import { getSocket, notificationPrefsAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function NotificationSettings() {
+  const { t } = useTranslation();
   const {
     notificationsEnabled,
     pushSupported,
@@ -65,9 +67,9 @@ export default function NotificationSettings() {
       const updated = { ...emailPrefs, [key]: !emailPrefs[key] };
       const res = await notificationPrefsAPI.update(updated);
       setEmailPrefs(res.data.data);
-      toast.success('Preference mise a jour');
+      toast.success(t('Preference mise a jour'));
     } catch (e) {
-      toast.error('Erreur sauvegarde');
+      toast.error(t('Erreur sauvegarde'));
     } finally {
       setSavingPrefs(false);
     }
@@ -83,7 +85,7 @@ export default function NotificationSettings() {
       }
     } catch (error) {
       console.error('Erreur activation notifications:', error);
-      toast.error('Erreur lors de l\'activation des notifications');
+      toast.error(t("Erreur lors de l'activation des notifications"));
     } finally {
       setLoading(false);
     }
@@ -95,15 +97,15 @@ export default function NotificationSettings() {
     try {
       if (pushSubscribed) {
         await unsubscribeFromPush();
-        toast.success('Notifications Push désactivées');
+        toast.success(t('Notifications Push désactivées'));
       } else {
         await subscribeToPush();
-        toast.success('Notifications Push activées !');
+        toast.success(t('Notifications Push activées !'));
       }
       await checkStatus();
     } catch (error) {
       console.error('Erreur Push:', error);
-      toast.error('Erreur: ' + error.message);
+      toast.error(t('Erreur: {{message}}', { message: error.message }));
     } finally {
       setLoading(false);
     }
@@ -112,13 +114,13 @@ export default function NotificationSettings() {
   // Tester une notification
   const handleTestNotification = () => {
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('🧪 Test de notification', {
-        body: 'Si vous voyez ceci, les notifications fonctionnent !',
+      new Notification(t('🧪 Test de notification'), {
+        body: t('Si vous voyez ceci, les notifications fonctionnent !'),
         icon: '/favicon.ico',
         tag: 'test-notification'
       });
     } else {
-      toast('Veuillez d\'abord activer les notifications', { icon: '⚠️' });
+      toast(t("Veuillez d'abord activer les notifications"), { icon: '⚠️' });
     }
   };
 
@@ -146,10 +148,10 @@ export default function NotificationSettings() {
             </div>
             <div>
               <h1 className="text-2xl font-bold" style={{ color: 'var(--fg)' }}>
-                Paramètres de notification
+                {t('Paramètres de notification')}
               </h1>
               <p style={{ color: 'var(--fg-muted)' }}>
-                Gérez vos préférences de notification
+                {t('Gérez vos préférences de notification')}
               </p>
             </div>
           </div>
@@ -158,15 +160,15 @@ export default function NotificationSettings() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg" style={{ background: 'var(--surface-2)' }}>
             <StatusBadge
               active={socketConnected}
-              label={socketConnected ? 'Connecté en temps réel' : 'Déconnecté'}
+              label={socketConnected ? t('Connecté en temps réel') : t('Déconnecté')}
             />
             <StatusBadge
               active={serviceWorkerActive}
-              label={serviceWorkerActive ? 'Service Worker actif' : 'Service Worker inactif'}
+              label={serviceWorkerActive ? t('Service Worker actif') : t('Service Worker inactif')}
             />
             <StatusBadge
               active={pushSubscribed}
-              label={pushSubscribed ? 'Push activé' : 'Push désactivé'}
+              label={pushSubscribed ? t('Push activé') : t('Push désactivé')}
             />
           </div>
         </div>
@@ -179,18 +181,17 @@ export default function NotificationSettings() {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--fg)' }}>
-                Notifications navigateur
+                {t('Notifications navigateur')}
               </h3>
               <p className="text-sm mb-4" style={{ color: 'var(--fg-muted)' }}>
-                Recevez des alertes sonores et visuelles quand l'application est ouverte.
-                Indispensable pour être notifié des nouvelles tâches en temps réel.
+                {t("Recevez des alertes sonores et visuelles quand l'application est ouverte. Indispensable pour être notifié des nouvelles tâches en temps réel.")}
               </p>
 
               {notificationsEnabled ? (
                 <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: 'var(--success-soft)' }}>
                   <CheckCircle className="w-5 h-5" style={{ color: 'var(--success)' }} />
                   <span className="text-sm font-medium" style={{ color: 'var(--success)' }}>
-                    Notifications activées ✓
+                    {t('Notifications activées ✓')}
                   </span>
                 </div>
               ) : (
@@ -203,12 +204,12 @@ export default function NotificationSettings() {
                   {loading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Activation...
+                      {t('Activation...')}
                     </>
                   ) : (
                     <>
                       <Bell className="w-5 h-5" />
-                      Activer les notifications
+                      {t('Activer les notifications')}
                     </>
                   )}
                 </button>
@@ -226,17 +227,16 @@ export default function NotificationSettings() {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--fg)' }}>
-                  Notifications Push (Hors ligne)
+                  {t('Notifications Push (Hors ligne)')}
                 </h3>
                 <p className="text-sm mb-4" style={{ color: 'var(--fg-muted)' }}>
-                  Recevez des notifications même quand l'application est fermée ou que vous êtes sur un autre onglet.
-                  Idéal pour ne jamais manquer une tâche urgente.
+                  {t("Recevez des notifications même quand l'application est fermée ou que vous êtes sur un autre onglet. Idéal pour ne jamais manquer une tâche urgente.")}
                 </p>
 
                 {!notificationsEnabled ? (
                   <div className="p-3 rounded-lg" style={{ background: 'var(--warning-soft)' }}>
                     <p className="text-sm" style={{ color: 'var(--warning)' }}>
-                      ⚠️ Activez d'abord les notifications navigateur
+                      {t("⚠️ Activez d'abord les notifications navigateur")}
                     </p>
                   </div>
                 ) : (
@@ -246,7 +246,7 @@ export default function NotificationSettings() {
                         <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: 'var(--success-soft)' }}>
                           <CheckCircle className="w-5 h-5" style={{ color: 'var(--success)' }} />
                           <span className="text-sm font-medium" style={{ color: 'var(--success)' }}>
-                            Notifications Push activées ✓
+                            {t('Notifications Push activées ✓')}
                           </span>
                         </div>
                         <button
@@ -258,12 +258,12 @@ export default function NotificationSettings() {
                           {loading ? (
                             <>
                               <Loader2 className="w-5 h-5 animate-spin" />
-                              Désactivation...
+                              {t('Désactivation...')}
                             </>
                           ) : (
                             <>
                               <XCircle className="w-5 h-5" />
-                              Désactiver les Push
+                              {t('Désactiver les Push')}
                             </>
                           )}
                         </button>
@@ -278,12 +278,12 @@ export default function NotificationSettings() {
                         {loading ? (
                           <>
                             <Loader2 className="w-5 h-5 animate-spin" />
-                            Activation...
+                            {t('Activation...')}
                           </>
                         ) : (
                           <>
                             <Bell className="w-5 h-5" />
-                            Activer les notifications Push
+                            {t('Activer les notifications Push')}
                           </>
                         )}
                       </button>
@@ -303,19 +303,19 @@ export default function NotificationSettings() {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--fg)' }}>
-                Notifications par email
+                {t('Notifications par email')}
               </h3>
               <p className="text-sm mb-4" style={{ color: 'var(--fg-muted)' }}>
-                Choisissez quels emails vous souhaitez recevoir. Les emails sont envoyes en complement des notifications push.
+                {t('Choisissez quels emails vous souhaitez recevoir. Les emails sont envoyes en complement des notifications push.')}
               </p>
 
               {emailPrefs ? (
                 <div className="space-y-3">
                   {[
-                    { key: 'emailOnNewTask', label: 'Nouvelle tache assignee', desc: 'Quand un document vous est soumis pour validation' },
-                    { key: 'emailOnApproval', label: 'Document approuve', desc: 'Quand votre document est approuve par tous les validateurs' },
-                    { key: 'emailOnRejection', label: 'Document rejete', desc: 'Quand votre document est rejete par un validateur' },
-                    { key: 'emailOnComment', label: 'Commentaire ajoute', desc: 'Quand un validateur ajoute un commentaire' },
+                    { key: 'emailOnNewTask', label: t('Nouvelle tache assignee'), desc: t('Quand un document vous est soumis pour validation') },
+                    { key: 'emailOnApproval', label: t('Document approuve'), desc: t('Quand votre document est approuve par tous les validateurs') },
+                    { key: 'emailOnRejection', label: t('Document rejete'), desc: t('Quand votre document est rejete par un validateur') },
+                    { key: 'emailOnComment', label: t('Commentaire ajoute'), desc: t('Quand un validateur ajoute un commentaire') },
                   ].map(({ key, label, desc }) => (
                     <div key={key} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                       <div className="flex-1 min-w-0">
@@ -338,7 +338,7 @@ export default function NotificationSettings() {
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--fg-muted)' }}>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Chargement des preferences...
+                  <Loader2 className="w-4 h-4 animate-spin" /> {t('Chargement des preferences...')}
                 </div>
               )}
             </div>
@@ -353,10 +353,10 @@ export default function NotificationSettings() {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--fg)' }}>
-                Tester les notifications
+                {t('Tester les notifications')}
               </h3>
               <p className="text-sm mb-4" style={{ color: 'var(--fg-muted)' }}>
-                Envoyez-vous une notification de test pour vérifier que tout fonctionne correctement.
+                {t('Envoyez-vous une notification de test pour vérifier que tout fonctionne correctement.')}
               </p>
               <button
                 onClick={handleTestNotification}
@@ -365,7 +365,7 @@ export default function NotificationSettings() {
                 style={{ background: 'var(--warning)', color: '#fff', border: 'none', cursor: !notificationsEnabled ? 'not-allowed' : 'pointer', opacity: !notificationsEnabled ? 0.5 : 1 }}
               >
                 <Bell className="w-5 h-5" />
-                Envoyer une notification test
+                {t('Envoyer une notification test')}
               </button>
             </div>
           </div>
@@ -377,28 +377,28 @@ export default function NotificationSettings() {
             <Info className="w-6 h-6 flex-shrink-0 mt-1" style={{ color: 'var(--brand)' }} />
             <div>
               <h4 className="font-semibold mb-2" style={{ color: 'var(--brand)' }}>
-                À propos des notifications
+                {t('À propos des notifications')}
               </h4>
               <ul className="text-sm space-y-2" style={{ color: 'var(--brand)' }}>
                 <li className="flex items-start gap-2">
                   <span style={{ color: 'var(--brand)' }}>•</span>
-                  <span>Vous recevrez des notifications pour toutes les nouvelles tâches qui vous sont assignées</span>
+                  <span>{t('Vous recevrez des notifications pour toutes les nouvelles tâches qui vous sont assignées')}</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span style={{ color: 'var(--brand)' }}>•</span>
-                  <span>Les notifications en temps réel (Socket.IO) fonctionnent quand l'application est ouverte</span>
+                  <span>{t("Les notifications en temps réel (Socket.IO) fonctionnent quand l'application est ouverte")}</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span style={{ color: 'var(--brand)' }}>•</span>
-                  <span>Les notifications Push vous alertent même quand l'application est fermée</span>
+                  <span>{t("Les notifications Push vous alertent même quand l'application est fermée")}</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span style={{ color: 'var(--brand)' }}>•</span>
-                  <span>Vous pouvez désactiver les notifications à tout moment depuis cette page</span>
+                  <span>{t('Vous pouvez désactiver les notifications à tout moment depuis cette page')}</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span style={{ color: 'var(--brand)' }}>•</span>
-                  <span>Un son d'alerte accompagne chaque notification</span>
+                  <span>{t("Un son d'alerte accompagne chaque notification")}</span>
                 </li>
               </ul>
             </div>

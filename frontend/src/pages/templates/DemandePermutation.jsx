@@ -1,5 +1,6 @@
 // frontend/src/pages/templates/DemandePermutation.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { usersAPI, servicesAPI } from '../../services/api';
 import logo from '../../assets/logo-ordre-malte.png';
@@ -7,6 +8,7 @@ import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
     const { user } = useAuth();
+    const { t } = useTranslation();
     const [services, setServices] = useState([]);
     const [usersList, setUsersList] = useState([]);
     const [loadingData, setLoadingData] = useState(true);
@@ -83,7 +85,7 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
     };
 
     if (loadingData) {
-        return <div style={{ padding: 32, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>Chargement des données...</div>;
+        return <div style={{ padding: 32, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>{t('Chargement des données...')}</div>;
     }
 
     return (
@@ -93,68 +95,68 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <img src={logo} alt="Logo" style={{ width: '80px' }} />
                     <h1 style={{ textAlign: 'left', margin: 0 }}>
-                        <span style={{ fontSize: '20px', fontWeight: 'bold', display: 'block' }}>ORDRE DE MALTE</span>
-                        <span style={{ fontSize: '18px', color: '#DC2626' }}>HÔPITAL SAINT JEAN DE MALTE</span>
+                        <span style={{ fontSize: '20px', fontWeight: 'bold', display: 'block' }}>{t('ORDRE DE MALTE')}</span>
+                        <span style={{ fontSize: '18px', color: '#DC2626' }}>{t('HÔPITAL SAINT JEAN DE MALTE')}</span>
                     </h1>
                 </div>
             </header>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 32 }}>
                 <div style={{ width: '50%' }}>
-                    <p style={{ fontWeight: 600, display: 'block', marginBottom: 8, fontSize: '15px' }}>NOMS et prénom(s) du demandeur</p>
+                    <p style={{ fontWeight: 600, display: 'block', marginBottom: 8, fontSize: '15px' }}>{t('NOMS et prénom(s) du demandeur')}</p>
                     <input name="demandeur_noms_prenoms" value={formData.demandeur_noms_prenoms || ''} onChange={handleChange} className="not-printable" style={inputCls} />
                     <div className="print-only" style={{ ...staticFieldStyle, display: 'none', borderBottom: 'none' }}>{formData.demandeur_noms_prenoms || ' '}</div>
 
-                    <p style={{ fontWeight: 600, display: 'block', marginBottom: 8, marginTop: 24, fontSize: '15px' }}>Service</p>
+                    <p style={{ fontWeight: 600, display: 'block', marginBottom: 8, marginTop: 24, fontSize: '15px' }}>{t('Service')}</p>
                     <input name="service" value={formData.service || ''} onChange={handleChange} className="not-printable" style={inputCls} />
                     <div className="print-only" style={{ ...staticFieldStyle, display: 'none', borderBottom: 'none' }}>{formData.service || ' '}</div>
                 </div>
                 <div style={{ width: '35%', textAlign: 'right' }}>
                     <p>
-                        Njombé le <span className="print-only" style={{ fontWeight: 700, textDecoration: 'underline', display: 'inline' }}>
+                        {t('Njombé le')} <span className="print-only" style={{ fontWeight: 700, textDecoration: 'underline', display: 'inline' }}>
                             {formatDate(new Date())}
                         </span>
                     </p>
-                    <p style={{ fontWeight: 600, marginTop: 24 }}>A Monsieur le Directeur Général</p>
-                    <p>De l'Hôpital Saint Jean de Malte de Njombé</p>
+                    <p style={{ fontWeight: 600, marginTop: 24 }}>{t('A Monsieur le Directeur Général')}</p>
+                    <p>{t("De l'Hôpital Saint Jean de Malte de Njombé")}</p>
                 </div>
             </div>
 
             <div style={{ marginBottom: 24 }}>
-                <label style={{ fontWeight: 700, fontSize: '15px' }}>Objet :</label>
-                <div style={{ display: 'inline-block', fontWeight: 700, marginLeft: 8 }}>Demande de permutation</div>
+                <label style={{ fontWeight: 700, fontSize: '15px' }}>{t('Objet')} :</label>
+                <div style={{ display: 'inline-block', fontWeight: 700, marginLeft: 8 }}>{t('Demande de permutation')}</div>
             </div>
 
             <div style={{ marginBottom: 16 }}>
-                <p style={{ marginBottom: 24, fontWeight: 700, fontSize: '15px' }}>Monsieur,</p>
+                <p style={{ marginBottom: 24, fontWeight: 700, fontSize: '15px' }}>{t('Monsieur,')}</p>
 
                 {/* Sélecteur personne (écran seulement) */}
                 <div className="not-printable" style={{ marginBottom: 16, padding: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)' }}>
                     <label style={{ fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--fg)', fontSize: 14 }}>
-                        Personne avec qui permuter :
+                        {t('Personne avec qui permuter')} :
                     </label>
                     <input
                         name="permute_noms_prenoms"
                         value={formData.permute_noms_prenoms || ''}
                         onChange={handleChange}
                         style={{ width: '100%', borderBottom: '2px solid var(--border)', background: 'transparent', outline: 'none', fontSize: '15px', fontWeight: '600', padding: '2px 4px' }}
-                        placeholder="Saisir le nom et prénom"
+                        placeholder={t('Saisir le nom et prénom')}
                     />
                 </div>
 
                 {/* Corps de la lettre */}
                 <div style={{ fontSize: '15px', lineHeight: '2.5', textAlign: 'justify' }}>
                     <span>
-                        Je viens par la présente vous solliciter respectueusement pour une permutation entre
+                        {t('Je viens par la présente vous solliciter respectueusement pour une permutation entre')}
                         <span style={{ fontWeight: 700, textDecoration: 'underline', margin: '0 4px' }}>{formData.permute_noms_prenoms || '______________________'}</span>
-                        et
+                        {t('et')}
                         <span style={{ fontWeight: 700, textDecoration: 'underline', margin: '0 4px' }}>{formData.demandeur_noms_prenoms}</span>
-                        en date du
+                        {t('en date du')}
                         <span style={{ display: 'inline-block', margin: '0 4px' }}>
                             <input type="date" name="date_permutation" value={formData.date_permutation || ''} onChange={handleChange} className="not-printable" style={{ borderBottom: '1px solid #9ca3af', background: 'transparent', outline: 'none', fontWeight: 700, width: 130, display: 'inline-block' }} />
                             <span className="print-only" style={{ fontWeight: 700, textDecoration: 'underline', display: 'none' }}>{formatDate(formData.date_permutation)}</span>
                         </span>
-                        au
+                        {t('au')}
                         <span style={{ display: 'inline-block', margin: '0 4px' }}>
                             <input type="date" name="date_permutation_fin" value={formData.date_permutation_fin || ''} onChange={handleChange} className="not-printable" style={{ borderBottom: '1px solid #9ca3af', background: 'transparent', outline: 'none', fontWeight: 700, width: 130, display: 'inline-block' }} />
                             <span className="print-only" style={{ fontWeight: 700, textDecoration: 'underline', display: 'none' }}>{formatDate(formData.date_permutation_fin)}</span>
@@ -164,44 +166,44 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
                     <br />
 
                     <span style={{ display: 'inline-block', marginTop: 10 }}>
-                        En effet,
+                        {t('En effet,')}
                         <span style={{ fontWeight: 700, textDecoration: 'underline', margin: '0 4px' }}>{formData.permute_noms_prenoms || '______________________'}</span>
-                        assurera ma plage horaire ce jour-là, de
+                        {t('assurera ma plage horaire ce jour-là, de')}
                         <span style={{ display: 'inline-block', margin: '0 4px' }}>
                             <input type="time" name="plage_horaire_debut" value={formData.plage_horaire_debut || ''} onChange={handleChange} className="not-printable" style={{ borderBottom: '1px solid #9ca3af', background: 'transparent', outline: 'none', textAlign: 'center', fontWeight: 700, width: 100, display: 'inline-block', cursor: 'pointer' }} />
                             <span className="print-only" style={{ fontWeight: 700, display: 'none' }}>{formData.plage_horaire_debut || '______'}</span>
                         </span>
-                        à
+                        {t('à')}
                         <span style={{ display: 'inline-block', margin: '0 4px' }}>
                             <input type="time" name="plage_horaire_fin" value={formData.plage_horaire_fin || ''} onChange={handleChange} className="not-printable" style={{ borderBottom: '1px solid #9ca3af', background: 'transparent', outline: 'none', textAlign: 'center', fontWeight: 700, width: 100, display: 'inline-block', cursor: 'pointer' }} />
                             <span className="print-only" style={{ fontWeight: 700, display: 'none' }}>{formData.plage_horaire_fin || '______'}</span>
                         </span>,
-                        laquelle sera remboursée ultérieurement, pour des raisons personnelles.
+                        {t('laquelle sera remboursée ultérieurement, pour des raisons personnelles.')}
                     </span>
                 </div>
             </div>
 
             <p style={{ marginTop: 24, marginBottom: 32, fontSize: '15px', lineHeight: 1.6 }}>
-                Dans l'attente d'une suite favorable, veuillez agréer, Monsieur, l'expression de ma considération distinguée.
+                {t("Dans l'attente d'une suite favorable, veuillez agréer, Monsieur, l'expression de ma considération distinguée.")}
             </p>
 
             {/* Signatures Demandeur / Remplaçant */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0 16px', marginBottom: 80 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div id="signature-zone-requester" style={{ border: '1px solid transparent', borderRadius: 6, width: 200, height: 50, marginBottom: 5, backgroundColor: 'transparent' }}></div>
-                    <p style={{ fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{formData.demandeur_noms_prenoms || 'Le Demandeur'}</p>
+                    <p style={{ fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{formData.demandeur_noms_prenoms || t('Le Demandeur')}</p>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div id="signature-zone-substitute" style={{ border: '1px solid transparent', borderRadius: 6, width: 200, height: 50, marginBottom: 5, backgroundColor: 'transparent' }}></div>
-                    <p style={{ fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{formData.permute_noms_prenoms || 'Le Remplaçant'}</p>
+                    <p style={{ fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{formData.permute_noms_prenoms || t('Le Remplaçant')}</p>
                 </div>
             </div>
 
             {/* Signatures administratives */}
             <div style={{ position: 'absolute', bottom: 64, left: 48, right: 48, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
-                <SignatureFrame label="Signature du Major" signatureUrl={null} stampUrl={null} zoneIndex={1} />
-                <SignatureFrame label="Chef de service" signatureUrl={null} stampUrl={null} zoneIndex={2} />
-                <SignatureFrame label="La Directrice Des Soins" signatureUrl={null} stampUrl={null} zoneIndex={3} />
+                <SignatureFrame label={t('Signature du Major')} signatureUrl={null} stampUrl={null} zoneIndex={1} />
+                <SignatureFrame label={t('Chef de service')} signatureUrl={null} stampUrl={null} zoneIndex={2} />
+                <SignatureFrame label={t('La Directrice Des Soins')} signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>
         </div>
     );

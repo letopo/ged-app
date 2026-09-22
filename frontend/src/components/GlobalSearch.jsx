@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Search, FileText, Users, CheckSquare, X, Loader, ArrowRight } from 'lucide-react';
 import { documentsAPI, employeesAPI, workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const DEBOUNCE_MS = 300;
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 const STATUS_LABELS = {
   approved: 'Approuvé', pending_validation: 'En cours',
@@ -18,6 +21,7 @@ const STATUS_BADGE = {
 };
 
 function SectionHeader({ label, route, onGo }) {
+  const { t } = useTranslation();
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -25,12 +29,12 @@ function SectionHeader({ label, route, onGo }) {
       fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)',
       textTransform: 'uppercase', letterSpacing: '0.5px',
     }}>
-      <span>{label}</span>
+      <span>{t(label)}</span>
       <button
         onClick={() => onGo(route)}
         style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontSize: 11 }}
       >
-        Voir tout <ArrowRight size={10} />
+        {t('Voir tout')} <ArrowRight size={10} />
       </button>
     </div>
   );
@@ -75,6 +79,8 @@ function ResultRow({ icon: Icon, iconBg, iconColor, primary, secondary, badge, o
 }
 
 export default function GlobalSearch({ hideTrigger = false }) {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -161,7 +167,7 @@ export default function GlobalSearch({ hideTrigger = false }) {
       {!hideTrigger && (
       <button
         onClick={() => setOpen(true)}
-        title="Rechercher (/ ou ⌘K)"
+        title={t('Rechercher (/ ou ⌘K)')}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           width: 30, height: 30, borderRadius: 'var(--radius-2)',
@@ -205,7 +211,7 @@ export default function GlobalSearch({ hideTrigger = false }) {
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Rechercher documents, tâches, employés…"
+                placeholder={t('Rechercher documents, tâches, employés…')}
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
                   fontSize: 14, color: 'var(--fg)',
@@ -228,11 +234,11 @@ export default function GlobalSearch({ hideTrigger = false }) {
               <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                 {loading ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px 0', color: 'var(--fg-subtle)', fontSize: 13 }}>
-                    <Loader size={14} className="animate-spin" /> Recherche…
+                    <Loader size={14} className="animate-spin" /> {t('Recherche…')}
                   </div>
                 ) : total === 0 ? (
                   <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: 'var(--fg-muted)' }}>
-                    Aucun résultat pour « {query} »
+                    {t('Aucun résultat pour « {{query}} »', { query })}
                   </div>
                 ) : (
                   <>
@@ -246,8 +252,8 @@ export default function GlobalSearch({ hideTrigger = false }) {
                               key={doc.id}
                               icon={FileText} iconBg="var(--brand-soft)" iconColor="var(--brand)"
                               primary={doc.title}
-                              secondary={`${doc.category || ''} — ${new Date(doc.createdAt).toLocaleDateString('fr-FR')}`}
-                              badge={{ label: STATUS_LABELS[doc.status] || doc.status, ...s }}
+                              secondary={`${doc.category || ''} — ${new Date(doc.createdAt).toLocaleDateString(BCP47_LOCALES[lang] || 'fr-FR')}`}
+                              badge={{ label: t(STATUS_LABELS[doc.status] || doc.status), ...s }}
                               onClick={() => go('/documents')}
                             />
                           );
@@ -262,7 +268,7 @@ export default function GlobalSearch({ hideTrigger = false }) {
                             key={task.id}
                             icon={CheckSquare} iconBg="var(--warning-soft)" iconColor="var(--warning)"
                             primary={task.document?.title || ''}
-                            secondary={`Étape ${task.step} — ${task.status}`}
+                            secondary={t('Étape {{step}} — {{status}}', { step: task.step, status: task.status })}
                             onClick={() => go('/my-tasks')}
                           />
                         ))}
@@ -291,7 +297,7 @@ export default function GlobalSearch({ hideTrigger = false }) {
             {!hasQuery && (
               <div>
                 <div style={{ padding: '8px 14px 4px', fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Accès rapide
+                  {t('Accès rapide')}
                 </div>
                 {[
                   { route: '/documents', icon: FileText, iconBg: 'var(--brand-soft)', iconColor: 'var(--brand)', label: 'Mes documents', sub: 'Voir tous les documents' },
@@ -301,7 +307,7 @@ export default function GlobalSearch({ hideTrigger = false }) {
                   <ResultRow
                     key={item.route}
                     icon={item.icon} iconBg={item.iconBg} iconColor={item.iconColor}
-                    primary={item.label} secondary={item.sub}
+                    primary={t(item.label)} secondary={t(item.sub)}
                     onClick={() => go(item.route)}
                   />
                 ))}
@@ -311,10 +317,10 @@ export default function GlobalSearch({ hideTrigger = false }) {
                   fontSize: 11, color: 'var(--fg-subtle)',
                 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={kbdStyle}>/</span> ouvrir
+                    <span style={kbdStyle}>/</span> {t('ouvrir')}
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={kbdStyle}>ESC</span> fermer
+                    <span style={kbdStyle}>ESC</span> {t('fermer')}
                   </span>
                 </div>
               </div>

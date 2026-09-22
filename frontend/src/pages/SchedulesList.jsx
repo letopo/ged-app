@@ -1,5 +1,6 @@
 // frontend/src/pages/SchedulesList.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import scheduleService from '../services/scheduleService';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,13 +17,13 @@ const STATUS_CFG = {
   rejected:         { cls: 'ged-badge ged-badge-danger',  dot: 'var(--danger)'  },
 };
 
-const VALIDATION_STATUS = {
-  approved: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Approuvé', symbol: '✓' },
-  rejected: { bg: 'var(--danger-soft)',  color: 'var(--danger)',  label: 'Rejeté',   symbol: '✗' },
-  pending:  { bg: 'var(--surface-2)',    color: 'var(--fg-muted)',label: 'En attente', symbol: '·' },
-};
+const getValidationStatus = (t) => ({
+  approved: { bg: 'var(--success-soft)', color: 'var(--success)', label: t('Approuvé'), symbol: '✓' },
+  rejected: { bg: 'var(--danger-soft)',  color: 'var(--danger)',  label: t('Rejeté'),   symbol: '✗' },
+  pending:  { bg: 'var(--surface-2)',    color: 'var(--fg-muted)',label: t('En attente'), symbol: '·' },
+});
 
-const ROLE_LABELS = { dds: 'DDS', medical_chief: 'Médecin Chef', dg: 'DG' };
+const getRoleLabels = (t) => ({ dds: 'DDS', medical_chief: t('Médecin Chef'), dg: 'DG' });
 
 // ── Style constants ───────────────────────────────────────────────────────────
 const selectStyle = {
@@ -40,6 +41,9 @@ const btnText = (color) => ({
 });
 
 export default function SchedulesList() {
+  const { t } = useTranslation();
+  const VALIDATION_STATUS = getValidationStatus(t);
+  const ROLE_LABELS = getRoleLabels(t);
   const navigate = useNavigate();
   const { user } = useAuth();
   const [schedules, setSchedules] = useState([]);
@@ -74,14 +78,14 @@ export default function SchedulesList() {
   };
 
   const handleDelete = async (schedule) => {
-    const warn = schedule.status !== 'draft' ? '\n\n⚠️ Ce planning n\'est plus en brouillon !' : '';
-    if (!window.confirm(`Supprimer "${schedule.title}" ?${warn}\n\nCette action est irréversible.`)) return;
+    const warn = schedule.status !== 'draft' ? `\n\n⚠️ ${t("Ce planning n'est plus en brouillon !")}` : '';
+    if (!window.confirm(`${t('Supprimer "{{title}}" ?', { title: schedule.title })}${warn}\n\n${t('Cette action est irréversible.')}`)) return;
     try {
       await scheduleService.deleteSchedule(schedule.id);
-      toast('Planning supprimé avec succès');
+      toast(t('Planning supprimé avec succès'));
       loadSchedules();
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur lors de la suppression');
+      toast(err.response?.data?.message || t('Erreur lors de la suppression'));
     }
   };
 
@@ -92,10 +96,10 @@ export default function SchedulesList() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, paddingTop: 4 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CalendarDays size={20} color="var(--brand)" /> Plannings Hospitaliers
+            <CalendarDays size={20} color="var(--brand)" /> {t('Plannings Hospitaliers')}
           </h1>
           <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>
-            Gestion des plannings de rotation du personnel
+            {t('Gestion des plannings de rotation du personnel')}
           </div>
         </div>
         <Link
@@ -107,7 +111,7 @@ export default function SchedulesList() {
             fontSize: 13, fontWeight: 500, textDecoration: 'none',
           }}
         >
-          <Plus size={14} /> Nouveau Planning
+          <Plus size={14} /> {t('Nouveau Planning')}
         </Link>
       </div>
 
@@ -115,31 +119,31 @@ export default function SchedulesList() {
       <div className="ged-card" style={{ padding: '12px 16px', marginBottom: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Type de planning</label>
+            <label style={labelStyle}>{t('Type de planning')}</label>
             <select style={selectStyle} value={filters.scheduleType} onChange={e => handleFilterChange('scheduleType', e.target.value)}>
-              <option value="">Tous les types</option>
+              <option value="">{t('Tous les types')}</option>
               {Object.entries(scheduleTypeLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Année</label>
+            <label style={labelStyle}>{t('Année')}</label>
             <select style={selectStyle} value={filters.year} onChange={e => handleFilterChange('year', e.target.value)}>
               {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Mois</label>
+            <label style={labelStyle}>{t('Mois')}</label>
             <select style={selectStyle} value={filters.month} onChange={e => handleFilterChange('month', e.target.value)}>
-              <option value="">Tous les mois</option>
+              <option value="">{t('Tous les mois')}</option>
               {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                 <option key={m} value={m}>{scheduleService.getMonthName(m)}</option>
               ))}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Statut</label>
+            <label style={labelStyle}>{t('Statut')}</label>
             <select style={selectStyle} value={filters.status} onChange={e => handleFilterChange('status', e.target.value)}>
-              <option value="">Tous les statuts</option>
+              <option value="">{t('Tous les statuts')}</option>
               {Object.entries(statusLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
@@ -154,8 +158,8 @@ export default function SchedulesList() {
       ) : schedules.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <CalendarDays size={40} color="var(--border-strong)" style={{ marginBottom: 12 }} />
-          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 4 }}>Aucun planning trouvé</div>
-          <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 14 }}>Commencez par créer un nouveau planning.</div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 4 }}>{t('Aucun planning trouvé')}</div>
+          <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 14 }}>{t('Commencez par créer un nouveau planning.')}</div>
           <Link
             to="/schedules/create"
             style={{
@@ -165,7 +169,7 @@ export default function SchedulesList() {
               fontSize: 12, fontWeight: 500, textDecoration: 'none',
             }}
           >
-            <Plus size={12} /> Nouveau Planning
+            <Plus size={12} /> {t('Nouveau Planning')}
           </Link>
         </div>
       ) : (
@@ -204,7 +208,7 @@ export default function SchedulesList() {
                     {/* Validations chain */}
                     {schedule.validations && schedule.validations.length > 0 && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Validations :</span>
+                        <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{t('Validations')} :</span>
                         {schedule.validations.map((v, i) => {
                           const vs = VALIDATION_STATUS[v.status] || VALIDATION_STATUS.pending;
                           return (
@@ -231,7 +235,7 @@ export default function SchedulesList() {
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                      <Eye size={13} /> Voir
+                      <Eye size={13} /> {t('Voir')}
                     </button>
 
                     {schedule.status === 'draft' && (
@@ -241,7 +245,7 @@ export default function SchedulesList() {
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <Edit3 size={13} /> Modifier
+                        <Edit3 size={13} /> {t('Modifier')}
                       </button>
                     )}
 
@@ -252,7 +256,7 @@ export default function SchedulesList() {
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--success-soft)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <CheckCircle size={13} /> Valider
+                        <CheckCircle size={13} /> {t('Valider')}
                       </button>
                     )}
 
@@ -260,7 +264,7 @@ export default function SchedulesList() {
                       <button
                         onClick={() => handleDelete(schedule)}
                         style={btnText('var(--danger)')}
-                        title={schedule.status !== 'draft' ? 'Admin uniquement' : 'Supprimer'}
+                        title={schedule.status !== 'draft' ? t('Admin uniquement') : t('Supprimer')}
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-soft)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >

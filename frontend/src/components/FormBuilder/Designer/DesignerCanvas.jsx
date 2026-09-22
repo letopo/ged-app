@@ -2,6 +2,7 @@
 // Canvas millimétrique — positionnement absolu, grille papier
 
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Trash2, Copy, GripVertical, ArrowsUpFromLine } from 'lucide-react';
 import {
   useFormBuilderStore, FIELD_REGISTRY,
@@ -13,6 +14,7 @@ import FieldPreview from '../Fields/FieldPreview';
 const CANVAS_MIN_H = 1000;
 
 export default function DesignerCanvas({ draggingType, onDragEnd }) {
+  const { t } = useTranslation();
   const {
     form, selectedFieldId, snapEnabled,
     addField, removeField, duplicateField, updateField, setFieldLayout,
@@ -260,24 +262,24 @@ export default function DesignerCanvas({ draggingType, onDragEnd }) {
                   <div
                     onMouseDown={(e) => startMove(e, field)}
                     style={{ cursor: 'grab', color: 'rgba(255,255,255,.7)', display: 'flex', padding: '0 4px', flexShrink: 0 }}
-                    title="Déplacer"
+                    title={t('Déplacer')}
                   >
                     <GripVertical size={12} />
                   </div>
                   <span style={{ fontSize: 10, color: 'rgba(255,255,255,.6)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {field.label || FIELD_REGISTRY[field.type]?.label}
+                    {field.label || t(FIELD_REGISTRY[field.type]?.label || '')}
                   </span>
                   {/* Actions */}
                   <button
                     onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); duplicateField(field.id); }}
-                    title="Dupliquer"
+                    title={t('Dupliquer')}
                     style={{ padding: '0 4px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.7)', display: 'flex' }}
                   >
                     <Copy size={11} />
                   </button>
                   <button
                     onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); removeField(field.id); }}
-                    title="Supprimer"
+                    title={t('Supprimer')}
                     style={{ padding: '0 4px', background: 'none', border: 'none', cursor: 'pointer', color: '#fca5a5', display: 'flex' }}
                   >
                     <Trash2 size={11} />
@@ -297,7 +299,7 @@ export default function DesignerCanvas({ draggingType, onDragEnd }) {
               {isSel && (
                 <div
                   onMouseDown={(e) => startResize(e, field)}
-                  title="Redimensionner"
+                  title={t('Redimensionner')}
                   style={{
                     position: 'absolute', bottom: 0, right: 0,
                     width: 14, height: 14, cursor: 'se-resize',
@@ -330,10 +332,10 @@ export default function DesignerCanvas({ draggingType, onDragEnd }) {
               transition: 'all .2s',
             }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: isDragOver ? '#1B3A6B' : '#90a4ae', margin: '0 0 4px' }}>
-                {isDragOver ? '↓ Relâchez ici' : 'Zone de conception'}
+                {isDragOver ? t('↓ Relâchez ici') : t('Zone de conception')}
               </p>
               <p style={{ fontSize: 11, color: '#b0bec5', margin: 0 }}>
-                Glissez un composant depuis le panneau gauche
+                {t('Glissez un composant depuis le panneau gauche')}
               </p>
             </div>
           </div>

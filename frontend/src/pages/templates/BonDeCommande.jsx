@@ -1,5 +1,6 @@
 // frontend/src/pages/templates/BonDeCommande.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import logo from '../../assets/logo-ordre-malte.png';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,6 +8,7 @@ import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
 const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!formData.lines) {
@@ -75,39 +77,39 @@ const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '2px solid #000', paddingBottom: 16 }}>
         <img src={logo} alt="Logo HSJM" style={{ height: 80, objectFit: 'contain' }} />
         <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, textTransform: 'uppercase', margin: 0 }}>Bon de Commande</h1>
-          <h2 style={{ fontSize: 16, margin: '4px 0 0', fontWeight: 600 }}>N° {formData.numeroCommande}</h2>
+          <h1 style={{ fontSize: 20, fontWeight: 700, textTransform: 'uppercase', margin: 0 }}>{t('Bon de Commande')}</h1>
+          <h2 style={{ fontSize: 16, margin: '4px 0 0', fontWeight: 600 }}>{t('N° {{num}}', { num: formData.numeroCommande })}</h2>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontWeight: 700 }}>DU : </div>
+          <div style={{ fontWeight: 700 }}>{t('DU')} : </div>
           <input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="not-printable" style={{ border: '1px solid #ccc', padding: 4, borderRadius: 4 }} />
           <span className="print-only">{formData.date ? new Date(formData.date).toLocaleDateString('fr-FR') : ''}</span>
         </div>
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <span style={{ fontWeight: 700 }}>Service Demandeur : </span>
-        <input name="serviceDemandeur" value={formData.serviceDemandeur || ''} onChange={handleChange} placeholder="Ex: Frais Généraux / Chirurgie" className="not-printable" style={{ borderBottom: '1px solid #999', width: '40%', outline: 'none' }} />
+        <span style={{ fontWeight: 700 }}>{t('Service Demandeur')} : </span>
+        <input name="serviceDemandeur" value={formData.serviceDemandeur || ''} onChange={handleChange} placeholder={t('Ex: Frais Généraux / Chirurgie')} className="not-printable" style={{ borderBottom: '1px solid #999', width: '40%', outline: 'none' }} />
         <span className="print-only">{formData.serviceDemandeur}</span>
       </div>
 
       {/* FOURNISSEUR & LIVRAISON */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, marginBottom: 24, border: '1px solid #000' }}>
         <div style={{ padding: 8, borderRight: '1px solid #000' }}>
-          <h3 style={{ fontWeight: 700, textDecoration: 'underline', marginBottom: 8, fontSize: 13 }}>FOURNISSEUR :</h3>
+          <h3 style={{ fontWeight: 700, textDecoration: 'underline', marginBottom: 8, fontSize: 13 }}>{t('FOURNISSEUR')} :</h3>
           {[['name','Nom'], ['address','Adresse'], ['phone','Tél']].map(([key, lbl]) => (
             <div key={key} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-              <span style={{ width: 70 }}>{lbl}:</span>
+              <span style={{ width: 70 }}>{t(lbl)}:</span>
               <input name={key} value={formData.fournisseur?.[key] || ''} onChange={(e) => handleChange(e, 'fournisseur')} className="not-printable" style={{ ...cellIn, flex: 1, borderBottom: '1px solid #999' }} />
               <span className="print-only" style={{ fontWeight: key === 'name' ? 700 : 400 }}>{formData.fournisseur?.[key]}</span>
             </div>
           ))}
         </div>
         <div style={{ padding: 8 }}>
-          <h3 style={{ fontWeight: 700, textDecoration: 'underline', marginBottom: 8, fontSize: 13 }}>ADRESSE DE LIVRAISON :</h3>
+          <h3 style={{ fontWeight: 700, textDecoration: 'underline', marginBottom: 8, fontSize: 13 }}>{t('ADRESSE DE LIVRAISON')} :</h3>
           {[['address','Lieu'], ['contact','Contact']].map(([key, lbl]) => (
             <div key={key} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-              <span style={{ width: 70 }}>{lbl}:</span>
+              <span style={{ width: 70 }}>{t(lbl)}:</span>
               <input name={key} value={formData.livraison?.[key] || ''} onChange={(e) => handleChange(e, 'livraison')} className="not-printable" style={{ ...cellIn, flex: 1, borderBottom: '1px solid #999' }} />
               <span className="print-only">{formData.livraison?.[key]}</span>
             </div>
@@ -118,12 +120,12 @@ const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
       {/* OBJET & TRANSPORT */}
       <div style={{ marginBottom: 16, border: '1px solid #000', padding: 8 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <span style={{ fontWeight: 700, width: 100 }}>Objet :</span>
+          <span style={{ fontWeight: 700, width: 100 }}>{t('Objet')} :</span>
           <textarea name="objet" value={formData.objet || ''} onChange={handleChange} className="not-printable" style={{ flex: 1, border: '1px solid #ccc', padding: 4 }} rows={2} />
           <span className="print-only" style={{ flex: 1 }}>{formData.objet}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <span style={{ fontWeight: 700, width: 100 }}>Mode transport:</span>
+          <span style={{ fontWeight: 700, width: 100 }}>{t('Mode transport')}:</span>
           <input name="modeTransport" value={formData.modeTransport || ''} onChange={handleChange} className="not-printable" style={{ ...cellIn, flex: 1, borderBottom: '1px solid #999' }} />
           <span className="print-only">{formData.modeTransport}</span>
         </div>
@@ -134,7 +136,7 @@ const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
         <thead style={{ background: '#e5e7eb' }}>
           <tr>
             {['N° REF','DESCRIPTION / DÉSIGNATION','QTÉ','UNITÉ','PRIX U.','REMISE','MONTANT HT',''].map((h, i) => (
-              <th key={i} style={{ border: '1px solid #000', padding: 4, fontWeight: 700, ...(i===7 ? {width:28} : {}) }} className={i===7 ? 'not-printable' : ''}>{h}</th>
+              <th key={i} style={{ border: '1px solid #000', padding: 4, fontWeight: 700, ...(i===7 ? {width:28} : {}) }} className={i===7 ? 'not-printable' : ''}>{h ? t(h) : h}</th>
             ))}
           </tr>
         </thead>
@@ -177,7 +179,7 @@ const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
       </table>
 
       <button onClick={addLine} className="not-printable" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontWeight: 700, fontSize: 13 }}>
-        <PlusCircle size={16}/> Ajouter un article
+        <PlusCircle size={16}/> {t('Ajouter un article')}
       </button>
 
       {/* TOTAUX */}
@@ -185,18 +187,18 @@ const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
         <table style={{ width: '50%', borderCollapse: 'collapse', border: '1px solid #000' }}>
           <tbody>
             <tr>
-              <td style={{ border: '1px solid #000', padding: 4, fontWeight: 700 }}>Montant H.T.</td>
+              <td style={{ border: '1px solid #000', padding: 4, fontWeight: 700 }}>{t('Montant H.T.')}</td>
               <td style={{ border: '1px solid #000', padding: 4, textAlign: 'right' }}>{totalHT.toLocaleString('fr-FR')} XAF</td>
             </tr>
             <tr>
               <td style={{ border: '1px solid #000', padding: 4, fontWeight: 700 }}>
-                TVA ({formData.tvaRate}%)
+                {t('TVA ({{rate}}%)', { rate: formData.tvaRate })}
                 <input type="number" name="tvaRate" value={formData.tvaRate} onChange={handleChange} className="not-printable" style={{ width: 48, marginLeft: 8, border: '1px solid #ccc' }} />
               </td>
               <td style={{ border: '1px solid #000', padding: 4, textAlign: 'right' }}>{tva.toLocaleString('fr-FR')} XAF</td>
             </tr>
             <tr style={{ background: '#e5e7eb' }}>
-              <td style={{ border: '1px solid #000', padding: 8, fontWeight: 700, fontSize: 15 }}>Montant TTC</td>
+              <td style={{ border: '1px solid #000', padding: 8, fontWeight: 700, fontSize: 15 }}>{t('Montant TTC')}</td>
               <td style={{ border: '1px solid #000', padding: 8, textAlign: 'right', fontWeight: 700, fontSize: 15 }}>{totalTTC.toLocaleString('fr-FR')} XAF</td>
             </tr>
           </tbody>
@@ -206,23 +208,23 @@ const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
       {/* CONDITIONS ET SIGNATURES */}
       <div style={{ borderTop: '2px solid #000', paddingTop: 16, marginTop: 'auto' }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <span style={{ fontWeight: 700 }}>Condition de paiement :</span>
+          <span style={{ fontWeight: 700 }}>{t('Condition de paiement')} :</span>
           <input name="conditionPaiement" value={formData.conditionPaiement || ''} onChange={handleChange} className="not-printable" style={{ ...cellIn, flex: 1, borderBottom: '1px solid #999' }} />
           <span className="print-only">{formData.conditionPaiement}</span>
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
-          <span style={{ fontWeight: 700 }}>Livraison prévue le :</span>
+          <span style={{ fontWeight: 700 }}>{t('Livraison prévue le')} :</span>
           <input type="date" name="datePrevue" value={formData.livraison?.datePrevue || ''} onChange={(e) => handleChange(e, 'livraison')} className="not-printable" style={{ borderBottom: '1px solid #999', outline: 'none' }} />
           <span className="print-only">{formData.livraison?.datePrevue ? new Date(formData.livraison.datePrevue).toLocaleDateString('fr-FR') : '__________________'}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
-          <SignatureFrame label="VALIDATION SERVICE ACHAT / DG" signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
-          <SignatureFrame label="ACCEPTATION FOURNISSEUR" signatureUrl={null} stampUrl={null} zoneIndex={2} />
+          <SignatureFrame label={t('VALIDATION SERVICE ACHAT / DG')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+          <SignatureFrame label={t('ACCEPTATION FOURNISSEUR')} signatureUrl={null} stampUrl={null} zoneIndex={2} />
         </div>
       </div>
 
       <div style={{ textAlign: 'center', fontSize: 10, color: '#6b7280', marginTop: 16 }}>
-        Hôpital Saint Jean de Malte - Njombé | Document généré automatiquement
+        {t('Hôpital Saint Jean de Malte - Njombé | Document généré automatiquement')}
       </div>
     </div>
   );

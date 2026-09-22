@@ -1,6 +1,7 @@
 // frontend/src/pages/PublicDisplay.jsx
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Users,
   ArrowRight,
@@ -14,8 +15,13 @@ import {
   onTicketCalled,
   offSocketEvent
 } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 export default function PublicDisplay() {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
   const [displayData, setDisplayData] = useState({
     accueil_php: {
       current: null,
@@ -121,11 +127,13 @@ export default function PublicDisplay() {
   };
 
   const getQueueLabel = (queueType) => {
-    return queueType === 'accueil_php' ? 'ACCUEIL PHP' : 'ACCUEIL NORMAL';
+    return queueType === 'accueil_php' ? t('ACCUEIL PHP') : t('ACCUEIL NORMAL');
   };
 
+  const locale = BCP47_LOCALES[lang] || 'fr-FR';
+
   const formatTime = (date) => {
-    return date.toLocaleTimeString('fr-FR', {
+    return date.toLocaleTimeString(locale, {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
@@ -133,7 +141,7 @@ export default function PublicDisplay() {
   };
 
   const formatDate = (date) => {
-    return date.toLocaleDateString('fr-FR', {
+    return date.toLocaleDateString(locale, {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -180,21 +188,21 @@ export default function PublicDisplay() {
             </div>
 
             <div style={{ marginBottom: 32 }}>
-              <p style={{ fontSize: 60, fontWeight: 700, marginBottom: 16, color: '#d1d5db' }}>Ticket appelé :</p>
+              <p style={{ fontSize: 60, fontWeight: 700, marginBottom: 16, color: '#d1d5db' }}>{t('Ticket appelé :')}</p>
               <p className="animate-pulse" style={{ fontSize: 180, fontWeight: 900, lineHeight: 1, letterSpacing: '-2px' }}>
                 {lastCalled.ticketNumber}
               </p>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, fontSize: 48, fontWeight: 700 }}>
-              <span style={{ color: '#9ca3af' }}>Présentez-vous à</span>
+              <span style={{ color: '#9ca3af' }}>{t('Présentez-vous à')}</span>
               <ArrowRight className="animate-bounce-horizontal" style={{ width: 64, height: 64, color: '#fbbf24' }} />
               <span style={{
                 padding: '16px 32px',
                 borderRadius: 16,
                 background: lastCalled.queueType === 'accueil_php' ? '#2563eb' : '#16a34a'
               }}>
-                Position {lastCalled.positionNumber}
+                {t('Position {{n}}', { n: lastCalled.positionNumber })}
               </span>
             </div>
           </div>
@@ -207,21 +215,21 @@ export default function PublicDisplay() {
         {/* File Accueil PHP */}
         <div style={{ background: 'linear-gradient(135deg, #1f2937, #111827)', borderRadius: 24, boxShadow: '0 25px 50px rgba(0,0,0,0.5)', border: '4px solid #3b82f6', padding: 32 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-            <h2 style={{ fontSize: 36, fontWeight: 700, color: '#60a5fa', margin: 0 }}>🔵 ACCUEIL PHP</h2>
+            <h2 style={{ fontSize: 36, fontWeight: 700, color: '#60a5fa', margin: 0 }}>🔵 {t('ACCUEIL PHP')}</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#60a5fa' }}>
               <Activity className="animate-pulse" style={{ width: 32, height: 32 }} />
-              <span style={{ fontSize: 22, fontWeight: 600 }}>EN DIRECT</span>
+              <span style={{ fontSize: 22, fontWeight: 600 }}>{t('EN DIRECT')}</span>
             </div>
           </div>
 
           {/* Ticket actuel */}
           <div style={{ background: 'linear-gradient(to right, #3b82f6, #2563eb)', borderRadius: 16, padding: 32, marginBottom: 24 }}>
-            <p style={{ fontSize: 22, fontWeight: 600, marginBottom: 16, opacity: 0.9 }}>Ticket actuel :</p>
+            <p style={{ fontSize: 22, fontWeight: 600, marginBottom: 16, opacity: 0.9 }}>{t('Ticket actuel :')}</p>
             {displayData.accueil_php.current ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <p style={{ fontSize: 96, fontWeight: 900, margin: 0 }}>{displayData.accueil_php.current.ticketNumber}</p>
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: 20, opacity: 0.9, marginBottom: 8 }}>Position</p>
+                  <p style={{ fontSize: 20, opacity: 0.9, marginBottom: 8 }}>{t('Position')}</p>
                   <p style={{ fontSize: 60, fontWeight: 700, margin: 0 }}>{displayData.accueil_php.current.positionNumber}</p>
                 </div>
               </div>
@@ -235,7 +243,7 @@ export default function PublicDisplay() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
                 <Users style={{ width: 24, height: 24 }} />
-                En attente
+                {t('En attente')}
               </h3>
               <span style={{ padding: '6px 16px', background: '#eab308', color: '#111827', borderRadius: 9999, fontSize: 20, fontWeight: 700 }}>
                 {displayData.accueil_php.stats.waiting || 0}
@@ -244,7 +252,7 @@ export default function PublicDisplay() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {displayData.accueil_php.waiting.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 20, padding: '16px 0', margin: 0 }}>Aucun ticket en attente</p>
+                <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 20, padding: '16px 0', margin: 0 }}>{t('Aucun ticket en attente')}</p>
               ) : (
                 displayData.accueil_php.waiting.map((ticket, index) => (
                   <div
@@ -267,21 +275,21 @@ export default function PublicDisplay() {
         {/* File Accueil Normal */}
         <div style={{ background: 'linear-gradient(135deg, #1f2937, #111827)', borderRadius: 24, boxShadow: '0 25px 50px rgba(0,0,0,0.5)', border: '4px solid #22c55e', padding: 32 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-            <h2 style={{ fontSize: 36, fontWeight: 700, color: '#4ade80', margin: 0 }}>🟢 ACCUEIL NORMAL</h2>
+            <h2 style={{ fontSize: 36, fontWeight: 700, color: '#4ade80', margin: 0 }}>🟢 {t('ACCUEIL NORMAL')}</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#4ade80' }}>
               <Activity className="animate-pulse" style={{ width: 32, height: 32 }} />
-              <span style={{ fontSize: 22, fontWeight: 600 }}>EN DIRECT</span>
+              <span style={{ fontSize: 22, fontWeight: 600 }}>{t('EN DIRECT')}</span>
             </div>
           </div>
 
           {/* Ticket actuel */}
           <div style={{ background: 'linear-gradient(to right, #22c55e, #16a34a)', borderRadius: 16, padding: 32, marginBottom: 24 }}>
-            <p style={{ fontSize: 22, fontWeight: 600, marginBottom: 16, opacity: 0.9 }}>Ticket actuel :</p>
+            <p style={{ fontSize: 22, fontWeight: 600, marginBottom: 16, opacity: 0.9 }}>{t('Ticket actuel :')}</p>
             {displayData.accueil_normal.current ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <p style={{ fontSize: 96, fontWeight: 900, margin: 0 }}>{displayData.accueil_normal.current.ticketNumber}</p>
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: 20, opacity: 0.9, marginBottom: 8 }}>Position</p>
+                  <p style={{ fontSize: 20, opacity: 0.9, marginBottom: 8 }}>{t('Position')}</p>
                   <p style={{ fontSize: 60, fontWeight: 700, margin: 0 }}>{displayData.accueil_normal.current.positionNumber}</p>
                 </div>
               </div>
@@ -295,7 +303,7 @@ export default function PublicDisplay() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
                 <Users style={{ width: 24, height: 24 }} />
-                En attente
+                {t('En attente')}
               </h3>
               <span style={{ padding: '6px 16px', background: '#eab308', color: '#111827', borderRadius: 9999, fontSize: 20, fontWeight: 700 }}>
                 {displayData.accueil_normal.stats.waiting || 0}
@@ -304,7 +312,7 @@ export default function PublicDisplay() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {displayData.accueil_normal.waiting.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 20, padding: '16px 0', margin: 0 }}>Aucun ticket en attente</p>
+                <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 20, padding: '16px 0', margin: 0 }}>{t('Aucun ticket en attente')}</p>
               ) : (
                 displayData.accueil_normal.waiting.map((ticket, index) => (
                   <div
@@ -329,19 +337,19 @@ export default function PublicDisplay() {
       <div style={{ background: 'linear-gradient(to right, #1f2937, #111827)', borderRadius: 24, boxShadow: '0 25px 50px rgba(0,0,0,0.5)', border: '2px solid #374151', padding: 24 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24, textAlign: 'center' }}>
           <div>
-            <p style={{ color: '#9ca3af', fontSize: 18, marginBottom: 8 }}>PHP - En attente</p>
+            <p style={{ color: '#9ca3af', fontSize: 18, marginBottom: 8 }}>{t('PHP - En attente')}</p>
             <p style={{ fontSize: 48, fontWeight: 700, color: '#60a5fa', margin: 0 }}>{displayData.accueil_php.stats.waiting || 0}</p>
           </div>
           <div>
-            <p style={{ color: '#9ca3af', fontSize: 18, marginBottom: 8 }}>Normal - En attente</p>
+            <p style={{ color: '#9ca3af', fontSize: 18, marginBottom: 8 }}>{t('Normal - En attente')}</p>
             <p style={{ fontSize: 48, fontWeight: 700, color: '#4ade80', margin: 0 }}>{displayData.accueil_normal.stats.waiting || 0}</p>
           </div>
           <div>
-            <p style={{ color: '#9ca3af', fontSize: 18, marginBottom: 8 }}>Total traités (PHP)</p>
+            <p style={{ color: '#9ca3af', fontSize: 18, marginBottom: 8 }}>{t('Total traités (PHP)')}</p>
             <p style={{ fontSize: 48, fontWeight: 700, color: '#c084fc', margin: 0 }}>{displayData.accueil_php.stats.completed || 0}</p>
           </div>
           <div>
-            <p style={{ color: '#9ca3af', fontSize: 18, marginBottom: 8 }}>Total traités (Normal)</p>
+            <p style={{ color: '#9ca3af', fontSize: 18, marginBottom: 8 }}>{t('Total traités (Normal)')}</p>
             <p style={{ fontSize: 48, fontWeight: 700, color: '#c084fc', margin: 0 }}>{displayData.accueil_normal.stats.completed || 0}</p>
           </div>
         </div>

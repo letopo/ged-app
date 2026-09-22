@@ -1,5 +1,6 @@
 // frontend/src/components/Upload.jsx — Wizard 3 étapes
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { documentsAPI, servicesAPI, templatePermissionsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -59,7 +60,8 @@ function autoRef(type) {
 
 // ── StepBar ───────────────────────────────────────────────────────────────────
 function StepBar({ step }) {
-  const steps = ['Fichier', 'Métadonnées', 'Workflow'];
+  const { t } = useTranslation();
+  const steps = [t('Fichier'), t('Métadonnées'), t('Workflow')];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 32 }}>
       {steps.map((label, i) => {
@@ -104,6 +106,7 @@ function PdfBadge({ ext }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 const Upload = () => {
+  const { t } = useTranslation();
   const navigate  = useNavigate();
   const { user }  = useAuth();
   const fileInputRef = useRef();
@@ -151,7 +154,7 @@ const Upload = () => {
   // ── File accept ─────────────────────────────────────────────────────────────
   const acceptFile = f => {
     if (!f) return;
-    if (f.size > 10*1024*1024) { toast.error('Le fichier dépasse 10 MB.'); return; }
+    if (f.size > 10*1024*1024) { toast.error(t('Le fichier dépasse 10 MB.')); return; }
     setFile(f);
     setAnalyzing(true);
     setAnalysis(null);
@@ -163,7 +166,7 @@ const Upload = () => {
       setTitle(autoTitle(f.name, res.type));
       setReference(autoRef(res.type));
       setTags(res.type !== 'Autre' ? [res.type.toLowerCase().split(' ')[0], 'RH'] : []);
-      toast.success('Document analysé. Type et workflow détectés.');
+      toast.success(t('Document analysé. Type et workflow détectés.'));
     }, 1800);
   };
 
@@ -182,7 +185,7 @@ const Upload = () => {
 
   // ── Submit ──────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!file || !title || !category) { toast.error('Fichier, titre et type requis.'); return; }
+    if (!file || !title || !category) { toast.error(t('Fichier, titre et type requis.')); return; }
     setSubmitting(true);
     try {
       const fd = new FormData();
@@ -194,26 +197,26 @@ const Upload = () => {
       fd.append('visibility', visibility);
       if (tags.length) fd.append('tags', JSON.stringify(tags));
       await documentsAPI.upload(fd);
-      toast.success('Document créé et envoyé en validation !');
+      toast.success(t('Document créé et envoyé en validation !'));
       navigate('/documents');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur lors de l\'upload');
+      toast.error(err.response?.data?.message || t("Erreur lors de l'upload"));
     } finally {
       setSubmitting(false);
     }
   };
 
   const WORKFLOW_OPTIONS = [
-    { id: '2levels', label: 'Validation 2 niveaux', sub: 'Chef de service → Direction → Signature' },
-    { id: 'simple',  label: 'Validation simple',   sub: 'Un seul validateur puis signature' },
-    { id: 'none',    label: 'Aucun (archivage direct)', sub: 'Document archivé sans circuit' },
+    { id: '2levels', label: t('Validation 2 niveaux'), sub: t('Chef de service → Direction → Signature') },
+    { id: 'simple',  label: t('Validation simple'),   sub: t('Un seul validateur puis signature') },
+    { id: 'none',    label: t('Aucun (archivage direct)'), sub: t('Document archivé sans circuit') },
   ];
 
   const circuitSteps = workflow === '2levels'
-    ? ['Soumission', 'Chef de service', 'Direction', 'Signature']
+    ? [t('Soumission'), t('Chef de service'), t('Direction'), t('Signature')]
     : workflow === 'simple'
-    ? ['Soumission', 'Validateur', 'Signature']
-    : ['Soumission', 'Archivage direct'];
+    ? [t('Soumission'), t('Validateur'), t('Signature')]
+    : [t('Soumission'), t('Archivage direct')];
 
   const iStep1Ok = file && analysis && !analyzing;
   const iStep2Ok = title && category;
@@ -223,12 +226,12 @@ const Upload = () => {
       {/* Top bar */}
       <div style={{ borderBottom: '1px solid var(--border)', padding: '0 32px', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-muted)' }}>
-          <span style={{ cursor: 'pointer', color: 'var(--brand)' }} onClick={() => navigate('/documents')}>Documents</span>
+          <span style={{ cursor: 'pointer', color: 'var(--brand)' }} onClick={() => navigate('/documents')}>{t('Documents')}</span>
           <span>›</span>
-          <span style={{ color: 'var(--fg)', fontWeight: 600 }}>Nouvel upload</span>
+          <span style={{ color: 'var(--fg)', fontWeight: 600 }}>{t('Nouvel upload')}</span>
         </div>
         <button onClick={() => navigate('/documents')} style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--fg-muted)', cursor: 'pointer' }}>
-          Quitter
+          {t('Quitter')}
         </button>
       </div>
 
@@ -238,9 +241,9 @@ const Upload = () => {
 
           {/* Title */}
           <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Nouveau document</div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--fg)', margin: '0 0 6px', letterSpacing: '-0.5px' }}>Ajouter un document à la GED</h1>
-            <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>L'OCR détecte le type, extrait les zones de signature et suggère un workflow.</p>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>{t('Nouveau document')}</div>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--fg)', margin: '0 0 6px', letterSpacing: '-0.5px' }}>{t('Ajouter un document à la GED')}</h1>
+            <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>{t("L'OCR détecte le type, extrait les zones de signature et suggère un workflow.")}</p>
           </div>
 
           {/* Step bar */}
@@ -265,9 +268,9 @@ const Upload = () => {
                   <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--brand-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
                     <UploadIcon size={22} color="var(--brand)" />
                   </div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>Glissez un document ici</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>{t('Glissez un document ici')}</div>
                   <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
-                    ou <span style={{ color: 'var(--brand)', fontWeight: 600, cursor: 'pointer' }}>parcourir</span> · PDF, Word, Excel, Image
+                    {t('ou')} <span style={{ color: 'var(--brand)', fontWeight: 600, cursor: 'pointer' }}>{t('parcourir')}</span> · PDF, Word, Excel, Image
                   </div>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
                     {FILE_TYPES.map(t => (
@@ -284,7 +287,7 @@ const Upload = () => {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', marginBottom: 2 }}>{file.name}</div>
                       <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
-                        {formatSize(file.size)}{analysis ? ` · ${analysis.pages} page${analysis.pages > 1 ? 's' : ''}` : ''}
+                        {formatSize(file.size)}{analysis ? ` · ${t('{{count}} page(s)', { count: analysis.pages })}` : ''}
                       </div>
                     </div>
                     <button onClick={() => { setFile(null); setAnalysis(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 4 }}>
@@ -295,20 +298,20 @@ const Upload = () => {
                   {analyzing && (
                     <div style={{ padding: '12px 16px', background: 'var(--surface-2)', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Loader size={15} className="animate-spin" color="var(--brand)" />
-                      <span style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Analyse OCR en cours…</span>
+                      <span style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Analyse OCR en cours…')}</span>
                     </div>
                   )}
                   {analysis && !analyzing && (
                     <div style={{ padding: '12px 16px', background: '#f0fdf4', borderTop: '1px solid #bbf7d0' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                         <CheckCircle size={15} color="#166534" />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#166534' }}>Analyse terminée</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#166534' }}>{t('Analyse terminée')}</span>
                       </div>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>Type détecté · {analysis.type}</span>
-                        <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>Texte indexé · {analysis.lang}</span>
+                        <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>{t('Type détecté · {{type}}', { type: t(analysis.type) })}</span>
+                        <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>{t('Texte indexé · {{lang}}', { lang: t(analysis.lang) })}</span>
                         {analysis.signatures > 0 && (
-                          <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>{analysis.signatures} zone de signature</span>
+                          <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>{t('{{count}} zone de signature', { count: analysis.signatures })}</span>
                         )}
                       </div>
                     </div>
@@ -319,18 +322,18 @@ const Upload = () => {
               {/* OCR banner */}
               <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-3)', background: 'var(--brand-soft)', border: '1px solid var(--brand)', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 13, color: 'var(--brand)' }}>
                 <Sparkles size={15} />
-                <span><strong>OCR + IA</strong> · le type, le contenu indexable et le workflow sont détectés automatiquement.</span>
+                <span><strong>OCR + IA</strong> · {t('le type, le contenu indexable et le workflow sont détectés automatiquement.')}</span>
               </div>
 
               {/* Mobile card */}
               <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-3)', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
                 <Smartphone size={28} color="var(--brand)" strokeWidth={1.5} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 2 }}>Sur le terrain ? Utilisez l'app mobile.</div>
-                  <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>Scan caméra avec OCR temps réel et classification IA.</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 2 }}>{t("Sur le terrain ? Utilisez l'app mobile.")}</div>
+                  <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{t('Scan caméra avec OCR temps réel et classification IA.')}</div>
                 </div>
                 <button style={{ padding: '6px 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  Recevoir le lien
+                  {t('Recevoir le lien')}
                 </button>
               </div>
             </>
@@ -342,12 +345,12 @@ const Upload = () => {
               {/* IA banner */}
               <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-3)', background: 'var(--brand-soft)', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 13, color: 'var(--brand)' }}>
                 <Sparkles size={14} />
-                <span>Champs pré-remplis par l'IA — vérifiez et ajustez si besoin.</span>
+                <span>{t("Champs pré-remplis par l'IA — vérifiez et ajustez si besoin.")}</span>
               </div>
 
               {/* Titre */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>Titre du document</label>
+                <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>{t('Titre du document')}</label>
                 <input type="text" value={title} onChange={e => setTitle(e.target.value)}
                   style={{ width: '100%', height: 38, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   onFocus={e => e.target.style.borderColor = 'var(--brand)'}
@@ -358,17 +361,17 @@ const Upload = () => {
               {/* Type + Service */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>Type</label>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>{t('Type')}</label>
                   <select value={category} onChange={e => setCategory(e.target.value)}
                     style={{ width: '100%', height: 38, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 13, outline: 'none', cursor: 'pointer' }}>
-                    {DOC_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {DOC_CATEGORIES.map(c => <option key={c} value={c}>{t(c)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>Service</label>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>{t('Service')}</label>
                   <select value={service} onChange={e => setService(e.target.value)}
                     style={{ width: '100%', height: 38, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 13, outline: 'none', cursor: 'pointer' }}>
-                    <option value="">— choisir —</option>
+                    <option value="">{t('— choisir —')}</option>
                     {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
                 </div>
@@ -383,18 +386,18 @@ const Upload = () => {
                     onChange={e => setVisibility(e.target.checked ? 'service' : 'personal')}
                     style={{ width: 16, height: 16, accentColor: 'var(--brand)' }}
                   />
-                  Visible par tout mon service
+                  {t('Visible par tout mon service')}
                 </label>
                 <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 4, marginLeft: 24 }}>
                   {visibility === 'service'
-                    ? 'Tous les membres de votre service pourront voir ce document.'
-                    : 'Ce document ne sera visible que par vous (et vos validateurs de workflow).'}
+                    ? t('Tous les membres de votre service pourront voir ce document.')
+                    : t('Ce document ne sera visible que par vous (et vos validateurs de workflow).')}
                 </div>
               </div>
 
               {/* Référence */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>Référence</label>
+                <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>{t('Référence')}</label>
                 <input type="text" value={reference} onChange={e => setReference(e.target.value)}
                   style={{ width: '100%', height: 38, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   onFocus={e => e.target.style.borderColor = 'var(--brand)'}
@@ -404,7 +407,7 @@ const Upload = () => {
 
               {/* Tags */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>Tags</label>
+                <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>{t('Tags')}</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', padding: '6px 10px', background: 'var(--surface-2)', minHeight: 38 }}
                   onClick={() => document.getElementById('tag-input')?.focus()}>
                   {tags.map(t => (
@@ -413,7 +416,7 @@ const Upload = () => {
                     </span>
                   ))}
                   <input id="tag-input" type="text" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={addTag}
-                    placeholder="+ ajouter..." style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12, color: 'var(--fg)', minWidth: 80 }} />
+                    placeholder={t('+ ajouter...')} style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12, color: 'var(--fg)', minWidth: 80 }} />
                 </div>
               </div>
             </div>
@@ -423,8 +426,8 @@ const Upload = () => {
           {step === 3 && (
             <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', overflow: 'hidden', marginBottom: 28 }}>
               <div style={{ padding: '20px 20px 16px', background: 'var(--surface)' }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>Circuit de validation</div>
-                <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Suggéré par l'IA selon le type « {category} ». Modifiable.</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>{t('Circuit de validation')}</div>
+                <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Suggéré par l\'IA selon le type « {{category}} ». Modifiable.', { category: t(category) })}</div>
               </div>
 
               <div style={{ padding: '0 20px 20px', background: 'var(--surface)', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -449,7 +452,7 @@ const Upload = () => {
 
               {/* Aperçu circuit */}
               <div style={{ borderTop: '1px solid var(--border)', padding: '16px 20px', background: 'var(--surface-2)' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 14 }}>Aperçu du circuit</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 14 }}>{t('Aperçu du circuit')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {circuitSteps.map((s, i) => (
                     <div key={i} style={{ display: 'flex', gap: 12, position: 'relative' }}>
@@ -470,7 +473,7 @@ const Upload = () => {
                       <div style={{ paddingBottom: i < circuitSteps.length - 1 ? 12 : 0, paddingTop: 2 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{s}</div>
                         <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
-                          {i === 0 ? `Vous (${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''})` : 'À assigner'}
+                          {i === 0 ? t('Vous ({{initials}})', { initials: `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}` }) : t('À assigner')}
                         </div>
                       </div>
                     </div>
@@ -486,7 +489,7 @@ const Upload = () => {
               onClick={() => step > 1 ? setStep(s => s - 1) : navigate('/documents')}
               style={{ height: 38, padding: '0 18px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              {step > 1 ? <><ArrowLeft size={14}/> Précédent</> : 'Annuler'}
+              {step > 1 ? <><ArrowLeft size={14}/> {t('Précédent')}</> : t('Annuler')}
             </button>
 
             {step < 3 ? (
@@ -495,7 +498,7 @@ const Upload = () => {
                 disabled={step === 1 ? !iStep1Ok : !iStep2Ok}
                 style={{ height: 38, padding: '0 20px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: (step === 1 ? !iStep1Ok : !iStep2Ok) ? 'not-allowed' : 'pointer', opacity: (step === 1 ? !iStep1Ok : !iStep2Ok) ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                Suivant <ArrowRight size={14} />
+                {t('Suivant')} <ArrowRight size={14} />
               </button>
             ) : (
               <button
@@ -504,7 +507,7 @@ const Upload = () => {
                 style={{ height: 38, padding: '0 20px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
                 {submitting ? <Loader size={13} className="animate-spin" /> : <CheckCircle size={14} />}
-                Créer et envoyer
+                {t('Créer et envoyer')}
               </button>
             )}
           </div>

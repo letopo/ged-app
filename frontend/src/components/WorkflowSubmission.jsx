@@ -1,9 +1,11 @@
 // frontend/src/components/WorkflowSubmission.jsx
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { workflowAPI, usersAPI } from '../services/api';
 import { CheckCircle, XCircle, Loader, Users, Search } from 'lucide-react';
 
 export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
+  const { t } = useTranslation();
   const [users, setUsers] = useState([]);
   const [selectedValidators, setSelectedValidators] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
       const response = await usersAPI.getAll();
       setUsers(response.data.users);
     } catch (err) {
-      setError('Erreur lors du chargement des utilisateurs');
+      setError(t('Erreur lors du chargement des utilisateurs'));
     } finally {
       setLoadingUsers(false);
     }
@@ -46,14 +48,14 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (selectedValidators.length === 0) { setError('Veuillez sélectionner au moins un validateur'); return; }
+    if (selectedValidators.length === 0) { setError(t('Veuillez sélectionner au moins un validateur')); return; }
     try {
       setLoading(true); setError('');
       await workflowAPI.submitForValidation(document.id, selectedValidators);
-      setSuccess('Document soumis pour validation avec succès !');
+      setSuccess(t('Document soumis pour validation avec succès !'));
       setTimeout(() => { if (onSuccess) onSuccess(); }, 1500);
     } catch (err) {
-      setError(err.response?.data?.error || 'Erreur lors de la soumission');
+      setError(err.response?.data?.error || t('Erreur lors de la soumission'));
     } finally {
       setLoading(false);
     }
@@ -69,7 +71,7 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
   if (loadingUsers) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, color: 'var(--fg)', gap: 8 }}>
       <Loader size={28} className="animate-spin" style={{ color: 'var(--brand)' }} />
-      <span>Chargement des utilisateurs...</span>
+      <span>{t('Chargement des utilisateurs...')}</span>
     </div>
   );
 
@@ -78,7 +80,7 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
           <Users size={22} style={{ color: 'var(--brand)' }} />
-          Soumettre pour validation
+          {t('Soumettre pour validation')}
         </h2>
         {onCancel && (
           <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex' }}
@@ -92,7 +94,7 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
 
       {/* Infos document */}
       <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-3)', padding: 16, marginBottom: 24, border: '1px solid var(--border)' }}>
-        <h3 style={{ fontWeight: 600, color: 'var(--fg)', marginBottom: 6, fontSize: 13, margin: '0 0 6px' }}>Document</h3>
+        <h3 style={{ fontWeight: 600, color: 'var(--fg)', marginBottom: 6, fontSize: 13, margin: '0 0 6px' }}>{t('Document')}</h3>
         <p style={{ color: 'var(--fg)', fontSize: 14, margin: 0 }}>{document.title}</p>
         <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: '2px 0 0' }}>{document.filename}</p>
       </div>
@@ -100,16 +102,16 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 24 }}>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 12 }}>
-            Sélectionner les validateurs
+            {t('Sélectionner les validateurs')}
             <span style={{ color: 'var(--fg-muted)', marginLeft: 8 }}>
-              ({selectedValidators.length} sélectionné{selectedValidators.length > 1 ? 's' : ''})
+              {t('({{count}} sélectionné(s))', { count: selectedValidators.length })}
             </span>
           </label>
 
           {/* Recherche */}
           <div style={{ position: 'relative', marginBottom: 12 }}>
             <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
-            <input type="text" placeholder="Rechercher par nom ou email..." value={searchTerm}
+            <input type="text" placeholder={t('Rechercher par nom ou email...')} value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)} style={inputStyle} />
           </div>
 
@@ -132,7 +134,7 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
                     <div style={{ fontWeight: 500, color: 'var(--fg)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
                       {u.firstName} {u.lastName}
                       {u.id === currentUserId && (
-                        <span style={{ fontSize: 10, background: 'var(--success-soft)', color: 'var(--success)', padding: '2px 6px', borderRadius: 999 }}>Vous</span>
+                        <span style={{ fontSize: 10, background: 'var(--success-soft)', color: 'var(--success)', padding: '2px 6px', borderRadius: 999 }}>{t('Vous')}</span>
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{u.email}</div>
@@ -141,7 +143,7 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
               );
             }) : (
               <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--fg-muted)', fontSize: 13 }}>
-                {searchTerm ? 'Aucun utilisateur trouvé pour cette recherche.' : 'Aucun utilisateur disponible.'}
+                {searchTerm ? t('Aucun utilisateur trouvé pour cette recherche.') : t('Aucun utilisateur disponible.')}
               </div>
             )}
           </div>
@@ -171,7 +173,7 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
             >
-              Annuler
+              {t('Annuler')}
             </button>
           )}
           <button type="submit" disabled={loading || selectedValidators.length === 0} style={{
@@ -186,7 +188,7 @@ export default function WorkflowSubmission({ document, onSuccess, onCancel }) {
             onMouseEnter={e => { if (!loading && selectedValidators.length > 0) e.currentTarget.style.background = 'var(--brand-active)'; }}
             onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
           >
-            {loading ? <><Loader size={16} className="animate-spin" />Soumission...</> : 'Soumettre pour validation'}
+            {loading ? <><Loader size={16} className="animate-spin" />{t('Soumission...')}</> : t('Soumettre pour validation')}
           </button>
         </div>
       </form>

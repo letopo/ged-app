@@ -2,6 +2,7 @@
 // Gestion complète des patients PHP — liste, recherche, fiche détail, édition, suppression
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Users, Search, Plus, ChevronRight, RefreshCw,
   UserCircle, MapPin, Building2, FileText, Stethoscope,
@@ -14,9 +15,12 @@ import PHPPatientRegistration from '../components/php/PHPPatientRegistration';
 import PHPConsultationForm from '../components/php/PHPConsultationForm';
 import PHPBonPrint from '../components/php/PHPBonPrint';
 import toast from 'react-hot-toast';
+import i18n from '../i18n/config';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 // ─── Labels / styles statuts ──────────────────────────────────────────────────
-const STATUS_LABELS = { actif: 'Actif', decede: 'Décédé', transfere: 'Transféré', inactif: 'Inactif' };
+const getStatusLabels = (t) => ({ actif: t('Actif'), decede: t('Décédé'), transfere: t('Transféré'), inactif: t('Inactif') });
 const STATUS_STYLES = {
   actif:    { background: 'var(--success-soft)', color: 'var(--success)' },
   decede:   { background: 'var(--surface-3)', color: 'var(--fg-muted)' },
@@ -26,6 +30,8 @@ const STATUS_STYLES = {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function PHPPatients() {
+  const { t } = useTranslation();
+  const STATUS_LABELS = getStatusLabels(t);
   const [patients, setPatients]     = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, totalPages: 1 });
   const [loading, setLoading]       = useState(true);
@@ -107,7 +113,7 @@ export default function PHPPatients() {
       setBonData({ bon: res.data.data, patient });
       setShowBonPrint(true);
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur génération bon');
+      toast(err.response?.data?.message || t('Erreur génération bon'));
     }
   };
 
@@ -128,7 +134,7 @@ export default function PHPPatients() {
       if (selectedPatient?.id === deletePatient_.id) setSelectedPatient(null);
       loadPatients();
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur lors de la suppression');
+      toast(err.response?.data?.message || t('Erreur lors de la suppression'));
     }
   };
 
@@ -155,10 +161,10 @@ export default function PHPPatients() {
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
               <Users style={{ color: 'var(--brand)' }} size={22} />
-              Patients PHP
+              {t('Patients PHP')}
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
-              {pagination.total} patient{pagination.total !== 1 ? 's' : ''} enregistré{pagination.total !== 1 ? 's' : ''}
+              {t('{{count}} patient(s) enregistré(s)', { count: pagination.total })}
             </p>
           </div>
         </div>
@@ -171,7 +177,7 @@ export default function PHPPatients() {
           <button onClick={() => setShowRegistration(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors font-medium"
             style={{ background: 'var(--brand)', color: '#fff', boxShadow: 'var(--shadow-1)' }}>
-            <Plus size={16} /> Nouveau patient
+            <Plus size={16} /> {t('Nouveau patient')}
           </button>
         </div>
       </div>
@@ -184,22 +190,22 @@ export default function PHPPatients() {
             <input
               type="text" value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Rechercher par nom, prénom ou matricule..."
+              placeholder={t('Rechercher par nom, prénom ou matricule...')}
               style={{ ...inputStyle, paddingLeft: '2.25rem', width: '100%' }}
             />
           </div>
           <select value={filterInfirmerie} onChange={e => { setFilterInfirmerie(e.target.value); setPage(1); }}
             style={inputStyle}>
-            <option value="">Toutes les infirmeries</option>
+            <option value="">{t('Toutes les infirmeries')}</option>
             {infirmeries.map(i => <option key={i.id} value={i.id}>{i.nom}</option>)}
           </select>
           <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
             style={inputStyle}>
-            <option value="">Tous les statuts</option>
-            <option value="actif">Actifs</option>
-            <option value="inactif">Inactifs</option>
-            <option value="decede">Décédés</option>
-            <option value="transfere">Transférés</option>
+            <option value="">{t('Tous les statuts')}</option>
+            <option value="actif">{t('Actifs')}</option>
+            <option value="inactif">{t('Inactifs')}</option>
+            <option value="decede">{t('Décédés')}</option>
+            <option value="transfere">{t('Transférés')}</option>
           </select>
         </div>
       </div>
@@ -219,10 +225,10 @@ export default function PHPPatients() {
           ) : patients.length === 0 ? (
             <div className="rounded-xl p-8 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <Users size={40} className="mx-auto mb-3" style={{ color: 'var(--fg-subtle)' }} />
-              <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>Aucun patient trouvé</p>
+              <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>{t('Aucun patient trouvé')}</p>
               <button onClick={() => setShowRegistration(true)}
                 className="mt-3 text-sm flex items-center gap-1 mx-auto hover:underline" style={{ color: 'var(--brand)' }}>
-                <Plus size={14} /> Enregistrer un patient
+                <Plus size={14} /> {t('Enregistrer un patient')}
               </button>
             </div>
           ) : (
@@ -268,7 +274,7 @@ export default function PHPPatients() {
                         {/* Modifier */}
                         <button
                           onClick={e => { e.stopPropagation(); setEditPatient(p); setShowEdit(true); }}
-                          title="Modifier ce patient"
+                          title={t('Modifier ce patient')}
                           className="p-1.5 rounded-lg transition-colors"
                           style={{ color: 'var(--fg-subtle)' }}
                           onMouseEnter={e => { e.currentTarget.style.color = 'var(--brand)'; e.currentTarget.style.background = 'var(--brand-soft)'; }}
@@ -279,7 +285,7 @@ export default function PHPPatients() {
                         {/* Supprimer */}
                         <button
                           onClick={e => { e.stopPropagation(); setDeletePatient_(p); setShowDelete(true); }}
-                          title="Supprimer ce patient"
+                          title={t('Supprimer ce patient')}
                           className="p-1.5 rounded-lg transition-colors"
                           style={{ color: 'var(--fg-subtle)' }}
                           onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.background = 'var(--danger-soft)'; }}
@@ -298,7 +304,7 @@ export default function PHPPatients() {
               {pagination.totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4 text-sm">
                   <p className="text-xs" style={{ color: 'var(--fg-muted)' }}>
-                    {((page-1)*25)+1}–{Math.min(page*25, pagination.total)} sur {pagination.total}
+                    {t('{{from}}–{{to}} sur {{total}}', { from: ((page-1)*25)+1, to: Math.min(page*25, pagination.total), total: pagination.total })}
                   </p>
                   <div className="flex gap-1">
                     <button disabled={page === 1} onClick={() => setPage(p => p-1)}
@@ -344,7 +350,7 @@ export default function PHPPatients() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => { setEditPatient(selectedPatient); setShowEdit(true); }}
-                  title="Modifier"
+                  title={t('Modifier')}
                   className="p-2 rounded-lg transition-colors"
                   style={{ color: 'var(--brand)' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'}
@@ -354,7 +360,7 @@ export default function PHPPatients() {
                 </button>
                 <button
                   onClick={() => { setDeletePatient_(selectedPatient); setShowDelete(true); }}
-                  title="Supprimer"
+                  title={t('Supprimer')}
                   className="p-2 rounded-lg transition-colors"
                   style={{ color: 'var(--danger)' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-soft)'}
@@ -378,14 +384,14 @@ export default function PHPPatients() {
                 <div className="flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
                   <Building2 size={14} style={{ color: 'var(--fg-subtle)' }} className="shrink-0" />
                   <div>
-                    <p className="text-xs" style={{ color: 'var(--fg-subtle)' }}>Infirmerie</p>
+                    <p className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('Infirmerie')}</p>
                     <p className="font-medium" style={{ color: 'var(--fg)' }}>{selectedPatient.infirmerie?.nom || '–'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2" style={{ color: 'var(--fg-muted)' }}>
                   <MapPin size={14} style={{ color: 'var(--fg-subtle)' }} className="shrink-0" />
                   <div>
-                    <p className="text-xs" style={{ color: 'var(--fg-subtle)' }}>Secteur</p>
+                    <p className="text-xs" style={{ color: 'var(--fg-subtle)' }}>{t('Secteur')}</p>
                     <p className="font-medium" style={{ color: 'var(--fg)' }}>{selectedPatient.secteur?.nom || '–'}</p>
                   </div>
                 </div>
@@ -396,12 +402,12 @@ export default function PHPPatients() {
                 <button onClick={() => handleGenererBon(selectedPatient)}
                   className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs rounded-lg hover:opacity-90 transition-colors"
                   style={{ background: 'rgba(99,102,241,0.1)', color: 'rgb(99,102,241)', border: '1px solid rgba(99,102,241,0.3)' }}>
-                  <FileText size={13} /> Générer bon
+                  <FileText size={13} /> {t('Générer bon')}
                 </button>
                 <button onClick={() => setShowConsultation(true)}
                   className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs rounded-lg hover:opacity-90 transition-colors"
                   style={{ background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' }}>
-                  <Stethoscope size={13} /> Consultation
+                  <Stethoscope size={13} /> {t('Consultation')}
                 </button>
               </div>
 
@@ -409,7 +415,7 @@ export default function PHPPatients() {
               {selectedPatient.consultations?.length > 0 && (
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--fg-muted)' }}>
-                    Historique consultations ({selectedPatient.consultations.length})
+                    {t('Historique consultations ({{count}})', { count: selectedPatient.consultations.length })}
                   </h3>
                   <div className="space-y-2">
                     {selectedPatient.consultations.slice(0, 5).map(c => (
@@ -417,7 +423,7 @@ export default function PHPPatients() {
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-xs font-medium" style={{ color: 'var(--fg)' }}>
-                              {new Date(c.dateConsultation).toLocaleDateString('fr-FR')} • {c.serviceName || '–'}
+                              {new Date(c.dateConsultation).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')} • {c.serviceName || '–'}
                             </p>
                             {c.diagnostic && <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>{c.diagnostic}</p>}
                           </div>
@@ -435,7 +441,7 @@ export default function PHPPatients() {
                           <p className="text-xs flex items-center gap-1 mt-1"
                             style={{ color: c.dureeAttenteMinutes > 120 ? 'var(--danger)' : 'var(--fg-subtle)' }}>
                             <Clock size={11} />
-                            Attente : {c.dureeAttenteMinutes < 60
+                            {t('Attente')} : {c.dureeAttenteMinutes < 60
                               ? `${c.dureeAttenteMinutes} min`
                               : `${Math.floor(c.dureeAttenteMinutes/60)}h${String(c.dureeAttenteMinutes%60).padStart(2,'0')}`}
                           </p>
@@ -450,14 +456,14 @@ export default function PHPPatients() {
               {selectedPatient.repos?.filter(r => r.status !== 'termine').length > 0 && (
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--warning)' }}>
-                    Repos maladie en cours
+                    {t('Repos maladie en cours')}
                   </h3>
                   {selectedPatient.repos.filter(r => r.status !== 'termine').map(r => (
                     <div key={r.id} className="p-2 rounded-lg text-xs"
                       style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning)' }}>
                       <p className="font-medium" style={{ color: 'var(--warning)' }}>
-                        Du {new Date(r.dateDebut).toLocaleDateString('fr-FR')} au {new Date(r.dateFin).toLocaleDateString('fr-FR')}
-                        {' '}({r.dureeJours} jour{r.dureeJours !== 1 ? 's' : ''})
+                        {t('Du {{start}} au {{end}}', { start: new Date(r.dateDebut).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR'), end: new Date(r.dateFin).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') })}
+                        {' '}({t('{{count}} jour(s)', { count: r.dureeJours })})
                       </p>
                       {r.motif && <p className="mt-0.5" style={{ color: 'var(--warning)' }}>{r.motif}</p>}
                     </div>
@@ -469,13 +475,13 @@ export default function PHPPatients() {
               {selectedPatient.hospitalisations?.filter(h => h.status === 'en_cours').length > 0 && (
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--danger)' }}>
-                    Hospitalisation en cours
+                    {t('Hospitalisation en cours')}
                   </h3>
                   {selectedPatient.hospitalisations.filter(h => h.status === 'en_cours').map(h => (
                     <div key={h.id} className="p-2 rounded-lg text-xs"
                       style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)' }}>
                       <p className="font-medium" style={{ color: 'var(--danger)' }}>
-                        {h.serviceHospitalisation || 'Service non précisé'} • Entrée le {new Date(h.dateEntree).toLocaleDateString('fr-FR')}
+                        {h.serviceHospitalisation || t('Service non précisé')} • {t('Entrée le {{date}}', { date: new Date(h.dateEntree).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR') })}
                       </p>
                     </div>
                   ))}
@@ -532,6 +538,7 @@ export default function PHPPatients() {
 
 // ─── Modal Édition Patient ─────────────────────────────────────────────────────
 function EditPatientModal({ patient, infirmeries, onClose, onSaved }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     nom:          patient.nom || '',
     prenom:       patient.prenom || '',
@@ -559,8 +566,8 @@ function EditPatientModal({ patient, infirmeries, onClose, onSaved }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErreur('');
-    if (!form.nom.trim())    { setErreur('Le nom est obligatoire'); return; }
-    if (!form.matricule.trim()) { setErreur('Le matricule est obligatoire'); return; }
+    if (!form.nom.trim())    { setErreur(t('Le nom est obligatoire')); return; }
+    if (!form.matricule.trim()) { setErreur(t('Le matricule est obligatoire')); return; }
 
     setSaving(true);
     try {
@@ -577,7 +584,7 @@ function EditPatientModal({ patient, infirmeries, onClose, onSaved }) {
         onSaved(res.data.data);
       }, 800);
     } catch (err) {
-      setErreur(err.response?.data?.message || 'Erreur lors de la mise à jour');
+      setErreur(err.response?.data?.message || t('Erreur lors de la mise à jour'));
     } finally {
       setSaving(false);
     }
@@ -602,7 +609,7 @@ function EditPatientModal({ patient, infirmeries, onClose, onSaved }) {
         <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
             <Pencil size={16} style={{ color: 'var(--brand)' }} />
-            Modifier le patient
+            {t('Modifier le patient')}
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg"
             style={{ color: 'var(--fg-muted)' }}
@@ -615,7 +622,7 @@ function EditPatientModal({ patient, infirmeries, onClose, onSaved }) {
         {success ? (
           <div className="p-8 flex flex-col items-center gap-3" style={{ color: 'var(--success)' }}>
             <CheckCircle size={40} />
-            <p className="font-semibold">Modifications enregistrées !</p>
+            <p className="font-semibold">{t('Modifications enregistrées !')}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-4 space-y-4">
@@ -624,69 +631,69 @@ function EditPatientModal({ patient, infirmeries, onClose, onSaved }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>
-                  Matricule <span style={{ color: 'var(--danger)' }}>*</span>
+                  {t('Matricule')} <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
                 <input type="text" value={form.matricule}
                   onChange={e => setForm(f => ({ ...f, matricule: e.target.value }))}
-                  style={inp} placeholder="Ex: 801636" />
+                  style={inp} placeholder={t('Ex: 801636')} />
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>Statut</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>{t('Statut')}</label>
                 <select value={form.status}
                   onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
                   style={inp}>
-                  <option value="actif">Actif</option>
-                  <option value="inactif">Inactif</option>
-                  <option value="transfere">Transféré</option>
-                  <option value="decede">Décédé</option>
+                  <option value="actif">{t('Actif')}</option>
+                  <option value="inactif">{t('Inactif')}</option>
+                  <option value="transfere">{t('Transféré')}</option>
+                  <option value="decede">{t('Décédé')}</option>
                 </select>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>
-                Nom <span style={{ color: 'var(--danger)' }}>*</span>
+                {t('Nom')} <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <input type="text" value={form.nom}
                 onChange={e => setForm(f => ({ ...f, nom: e.target.value.toUpperCase() }))}
-                style={inp} placeholder="NOM DE FAMILLE" />
+                style={inp} placeholder={t('NOM DE FAMILLE')} />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>Prénom(s)</label>
+              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>{t('Prénom(s)')}</label>
               <input type="text" value={form.prenom}
                 onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))}
-                style={inp} placeholder="Prénom(s) du patient" />
+                style={inp} placeholder={t('Prénom(s) du patient')} />
             </div>
 
             {/* Affectation */}
             <div className="p-3 rounded-xl space-y-3"
               style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
               <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--brand)' }}>
-                Affectation
+                {t('Affectation')}
               </p>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>Infirmerie</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>{t('Infirmerie')}</label>
                 <select value={form.infirmerieId} onChange={handleInfChange} style={inp}>
-                  <option value="">-- Choisir l'infirmerie --</option>
+                  <option value="">{t("-- Choisir l'infirmerie --")}</option>
                   {infirmeries.map(i => (
                     <option key={i.id} value={i.id}>{i.nom} ({i.code})</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>Secteur</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--fg)' }}>{t('Secteur')}</label>
                 <select value={form.secteurId}
                   onChange={e => setForm(f => ({ ...f, secteurId: e.target.value }))}
                   disabled={!form.infirmerieId || secteurs.length === 0}
                   style={{ ...inp, opacity: (!form.infirmerieId || secteurs.length === 0) ? 0.5 : 1, cursor: (!form.infirmerieId || secteurs.length === 0) ? 'not-allowed' : 'default' }}>
-                  <option value="">-- Choisir le secteur --</option>
+                  <option value="">{t('-- Choisir le secteur --')}</option>
                   {secteurs.map(s => (
                     <option key={s.id} value={s.id}>{s.nom}</option>
                   ))}
                 </select>
                 {form.infirmerieId && secteurs.length === 0 && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>Aucun secteur pour cette infirmerie</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>{t('Aucun secteur pour cette infirmerie')}</p>
                 )}
               </div>
             </div>
@@ -705,13 +712,13 @@ function EditPatientModal({ patient, infirmeries, onClose, onSaved }) {
               <button type="button" onClick={onClose}
                 className="flex-1 px-4 py-2 text-sm rounded-xl transition-colors"
                 style={{ border: '1px solid var(--border)', color: 'var(--fg)' }}>
-                Annuler
+                {t('Annuler')}
               </button>
               <button type="submit" disabled={saving}
                 className="flex-[2] flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-xl disabled:opacity-60 transition-colors font-semibold"
                 style={{ background: 'var(--brand)', color: '#fff' }}>
                 {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                {saving ? t('Enregistrement...') : t('Enregistrer les modifications')}
               </button>
             </div>
           </form>
@@ -723,6 +730,7 @@ function EditPatientModal({ patient, infirmeries, onClose, onSaved }) {
 
 // ─── Modal Suppression Patient ────────────────────────────────────────────────
 function DeletePatientModal({ patient, onClose, onConfirm }) {
+  const { t } = useTranslation();
   const [confirming, setConfirming] = useState(false);
   const [mode, setMode]             = useState('desactiver');
 
@@ -743,7 +751,7 @@ function DeletePatientModal({ patient, onClose, onConfirm }) {
         <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--fg)' }}>
             <Trash2 size={16} style={{ color: 'var(--danger)' }} />
-            Supprimer le patient
+            {t('Supprimer le patient')}
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg"
             style={{ color: 'var(--fg-muted)' }}
@@ -778,9 +786,9 @@ function DeletePatientModal({ patient, onClose, onConfirm }) {
                 checked={mode === 'desactiver'} onChange={() => setMode('desactiver')}
                 className="mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--fg)' }}>Désactiver (recommandé)</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--fg)' }}>{t('Désactiver (recommandé)')}</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
-                  Le patient passe en statut <strong>Inactif</strong>. Son historique (consultations, repos, hospitalisations) est conservé. Réversible à tout moment via "Modifier".
+                  {t('Le patient passe en statut')} <strong>{t('Inactif')}</strong>. {t('Son historique (consultations, repos, hospitalisations) est conservé. Réversible à tout moment via "Modifier".')}
                 </p>
               </div>
             </label>
@@ -794,9 +802,9 @@ function DeletePatientModal({ patient, onClose, onConfirm }) {
                 checked={mode === 'supprimer'} onChange={() => setMode('supprimer')}
                 className="mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>Supprimer définitivement</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>{t('Supprimer définitivement')}</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--fg-muted)' }}>
-                  ⚠️ <strong>Irréversible.</strong> Le patient <em>et tout son historique</em> (consultations, bons, repos, hospitalisations) seront définitivement supprimés de la base de données.
+                  ⚠️ <strong>{t('Irréversible.')}</strong> {t('Le patient et tout son historique (consultations, bons, repos, hospitalisations) seront définitivement supprimés de la base de données.')}
                 </p>
               </div>
             </label>
@@ -808,7 +816,7 @@ function DeletePatientModal({ patient, onClose, onConfirm }) {
               style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)' }}>
               <TriangleAlert size={16} style={{ color: 'var(--danger)' }} className="shrink-0 mt-0.5" />
               <p className="text-xs" style={{ color: 'var(--danger)' }}>
-                Cette action est <strong>définitive et irréversible</strong>. Toutes les consultations, bons de prise en charge, repos maladie et hospitalisations associés à ce patient seront également supprimés.
+                {t('Cette action est')} <strong>{t('définitive et irréversible')}</strong>. {t('Toutes les consultations, bons de prise en charge, repos maladie et hospitalisations associés à ce patient seront également supprimés.')}
               </p>
             </div>
           )}
@@ -818,7 +826,7 @@ function DeletePatientModal({ patient, onClose, onConfirm }) {
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2 text-sm rounded-xl transition-colors"
               style={{ border: '1px solid var(--border)', color: 'var(--fg)' }}>
-              Annuler
+              {t('Annuler')}
             </button>
             <button
               onClick={handleConfirm}
@@ -832,7 +840,7 @@ function DeletePatientModal({ patient, onClose, onConfirm }) {
                 ? <RefreshCw size={14} className="animate-spin" />
                 : mode === 'supprimer' ? <Trash2 size={14} /> : null
               }
-              {confirming ? 'Traitement...' : mode === 'supprimer' ? 'Supprimer définitivement' : 'Désactiver le patient'}
+              {confirming ? t('Traitement...') : mode === 'supprimer' ? t('Supprimer définitivement') : t('Désactiver le patient')}
             </button>
           </div>
         </div>

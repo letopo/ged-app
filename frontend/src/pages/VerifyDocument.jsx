@@ -1,8 +1,12 @@
 // frontend/src/pages/VerifyDocument.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ShieldCheck, ShieldX, Loader, FileText, Calendar, User, CheckCircle } from 'lucide-react';
 import api from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 const STATUS_LABELS = {
   approved:           'Approuvé',
@@ -13,6 +17,9 @@ const STATUS_LABELS = {
 };
 
 export default function VerifyDocument() {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+  const locale = BCP47_LOCALES[lang] || 'fr-FR';
   const { hash } = useParams();
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState(null);
@@ -36,7 +43,7 @@ export default function VerifyDocument() {
   if (loading) return (
     <div style={{ minHeight: '100vh', background: 'var(--surface-2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
       <Loader size={32} color="var(--brand)" className="animate-spin" />
-      <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Vérification en cours…</div>
+      <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Vérification en cours…')}</div>
     </div>
   );
 
@@ -51,8 +58,8 @@ export default function VerifyDocument() {
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--danger-soft)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ShieldX size={26} color="var(--danger)" />
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 8 }}>Erreur de vérification</div>
-        <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Impossible de vérifier ce document. Le lien est peut-être invalide.</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 8 }}>{t('Erreur de vérification')}</div>
+        <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Impossible de vérifier ce document. Le lien est peut-être invalide.')}</div>
       </div>
     </div>
   );
@@ -84,12 +91,12 @@ export default function VerifyDocument() {
               : <ShieldX size={28} color="var(--danger)" />}
           </div>
           <div style={{ fontSize: 17, fontWeight: 700, color: verified ? 'var(--success)' : 'var(--danger)', marginBottom: 6 }}>
-            {verified ? 'Document vérifié' : 'Document non vérifié'}
+            {verified ? t('Document vérifié') : t('Document non vérifié')}
           </div>
           <div style={{ fontSize: 13, color: verified ? 'var(--success)' : 'var(--danger)' }}>
             {verified
-              ? 'Ce document a été signé électroniquement et est authentique.'
-              : result.message || "Ce document n'a pas pu être vérifié."}
+              ? t('Ce document a été signé électroniquement et est authentique.')
+              : result.message || t("Ce document n'a pas pu être vérifié.")}
           </div>
         </div>
 
@@ -111,15 +118,15 @@ export default function VerifyDocument() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-3)' }}>
                 <User size={13} color="var(--fg-subtle)" style={{ flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>Créé par</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>{t('Créé par')}</div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>{data.createdBy}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-3)' }}>
                 <Calendar size={13} color="var(--fg-subtle)" style={{ flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>Date de création</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>{new Date(data.createdAt).toLocaleDateString('fr-FR')}</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>{t('Date de création')}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>{new Date(data.createdAt).toLocaleDateString(locale)}</div>
                 </div>
               </div>
             </div>
@@ -128,8 +135,8 @@ export default function VerifyDocument() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--success-soft)', borderRadius: 'var(--radius-3)' }}>
               <CheckCircle size={13} color="var(--success)" style={{ flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: 10, color: 'var(--success)' }}>Statut</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>{STATUS_LABELS[data.status] || data.status}</div>
+                <div style={{ fontSize: 10, color: 'var(--success)' }}>{t('Statut')}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>{t(STATUS_LABELS[data.status] || data.status)}</div>
               </div>
             </div>
 
@@ -137,7 +144,7 @@ export default function VerifyDocument() {
             {data.signatures && data.signatures.length > 0 && (
               <div>
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
-                  Signatures ({data.signatures.length})
+                  {t('Signatures ({{count}})', { count: data.signatures.length })}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {data.signatures.map((sig, i) => (
@@ -153,8 +160,8 @@ export default function VerifyDocument() {
                         <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{sig.role}</div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{new Date(sig.date).toLocaleDateString('fr-FR')}</div>
-                        <div style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>{new Date(sig.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+                        <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{new Date(sig.date).toLocaleDateString(locale)}</div>
+                        <div style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>{new Date(sig.date).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</div>
                       </div>
                     </div>
                   ))}
@@ -165,7 +172,7 @@ export default function VerifyDocument() {
             {/* Hash footer */}
             <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
               <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>
-                Hash : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10 }}>{data.verificationHash}</span>
+                {t('Hash :')} <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10 }}>{data.verificationHash}</span>
               </div>
               <div style={{ fontSize: 10, color: 'var(--fg-subtle)', marginTop: 3 }}>
                 Hôpital Saint Jean de Malte — Système GED

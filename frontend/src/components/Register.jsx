@@ -1,10 +1,12 @@
 // frontend/src/components/Register.jsx
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { UserPlus, Mail, Lock, User, Loader, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function Register() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '', email: '', password: '', confirmPassword: '', firstName: '', lastName: ''
@@ -20,13 +22,13 @@ export default function Register() {
     setError(''); setSuccess('');
 
     if (!formData.username || !formData.email || !formData.password || !formData.firstName || !formData.lastName) {
-      setError('Veuillez remplir tous les champs obligatoires'); return;
+      setError(t('Veuillez remplir tous les champs obligatoires')); return;
     }
     if (formData.password !== formData.confirmPassword) {
-      setError('Les mots de passe ne correspondent pas'); return;
+      setError(t('Les mots de passe ne correspondent pas')); return;
     }
     if (formData.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères'); return;
+      setError(t('Le mot de passe doit contenir au moins 6 caractères')); return;
     }
 
     try {
@@ -35,10 +37,10 @@ export default function Register() {
         username: formData.username, email: formData.email, password: formData.password,
         firstName: formData.firstName, lastName: formData.lastName
       });
-      setSuccess('Compte créé avec succès ! Redirection...');
+      setSuccess(t('Compte créé avec succès ! Redirection...'));
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setError(err.response?.data?.error || 'Erreur lors de la création du compte');
+      setError(err.response?.data?.error || t('Erreur lors de la création du compte'));
     } finally {
       setLoading(false);
     }
@@ -71,8 +73,8 @@ export default function Register() {
             }}>
               <UserPlus size={30} style={{ color: 'var(--brand)' }} />
             </div>
-            <h2 style={{ fontSize: 26, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Créer un compte</h2>
-            <p style={{ color: 'var(--fg-muted)', marginTop: 8, fontSize: 14 }}>Rejoignez notre plateforme GED</p>
+            <h2 style={{ fontSize: 26, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('Créer un compte')}</h2>
+            <p style={{ color: 'var(--fg-muted)', marginTop: 8, fontSize: 14 }}>{t('Rejoignez notre plateforme GED')}</p>
           </div>
 
           {error && (
@@ -92,20 +94,20 @@ export default function Register() {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
-                <label style={labelStyle}>Prénom *</label>
+                <label style={labelStyle}>{t('Prénom *')}</label>
                 <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} style={inputStyle} disabled={loading} />
               </div>
               <div>
-                <label style={labelStyle}>Nom *</label>
+                <label style={labelStyle}>{t('Nom *')}</label>
                 <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} style={inputStyle} disabled={loading} />
               </div>
             </div>
 
             {[
-              { label: "Nom d'utilisateur *", name: 'username', type: 'text', Icon: User },
-              { label: 'Email *', name: 'email', type: 'email', Icon: Mail },
-              { label: 'Mot de passe *', name: 'password', type: 'password', Icon: Lock },
-              { label: 'Confirmer le mot de passe *', name: 'confirmPassword', type: 'password', Icon: Lock },
+              { label: t("Nom d'utilisateur *"), name: 'username', type: 'text', Icon: User },
+              { label: t('Email *'), name: 'email', type: 'email', Icon: Mail },
+              { label: t('Mot de passe *'), name: 'password', type: 'password', Icon: Lock },
+              { label: t('Confirmer le mot de passe *'), name: 'confirmPassword', type: 'password', Icon: Lock },
             ].map(({ label, name, type, Icon }) => (
               <div key={name}>
                 <label style={labelStyle}>{label}</label>
@@ -129,16 +131,16 @@ export default function Register() {
               onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
             >
               {loading
-                ? <><Loader size={18} className="animate-spin" />Création en cours...</>
-                : <><UserPlus size={18} />Créer mon compte</>}
+                ? <><Loader size={18} className="animate-spin" />{t('Création en cours...')}</>
+                : <><UserPlus size={18} />{t('Créer mon compte')}</>}
             </button>
           </form>
 
           <div style={{ marginTop: 24, textAlign: 'center' }}>
             <p style={{ color: 'var(--fg-muted)', fontSize: 13 }}>
-              Vous avez déjà un compte ?{' '}
+              {t('Vous avez déjà un compte ?')}{' '}
               <Link to="/login" style={{ color: 'var(--brand)', fontWeight: 500, textDecoration: 'none' }}>
-                Se connecter
+                {t('Se connecter')}
               </Link>
             </p>
           </div>

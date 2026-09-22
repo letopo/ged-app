@@ -1,12 +1,14 @@
 // frontend/src/components/Login.jsx - VERSION AVEC REDIRECTION PAR RÔLE
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { LogIn, Mail, Lock, Loader, AlertCircle } from 'lucide-react';
 import TwoFactorVerify from './TwoFactorVerify';
 
 export default function Login({ onLogin }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,7 @@ export default function Login({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!formData.username || !formData.password) { setError('Veuillez remplir tous les champs'); return; }
+    if (!formData.username || !formData.password) { setError(t('Veuillez remplir tous les champs')); return; }
 
     try {
       setLoading(true);
@@ -42,7 +44,7 @@ export default function Login({ onLogin }) {
       if (onLogin) onLogin(data.token, data.user);
       redirectByRole(data.user.role);
     } catch (err) {
-      setError(err.response?.data?.error || 'Erreur lors de la connexion');
+      setError(err.response?.data?.error || t('Erreur lors de la connexion'));
     } finally {
       setLoading(false);
     }
@@ -89,8 +91,8 @@ export default function Login({ onLogin }) {
             }}>
               <LogIn size={30} style={{ color: 'var(--brand)' }} />
             </div>
-            <h2 style={{ fontSize: 26, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Connexion</h2>
-            <p style={{ color: 'var(--fg-muted)', marginTop: 8, fontSize: 14 }}>Accédez à votre espace GED</p>
+            <h2 style={{ fontSize: 26, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('Connexion')}</h2>
+            <p style={{ color: 'var(--fg-muted)', marginTop: 8, fontSize: 14 }}>{t('Accédez à votre espace GED')}</p>
           </div>
 
           {error && (
@@ -106,20 +108,20 @@ export default function Login({ onLogin }) {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <label style={labelStyle}>Nom d'utilisateur</label>
+              <label style={labelStyle}>{t("Nom d'utilisateur")}</label>
               <div style={{ position: 'relative' }}>
                 <Mail size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
                 <input type="text" name="username" value={formData.username} onChange={handleChange}
-                  style={inputStyle} placeholder="Entrez votre nom d'utilisateur" disabled={loading} />
+                  style={inputStyle} placeholder={t("Entrez votre nom d'utilisateur")} disabled={loading} />
               </div>
             </div>
 
             <div>
-              <label style={labelStyle}>Mot de passe</label>
+              <label style={labelStyle}>{t('Mot de passe')}</label>
               <div style={{ position: 'relative' }}>
                 <Lock size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
                 <input type="password" name="password" value={formData.password} onChange={handleChange}
-                  style={inputStyle} placeholder="Entrez votre mot de passe" disabled={loading} />
+                  style={inputStyle} placeholder={t('Entrez votre mot de passe')} disabled={loading} />
               </div>
             </div>
 
@@ -135,15 +137,15 @@ export default function Login({ onLogin }) {
               onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--brand-active)'; }}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
             >
-              {loading ? <><Loader size={18} className="animate-spin" />Connexion en cours...</> : <><LogIn size={18} />Se connecter</>}
+              {loading ? <><Loader size={18} className="animate-spin" />{t('Connexion en cours...')}</> : <><LogIn size={18} />{t('Se connecter')}</>}
             </button>
           </form>
 
           <div style={{ marginTop: 24, textAlign: 'center' }}>
             <p style={{ color: 'var(--fg-muted)', fontSize: 13 }}>
-              Pas encore de compte ?{' '}
+              {t('Pas encore de compte ?')}{' '}
               <Link to="/register" style={{ color: 'var(--brand)', fontWeight: 500, textDecoration: 'none' }}>
-                Créer un compte
+                {t('Créer un compte')}
               </Link>
             </p>
           </div>

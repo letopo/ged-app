@@ -1,5 +1,6 @@
 // frontend/src/pages/CreateFromTemplate.jsx - VERSION HYBRIDE AVEC TEMPLATE ENGINE
 import React, { useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { documentsAPI, postesAPI, workflowAPI } from '../services/api';
 import { Loader, Send, Save, RotateCcw, X } from 'lucide-react';
@@ -238,6 +239,7 @@ const loadDynamicTemplate = async (configFile) => {
 };
 
 const CreateFromTemplate = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
     const templateName = location.state?.templateName || "Demande de permission";
@@ -292,7 +294,7 @@ const CreateFromTemplate = () => {
                         }
                     }
                 } catch (err) {
-                    setError(`Erreur chargement template: ${err.message}`);
+                    setError(t('Erreur chargement template: {{message}}', { message: err.message }));
                 } finally {
                     setLoadingConfig(false);
                 }
@@ -309,13 +311,13 @@ const CreateFromTemplate = () => {
         const periods = formData.periods || [];
         const hasDates = periods.some(p => p.startDate && p.endDate);
         if (!formData.noms_prenoms?.trim() || !hasDates) {
-            setError("Veuillez renseigner le nom du demandeur et au moins une période (dates de début et de fin).");
+            setError(t("Veuillez renseigner le nom du demandeur et au moins une période (dates de début et de fin)."));
             return;
         }
     }
 
     setLoading(true);
-    setGenStep('Préparation…');
+    setGenStep(t('Préparation…'));
     setError('');
 
     console.log('📋 === DÉBUT GÉNÉRATION DOCUMENT ===');
@@ -333,16 +335,16 @@ const CreateFromTemplate = () => {
     if (templateName === 'Demande de permission') {
         // 1. Génération PDF Natif (@react-pdf/renderer)
         try {
-            setGenStep('Génération PDF…');
+            setGenStep(t('Génération PDF…'));
             const doc = <PermissionPdfDocument formData={formData} />;
             pdfBlob = await pdf(doc).toBlob();
 
-            finalTitle = `Demande de permission - ${formData.noms_prenoms || 'Inconnu'}`;
+            finalTitle = `Demande de permission - ${formData.noms_prenoms || t('Inconnu')}`;
             console.log('✅ Document généré en PDF NATIF');
 
         } catch (pdfError) {
             console.error('❌ Erreur de génération PDF Natif:', pdfError);
-            setError("Erreur critique lors de la génération PDF natif. Veuillez vérifier la console.");
+            setError(t("Erreur critique lors de la génération PDF natif. Veuillez vérifier la console."));
             setLoading(false);
             setGenStep('');
             return;
@@ -393,7 +395,7 @@ const CreateFromTemplate = () => {
         try {
             // scale: 2 = qualité A4 suffisante (300 DPI effectif) sans exploser la mémoire
             // scale: 3 produisait un canvas de ~55 MB bloquant le thread 5-8s sur tablette
-            setGenStep('Capture du document…');
+            setGenStep(t('Capture du document…'));
             // Laisser le navigateur afficher le message avant de bloquer le thread
             await new Promise(r => setTimeout(r, 50));
 
@@ -411,7 +413,7 @@ const CreateFromTemplate = () => {
             notPrintable?.forEach(el => el.style.display = 'block');
             printOnly?.forEach(el => el.style.display = 'none');
 
-            setGenStep('Compression PDF…');
+            setGenStep(t('Compression PDF…'));
             await new Promise(r => setTimeout(r, 30));
 
             // JPEG au lieu de PNG : 5-10× plus léger, imperceptible sur A4 imprimé
@@ -446,7 +448,7 @@ const CreateFromTemplate = () => {
             }
 
         } catch (err) {
-            setError("Erreur lors de la génération HTML2CANVAS.");
+            setError(t("Erreur lors de la génération HTML2CANVAS."));
             console.error('❌ Erreur détaillée HTML2CANVAS:', err);
             notPrintable?.forEach(el => el.style.display = 'block');
             printOnly?.forEach(el => el.style.display = 'none');
@@ -458,7 +460,7 @@ const CreateFromTemplate = () => {
     // ====================================================================
 
     // 3. PRÉPARATION DE L'UPLOAD
-    setGenStep('Envoi vers le serveur…');
+    setGenStep(t('Envoi vers le serveur…'));
     try {
         const uploadData = new FormData();
         const fileName = `${templateName.replace(/\s/g, '_')}_${Date.now()}.pdf`;
@@ -499,11 +501,11 @@ const CreateFromTemplate = () => {
 
         // Affichage des messages de succès/erreur de fusion
         if (response.data.data?.metadata?.fusionné) {
-            toast.success('Fusion avec l\'Ordre de Mission réussie !');
+            toast.success(t("Fusion avec l'Ordre de Mission réussie !"));
         } else if (response.data.data?.metadata?.fusionError) {
-            toast('Document créé, mais la fusion a échoué:\n' + response.data.data.metadata.fusionError, { icon: '⚠️' });
+            toast(t('Document créé, mais la fusion a échoué:\n{{error}}', { error: response.data.data.metadata.fusionError }), { icon: '⚠️' });
         } else {
-            toast('Document généré et sauvegardé avec succès !');
+            toast(t('Document généré et sauvegardé avec succès !'));
         }
 
         // Pièce de caisse : démarre immédiatement le circuit DG → Comptable →
@@ -512,7 +514,7 @@ const CreateFromTemplate = () => {
             try {
                 await workflowAPI.create({ documentId: response.data.data.id });
             } catch (wfErr) {
-                toast(`⚠️ Pièce de caisse créée mais circuit non démarré : ${wfErr.response?.data?.message || 'erreur inconnue'}. Utilisez "Soumettre" depuis Documents.`, { icon: '⚠️' });
+                toast(t('⚠️ Pièce de caisse créée mais circuit non démarré : {{message}}. Utilisez "Soumettre" depuis Documents.', { message: wfErr.response?.data?.message || t('erreur inconnue') }), { icon: '⚠️' });
             }
         }
 
@@ -520,7 +522,7 @@ const CreateFromTemplate = () => {
         navigate('/documents');
 
     } catch (err) {
-        setError("Erreur lors de l'upload final.");
+        setError(t("Erreur lors de l'upload final."));
         console.error('❌ Erreur détaillée d\'Upload:', err);
     } finally {
         setLoading(false);
@@ -535,15 +537,15 @@ const CreateFromTemplate = () => {
         if (isOrdreMission && !formData.type_mission) {
             return (
                 <div style={{ background: 'var(--surface)', padding: 40, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', margin: '0 auto', maxWidth: 720, borderRadius: 12 }}>
-                    <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', marginBottom: 6 }}>Type d'ordre de mission</h2>
+                    <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', marginBottom: 6 }}>{t("Type d'ordre de mission")}</h2>
                     <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 24 }}>
-                        Choisissez le type — il détermine le circuit de validation.
+                        {t('Choisissez le type — il détermine le circuit de validation.')}
                     </p>
                     <div style={{ display: 'grid', gap: 12 }}>
-                        {omTypes.map(t => (
+                        {omTypes.map(omt => (
                             <button
-                                key={t.code}
-                                onClick={() => setFormData(prev => ({ ...prev, type_mission: t.code }))}
+                                key={omt.code}
+                                onClick={() => setFormData(prev => ({ ...prev, type_mission: omt.code }))}
                                 style={{
                                     textAlign: 'left', padding: '16px 18px', borderRadius: 10,
                                     border: '1px solid var(--border)', background: 'var(--surface-2)',
@@ -552,14 +554,14 @@ const CreateFromTemplate = () => {
                                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--brand)'; }}
                                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
                             >
-                                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{t.label}</div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{omt.label}</div>
                                 <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 4 }}>
-                                    Circuit : service demandeur → {(t.posteChain || []).join(' → ')}
+                                    {t('Circuit : service demandeur → {{chain}}', { chain: (omt.posteChain || []).join(' → ') })}
                                 </div>
                             </button>
                         ))}
                         {omTypes.length === 0 && (
-                            <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Chargement des types…</div>
+                            <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Chargement des types…')}</div>
                         )}
                     </div>
                 </div>
@@ -572,7 +574,7 @@ const CreateFromTemplate = () => {
                     <div className="flex items-center justify-center" style={{ background: 'var(--surface)', padding: 48, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', margin: '0 auto', width: '210mm', minHeight: '297mm' }}>
                         <div className="text-center">
                             <Loader className="animate-spin w-8 h-8 mx-auto mb-4" style={{ color: 'var(--brand)' }} />
-                            <p style={{ color: 'var(--fg-muted)' }}>Chargement du template...</p>
+                            <p style={{ color: 'var(--fg-muted)' }}>{t('Chargement du template...')}</p>
                         </div>
                     </div>
                 );
@@ -582,7 +584,7 @@ const CreateFromTemplate = () => {
                 return (
                     <div className="flex items-center justify-center" style={{ background: 'var(--surface)', padding: 48, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', margin: '0 auto', width: '210mm', minHeight: '297mm' }}>
                         <div className="text-center" style={{ color: 'var(--danger)' }}>
-                            <p>Erreur: Configuration du template introuvable</p>
+                            <p>{t('Erreur: Configuration du template introuvable')}</p>
                         </div>
                     </div>
                 );
@@ -612,25 +614,25 @@ const CreateFromTemplate = () => {
     return (
         <div className="max-w-4xl mx-auto p-8" style={{ background: 'var(--surface-2)' }}>
             <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--fg)' }}>
-                Créer : {templateName}
+                {t('Créer : {{name}}', { name: t(templateName) })}
                 {template.type === "dynamic" && (
                     <span className="ml-2 text-sm px-2 py-1 rounded-full" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
-                        Dynamique
+                        {t('Dynamique')}
                     </span>
                 )}
             </h1>
             <p className="mb-4" style={{ color: 'var(--fg-muted)' }}>
-                Remplissez les champs pour générer le document PDF.
+                {t('Remplissez les champs pour générer le document PDF.')}
             </p>
             {isOrdreMission && formData.type_mission && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'var(--brand-soft, var(--surface))', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
-                    <span style={{ color: 'var(--fg-muted)' }}>Type :</span>
-                    <strong style={{ color: 'var(--fg)' }}>{omTypes.find(t => t.code === formData.type_mission)?.label || formData.type_mission}</strong>
+                    <span style={{ color: 'var(--fg-muted)' }}>{t('Type :')}</span>
+                    <strong style={{ color: 'var(--fg)' }}>{omTypes.find(omt => omt.code === formData.type_mission)?.label || formData.type_mission}</strong>
                     <button
                         onClick={() => setFormData(prev => ({ ...prev, type_mission: '' }))}
                         style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
                     >
-                        Changer le type
+                        {t('Changer le type')}
                     </button>
                 </div>
             )}
@@ -644,10 +646,10 @@ const CreateFromTemplate = () => {
                         </div>
                         <div>
                             <p className="text-sm font-medium" style={{ color: 'var(--warning)' }}>
-                                Brouillon trouve
+                                {t('Brouillon trouve')}
                             </p>
                             <p className="text-xs" style={{ color: 'var(--warning)' }}>
-                                {getDraftAge()} — Voulez-vous le restaurer ?
+                                {t('{{age}} — Voulez-vous le restaurer ?', { age: getDraftAge() })}
                             </p>
                         </div>
                     </div>
@@ -658,7 +660,7 @@ const CreateFromTemplate = () => {
                             style={{ color: 'var(--warning)', background: 'var(--warning-soft)', border: '1px solid var(--warning)' }}
                         >
                             <X className="w-3.5 h-3.5" />
-                            Ignorer
+                            {t('Ignorer')}
                         </button>
                         <button
                             onClick={restoreDraft}
@@ -666,7 +668,7 @@ const CreateFromTemplate = () => {
                             style={{ color: '#fff', background: 'var(--warning)', border: 'none' }}
                         >
                             <RotateCcw className="w-3.5 h-3.5" />
-                            Restaurer
+                            {t('Restaurer')}
                         </button>
                     </div>
                 </div>
@@ -698,12 +700,12 @@ const CreateFromTemplate = () => {
                     {loading ? (
                         <>
                             <Loader className="animate-spin w-5 h-5" />
-                            {genStep || 'Génération en cours…'}
+                            {genStep || t('Génération en cours…')}
                         </>
                     ) : (
                         <>
                             <Send size={18}/>
-                            Générer et Sauvegarder
+                            {t('Générer et Sauvegarder')}
                         </>
                     )}
                 </button>
@@ -711,13 +713,13 @@ const CreateFromTemplate = () => {
                 {draftStatus === 'saved' && (
                     <p className="mt-2 text-xs flex items-center justify-center gap-1 animate-fadeIn" style={{ color: 'var(--success)' }}>
                         <Save className="w-3.5 h-3.5" />
-                        Brouillon sauvegarde
+                        {t('Brouillon sauvegarde')}
                     </p>
                 )}
                 {draftStatus === 'restored' && (
                     <p className="mt-2 text-xs flex items-center justify-center gap-1 animate-fadeIn" style={{ color: 'var(--brand)' }}>
                         <RotateCcw className="w-3.5 h-3.5" />
-                        Brouillon restaure
+                        {t('Brouillon restaure')}
                     </p>
                 )}
             </div>

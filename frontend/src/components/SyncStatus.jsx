@@ -2,12 +2,18 @@
 // Indicateur de synchronisation dans la topbar
 // Affiche : syncing / pending actions / last sync / offline
 
+import { useTranslation } from 'react-i18next';
 import { RefreshCw, CloudOff, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useSync } from '../contexts/SyncContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { formatDistanceToNow } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { fr, enUS, es, ar } from 'date-fns/locale';
+
+const DATE_FNS_LOCALES = { fr, en: enUS, es, ar };
 
 export default function SyncStatus() {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
   const {
     isSyncing,
     isProcessing,
@@ -22,7 +28,7 @@ export default function SyncStatus() {
   if (!isConnected) {
     return (
       <div
-        title={pendingCount ? `${pendingCount} action(s) en attente de sync` : 'Mode hors-ligne'}
+        title={pendingCount ? t('{{count}} action(s) en attente de sync', { count: pendingCount }) : t('Mode hors-ligne')}
         style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'default' }}
       >
         <CloudOff size={14} style={{ color: 'var(--warning)' }} />
@@ -43,7 +49,7 @@ export default function SyncStatus() {
   if (isSyncing || isProcessing) {
     return (
       <div
-        title={isProcessing ? 'Envoi des actions offline…' : 'Synchronisation…'}
+        title={isProcessing ? t('Envoi des actions offline…') : t('Synchronisation…')}
         style={{ display: 'flex', alignItems: 'center', gap: 5 }}
       >
         <RefreshCw
@@ -54,7 +60,7 @@ export default function SyncStatus() {
           }}
         />
         <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
-          {isProcessing ? `Envoi (${pendingCount})…` : 'Sync…'}
+          {isProcessing ? t('Envoi ({{count}})…', { count: pendingCount }) : t('Sync…')}
         </span>
       </div>
     );
@@ -65,7 +71,7 @@ export default function SyncStatus() {
     return (
       <button
         onClick={() => triggerSync()}
-        title={`${pendingCount} action(s) à synchroniser — cliquer pour envoyer`}
+        title={t('{{count}} action(s) à synchroniser — cliquer pour envoyer', { count: pendingCount })}
         style={{
           display: 'flex', alignItems: 'center', gap: 5,
           background: 'none', border: 'none', cursor: 'pointer',
@@ -89,7 +95,7 @@ export default function SyncStatus() {
     return (
       <button
         onClick={() => triggerSync()}
-        title={`Erreur: ${syncError} — cliquer pour réessayer`}
+        title={t('Erreur: {{error}} — cliquer pour réessayer', { error: syncError })}
         style={{
           display: 'flex', alignItems: 'center', gap: 4,
           background: 'none', border: 'none', cursor: 'pointer',
@@ -102,11 +108,11 @@ export default function SyncStatus() {
 
   // Tout est OK — afficher la date du dernier sync (discret)
   if (lastSyncedAt) {
-    const ago = formatDistanceToNow(lastSyncedAt, { addSuffix: true, locale: fr });
+    const ago = formatDistanceToNow(lastSyncedAt, { addSuffix: true, locale: DATE_FNS_LOCALES[lang] || fr });
     return (
       <button
         onClick={() => triggerSync()}
-        title={`Dernière sync: ${ago} — cliquer pour actualiser`}
+        title={t('Dernière sync: {{ago}} — cliquer pour actualiser', { ago })}
         style={{
           display: 'flex', alignItems: 'center', gap: 4,
           background: 'none', border: 'none', cursor: 'pointer',
@@ -125,7 +131,7 @@ export default function SyncStatus() {
   return (
     <button
       onClick={() => triggerSync()}
-      title="Synchroniser les données"
+      title={t('Synchroniser les données')}
       style={{
         display: 'flex', alignItems: 'center',
         background: 'none', border: 'none', cursor: 'pointer',

@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { documentsAPI, workflowAPI, calendarAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import i18n from '../i18n/config';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
+const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import {
   Clock, CheckCircle, FileText, TrendingDown, TrendingUp,
   Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader,
@@ -11,19 +16,19 @@ import {
 
 function getGreeting() {
   const h = new Date().getHours();
-  if (h < 12) return 'Bonjour';
-  if (h < 18) return 'Bon après-midi';
-  return 'Bonsoir';
+  if (h < 12) return i18n.t('Bonjour');
+  if (h < 18) return i18n.t('Bon après-midi');
+  return i18n.t('Bonsoir');
 }
 
 function timeAgo(date) {
   if (!date) return '';
   const diff = Math.floor((Date.now() - new Date(date)) / 1000);
-  if (diff < 60) return 'à l\'instant';
-  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
+  if (diff < 60) return i18n.t("à l'instant");
+  if (diff < 3600) return i18n.t('il y a {{m}} min', { m: Math.floor(diff / 60) });
+  if (diff < 86400) return i18n.t('il y a {{h}} h', { h: Math.floor(diff / 3600) });
   const days = Math.floor(diff / 86400);
-  return days === 1 ? 'hier' : `il y a ${days} j`;
+  return days === 1 ? i18n.t('hier') : i18n.t('il y a {{d}} j', { d: days });
 }
 
 function dayLabel(dateStr) {
@@ -31,9 +36,9 @@ function dayLabel(dateStr) {
   const today = new Date(); today.setHours(0,0,0,0);
   const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
   d.setHours(0,0,0,0);
-  if (d.getTime() === today.getTime()) return "Aujourd'hui";
-  if (d.getTime() === yesterday.getTime()) return 'Hier';
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  if (d.getTime() === today.getTime()) return i18n.t("Aujourd'hui");
+  if (d.getTime() === yesterday.getTime()) return i18n.t('Hier');
+  return d.toLocaleDateString(currentLocale(), { day: 'numeric', month: 'long' });
 }
 
 function initials(doc) {
@@ -79,6 +84,7 @@ function Avatar({ text, idx = 0, size = 32 }) {
 // ── Hero action card ─────────────────────────────────────────────────────────
 
 function HeroCard({ task, onApprove }) {
+  const { t } = useTranslation();
   if (!task) return null;
   const doc = task.document || {};
   const daysOld = Math.floor((Date.now() - new Date(task.createdAt || doc.createdAt)) / 86400000);
@@ -101,19 +107,19 @@ function HeroCard({ task, onApprove }) {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
             <span className="ged-badge ged-badge-warning" style={{ fontSize: 11 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--warning)', display: 'inline-block' }} />
-              À traiter maintenant
+              {t('À traiter maintenant')}
             </span>
             {daysOld > 0 && (
               <span className="ged-badge ged-badge-neutral" style={{ fontSize: 11 }}>
-                {daysOld}j en attente
+                {t('{{days}}j en attente', { days: daysOld })}
               </span>
             )}
           </div>
           <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--fg)', letterSpacing: '-0.2px', marginBottom: 2 }}>
-            {doc.title || 'Document en attente'}
+            {doc.title || t('Document en attente')}
           </div>
           <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
-            {doc.uploadedBy ? `Soumis par ${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName}` : ''}
+            {doc.uploadedBy ? t('Soumis par {{name}}', { name: `${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName}` }) : ''}
             {doc.category ? ` · ${doc.category}` : ''}
           </div>
         </div>
@@ -129,7 +135,7 @@ function HeroCard({ task, onApprove }) {
                 textDecoration: 'none',
               }}
             >
-              Voir le document
+              {t('Voir le document')}
             </Link>
           )}
           <button
@@ -141,7 +147,7 @@ function HeroCard({ task, onApprove }) {
               color: '#fff', fontSize: 13, fontWeight: 600,
             }}
           >
-            Approuver <ArrowRight size={13} />
+            {t('Approuver')} <ArrowRight size={13} />
           </button>
         </div>
       </div>
@@ -152,11 +158,12 @@ function HeroCard({ task, onApprove }) {
 // ── KPI grid ─────────────────────────────────────────────────────────────────
 
 function KpiGrid({ stats }) {
+  const { t } = useTranslation();
   const items = [
-    { label: 'Total documents', value: stats.total,    sub: null,              trend: null,   to: '/documents' },
-    { label: 'En validation',   value: stats.pending,  sub: `${stats.urgent || 0} urgents`, trend: null, to: '/documents?status=pending_validation' },
-    { label: 'Approuvés',       value: stats.approved, sub: stats.total ? `${Math.round(stats.approved/stats.total*100)}%` : '—', trend: 'up', to: '/documents?status=approved' },
-    { label: 'Délai moyen',     value: stats.avgDays != null ? stats.avgDays : '—',
+    { label: t('Total documents'), value: stats.total,    sub: null,              trend: null,   to: '/documents' },
+    { label: t('En validation'),   value: stats.pending,  sub: t('{{count}} urgents', { count: stats.urgent || 0 }), trend: null, to: '/documents?status=pending_validation' },
+    { label: t('Approuvés'),       value: stats.approved, sub: stats.total ? `${Math.round(stats.approved/stats.total*100)}%` : '—', trend: 'up', to: '/documents?status=approved' },
+    { label: t('Délai moyen'),     value: stats.avgDays != null ? stats.avgDays : '—',
       sub: stats.avgDelta ? `${stats.avgDelta > 0 ? '+' : ''}${stats.avgDelta}j` : null,
       unit: stats.avgDays != null ? 'j' : '',
       trend: stats.avgDelta < 0 ? 'up' : null, to: null },
@@ -204,7 +211,15 @@ function ConditionalLink({ to, children, style }) {
 
 // ── Mini calendar ─────────────────────────────────────────────────────────────
 
+const WEEKDAY_LETTERS = {
+  fr: ['L','M','M','J','V','S','D'],
+  en: ['M','T','W','T','F','S','S'],
+  es: ['L','M','X','J','V','S','D'],
+  ar: ['ن','ث','ر','خ','ج','س','ح'],
+};
+
 function MiniCalendar({ tasksByDay }) {
+  const { t } = useTranslation();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -214,7 +229,7 @@ function MiniCalendar({ tasksByDay }) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const startOffset = (firstDay + 6) % 7; // Mon-first
 
-  const monthName = new Date(year, month).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const monthName = new Date(year, month).toLocaleDateString(currentLocale(), { month: 'long', year: 'numeric' });
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   const prev = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
@@ -233,7 +248,7 @@ function MiniCalendar({ tasksByDay }) {
     p.metadata?.noms_prenoms
     || p.metadata?.nomsDemandeur
     || (p.uploadedBy ? `${p.uploadedBy.firstName || ''} ${p.uploadedBy.lastName || ''}`.trim() : '')
-    || 'Demandeur';
+    || t('Demandeur');
 
   const permsForDay = (day) => {
     const cur = new Date(year, month, day); cur.setHours(0, 0, 0, 0);
@@ -248,15 +263,15 @@ function MiniCalendar({ tasksByDay }) {
   return (
     <div className="ged-card" style={{ padding: '16px 18px', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)' }}>{capitalize(monthName)} · permissions</div>
+        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)' }}>{capitalize(monthName)} · {t('permissions')}</div>
         <div style={{ display: 'flex', gap: 4 }}>
           <button onClick={prev} style={btnGhost}><ChevronRight size={13} style={{ transform: 'rotate(180deg)' }} /></button>
-          <button onClick={() => { setMonth(today.getMonth()); setYear(today.getFullYear()); }} style={{ ...btnGhost, fontSize: 11 }}>Auj.</button>
+          <button onClick={() => { setMonth(today.getMonth()); setYear(today.getFullYear()); }} style={{ ...btnGhost, fontSize: 11 }}>{t('Auj.')}</button>
           <button onClick={next} style={btnGhost}><ChevronRight size={13} /></button>
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
-        {['L','M','M','J','V','S','D'].map((d, i) => (
+        {(WEEKDAY_LETTERS[i18n.language] || WEEKDAY_LETTERS.fr).map((d, i) => (
           <div key={i} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)',
             textTransform: 'uppercase', letterSpacing: '0.3px', paddingBottom: 4 }}>
             {d}
@@ -271,7 +286,7 @@ function MiniCalendar({ tasksByDay }) {
           const dayPerms = permsForDay(day);
           // Tooltip du jour : qui est en permission ce jour-là
           const tooltip = dayPerms.length
-            ? 'En permission : ' + dayPerms.map(requesterName).join(', ')
+            ? t('En permission : {{names}}', { names: dayPerms.map(requesterName).join(', ') })
             : undefined;
           const hasMarks = dayPerms.length > 0 || count > 0;
           return (
@@ -307,7 +322,7 @@ function MiniCalendar({ tasksByDay }) {
       {perms.length > 0 && (
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 6 }}>
-            Permissions ce mois ({perms.length})
+            {t('Permissions ce mois ({{count}})', { count: perms.length })}
           </div>
           {perms.slice(0, 4).map((p) => (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
@@ -316,13 +331,13 @@ function MiniCalendar({ tasksByDay }) {
                 {requesterName(p)}
               </span>
               <span style={{ fontSize: 10.5, color: 'var(--fg-muted)', marginLeft: 'auto', flexShrink: 0 }}>
-                {p.dateDebut ? new Date(p.dateDebut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
-                {p.dateFin && p.dateFin !== p.dateDebut ? ' → ' + new Date(p.dateFin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+                {p.dateDebut ? new Date(p.dateDebut).toLocaleDateString(currentLocale(), { day: 'numeric', month: 'short' }) : ''}
+                {p.dateFin && p.dateFin !== p.dateDebut ? ' → ' + new Date(p.dateFin).toLocaleDateString(currentLocale(), { day: 'numeric', month: 'short' }) : ''}
               </span>
             </div>
           ))}
           {perms.length > 4 && (
-            <div style={{ fontSize: 10.5, color: 'var(--fg-muted)', marginTop: 2 }}>+{perms.length - 4} autre(s)</div>
+            <div style={{ fontSize: 10.5, color: 'var(--fg-muted)', marginTop: 2 }}>{t('+{{count}} autre(s)', { count: perms.length - 4 })}</div>
           )}
         </div>
       )}
@@ -339,13 +354,14 @@ const btnGhost = {
 // ── Recent docs list ──────────────────────────────────────────────────────────
 
 function RecentDocs({ documents }) {
+  const { t } = useTranslation();
   if (!documents.length) {
     return (
       <div className="ged-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
         <FileText size={20} color="var(--fg-subtle)" style={{ marginBottom: 8 }} />
-        <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Aucun document récent</p>
+        <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Aucun document récent')}</p>
         <Link to="/upload" style={{ fontSize: 12, color: 'var(--brand)', textDecoration: 'none' }}>
-          Uploader votre premier document →
+          {t('Uploader votre premier document →')}
         </Link>
       </div>
     );
@@ -355,10 +371,10 @@ function RecentDocs({ documents }) {
     <div className="ged-card" style={{ overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
-        <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>Documents récents</h3>
+        <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>{t('Documents récents')}</h3>
         <Link to="/documents" style={{ fontSize: 12, color: 'var(--fg-muted)', textDecoration: 'none',
           display: 'flex', alignItems: 'center', gap: 4 }}>
-          Voir tout <ChevronRight size={12} />
+          {t('Voir tout')} <ChevronRight size={12} />
         </Link>
       </div>
       {documents.map((doc, i) => {
@@ -386,7 +402,7 @@ function RecentDocs({ documents }) {
               </div>
             </div>
             <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11, flexShrink: 0 }}>
-              {st.label}
+              {t(st.label)}
             </span>
           </Link>
         );
@@ -398,16 +414,17 @@ function RecentDocs({ documents }) {
 // ── Quick actions ─────────────────────────────────────────────────────────────
 
 function QuickActions({ pendingCount }) {
+  const { t } = useTranslation();
   const items = [
-    { icon: Upload,     label: 'Upload',        sub: 'Document unique',        to: '/upload' },
-    { icon: FileText,   label: 'Mes tâches',    sub: `${pendingCount || 0} en attente`, to: '/my-tasks' },
-    { icon: BarChart3,  label: 'Statistiques',  sub: 'Vue mensuelle',           to: '/stats' },
-    { icon: CheckCircle,label: 'Workflow',      sub: 'Suivi validation',        to: '/workflow-dashboard' },
+    { icon: Upload,     label: t('Upload'),        sub: t('Document unique'),        to: '/upload' },
+    { icon: FileText,   label: t('Mes tâches'),    sub: t('{{count}} en attente', { count: pendingCount || 0 }), to: '/my-tasks' },
+    { icon: BarChart3,  label: t('Statistiques'),  sub: t('Vue mensuelle'),           to: '/statistiques' },
+    { icon: CheckCircle,label: t('Workflow'),      sub: t('Suivi validation'),        to: '/workflow-dashboard' },
   ];
 
   return (
     <div className="ged-card" style={{ padding: '14px 18px', marginBottom: 16 }}>
-      <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', margin: '0 0 12px' }}>Raccourcis</h3>
+      <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', margin: '0 0 12px' }}>{t('Raccourcis')}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {items.map((a, i) => {
           const Icon = a.icon;
@@ -437,6 +454,7 @@ function QuickActions({ pendingCount }) {
 // ── Activity feed ─────────────────────────────────────────────────────────────
 
 function ActivityFeed({ documents }) {
+  const { t } = useTranslation();
   const grouped = [];
   const seen = new Set();
   documents.forEach(doc => {
@@ -447,7 +465,7 @@ function ActivityFeed({ documents }) {
 
   if (!grouped.length) return (
     <div className="ged-card" style={{ padding: 24, textAlign: 'center' }}>
-      <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Aucune activité récente</p>
+      <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Aucune activité récente')}</p>
     </div>
   );
 
@@ -455,9 +473,9 @@ function ActivityFeed({ documents }) {
     <div className="ged-card" style={{ overflow: 'hidden', flex: 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
-        <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>Activité</h3>
+        <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>{t('Activité')}</h3>
         <Link to="/documents" style={{ fontSize: 12, color: 'var(--fg-muted)', textDecoration: 'none' }}>
-          Tout voir →
+          {t('Tout voir →')}
         </Link>
       </div>
       <div style={{ padding: '0 18px' }}>
@@ -477,9 +495,9 @@ function ActivityFeed({ documents }) {
                   <Avatar text={initials(doc)} idx={i} size={28} />
                   <div style={{ flex: 1, fontSize: 12.5 }}>
                     <span style={{ fontWeight: 600, color: 'var(--fg)' }}>
-                      {who ? `${who.firstName} ${who.lastName}` : 'Système'}
+                      {who ? `${who.firstName} ${who.lastName}` : t('Système')}
                     </span>{' '}
-                    <span style={{ color: 'var(--fg-muted)' }}>a soumis</span>{' '}
+                    <span style={{ color: 'var(--fg-muted)' }}>{t('a soumis')}</span>{' '}
                     <span style={{ color: 'var(--brand)', fontWeight: 500 }}>{doc.title}</span>
                     <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 1 }}>
                       {timeAgo(doc.createdAt)}
@@ -498,6 +516,7 @@ function ActivityFeed({ documents }) {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -544,7 +563,7 @@ const Dashboard = () => {
     if (approving) return;
     try {
       setApproving(true);
-      await workflowAPI.approveStep(taskId, { comment: 'Approuvé depuis le tableau de bord' });
+      await workflowAPI.approveStep(taskId, { comment: t('Approuvé depuis le tableau de bord') });
       await loadData();
     } catch (err) {
       console.error('Approve error:', err);
@@ -565,7 +584,7 @@ const Dashboard = () => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 12 }}>
         <Loader size={24} color="var(--fg-muted)" className="animate-spin" />
-        <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>Chargement…</p>
+        <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>{t('Chargement…')}</p>
       </div>
     );
   }
@@ -575,7 +594,7 @@ const Dashboard = () => {
     return daysOld >= 2;
   }) || myTasks[0] || null;
 
-  const dateLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const dateLabel = new Date().toLocaleDateString(currentLocale(), { weekday: 'long', day: 'numeric', month: 'long' });
   const orgName = user?.Service?.name || 'Hôpital Saint-Jean-de-Malte';
 
   return (
@@ -593,9 +612,9 @@ const Dashboard = () => {
           </h1>
           {myTasks.length > 0 && (
             <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>
-              Vous avez{' '}
-              <strong style={{ color: 'var(--warning)' }}>{myTasks.length} tâche{myTasks.length > 1 ? 's' : ''} en attente</strong>
-              {stats.pending > 0 && ` et ${stats.pending} document${stats.pending > 1 ? 's' : ''} à examiner.`}
+              {t('Vous avez')}{' '}
+              <strong style={{ color: 'var(--warning)' }}>{t('{{count}} tâche(s) en attente', { count: myTasks.length })}</strong>
+              {stats.pending > 0 && ` ${t('et {{count}} document(s) à examiner.', { count: stats.pending })}`}
             </div>
           )}
         </div>
@@ -608,7 +627,7 @@ const Dashboard = () => {
             marginTop: 4,
           }}>
           <RefreshCw size={13} />
-          Actualiser
+          {t('Actualiser')}
         </button>
       </div>
 

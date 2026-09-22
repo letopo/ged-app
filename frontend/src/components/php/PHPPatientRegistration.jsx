@@ -1,5 +1,6 @@
 // frontend/src/components/php/PHPPatientRegistration.jsx
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X, UserPlus, AlertCircle, CheckCircle, FileText,
   Loader, Stethoscope, UserCheck, RefreshCw
@@ -17,6 +18,7 @@ const labelStyle = { display: 'block', fontSize: 12, fontWeight: 500, color: 'va
 const sectionTitle = { fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 };
 
 export default function PHPPatientRegistration({ onClose, onSuccess }) {
+  const { t } = useTranslation();
   const [searchStatus, setSearchStatus] = useState('idle');
   const [patientTrouve, setPatientTrouve]   = useState(null);
   const [searchError,   setSearchError]     = useState(null);
@@ -60,7 +62,7 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
         else { setPatientTrouve(null); setSearchStatus('not_found'); }
       } catch (err) {
         if (err.response?.status === 404) { setPatientTrouve(null); setSearchStatus('not_found'); }
-        else { setSearchStatus('idle'); setSearchError('Erreur réseau lors de la recherche'); }
+        else { setSearchStatus('idle'); setSearchError(t('Erreur réseau lors de la recherche')); }
       }
     }, 600);
   };
@@ -83,7 +85,7 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
 
   const handleSubmit = async (e, goConsult = false) => {
     e.preventDefault();
-    if (!form.matricule || !form.nom) { setFormError('Matricule et nom sont obligatoires'); return; }
+    if (!form.matricule || !form.nom) { setFormError(t('Matricule et nom sont obligatoires')); return; }
     setLoading(true); setFormError(null);
     try {
       const res = await phpPatientAPI.create(form);
@@ -93,8 +95,8 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
       if (goConsult) { setPatientPourConsult(patient); setModeConsult(true); }
       else { onSuccess(patient, bon); }
     } catch (err) {
-      if (err.response?.status === 409) setFormError('Ce matricule est déjà enregistré — cherchez-le ci-dessus');
-      else setFormError(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
+      if (err.response?.status === 409) setFormError(t('Ce matricule est déjà enregistré — cherchez-le ci-dessus'));
+      else setFormError(err.response?.data?.message || t("Erreur lors de l'enregistrement"));
     } finally { setLoading(false); }
   };
 
@@ -119,7 +121,7 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
               : <UserPlus  size={20} style={{ color: 'var(--brand)' }} />
             }
             <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>
-              {isFound ? 'Patient trouvé — action rapide' : 'Enregistrer un patient PHP'}
+              {isFound ? t('Patient trouvé — action rapide') : t('Enregistrer un patient PHP')}
             </h2>
           </div>
           <button onClick={onClose} style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', borderRadius: 'var(--radius-2)', display: 'flex' }}
@@ -134,13 +136,13 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
 
           {/* Champ matricule */}
           <div>
-            <label style={labelStyle}>Matricule <span style={{ color: 'var(--danger)' }}>*</span></label>
+            <label style={labelStyle}>{t('Matricule')} <span style={{ color: 'var(--danger)' }}>*</span></label>
             <div style={{ position: 'relative' }}>
               <input
                 type="text"
                 value={form.matricule}
                 onChange={e => handleMatriculeChange(e.target.value)}
-                placeholder="Ex: 100049"
+                placeholder={t('Ex: 100049')}
                 autoFocus
                 style={{ ...inputStyle({ fontFamily: 'var(--font-mono)', paddingRight: 36, border: `1.5px solid ${isFound ? 'var(--success)' : isNotFound ? 'var(--brand)' : 'var(--border)'}`, background: isFound ? 'var(--success-soft)' : 'var(--surface)' }) }}
               />
@@ -170,18 +172,18 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
                       {patientTrouve.nom} {patientTrouve.prenom || ''}
                     </p>
                     <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: '0 0 4px' }}>
-                      Matricule : <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{patientTrouve.matricule}</span>
+                      {t('Matricule')} : <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{patientTrouve.matricule}</span>
                       {patientTrouve.infirmerie && <> · {patientTrouve.infirmerie.nom}</>}
-                      {patientTrouve.secteur && <> · Secteur {patientTrouve.secteur.nom}</>}
+                      {patientTrouve.secteur && <> · {t('Secteur {{name}}', { name: patientTrouve.secteur.nom })}</>}
                     </p>
                     <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: 'rgba(16,185,129,0.2)', color: 'var(--success)', fontWeight: 500 }}>
-                      ✓ Patient existant
+                      ✓ {t('Patient existant')}
                     </span>
                   </div>
                 </div>
                 <button type="button"
                   onClick={() => { setSearchStatus('idle'); setPatientTrouve(null); resetForm(''); }}
-                  title="Effacer et rechercher un autre patient"
+                  title={t('Effacer et rechercher un autre patient')}
                   style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)', borderRadius: 'var(--radius-2)', display: 'flex' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(16,185,129,0.1)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -196,26 +198,26 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
                 onMouseLeave={e => e.currentTarget.style.opacity = '1'}
               >
                 <Stethoscope size={18} />
-                Mettre en consultation directement
+                {t('Mettre en consultation directement')}
               </button>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
                 <button type="button" disabled={loading}
                   onClick={async () => {
                     try { setLoading(true); const res = await phpPatientAPI.genererBon(patientTrouve.id, { serviceDestination: form.serviceDestination, motif: form.motifVisite }); onSuccess(patientTrouve, res.data.data); }
-                    catch (err) { setFormError(err.response?.data?.message || 'Erreur bon'); }
+                    catch (err) { setFormError(err.response?.data?.message || t('Erreur bon')); }
                     finally { setLoading(false); }
                   }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', fontSize: 12, background: 'var(--surface)', color: 'var(--brand)', border: '1px solid var(--brand)', borderRadius: 'var(--radius-2)', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}
                 >
                   <FileText size={13} />
-                  {loading ? 'Génération...' : 'Nouveau bon seulement'}
+                  {loading ? t('Génération...') : t('Nouveau bon seulement')}
                 </button>
                 <button type="button" onClick={onClose}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', fontSize: 12, background: 'var(--surface)', color: 'var(--fg-muted)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: 'pointer' }}
                 >
                   <X size={13} />
-                  Fermer
+                  {t('Fermer')}
                 </button>
               </div>
             </div>
@@ -226,7 +228,7 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--brand-soft)', border: '1px solid var(--brand)', borderRadius: 'var(--radius-2)' }}>
               <UserPlus size={15} style={{ color: 'var(--brand)', flexShrink: 0 }} />
               <p style={{ fontSize: 12, color: 'var(--brand)', margin: 0 }}>
-                <strong>Nouveau patient</strong> — Ce matricule n'existe pas encore. Remplissez le formulaire ci-dessous.
+                <strong>{t('Nouveau patient')}</strong> — {t("Ce matricule n'existe pas encore. Remplissez le formulaire ci-dessous.")}
               </p>
             </div>
           )}
@@ -242,57 +244,57 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
 
               {/* Identité */}
               <div>
-                <p style={sectionTitle}>Identité du patient</p>
+                <p style={sectionTitle}>{t('Identité du patient')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={labelStyle}>Nom <span style={{ color: 'var(--danger)' }}>*</span></label>
-                    <input type="text" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value.toUpperCase() }))} placeholder="NOM DE FAMILLE" required readOnly={readOnly} style={inputStyle(readOnly ? { opacity: 0.7, cursor: 'not-allowed' } : {})} />
+                    <label style={labelStyle}>{t('Nom')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <input type="text" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value.toUpperCase() }))} placeholder={t('NOM DE FAMILLE')} required readOnly={readOnly} style={inputStyle(readOnly ? { opacity: 0.7, cursor: 'not-allowed' } : {})} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Prénom(s)</label>
-                    <input type="text" value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))} placeholder="Prénom(s)" readOnly={readOnly} style={inputStyle(readOnly ? { opacity: 0.7, cursor: 'not-allowed' } : {})} />
+                    <label style={labelStyle}>{t('Prénom(s)')}</label>
+                    <input type="text" value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))} placeholder={t('Prénom(s)')} readOnly={readOnly} style={inputStyle(readOnly ? { opacity: 0.7, cursor: 'not-allowed' } : {})} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Genre</label>
+                    <label style={labelStyle}>{t('Genre')}</label>
                     <select value={form.genre} onChange={e => setForm(f => ({ ...f, genre: e.target.value }))} disabled={readOnly} style={inputStyle(readOnly ? { opacity: 0.7, cursor: 'not-allowed' } : {})}>
-                      <option value="">-- Sélectionner --</option>
-                      <option value="M">Masculin</option>
-                      <option value="F">Féminin</option>
+                      <option value="">{t('-- Sélectionner --')}</option>
+                      <option value="M">{t('Masculin')}</option>
+                      <option value="F">{t('Féminin')}</option>
                     </select>
                   </div>
                   <div>
-                    <label style={labelStyle}>Date de naissance</label>
+                    <label style={labelStyle}>{t('Date de naissance')}</label>
                     <input type="date" value={form.dateNaissance} onChange={e => setForm(f => ({ ...f, dateNaissance: e.target.value }))} readOnly={readOnly} style={inputStyle(readOnly ? { opacity: 0.7, cursor: 'not-allowed' } : {})} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Téléphone</label>
-                    <input type="tel" value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} placeholder="Ex: 6XXXXXXXX" readOnly={readOnly} style={inputStyle(readOnly ? { opacity: 0.7, cursor: 'not-allowed' } : {})} />
+                    <label style={labelStyle}>{t('Téléphone')}</label>
+                    <input type="tel" value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} placeholder={t('Ex: 6XXXXXXXX')} readOnly={readOnly} style={inputStyle(readOnly ? { opacity: 0.7, cursor: 'not-allowed' } : {})} />
                   </div>
                 </div>
               </div>
 
               {/* Affectation */}
               <div>
-                <p style={sectionTitle}>Affectation (secteur → infirmerie auto)</p>
+                <p style={sectionTitle}>{t('Affectation (secteur → infirmerie auto)')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={labelStyle}>Secteur de travail</label>
+                    <label style={labelStyle}>{t('Secteur de travail')}</label>
                     <select value={form.secteurId} onChange={e => handleSecteurChange(e.target.value)} disabled={readOnly} style={inputStyle(readOnly ? { opacity: 0.7, cursor: 'not-allowed' } : {})}>
-                      <option value="">-- Sélectionner un secteur --</option>
+                      <option value="">{t('-- Sélectionner un secteur --')}</option>
                       {secteurs.map(s => (
                         <option key={s.id} value={s.id}>{s.nom} {s.infirmerie ? `(${s.infirmerie.nom})` : ''}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label style={labelStyle}>Infirmerie (auto-mappée)</label>
+                    <label style={labelStyle}>{t('Infirmerie (auto-mappée)')}</label>
                     <div style={{ ...inputStyle(infirmerieMapped ? { border: '1.5px solid var(--success)', background: 'var(--success-soft)', opacity: 1 } : { opacity: 0.6 }), display: 'flex', alignItems: 'center' }}>
                       {infirmerieMapped ? (
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--success)', fontSize: 13 }}>
                           <CheckCircle size={13} /> {infirmerieMapped.nom}
                         </span>
                       ) : (
-                        <span style={{ color: 'var(--fg-subtle)', fontSize: 12 }}>Sélectionner un secteur d'abord</span>
+                        <span style={{ color: 'var(--fg-subtle)', fontSize: 12 }}>{t("Sélectionner un secteur d'abord")}</span>
                       )}
                     </div>
                   </div>
@@ -303,24 +305,24 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
               <div style={{ border: '1px solid var(--brand)', background: 'var(--brand-soft)', borderRadius: 'var(--radius-3)', padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <FileText size={15} style={{ color: 'var(--brand)' }} />
-                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--brand)', margin: 0 }}>Bon de prise en charge</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--brand)', margin: 0 }}>{t('Bon de prise en charge')}</p>
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 12 }}>
                   <input type="checkbox" checked={form.genererBon} onChange={e => setForm(f => ({ ...f, genererBon: e.target.checked }))} style={{ width: 16, height: 16 }} />
-                  <span style={{ fontSize: 13, color: 'var(--brand)' }}>Générer automatiquement un bon de prise en charge</span>
+                  <span style={{ fontSize: 13, color: 'var(--brand)' }}>{t('Générer automatiquement un bon de prise en charge')}</span>
                 </label>
                 {form.genererBon && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <label style={labelStyle}>Service de destination</label>
+                      <label style={labelStyle}>{t('Service de destination')}</label>
                       <select value={form.serviceDestination} onChange={e => setForm(f => ({ ...f, serviceDestination: e.target.value }))} style={inputStyle()}>
-                        <option value="Consultation Médicale">Consultation Médicale</option>
+                        <option value="Consultation Médicale">{t('Consultation Médicale')}</option>
                         {servicesMed.map(s => <option key={s.code||s.nom} value={s.nom}>{s.nom}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label style={labelStyle}>Motif de visite <span style={{ color: 'var(--danger)' }}>*</span></label>
-                      <input type="text" value={form.motifVisite} onChange={e => setForm(f => ({ ...f, motifVisite: e.target.value }))} placeholder="Ex: Fièvre, douleur..." required style={inputStyle()} />
+                      <label style={labelStyle}>{t('Motif de visite')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <input type="text" value={form.motifVisite} onChange={e => setForm(f => ({ ...f, motifVisite: e.target.value }))} placeholder={t('Ex: Fièvre, douleur...')} required style={inputStyle()} />
                     </div>
                   </div>
                 )}
@@ -333,14 +335,14 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
                 >
-                  Annuler
+                  {t('Annuler')}
                 </button>
                 <button type="submit" disabled={loading || searchStatus === 'idle'}
                   onClick={e => handleSubmit(e, false)}
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 16px', fontSize: 13, border: '1px solid var(--brand)', color: 'var(--brand)', background: 'transparent', borderRadius: 'var(--radius-2)', cursor: (loading || searchStatus === 'idle') ? 'not-allowed' : 'pointer', opacity: (loading || searchStatus === 'idle') ? 0.4 : 1, fontWeight: 500 }}
                 >
                   {loading ? <Loader size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                  Enregistrer
+                  {t('Enregistrer')}
                 </button>
                 <button type="button" disabled={loading || searchStatus === 'idle'}
                   onClick={e => handleSubmit(e, true)}
@@ -349,7 +351,7 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
                   onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
                 >
                   {loading ? <Loader size={14} className="animate-spin" /> : <Stethoscope size={14} />}
-                  Enregistrer & Consulter
+                  {t('Enregistrer & Consulter')}
                 </button>
               </div>
             </form>

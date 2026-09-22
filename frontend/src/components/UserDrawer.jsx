@@ -4,6 +4,7 @@
 // Usage : <UserDrawer user={u} dbPostes={[...]} onClose={fn} onUpdate={fn} />
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X, Shield, Key, Grid3x3, Activity, Settings2,
   Check, RefreshCw, Trash2, Power, Eye, EyeOff,
@@ -11,15 +12,18 @@ import {
 } from 'lucide-react';
 import { accessControlService } from '../services/accessControlService';
 import { ROLES, MODULES, CATEGORIES, POSTES_STATIC, getUserModules, getRoleInfo } from '../config/accessDefinitions';
+import i18n from '../i18n/config';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 const initials = (u) =>
   `${u?.firstName?.[0] || ''}${u?.lastName?.[0] || ''}`.toUpperCase() || '?';
 
 const fmtDate = (d) => {
   if (!d) return '—';
-  return new Date(d).toLocaleString('fr-FR', {
+  return new Date(d).toLocaleString(BCP47_LOCALES[i18n.language] || 'fr-FR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -27,6 +31,7 @@ const fmtDate = (d) => {
 
 // ── Mini badge rôle ───────────────────────────────────────────────────────────
 function RoleBadge({ roleId }) {
+  const { t } = useTranslation();
   const info = getRoleInfo(roleId);
   return (
     <span style={{
@@ -35,13 +40,14 @@ function RoleBadge({ roleId }) {
       background: info.color + '22', color: info.color,
       border: `1px solid ${info.color}44`,
     }}>
-      {info.label}
+      {t(info.label)}
     </span>
   );
 }
 
 // ── Mini badge poste ──────────────────────────────────────────────────────────
 function PosteBadge({ code, label }) {
+  const { t } = useTranslation();
   const info = POSTES_STATIC.find(p => p.code === code);
   const color = info?.color || '#9ca3af';
   return (
@@ -52,7 +58,7 @@ function PosteBadge({ code, label }) {
       border: `1px solid ${color}44`,
     }}>
       <Key size={10} />
-      {label || info?.label || code}
+      {t(label || info?.label || code)}
     </span>
   );
 }
@@ -80,6 +86,7 @@ function Notice({ msg, type = 'ok', onDismiss }) {
 
 // ── Onglet Droits ─────────────────────────────────────────────────────────────
 function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [collapsed, setCollapsed] = useState({});
 
@@ -93,7 +100,7 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
     setSaving(true);
     try {
       await accessControlService.updateRole(user.id, newRole);
-      onNotify('Rôle mis à jour', 'ok');
+      onNotify(t('Rôle mis à jour'), 'ok');
       await onUserUpdate();
     } catch (e) {
       onNotify(e.message, 'error');
@@ -107,10 +114,10 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
     try {
       if (assigned) {
         await accessControlService.removePoste(code, user.id);
-        onNotify('Poste retiré');
+        onNotify(t('Poste retiré'));
       } else {
         await accessControlService.assignPoste(code, user.id);
-        onNotify('Poste assigné');
+        onNotify(t('Poste assigné'));
       }
       await onUserUpdate();
     } catch (e) {
@@ -129,7 +136,7 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
           <Shield size={14} color="var(--brand)" />
-          <span style={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-muted)' }}>Rôle système</span>
+          <span style={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-muted)' }}>{t('Rôle système')}</span>
         </div>
         <select
           value={user.role}
@@ -143,11 +150,11 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
           }}
         >
           {ROLES.map(r => (
-            <option key={r.id} value={r.id}>{r.label}</option>
+            <option key={r.id} value={r.id}>{t(r.label)}</option>
           ))}
         </select>
         <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-          {getRoleInfo(user.role).description}
+          {t(getRoleInfo(user.role).description)}
         </p>
       </section>
 
@@ -155,10 +162,10 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
           <Key size={14} color="#3b82f6" />
-          <span style={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-muted)' }}>Postes fonctionnels</span>
+          <span style={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-muted)' }}>{t('Postes fonctionnels')}</span>
           {posteCodes.length > 0 && (
             <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, color: '#3b82f6' }}>
-              {posteCodes.length} assigné(s)
+              {t('{{count}} assigné(s)', { count: posteCodes.length })}
             </span>
           )}
         </div>
@@ -187,9 +194,9 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
                   style={{ accentColor: color, width: 15, height: 15, flexShrink: 0 }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: assigned ? color : 'var(--fg)' }}>{p.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: assigned ? color : 'var(--fg)' }}>{t(p.label)}</div>
                   {pInfo?.description && (
-                    <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 1 }}>{pInfo.description}</div>
+                    <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 1 }}>{t(pInfo.description)}</div>
                   )}
                 </div>
                 {assigned && <Check size={13} color={color} strokeWidth={2.5} />}
@@ -204,7 +211,7 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
           <Grid3x3 size={14} color="var(--fg-muted)" />
           <span style={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-muted)' }}>
-            Accès ({accessibleModules.length}/{MODULES.length} modules)
+            {t('Accès ({{count}}/{{total}} modules)', { count: accessibleModules.length, total: MODULES.length })}
           </span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -224,7 +231,7 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
                   }}
                 >
                   {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                  <span style={{ flex: 1, fontWeight: 600, fontSize: 12 }}>{cat}</span>
+                  <span style={{ flex: 1, fontWeight: 600, fontSize: 12 }}>{t(cat)}</span>
                   <span style={{ fontSize: 11, color: '#22c55e', fontWeight: 600 }}>
                     {catMods.length}/{totalCat}
                   </span>
@@ -242,7 +249,7 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
                           display: 'flex', alignItems: 'center', gap: 3,
                         }}>
                           {byPoste && <Key size={9} />}
-                          {m.label}
+                          {t(m.label)}
                         </span>
                       );
                     })}
@@ -253,7 +260,7 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
           })}
           {accessibleModules.length === 0 && (
             <div style={{ fontSize: 12, color: 'var(--fg-muted)', padding: '8px 0' }}>
-              Aucun module accessible avec cette configuration.
+              {t('Aucun module accessible avec cette configuration.')}
             </div>
           )}
         </div>
@@ -264,6 +271,7 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
 
 // ── Onglet Activité ───────────────────────────────────────────────────────────
 function ActiviteTab({ userId }) {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -286,7 +294,7 @@ function ActiviteTab({ userId }) {
   if (logs.length === 0) return (
     <div style={{ textAlign: 'center', padding: 32, color: 'var(--fg-muted)', fontSize: 13 }}>
       <Activity size={36} opacity={0.25} style={{ display: 'block', margin: '0 auto 10px' }} />
-      Aucune activité enregistrée pour cet utilisateur.
+      {t('Aucune activité enregistrée pour cet utilisateur.')}
     </div>
   );
 
@@ -310,13 +318,13 @@ function ActiviteTab({ userId }) {
           </div>
           {log.resource && (
             <div style={{ marginTop: 5, fontSize: 12, color: 'var(--fg)' }}>
-              <span style={{ color: 'var(--fg-muted)' }}>Ressource : </span>
+              <span style={{ color: 'var(--fg-muted)' }}>{t('Ressource :')} </span>
               {log.resource}{log.resourceId ? ` · ${String(log.resourceId).slice(0, 8)}…` : ''}
             </div>
           )}
           {log.ipAddress && (
             <div style={{ marginTop: 3, fontSize: 11, color: 'var(--fg-muted)' }}>
-              IP : {log.ipAddress}
+              {t('IP :')} {log.ipAddress}
             </div>
           )}
         </div>
@@ -327,6 +335,7 @@ function ActiviteTab({ userId }) {
 
 // ── Onglet Actions ────────────────────────────────────────────────────────────
 function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(null); // 'toggle'|'reset'|'delete'
   const [newPwd, setNewPwd] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -335,7 +344,7 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
     setSaving('toggle');
     try {
       await accessControlService.toggleActive(user.id, !user.isActive);
-      onNotify(user.isActive ? 'Compte désactivé' : 'Compte activé');
+      onNotify(user.isActive ? t('Compte désactivé') : t('Compte activé'));
       await onUserUpdate();
     } catch (e) {
       onNotify(e.message, 'error');
@@ -350,7 +359,7 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
     try {
       const res = await accessControlService.resetPassword(user.id);
       setNewPwd(res.newPassword);
-      onNotify('Mot de passe réinitialisé');
+      onNotify(t('Mot de passe réinitialisé'));
     } catch (e) {
       onNotify(e.message, 'error');
     } finally {
@@ -362,7 +371,7 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
     setSaving('delete');
     try {
       await accessControlService.deleteUser(user.id);
-      onNotify('Utilisateur supprimé');
+      onNotify(t('Utilisateur supprimé'));
       onClose();
       await onUserUpdate();
     } catch (e) {
@@ -380,10 +389,10 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
       <div style={{ padding: '16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <RefreshCw size={15} color="#f59e0b" />
-          <span style={{ fontWeight: 700, fontSize: 14 }}>Réinitialiser le mot de passe</span>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>{t('Réinitialiser le mot de passe')}</span>
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-          Génère un nouveau mot de passe aléatoire et l'affiche une seule fois.
+          {t("Génère un nouveau mot de passe aléatoire et l'affiche une seule fois.")}
         </p>
         {newPwd && (
           <div style={{
@@ -396,7 +405,7 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
             </span>
             <button
               onClick={() => navigator.clipboard?.writeText(newPwd)}
-              title="Copier"
+              title={t('Copier')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
             >
               <Copy size={15} color="#92400e" />
@@ -416,7 +425,7 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
           {saving === 'reset'
             ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} />
             : <RefreshCw size={13} />}
-          {newPwd ? 'Générer un nouveau mot de passe' : 'Réinitialiser'}
+          {newPwd ? t('Générer un nouveau mot de passe') : t('Réinitialiser')}
         </button>
       </div>
 
@@ -425,13 +434,13 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <Power size={15} color={user.isActive ? '#ef4444' : '#22c55e'} />
           <span style={{ fontWeight: 700, fontSize: 14 }}>
-            {user.isActive ? 'Désactiver le compte' : 'Activer le compte'}
+            {user.isActive ? t('Désactiver le compte') : t('Activer le compte')}
           </span>
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
           {user.isActive
-            ? 'L\'utilisateur ne pourra plus se connecter. Ses données sont conservées.'
-            : 'Restaurer l\'accès à ce compte.'}
+            ? t("L'utilisateur ne pourra plus se connecter. Ses données sont conservées.")
+            : t("Restaurer l'accès à ce compte.")}
         </p>
         <button
           onClick={handleToggleActive}
@@ -448,7 +457,7 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
           {saving === 'toggle'
             ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} />
             : user.isActive ? <EyeOff size={13} /> : <Eye size={13} />}
-          {user.isActive ? 'Désactiver' : 'Activer'}
+          {user.isActive ? t('Désactiver') : t('Activer')}
         </button>
       </div>
 
@@ -456,10 +465,10 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
       <div style={{ padding: '16px', borderRadius: 10, border: '1.5px solid #fecaca', background: '#fff5f5' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <AlertTriangle size={15} color="#ef4444" />
-          <span style={{ fontWeight: 700, fontSize: 14, color: '#dc2626' }}>Zone dangereuse</span>
+          <span style={{ fontWeight: 700, fontSize: 14, color: '#dc2626' }}>{t('Zone dangereuse')}</span>
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 13, color: '#7f1d1d', lineHeight: 1.5 }}>
-          La suppression est <strong>irréversible</strong>. Les documents liés seront conservés mais orphelins.
+          {t('La suppression est')} <strong>{t('irréversible')}</strong>. {t('Les documents liés seront conservés mais orphelins.')}
         </p>
         {!confirmDelete ? (
           <button
@@ -472,12 +481,12 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
             }}
           >
             <Trash2 size={13} />
-            Supprimer ce compte
+            {t('Supprimer ce compte')}
           </button>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#dc2626' }}>
-              Confirmer la suppression de <strong>{user.firstName} {user.lastName}</strong> ?
+              {t('Confirmer la suppression de')} <strong>{user.firstName} {user.lastName}</strong> ?
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
@@ -493,7 +502,7 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
                 {saving === 'delete'
                   ? <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
                   : <Trash2 size={12} />}
-                Supprimer définitivement
+                {t('Supprimer définitivement')}
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
@@ -503,7 +512,7 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
                   color: 'var(--fg)', fontSize: 13, cursor: 'pointer',
                 }}
               >
-                Annuler
+                {t('Annuler')}
               </button>
             </div>
           </div>
@@ -517,6 +526,7 @@ function ActionsTab({ user, onNotify, onUserUpdate, onClose }) {
 // Composant principal UserDrawer
 // ════════════════════════════════════════════════════════════════════════════
 export default function UserDrawer({ user: initialUser, dbPostes, onClose, onUpdate }) {
+  const { t } = useTranslation();
   const [user, setUser] = useState(initialUser);
   const [tab, setTab] = useState('droits');
   const [notice, setNotice] = useState(null); // { msg, type }
@@ -550,9 +560,9 @@ export default function UserDrawer({ user: initialUser, dbPostes, onClose, onUpd
   const posteCodes = (user.postes || []).map(p => p.code);
 
   const TABS = [
-    { id: 'droits',   label: 'Droits',    icon: Shield },
-    { id: 'activite', label: 'Activité',  icon: Activity },
-    { id: 'actions',  label: 'Actions',   icon: Settings2 },
+    { id: 'droits',   label: t('Droits'),    icon: Shield },
+    { id: 'activite', label: t('Activité'),  icon: Activity },
+    { id: 'actions',  label: t('Actions'),   icon: Settings2 },
   ];
 
   return (
@@ -645,7 +655,7 @@ export default function UserDrawer({ user: initialUser, dbPostes, onClose, onUpd
                   background: user.isActive ? '#22c55e' : '#ef4444',
                   display: 'inline-block',
                 }} />
-                {user.isActive ? 'Actif' : 'Inactif'}
+                {user.isActive ? t('Actif') : t('Inactif')}
               </span>
             </div>
           </div>
@@ -656,13 +666,13 @@ export default function UserDrawer({ user: initialUser, dbPostes, onClose, onUpd
               <span style={{ fontWeight: 700, color: 'var(--fg)', fontSize: 16, marginRight: 4 }}>
                 {getUserModules(user.role, posteCodes).length}
               </span>
-              modules accessibles
+              {t('modules accessibles')}
             </div>
             <div style={{ color: 'var(--fg-muted)' }}>
               <span style={{ fontWeight: 700, color: 'var(--fg)', fontSize: 16, marginRight: 4 }}>
                 {posteCodes.length}
               </span>
-              poste(s) assigné(s)
+              {t('poste(s) assigné(s)')}
             </div>
           </div>
 

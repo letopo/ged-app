@@ -2,8 +2,12 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI, formsAPI, postesAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import WorkflowProgress from '../components/WorkflowProgress';
@@ -19,6 +23,8 @@ import TemplatePermissionsModal from '../components/TemplatePermissionsModal';
 import MissionMealRatesModal from '../components/MissionMealRatesModal';
 
 const DocumentList = () => {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
   const { user } = useAuth();
   const { id: routeDocId } = useParams();
   const navigate = useNavigate();
@@ -75,7 +81,7 @@ const DocumentList = () => {
       .then(res => { if (!cancelled) setViewingDocument(res.data?.data || res.data); })
       .catch(() => {
         if (cancelled) return;
-        toast.error('Document introuvable ou accès refusé');
+        toast.error(t('Document introuvable ou accès refusé'));
         navigate('/documents', { replace: true });
       });
     return () => { cancelled = true; };
@@ -101,28 +107,28 @@ const DocumentList = () => {
   const clearSelection = () => setSelectedIds([]);
 
   const handleBulkDelete = async () => {
-    const ok = await confirm({ title: `Supprimer ${selectedIds.length} documents ?`, message: 'Cette action est irréversible.', confirmLabel: 'Supprimer', variant: 'danger' });
+    const ok = await confirm({ title: t('Supprimer {{count}} documents ?', { count: selectedIds.length }), message: t('Cette action est irréversible.'), confirmLabel: t('Supprimer'), variant: 'danger' });
     if (!ok) return;
     setBulkLoading(true);
     try {
       await Promise.all(selectedIds.map(id => documentsAPI.delete(id)));
-      toast.success(`${selectedIds.length} documents supprimés.`);
+      toast.success(t('{{count}} documents supprimés.', { count: selectedIds.length }));
       clearSelection();
       loadDocuments();
-    } catch { toast.error('Erreur lors de la suppression.'); }
+    } catch { toast.error(t('Erreur lors de la suppression.')); }
     finally { setBulkLoading(false); }
   };
 
   const handleBulkArchive = async () => {
-    const ok = await confirm({ title: `Archiver ${selectedIds.length} documents ?`, message: 'Ils seront déplacés dans les archives.', confirmLabel: 'Archiver', variant: 'warning' });
+    const ok = await confirm({ title: t('Archiver {{count}} documents ?', { count: selectedIds.length }), message: t('Ils seront déplacés dans les archives.'), confirmLabel: t('Archiver'), variant: 'warning' });
     if (!ok) return;
     setBulkLoading(true);
     try {
       await Promise.all(selectedIds.map(id => documentsAPI.archive(id)));
-      toast.success(`${selectedIds.length} documents archivés.`);
+      toast.success(t('{{count}} documents archivés.', { count: selectedIds.length }));
       clearSelection();
       loadDocuments();
-    } catch { toast.error('Erreur lors de l\'archivage.'); }
+    } catch { toast.error(t("Erreur lors de l'archivage.")); }
     finally { setBulkLoading(false); }
   };
 
@@ -313,7 +319,7 @@ const DocumentList = () => {
         steps.forEach(s => { if (s.posteCode && !s.needsSelection && s.chosenId) init[s.posteCode] = s.chosenId; });
         setOmSelections(init);
       } catch (err) {
-        setError(err.response?.data?.message || 'Impossible de charger le circuit de validation.');
+        setError(err.response?.data?.message || t('Impossible de charger le circuit de validation.'));
         setOmPreview({ steps: [], error: err.response?.data?.message });
       } finally {
         setLoadingUsers(false);
@@ -338,7 +344,7 @@ const DocumentList = () => {
       );
       setWorkflowTemplates(filtered);
     } catch (err) {
-      setError('Impossible de charger les données de validation.');
+      setError(t('Impossible de charger les données de validation.'));
       setWorkflowTemplates([]);
     } finally {
       setLoadingUsers(false);
@@ -348,7 +354,7 @@ const DocumentList = () => {
   const applyWorkflowTemplate = (template) => {
     const validatorIds = (template.validators || []).map(v => v.userId);
     setSelectedValidators(validatorIds);
-    toast.success(`Modele "${template.name}" applique`);
+    toast.success(t('Modele "{{name}}" applique', { name: template.name }));
   };
 
   const handleOpenReassign = async (task) => {
@@ -361,7 +367,7 @@ const DocumentList = () => {
         const users = res.data?.users || [];
         setReassignValidators(users.filter(u => ['validator', 'director', 'admin', 'superadmin'].includes(u.role)));
       } catch (e) {
-        toast.error('Erreur chargement des validateurs');
+        toast.error(t('Erreur chargement des validateurs'));
       }
     }
   };
@@ -371,11 +377,11 @@ const DocumentList = () => {
     try {
       setReassignLoading(true);
       await workflowAPI.reassignTask(reassignTask.id, newValidatorId);
-      toast.success('Tâche réaffectée avec succès');
+      toast.success(t('Tâche réaffectée avec succès'));
       setReassignTask(null);
       loadDocuments(currentPage);
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Erreur lors de la réaffectation');
+      toast.error(e.response?.data?.message || t('Erreur lors de la réaffectation'));
     } finally {
       setReassignLoading(false);
     }
@@ -415,7 +421,7 @@ const DocumentList = () => {
       const steps = omPreview?.steps || [];
       const missing = steps.find(s => s.posteCode && !omSelections[s.posteCode]);
       if (missing) {
-        toast(`Veuillez choisir le titulaire pour « ${missing.label} ».`);
+        toast(t('Veuillez choisir le titulaire pour « {{label}} ».', { label: missing.label }));
         return;
       }
       workflowData = {
@@ -425,7 +431,7 @@ const DocumentList = () => {
       };
     } else {
       if (selectedValidators.length === 0) {
-        toast('Veuillez sélectionner au moins un validateur.');
+        toast(t('Veuillez sélectionner au moins un validateur.'));
         return;
       }
       workflowData = {
@@ -438,11 +444,11 @@ const DocumentList = () => {
     try {
       setSubmitLoading(true);
       await workflowAPI.create(workflowData);
-      toast.success('Document soumis au workflow avec succès !');
+      toast.success(t('Document soumis au workflow avec succès !'));
       handleCloseSubmitModal();
       loadDocuments();
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Erreur lors de la soumission';
+      const errorMessage = err.response?.data?.message || t('Erreur lors de la soumission');
       toast.error(`${errorMessage}`);
     } finally {
       setSubmitLoading(false);
@@ -451,53 +457,53 @@ const DocumentList = () => {
 
   const handleArchive = async (doc) => {
     const ok = await confirm({
-      title: 'Archiver ce document ?',
-      message: `"${doc.title}" sera déplacé dans les archives.`,
-      confirmLabel: 'Archiver',
-      cancelLabel: 'Annuler',
+      title: t('Archiver ce document ?'),
+      message: t('"{{title}}" sera déplacé dans les archives.', { title: doc.title }),
+      confirmLabel: t('Archiver'),
+      cancelLabel: t('Annuler'),
       variant: 'warning',
     });
     if (!ok) return;
     try {
       await documentsAPI.archive(doc.id);
-      toast.success('Document archivé.');
+      toast.success(t('Document archivé.'));
       loadDocuments();
     } catch (err) {
       console.error('Erreur archivage:', err);
-      toast.error('Erreur lors de l\'archivage.');
+      toast.error(t("Erreur lors de l'archivage."));
     }
   };
 
   const handleDelete = async (docId) => {
     if (!docId) {
-      toast.error('Erreur : ID du document manquant.');
+      toast.error(t('Erreur : ID du document manquant.'));
       return;
     }
     const ok = await confirm({
-      title: 'Supprimer ce document ?',
-      message: 'Cette action est irréversible. Le document sera définitivement supprimé.',
-      confirmLabel: 'Supprimer',
-      cancelLabel: 'Annuler',
+      title: t('Supprimer ce document ?'),
+      message: t('Cette action est irréversible. Le document sera définitivement supprimé.'),
+      confirmLabel: t('Supprimer'),
+      cancelLabel: t('Annuler'),
       variant: 'danger',
     });
     if (!ok) return;
 
     try {
       await documentsAPI.delete(docId);
-      toast.success('Document supprimé avec succès.');
+      toast.success(t('Document supprimé avec succès.'));
       loadDocuments();
     } catch (err) {
       console.error("Erreur suppression:", err);
-      toast.error('Erreur lors de la suppression du document.');
+      toast.error(t('Erreur lors de la suppression du document.'));
     }
   };
 
   const getUserNameById = (userId) => {
     const user = availableUsers.find(u => u.id === userId);
-    return user ? `${user.firstName} ${user.lastName}` : 'Utilisateur inconnu';
+    return user ? `${user.firstName} ${user.lastName}` : t('Utilisateur inconnu');
   };
 
-  const formatDate = (date) => new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const formatDate = (date) => new Date(date).toLocaleDateString(BCP47_LOCALES[lang] || 'fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const formatSize = (bytes) => {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
@@ -559,11 +565,11 @@ const DocumentList = () => {
   };
 
   const exportCSV = () => {
-    const statusLabels = { draft: 'Brouillon', pending_validation: 'En validation', approved: 'Approuvé', rejected: 'Rejeté' };
-    const header = ['Titre', 'Catégorie', 'Statut', 'Auteur', 'Date', 'Taille'];
+    const statusLabels = { draft: t('Brouillon'), pending_validation: t('En validation'), approved: t('Approuvé'), rejected: t('Rejeté') };
+    const header = [t('Titre'), t('Catégorie'), t('Statut'), t('Auteur'), t('Date'), t('Taille')];
     const rows = sortedDocuments.map(doc => [
       doc.title || '',
-      doc.category || '',
+      doc.category ? t(doc.category) : '',
       statusLabels[doc.status] || doc.status || '',
       doc.uploadedBy ? `${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName}` : '',
       formatDate(doc.createdAt),
@@ -578,7 +584,7 @@ const DocumentList = () => {
     a.download = `documents_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Export CSV téléchargé');
+    toast.success(t('Export CSV téléchargé'));
   };
 
   // Tri local (favoris en premier + tri par colonne)
@@ -607,16 +613,16 @@ const DocumentList = () => {
 
   // ── Style constants ──
   const STATUS_CFG = {
-    draft:              { dot: 'var(--fg-subtle)',  label: 'Brouillon',     cls: 'ged-badge-neutral' },
-    pending:            { dot: 'var(--warning)',     label: 'En validation', cls: 'ged-badge-warning' },
-    pending_validation: { dot: 'var(--warning)',     label: 'En validation', cls: 'ged-badge-warning' },
-    approved:           { dot: 'var(--success)',     label: 'Approuvé',      cls: 'ged-badge-success' },
-    rejected:           { dot: 'var(--danger)',      label: 'Rejeté',        cls: 'ged-badge-danger'  },
-    in_progress:        { dot: 'var(--brand)',       label: 'En cours',      cls: 'ged-badge-brand'   },
+    draft:              { dot: 'var(--fg-subtle)',  label: t('Brouillon'),     cls: 'ged-badge-neutral' },
+    pending:            { dot: 'var(--warning)',     label: t('En validation'), cls: 'ged-badge-warning' },
+    pending_validation: { dot: 'var(--warning)',     label: t('En validation'), cls: 'ged-badge-warning' },
+    approved:           { dot: 'var(--success)',     label: t('Approuvé'),      cls: 'ged-badge-success' },
+    rejected:           { dot: 'var(--danger)',      label: t('Rejeté'),        cls: 'ged-badge-danger'  },
+    in_progress:        { dot: 'var(--brand)',       label: t('En cours'),      cls: 'ged-badge-brand'   },
   };
   const VISIBILITY_CFG = {
-    personal: { label: 'Personnel', cls: 'ged-badge-neutral' },
-    service:  { label: 'Service',   cls: 'ged-badge-brand'   },
+    personal: { label: t('Personnel'), cls: 'ged-badge-neutral' },
+    service:  { label: t('Service'),   cls: 'ged-badge-brand'   },
   };
   const btnPrimary = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 'var(--radius-2)', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', textDecoration: 'none' };
   const btnOutline = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, border: '1px solid var(--border)', cursor: 'pointer' };
@@ -642,12 +648,12 @@ const DocumentList = () => {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20, paddingTop: 4 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>Documents</h1>
-          <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>{totalDocuments} documents · {stats.pending} en validation</div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>{t('Documents')}</h1>
+          <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>{t('{{total}} documents · {{pending}} en validation', { total: totalDocuments, pending: stats.pending })}</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={exportCSV} style={btnOutline}>Exporter CSV</button>
-          <Link to="/upload" style={btnPrimary}>+ Nouveau document</Link>
+          <button onClick={exportCSV} style={btnOutline}>{t('Exporter CSV')}</button>
+          <Link to="/upload" style={btnPrimary}>{t('+ Nouveau document')}</Link>
         </div>
       </div>
 
@@ -656,10 +662,10 @@ const DocumentList = () => {
         {/* Segmented view switcher : Table / Grille */}
         <div style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', padding: 3, gap: 2 }}>
           <button onClick={() => setViewMode('list')} style={viewMode === 'list' ? segActive : segIdle}>
-            <LayoutList size={13} /> Table
+            <LayoutList size={13} /> {t('Table')}
           </button>
           <button onClick={() => setViewMode('grid')} style={viewMode === 'grid' ? segActive : segIdle}>
-            <LayoutGrid size={13} /> Grille
+            <LayoutGrid size={13} /> {t('Grille')}
           </button>
         </div>
         {/* Search */}
@@ -667,7 +673,7 @@ const DocumentList = () => {
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} />
           <input
             type="text"
-            placeholder="Titre, catégorie…"
+            placeholder={t('Titre, catégorie…')}
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             style={{ width: '100%', paddingLeft: 32, paddingRight: 10, height: 34, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
@@ -680,16 +686,16 @@ const DocumentList = () => {
         </div>
         {/* Chip statut */}
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
-          <option value="all">Statut : tous</option>
-          <option value="draft">Brouillon</option>
-          <option value="pending_validation">En validation</option>
-          <option value="approved">Approuvé</option>
-          <option value="rejected">Rejeté</option>
+          <option value="all">{t('Statut : tous')}</option>
+          <option value="draft">{t('Brouillon')}</option>
+          <option value="pending_validation">{t('En validation')}</option>
+          <option value="approved">{t('Approuvé')}</option>
+          <option value="rejected">{t('Rejeté')}</option>
         </select>
         {/* Chip catégorie */}
         <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={selectStyle}>
-          <option value="all">Type : tous</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          <option value="all">{t('Type : tous')}</option>
+          {categories.map(c => <option key={c} value={c}>{t(c)}</option>)}
         </select>
         {/* Date from - to (compact) */}
         <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ ...selectStyle, width: 130 }} />
@@ -697,7 +703,7 @@ const DocumentList = () => {
         <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ ...selectStyle, width: 130 }} />
         {activeFilterCount > 0 && (
           <button onClick={resetAllFilters} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 'var(--radius-full)', background: 'var(--danger-soft)', color: 'var(--danger)', border: 'none', cursor: 'pointer', fontSize: 12 }}>
-            <X size={11} /> Effacer
+            <X size={11} /> {t('Effacer')}
           </button>
         )}
       </div>
@@ -711,11 +717,11 @@ const DocumentList = () => {
             <div className="ged-card animate-fadeIn" style={{ padding: '10px 14px', marginBottom: 12, background: 'var(--brand-soft)', borderColor: 'var(--brand-soft-2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 13, color: 'var(--brand-fg)', fontWeight: 500 }}>
-                  <b>{selectedIds.length}</b> sélectionné{selectedIds.length > 1 ? 's' : ''}
+                  <b>{selectedIds.length}</b> {t('sélectionné(s)')}
                 </span>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={handleBulkArchive} disabled={bulkLoading} style={btnOutline}>Archiver</button>
-                  <button onClick={handleBulkDelete} disabled={bulkLoading} style={btnDanger}>Supprimer</button>
+                  <button onClick={handleBulkArchive} disabled={bulkLoading} style={btnOutline}>{t('Archiver')}</button>
+                  <button onClick={handleBulkDelete} disabled={bulkLoading} style={btnDanger}>{t('Supprimer')}</button>
                   <button onClick={clearSelection} style={btnOutline}><X size={12} /></button>
                 </div>
               </div>
@@ -734,12 +740,12 @@ const DocumentList = () => {
                 <thead>
                   <tr style={{ background: 'var(--surface-2)' }}>
                     <th style={thStyle}><input type="checkbox" checked={pagedDocuments.length > 0 && selectedIds.length === pagedDocuments.length} onChange={toggleSelectAll} /></th>
-                    <th style={{ ...thStyle, cursor: 'pointer' }} onClick={() => handleSort('title')}>Document {sortConfig.key === 'title' ? (sortConfig.dir === 'asc' ? '↑' : '↓') : ''}</th>
-                    <th style={thStyle}>Type</th>
-                    <th style={thStyle}>Statut</th>
-                    <th style={thStyle}>Auteur</th>
-                    <th style={{ ...thStyle, cursor: 'pointer' }} onClick={() => handleSort('createdAt')}>Date {sortConfig.key === 'createdAt' ? (sortConfig.dir === 'asc' ? '↑' : '↓') : ''}</th>
-                    <th style={thStyle}>Workflow</th>
+                    <th style={{ ...thStyle, cursor: 'pointer' }} onClick={() => handleSort('title')}>{t('Document')} {sortConfig.key === 'title' ? (sortConfig.dir === 'asc' ? '↑' : '↓') : ''}</th>
+                    <th style={thStyle}>{t('Type')}</th>
+                    <th style={thStyle}>{t('Statut')}</th>
+                    <th style={thStyle}>{t('Auteur')}</th>
+                    <th style={{ ...thStyle, cursor: 'pointer' }} onClick={() => handleSort('createdAt')}>{t('Date')} {sortConfig.key === 'createdAt' ? (sortConfig.dir === 'asc' ? '↑' : '↓') : ''}</th>
+                    <th style={thStyle}>{t('Workflow')}</th>
                     <th style={thStyle}></th>
                   </tr>
                 </thead>
@@ -771,7 +777,7 @@ const DocumentList = () => {
                             </div>
                           </td>
                           <td style={tdStyle}>
-                            {doc.category && <span className="ged-badge ged-badge-neutral" style={{ fontSize: 11 }}>{doc.category}</span>}
+                            {doc.category && <span className="ged-badge ged-badge-neutral" style={{ fontSize: 11 }}>{t(doc.category)}</span>}
                             {doc.visibility && (
                               <span className={`ged-badge ${VISIBILITY_CFG[doc.visibility]?.cls || 'ged-badge-neutral'}`} style={{ fontSize: 11, marginLeft: 4 }}>
                                 {VISIBILITY_CFG[doc.visibility]?.label || doc.visibility}
@@ -799,10 +805,10 @@ const DocumentList = () => {
                           </td>
                           <td style={{ ...tdStyle, textAlign: 'right' }}>
                             <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
-                              <button onClick={() => setViewingDocument(doc)} style={iconBtn} title="Voir"><Eye size={14} /></button>
-                              <button onClick={() => handleOpenSubmitModal(doc)} disabled={doc.status !== 'draft'} style={{ ...iconBtn, opacity: doc.status !== 'draft' ? 0.3 : 1 }} title="Soumettre"><Send size={14} /></button>
-                              <button onClick={() => handleArchive(doc)} style={iconBtn} title="Archiver"><Archive size={14} /></button>
-                              <button onClick={() => handleDelete(doc.id)} style={{ ...iconBtn, color: 'var(--danger)' }} title="Supprimer"><Trash2 size={14} /></button>
+                              <button onClick={() => setViewingDocument(doc)} style={iconBtn} title={t('Voir')}><Eye size={14} /></button>
+                              <button onClick={() => handleOpenSubmitModal(doc)} disabled={doc.status !== 'draft'} style={{ ...iconBtn, opacity: doc.status !== 'draft' ? 0.3 : 1 }} title={t('Soumettre')}><Send size={14} /></button>
+                              <button onClick={() => handleArchive(doc)} style={iconBtn} title={t('Archiver')}><Archive size={14} /></button>
+                              <button onClick={() => handleDelete(doc.id)} style={{ ...iconBtn, color: 'var(--danger)' }} title={t('Supprimer')}><Trash2 size={14} /></button>
                             </div>
                           </td>
                         </tr>
@@ -848,7 +854,7 @@ const DocumentList = () => {
                       <div style={{ textAlign: 'center' }}>
                         <FileText size={32} color="var(--fg-subtle)" />
                         <div style={{ fontSize: 10, color: 'var(--fg-subtle)', marginTop: 6, fontWeight: 500 }}>
-                          {fileTypeLabel}{doc.category ? ` · ${doc.category}` : ''}
+                          {fileTypeLabel}{doc.category ? ` · ${t(doc.category)}` : ''}
                         </div>
                       </div>
                       {/* Checkbox overlay */}
@@ -869,7 +875,7 @@ const DocumentList = () => {
                     <div style={{ padding: '10px 12px' }}>
                       <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{doc.title}</div>
                       <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 8 }}>
-                        {doc.category ? `${doc.category} · ` : ''}{formatDate(doc.createdAt)}
+                        {doc.category ? `${t(doc.category)} · ` : ''}{formatDate(doc.createdAt)}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
@@ -888,7 +894,7 @@ const DocumentList = () => {
                         </button>
                       </div>
                       {hasWf && (
-                        <div style={{ fontSize: 11, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)', marginBottom: 8 }}>Workflow : {wfApproved}/{wfTotal}</div>
+                        <div style={{ fontSize: 11, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)', marginBottom: 8 }}>{t('Workflow : {{approved}}/{{total}}', { approved: wfApproved, total: wfTotal })}</div>
                       )}
                       {hasWf && expandedWorkflows.has(doc.id) && (
                         <div style={{ marginBottom: 8 }} onClick={e => e.stopPropagation()}>
@@ -905,7 +911,7 @@ const DocumentList = () => {
                         </div>
                       )}
                       <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setViewingDocument(doc)} style={{ ...btnSmall, flex: 1 }}>Voir</button>
+                        <button onClick={() => setViewingDocument(doc)} style={{ ...btnSmall, flex: 1 }}>{t('Voir')}</button>
                         <button onClick={() => handleOpenSubmitModal(doc)} disabled={doc.status !== 'draft'} style={{ ...iconBtn, opacity: doc.status !== 'draft' ? 0.3 : 1 }}><Send size={13} /></button>
                         <button onClick={() => handleArchive(doc)} style={iconBtn}><Archive size={13} /></button>
                         <button onClick={() => handleDelete(doc.id)} style={{ ...iconBtn, color: 'var(--danger)' }}><Trash2 size={13} /></button>
@@ -921,13 +927,13 @@ const DocumentList = () => {
           {totalDocuments === 0 && !loading && (
             <div className="ged-card" style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               <FileText size={32} color="var(--fg-subtle)" style={{ marginBottom: 12 }} />
-              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>Aucun document trouvé</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>{t('Aucun document trouvé')}</p>
               <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
-                {activeFilterCount > 0 ? 'Aucun résultat pour ces filtres.' : 'Commencez par uploader un document.'}
+                {activeFilterCount > 0 ? t('Aucun résultat pour ces filtres.') : t('Commencez par uploader un document.')}
               </p>
               {activeFilterCount > 0
-                ? <button onClick={resetAllFilters} style={btnOutline}>Effacer les filtres</button>
-                : <Link to="/upload" style={btnPrimary}>Uploader un document</Link>
+                ? <button onClick={resetAllFilters} style={btnOutline}>{t('Effacer les filtres')}</button>
+                : <Link to="/upload" style={btnPrimary}>{t('Uploader un document')}</Link>
               }
             </div>
           )}
@@ -935,7 +941,7 @@ const DocumentList = () => {
           {/* Pagination */}
           {totalPages > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
-              <span>Page <b style={{ color: 'var(--fg)' }}>{safePage}</b> sur <b style={{ color: 'var(--fg)' }}>{totalPages}</b> · {totalDocuments} documents</span>
+              <span>{t('Page')} <b style={{ color: 'var(--fg)' }}>{safePage}</b> {t('sur')} <b style={{ color: 'var(--fg)' }}>{totalPages}</b> · {t('{{count}} documents', { count: totalDocuments })}</span>
               <div style={{ display: 'flex', gap: 4 }}>
                 <button onClick={() => setCurrentPage(1)} disabled={safePage === 1} style={pageBtn}>«</button>
                 <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1} style={pageBtn}>‹</button>
@@ -958,16 +964,16 @@ const DocumentList = () => {
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <FilePlus size={14} color="var(--brand)" /> Nouveau document
+                <FilePlus size={14} color="var(--brand)" /> {t('Nouveau document')}
               </h3>
               <div style={{ display: 'flex', gap: 2 }}>
                 {['admin','superadmin'].includes(user?.role) && (
-                  <button onClick={() => setShowPermissionsModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4 }} title="Gérer les permissions">
+                  <button onClick={() => setShowPermissionsModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4 }} title={t('Gérer les permissions')}>
                     <Settings size={13} />
                   </button>
                 )}
                 {canManageMissionMeals && (
-                  <button onClick={() => setShowMissionMealModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4 }} title="Indemnités de mission">
+                  <button onClick={() => setShowMissionMealModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4 }} title={t('Indemnités de mission')}>
                     <Coffee size={13} />
                   </button>
                 )}
@@ -977,7 +983,7 @@ const DocumentList = () => {
               <Search size={12} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} />
               <input
                 type="text"
-                placeholder="Rechercher un modèle…"
+                placeholder={t('Rechercher un modèle…')}
                 value={searchValidatorTerm}
                 onChange={e => setSearchValidatorTerm(e.target.value)}
                 style={{ width: '100%', paddingLeft: 28, height: 32, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
@@ -987,22 +993,22 @@ const DocumentList = () => {
           <ul style={{ listStyle: 'none', margin: 0, padding: '6px 8px', maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             {sidebarTemplates
               .filter(t => t.hasAccess && (!searchValidatorTerm || t.templateName.toLowerCase().includes(searchValidatorTerm.toLowerCase())))
-              .map(t => {
-                const name = t.templateName;
+              .map(tpl => {
+                const name = tpl.templateName;
                 const icon = TEMPLATE_ICONS[name] || '📄';
                 const itemStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 'var(--radius-2)', cursor: 'pointer', textDecoration: 'none', fontSize: 12.5, color: 'var(--fg)', width: '100%', border: 'none', background: 'none', textAlign: 'left' };
                 if (name === 'Demande de travaux') return (
                   <li key={name}>
                     <Link to="/create-work-request" style={{ ...itemStyle, color: 'var(--brand)', fontWeight: 500 }} onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                      <span>{icon}</span><span>{name}</span>
+                      <span>{icon}</span><span>{t(name)}</span>
                     </Link>
                   </li>
                 );
-                if (t.isRestricted) return (
+                if (tpl.isRestricted) return (
                   <li key={name}>
                     <Link to="/create-from-template" state={{ templateName: name }} style={{ ...itemStyle, color: 'var(--brand)', fontWeight: 500 }} onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-soft)'} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
                       <span>{icon}</span>
-                      <span style={{ flex: 1 }}>{name}</span>
+                      <span style={{ flex: 1 }}>{t(name)}</span>
                       <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: 'var(--brand-soft)', color: 'var(--brand)', fontWeight: 700, letterSpacing: '0.5px' }}>PRO</span>
                     </Link>
                   </li>
@@ -1010,19 +1016,19 @@ const DocumentList = () => {
                 return (
                   <li key={name}>
                     <Link to="/create-from-template" state={{ templateName: name }} style={itemStyle} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                      <span>{icon}</span><span>{name}</span>
+                      <span>{icon}</span><span>{t(name)}</span>
                     </Link>
                   </li>
                 );
               })}
             {sidebarTemplates.filter(t => t.hasAccess).length === 0 && (
-              <li style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: 'var(--fg-muted)' }}>Aucun modèle disponible</li>
+              <li style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: 'var(--fg-muted)' }}>{t('Aucun modèle disponible')}</li>
             )}
             {/* Formulaires Form Builder publiés */}
             {publishedForms.filter(f => !searchValidatorTerm || f.title.toLowerCase().includes(searchValidatorTerm.toLowerCase())).length > 0 && (
               <>
                 <li style={{ padding: '10px 10px 4px', fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.6px', marginTop: 4 }}>
-                  Formulaires
+                  {t('Formulaires')}
                 </li>
                 {publishedForms
                   .filter(f => !searchValidatorTerm || f.title.toLowerCase().includes(searchValidatorTerm.toLowerCase()))
@@ -1047,16 +1053,16 @@ const DocumentList = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 9000 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', maxWidth: 640, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Soumettre au workflow</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('Soumettre au workflow')}</h2>
               <button onClick={handleCloseSubmitModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)' }}><X size={24} /></button>
             </div>
             <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>Document : <span style={{ fontWeight: 500 }}>{documentToSubmit?.title}</span></p>
+              <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>{t('Document :')} <span style={{ fontWeight: 500 }}>{documentToSubmit?.title}</span></p>
 
               {/* Ordre de mission / Pièce de caisse : circuit auto + choix du titulaire si plusieurs */}
               {(documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse') && (
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>Circuit de validation</label>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>{t('Circuit de validation')}</label>
                   {loadingUsers ? (
                     <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}><Loader className="animate-spin" style={{ color: 'var(--brand)' }} /></div>
                   ) : omPreview?.error ? (
@@ -1074,7 +1080,7 @@ const DocumentList = () => {
                                 onChange={e => setOmSelections(prev => ({ ...prev, [step.posteCode]: e.target.value }))}
                                 style={{ marginTop: 4, width: '100%', height: 32, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, padding: '0 8px' }}
                               >
-                                <option value="">— Choisir —</option>
+                                <option value="">{t('— Choisir —')}</option>
                                 {step.holders.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                               </select>
                             ) : (
@@ -1091,7 +1097,7 @@ const DocumentList = () => {
               {/* Modeles de workflow predéfinis */}
               {workflowTemplates.length > 0 && (
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 }}>Utiliser un modele</label>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 }}>{t('Utiliser un modele')}</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {workflowTemplates.map(tpl => (
                       <button
@@ -1109,20 +1115,20 @@ const DocumentList = () => {
                 </div>
               )}
               <div style={{ display: (documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse') ? 'none' : undefined }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>Sélectionnez les validateurs (dans l'ordre)</label>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>{t("Sélectionnez les validateurs (dans l'ordre)")}</label>
                 {loadingUsers
                   ? <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}><Loader className="animate-spin" style={{ color: 'var(--brand)' }} /></div>
                   : availableUsers.length === 0 && !searchValidatorTerm
                     ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '24px 0', background: 'var(--surface-2)', borderRadius: 'var(--radius-3)' }}>
                         <AlertCircle style={{ marginBottom: 8, color: 'var(--fg-subtle)' }} size={32} />
-                        <p style={{ color: 'var(--fg)', fontSize: 13, margin: 0 }}>Aucun validateur disponible</p>
+                        <p style={{ color: 'var(--fg)', fontSize: 13, margin: 0 }}>{t('Aucun validateur disponible')}</p>
                       </div>
                     : <>
                       <div style={{ position: 'relative', marginBottom: 10 }}>
                         <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} size={16} />
                         <input
                           type="text"
-                          placeholder="Rechercher par nom, rôle ou email..."
+                          placeholder={t('Rechercher par nom, rôle ou email...')}
                           value={searchValidatorTerm}
                           onChange={(e) => setSearchValidatorTerm(e.target.value)}
                           style={{ width: '100%', paddingLeft: 34, paddingRight: 12, height: 36, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
@@ -1147,7 +1153,7 @@ const DocumentList = () => {
                             </div>
                           ))
                           : <div style={{ textAlign: 'center', padding: '12px 0', color: 'var(--fg-muted)', fontSize: 13 }}>
-                              {searchValidatorTerm ? "Aucun validateur trouvé pour cette recherche." : "Aucun validateur disponible."}
+                              {searchValidatorTerm ? t("Aucun validateur trouvé pour cette recherche.") : t("Aucun validateur disponible.")}
                             </div>
                         }
                       </div>
@@ -1156,9 +1162,9 @@ const DocumentList = () => {
               </div>
               {selectedValidators.length > 0 && (
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>Ordre de validation</label>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>{t('Ordre de validation')}</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 4 }}>Le premier validateur est celui qui doit agir en premier.</div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 4 }}>{t('Le premier validateur est celui qui doit agir en premier.')}</div>
                     {selectedValidators.map((userId, index) => (
                       <div key={userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, background: 'var(--brand-soft)', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fg)' }}>
@@ -1176,24 +1182,24 @@ const DocumentList = () => {
                 </div>
               )}
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 }}>Commentaire (optionnel)</label>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 }}>{t('Commentaire (optionnel)')}</label>
                 <textarea
                   value={submitComment}
                   onChange={(e) => setSubmitComment(e.target.value)}
                   rows={3}
-                  placeholder="Ajoutez un message..."
+                  placeholder={t('Ajoutez un message...')}
                   style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button onClick={handleCloseSubmitModal} disabled={submitLoading} style={{ padding: '7px 16px', background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+              <button onClick={handleCloseSubmitModal} disabled={submitLoading} style={{ padding: '7px 16px', background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13 }}>{t('Annuler')}</button>
               {(() => {
                 const isServerChainSubmit = documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse';
                 const submitDisabled = submitLoading || (isServerChainSubmit ? (!omPreview || !!omPreview.error) : selectedValidators.length === 0);
                 return (
               <button onClick={handleSubmitWorkflow} disabled={submitDisabled} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: submitDisabled ? 0.5 : 1 }}>
-                {submitLoading ? <><Loader className="animate-spin" size={14} />Soumission...</> : <><Send size={14} />Soumettre</>}
+                {submitLoading ? <><Loader className="animate-spin" size={14} />{t('Soumission...')}</> : <><Send size={14} />{t('Soumettre')}</>}
               </button>
                 );
               })()}
@@ -1229,9 +1235,9 @@ const DocumentList = () => {
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', maxWidth: 440, width: '100%' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>Réaffecter la tâche</h2>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{t('Réaffecter la tâche')}</h2>
                 <p style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 2 }}>
-                  Actuellement : <span style={{ fontWeight: 500 }}>{reassignTask.validator?.firstName} {reassignTask.validator?.lastName}</span>
+                  {t('Actuellement :')} <span style={{ fontWeight: 500 }}>{reassignTask.validator?.firstName} {reassignTask.validator?.lastName}</span>
                 </p>
               </div>
               <button onClick={() => setReassignTask(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)' }}>
@@ -1245,7 +1251,7 @@ const DocumentList = () => {
                   type="text"
                   value={reassignSearch}
                   onChange={e => setReassignSearch(e.target.value)}
-                  placeholder="Rechercher un validateur..."
+                  placeholder={t('Rechercher un validateur...')}
                   style={{ width: '100%', paddingLeft: 30, paddingRight: 10, height: 34, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
@@ -1269,7 +1275,7 @@ const DocumentList = () => {
                         <p style={{ fontSize: 11, color: 'var(--fg-muted)', margin: 0 }}>{u.role}</p>
                       </div>
                       {u.id === reassignTask.validatorId && (
-                        <span style={{ fontSize: 11, color: 'var(--brand)' }}>Actuel</span>
+                        <span style={{ fontSize: 11, color: 'var(--brand)' }}>{t('Actuel')}</span>
                       )}
                     </button>
                   ))}

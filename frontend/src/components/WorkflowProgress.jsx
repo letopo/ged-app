@@ -1,9 +1,13 @@
 // frontend/src/components/WorkflowProgress.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle, Clock, User, XCircle, MessageSquare, UserCheck, Send, RefreshCw } from 'lucide-react';
 import { workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import toast from 'react-hot-toast';
+
+const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 const WorkflowProgress = ({
   workflows = [],
@@ -16,6 +20,9 @@ const WorkflowProgress = ({
   hideDiscussion = false,
 }) => {
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+  const locale = BCP47_LOCALES[lang] || 'fr-FR';
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
@@ -57,7 +64,7 @@ const WorkflowProgress = ({
       setComments(prev => [...prev, res.data.data]);
       setNewComment('');
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Erreur lors de l\'envoi du commentaire.');
+      toast.error(e.response?.data?.message || t('Erreur lors de l\'envoi du commentaire.'));
     } finally {
       setSendingComment(false);
     }
@@ -67,20 +74,20 @@ const WorkflowProgress = ({
     setRelancing(true);
     try {
       await workflowAPI.relancerValidation(documentId, motif);
-      toast.success('Validation relancée avec succès !');
+      toast.success(t('Validation relancée avec succès !'));
       setShowRelanceForm(false);
       setMotif('');
       await loadComments();
       if (onRelanced) onRelanced();
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Erreur lors de la relance.');
+      toast.error(e.response?.data?.message || t('Erreur lors de la relance.'));
     } finally {
       setRelancing(false);
     }
   };
 
   if (!workflows || workflows.length === 0) {
-    return <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>Aucun workflow initié.</div>;
+    return <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Aucun workflow initié.')}</div>;
   }
 
   const totalSteps = workflows.length;
@@ -120,7 +127,7 @@ const WorkflowProgress = ({
       {/* Barre de progression */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
-          <span style={{ fontWeight: 500, color: 'var(--fg)' }}>Progression</span>
+          <span style={{ fontWeight: 500, color: 'var(--fg)' }}>{t('Progression')}</span>
           <span style={{ fontWeight: 700, color: 'var(--brand)' }}>{completedSteps} / {totalSteps}</span>
         </div>
         <div style={{ width: '100%', background: 'var(--surface-2)', borderRadius: 999, height: 8 }}>
@@ -149,22 +156,22 @@ const WorkflowProgress = ({
                   </span>
                 )}
                 <span style={{ marginLeft: 8, color: stepStatusColor(step.status) }}>
-                  ({step.status === 'approved' ? 'approuvé' :
-                    step.status === 'rejected' ? 'rejeté' :
-                    step.status === 'pending' ? 'en attente' :
-                    step.status === 'queued' ? 'en file' : step.status})
+                  ({step.status === 'approved' ? t('approuvé') :
+                    step.status === 'rejected' ? t('rejeté') :
+                    step.status === 'pending' ? t('en attente') :
+                    step.status === 'queued' ? t('en file') : step.status})
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 {step.validatedAt && (
                   <span style={{ color: 'var(--fg-subtle)', whiteSpace: 'nowrap' }}>
-                    {new Date(step.validatedAt).toLocaleDateString('fr-FR')}
+                    {new Date(step.validatedAt).toLocaleDateString(locale)}
                   </span>
                 )}
                 {isAdmin && ['pending', 'queued'].includes(step.status) && onReassign && (
                   <button
                     onClick={() => onReassign(step)}
-                    title="Réaffecter à un autre validateur"
+                    title={t('Réaffecter à un autre validateur')}
                     style={{
                       padding: 4, borderRadius: 'var(--radius-2)',
                       background: 'none', border: 'none', cursor: 'pointer',
@@ -199,7 +206,7 @@ const WorkflowProgress = ({
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
             <MessageSquare size={14} />
-            Discussion
+            {t('Discussion')}
             {comments.length > 0 && (
               <span style={{ marginLeft: 4, background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 10, padding: '2px 6px', borderRadius: 999, fontWeight: 700 }}>
                 {comments.length}
@@ -209,7 +216,7 @@ const WorkflowProgress = ({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 208, overflowY: 'auto', paddingRight: 4 }}>
             {comments.length === 0 && (
-              <p style={{ fontSize: 12, color: 'var(--fg-subtle)', fontStyle: 'italic' }}>Aucun message pour l'instant.</p>
+              <p style={{ fontSize: 12, color: 'var(--fg-subtle)', fontStyle: 'italic' }}>{t("Aucun message pour l'instant.")}</p>
             )}
             {comments.map((c) => {
               const isMe = c.author?.id === user?.id;
@@ -240,7 +247,7 @@ const WorkflowProgress = ({
                     <p style={{ margin: 0 }}>{c.text}</p>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--fg-subtle)', marginTop: 2, padding: '0 4px' }}>
-                    {new Date(c.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(c.createdAt).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
               );
@@ -255,13 +262,13 @@ const WorkflowProgress = ({
               value={newComment}
               onChange={e => setNewComment(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendComment()}
-              placeholder="Envoyer un message…"
+              placeholder={t('Envoyer un message…')}
               style={inputStyle}
             />
             <button
               onClick={handleSendComment}
               disabled={sendingComment || !newComment.trim()}
-              title="Envoyer"
+              title={t('Envoyer')}
               style={{
                 padding: 8, borderRadius: 'var(--radius-3)',
                 background: 'var(--brand)', color: '#fff',
@@ -294,7 +301,7 @@ const WorkflowProgress = ({
                   onMouseLeave={e => e.currentTarget.style.background = '#f97316'}
                 >
                   <RefreshCw size={14} />
-                  Relancer la validation
+                  {t('Relancer la validation')}
                 </button>
               ) : (
                 <div style={{
@@ -302,11 +309,11 @@ const WorkflowProgress = ({
                   background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.30)',
                   display: 'flex', flexDirection: 'column', gap: 8,
                 }}>
-                  <p style={{ fontSize: 12, fontWeight: 500, color: '#c2410c', margin: 0 }}>Motif de la relance (optionnel)</p>
+                  <p style={{ fontSize: 12, fontWeight: 500, color: '#c2410c', margin: 0 }}>{t('Motif de la relance (optionnel)')}</p>
                   <textarea
                     value={motif}
                     onChange={e => setMotif(e.target.value)}
-                    placeholder="Ex : Signature ajoutée, informations complétées…"
+                    placeholder={t('Ex : Signature ajoutée, informations complétées…')}
                     rows={2}
                     style={{
                       width: '100%', fontSize: 12, padding: '6px 12px',
@@ -328,7 +335,7 @@ const WorkflowProgress = ({
                       }}
                     >
                       <RefreshCw size={12} className={relancing ? 'animate-spin' : ''} />
-                      {relancing ? 'Relance…' : 'Confirmer la relance'}
+                      {relancing ? t('Relance…') : t('Confirmer la relance')}
                     </button>
                     <button
                       onClick={() => { setShowRelanceForm(false); setMotif(''); }}
@@ -341,7 +348,7 @@ const WorkflowProgress = ({
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
-                      Annuler
+                      {t('Annuler')}
                     </button>
                   </div>
                 </div>
