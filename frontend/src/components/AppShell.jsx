@@ -497,16 +497,19 @@ const Topbar = ({ onToggleSidebar }) => {
       padding: '0 24px', gap: 12,
       position: 'sticky', top: 0, zIndex: 20,
     }}>
-      {/* Menu toggle (mobile) */}
-      <button
-        className="lg:hidden"
-        onClick={onToggleSidebar}
-        style={{ ...iconBtnStyle, border: '1px solid var(--border)' }}
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-      >
-        <Menu size={15} />
-      </button>
+      {/* Menu toggle (mobile) — le `display` inline du bouton annulerait `lg:hidden`,
+          d'où l'enveloppe : sur PC le menu est toujours visible, ce bouton n'y sert pas. */}
+      <span className="lg:hidden" style={{ lineHeight: 0 }}>
+        <button
+          onClick={onToggleSidebar}
+          aria-label="Menu"
+          style={{ ...iconBtnStyle, border: '1px solid var(--border)' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <Menu size={15} />
+        </button>
+      </span>
 
       {/* Breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-muted)' }}>
@@ -836,6 +839,7 @@ export default function AppShell({ onLogout }) {
           elle recouvre le bloc utilisateur (compte + déconnexion) en bas du drawer. */}
       {mobileOpen && (
         <div
+          className="lg:hidden"
           style={{ position: 'fixed', inset: 0, zIndex: 124, background: 'rgba(15,27,45,0.4)', backdropFilter: 'blur(2px)' }}
           onClick={() => setMobileOpen(false)}
         />
