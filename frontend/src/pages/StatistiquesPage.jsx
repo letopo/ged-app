@@ -39,9 +39,9 @@ function KpiCard({ label, value, delta, deltaLabel }) {
   const Icon   = isUp ? ArrowUpRight : isDown ? ArrowDownRight : Minus;
   const color  = isUp ? 'var(--success)' : isDown ? 'var(--danger)' : 'var(--fg-muted)';
   return (
-    <div className="ged-card" style={{ padding:'16px 20px', flex:1 }}>
+    <div className="ged-card stats-kpi">
       <div style={{ fontSize:12, color:'var(--fg-muted)', marginBottom:6, fontWeight:500 }}>{label}</div>
-      <div style={{ fontSize:34, fontWeight:700, color:'var(--fg)', letterSpacing:'-1px', lineHeight:1.1, marginBottom:6 }}>{value}</div>
+      <div className="stats-kpi-value" style={{ fontWeight:700, color:'var(--fg)', letterSpacing:'-1px', lineHeight:1.1, marginBottom:6 }}>{value}</div>
       {deltaLabel && (
         <div style={{ display:'inline-flex', alignItems:'center', gap:3, fontSize:12, color, fontWeight:500 }}>
           <Icon size={13} />{deltaLabel}
@@ -63,7 +63,7 @@ function QLabel({ n, topic }) {
 // ── Insight card wrapper ──────────────────────────────────────────────────────
 function InsightCard({ children, style }) {
   return (
-    <div className="ged-card" style={{ padding:'20px 24px', ...style }}>
+    <div className="ged-card stats-insight" style={style}>
       {children}
     </div>
   );
@@ -201,10 +201,10 @@ function ExplorerView({ data }) {
   const measureLabel = MEASURES.find(m => m.id === activeMeasure)?.label || '';
 
   return (
-    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+    <div className="stats-explorer">
 
       {/* ── Left panel ────────────────────────────────────────────────────── */}
-      <div className="ged-card" style={{ width: 210, flexShrink: 0, padding: '16px 0' }}>
+      <div className="ged-card stats-explorer-side">
         {/* Dimensions */}
         <div style={{ padding: '0 16px', marginBottom: 12 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10 }}>Dimensions</div>
@@ -308,8 +308,8 @@ function ExplorerView({ data }) {
                 : activeMeasure === 'approuves' ? (d.value >= 80 ? '#3DBE7A' : d.value >= 60 ? '#F0B429' : '#E05252')
                 : '#4A90D9';
               return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ width: 120, textAlign: 'right', fontSize: 13, color: 'var(--fg)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div key={i} className="stats-bar-row">
+                  <div className="stats-bar-label" style={{ textAlign: 'right', fontSize: 13, color: 'var(--fg)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {d.name}
                   </div>
                   <div style={{ flex: 1, height: 32, background: 'var(--surface-3)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
@@ -492,15 +492,15 @@ export default function StatistiquesPage() {
   const maxContrib = contribs[0]?.count || 1;
 
   return (
-    <div style={{ maxWidth:1200, margin:'0 auto', padding:'0 24px 48px' }} className="animate-pageFade">
+    <div className="stats-page animate-pageFade">
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:28, paddingTop:4 }}>
+      <div className="stats-header">
         <div>
           <h1 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 4px', letterSpacing:'-0.3px' }}>Statistiques</h1>
           <div style={{ fontSize:13, color:'var(--fg-muted)' }}>{view === 'explorer' ? 'Construisez votre rapport — glissez les champs' : 'Insights éditoriaux générés depuis vos données'}</div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        <div className="stats-actions">
           {/* Insights / Explorer toggle */}
           <div style={{ display:'flex', border:'1px solid var(--border)', borderRadius:'var(--radius-2)', overflow:'hidden' }}>
             {[{id:'insights',label:'Insights'},{id:'explorer',label:'Explorer'}].map(v => (
@@ -533,7 +533,7 @@ export default function StatistiquesPage() {
       </div>
 
       {/* ── KPI row ───────────────────────────────────────────────────────── */}
-      <div style={{ display:'flex', gap:14, marginBottom:20 }}>
+      <div className="stats-kpis">
         <KpiCard label="Documents actifs"   value={totalDocs}           delta={docsDelta}     deltaLabel={docsDeltaLabel} />
         <KpiCard label="Taux d'approbation" value={`${approvalRate}%`}  delta={approvalDelta} deltaLabel={approvalDeltaLabel} />
         <KpiCard label="Délai moyen"        value={avgDelay ? `${avgDelay}j` : '—'} delta={null} deltaLabel={null} />
@@ -571,7 +571,7 @@ export default function StatistiquesPage() {
       </InsightCard>
 
       {/* ── Row: Q2 + Q3 ─────────────────────────────────────────────────── */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:20 }}>
+      <div className="stats-2col">
 
         {/* Question 2 · MIX */}
         <InsightCard>

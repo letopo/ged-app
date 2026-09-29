@@ -123,7 +123,7 @@ function HeroCard({ task, onApprove }) {
             {doc.category ? ` · ${doc.category}` : ''}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div className="dash-hero-actions">
           {doc.id && (
             <Link
               to={`/documents/${doc.id}`}
@@ -493,7 +493,7 @@ function ActivityFeed({ documents }) {
                   borderBottom: i < group.items.length - 1 ? '1px solid var(--surface-3)' : 'none',
                 }}>
                   <Avatar text={initials(doc)} idx={i} size={28} />
-                  <div style={{ flex: 1, fontSize: 12.5 }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflowWrap: 'anywhere' }}>
                     <span style={{ fontWeight: 600, color: 'var(--fg)' }}>
                       {who ? `${who.firstName} ${who.lastName}` : t('Système')}
                     </span>{' '}
@@ -598,10 +598,10 @@ const Dashboard = () => {
   const orgName = user?.Service?.name || 'Hôpital Saint-Jean-de-Malte';
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 40px' }} className="animate-pageFade">
+    <div className="stats-page animate-pageFade" style={{ maxWidth: 1100 }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, paddingTop: 4 }}>
+      <div className="stats-header dash-header" style={{ marginBottom: 24 }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-subtle)', letterSpacing: '0.6px',
             textTransform: 'uppercase', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>

@@ -353,6 +353,76 @@
   .dashboard-2col { grid-template-columns: 1fr; }
 }
 
+/* Statistiques + tableau de bord Workflow — en-tête, KPI, grilles et Explorer adaptés au mobile */
+.stats-page     { max-width: 1200px; margin: 0 auto; padding: 0 24px 48px; }
+.stats-header   { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 28px; padding-top: 4px; }
+.stats-actions  { display: flex; align-items: center; gap: 8px; }
+.stats-kpis     { display: flex; gap: 14px; margin-bottom: 20px; }
+.stats-kpi      { flex: 1; min-width: 0; padding: 16px 20px; }
+.stats-kpi-value { font-size: 34px; }
+.stats-insight  { padding: 20px 24px; min-width: 0; }
+.stats-2col     { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.stats-explorer { display: flex; gap: 20px; align-items: flex-start; }
+.stats-explorer-side { width: 210px; flex-shrink: 0; padding: 16px 0; }
+.stats-bar-row  { display: flex; align-items: center; gap: 14px; }
+.stats-bar-label { width: 120px; }
+.wf-filter-menu { right: 0; }
+/* Tableau de bord — boutons de la carte « À traiter maintenant » */
+.dash-hero-actions { display: flex; gap: 8px; flex-shrink: 0; }
+/* Utilisateurs — formulaire Prénom/Nom */
+.um-name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+/* Archives — colonne de filtres + lignes de documents */
+.archives-side  { width: 230px; flex-shrink: 0; display: flex; flex-direction: column; }
+.archives-filter-toggle { display: none; }
+.archives-row   { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+.archives-row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+@media (max-width: 860px) {
+  .stats-page     { padding: 0 16px 32px; }
+  .stats-header   { flex-direction: column; margin-bottom: 20px; }
+  .stats-actions  { flex-wrap: wrap; }
+  .stats-kpis     { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stats-kpi      { padding: 12px 14px; }
+  .stats-kpi-value { font-size: 24px; }
+  .stats-insight  { padding: 16px; }
+  .stats-2col     { grid-template-columns: 1fr; }
+  .stats-explorer { flex-direction: column; align-items: stretch; gap: 12px; }
+  .stats-explorer-side { width: 100%; }
+  .stats-bar-row  { gap: 8px; }
+  .stats-bar-label { width: 80px; font-size: 12px !important; }
+  /* Filtres passés sous le titre, alignés à gauche : le menu s'ouvre vers la droite */
+  .wf-filter-menu { right: auto; left: 0; }
+  /* Archives : filtres au-dessus (Type/Période/Auteur repliables), résultats pleine largeur dessous */
+  .archives-side  { width: 100%; }
+  .archives-filter-toggle { display: inline-flex; }
+  .archives-filters:not(.is-open) { display: none; }
+  .archives-row   { flex-wrap: wrap; gap: 10px 12px; padding: 12px; }
+  .archives-row-actions { width: 100%; justify-content: flex-end; }
+
+  /* Utilisateurs : chaque ligne du tableau devient une carte
+     [case | nom + email | …] puis rôle, signature/cachet, présence · activité */
+  .um-table thead { display: none; }
+  .um-table, .um-table tbody { display: block; }
+  .um-table tr {
+    display: grid; grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: center; column-gap: 6px; row-gap: 6px; padding: 12px;
+  }
+  .um-table td { display: block; padding: 0 !important; width: auto !important; }
+  .um-table .um-td-check   { grid-column: 1; grid-row: 1; }
+  .um-table .um-td-user    { grid-column: 2; grid-row: 1; }
+  .um-table .um-td-actions { grid-column: 3; grid-row: 1; }
+  .um-table .um-td-meta    { grid-column: 2 / -1; }
+  /* Présence à gauche, dernière activité à droite, sur la même ligne */
+  .um-table .um-td-presence { grid-column: 2; }
+  .um-table .um-td-activity { grid-column: 3; text-align: right; }
+  .um-name-grid { grid-template-columns: 1fr; }
+
+  /* Tableau de bord : Actualiser reste en haut à droite, boutons de la carte en pleine largeur */
+  .dash-header { flex-direction: row; }
+  .dash-header > div:first-child { min-width: 0; }
+  .dash-hero-actions { width: 100%; }
+  .dash-hero-actions > * { flex: 1; justify-content: center; }
+}
+
 /* Documents — liste + sidebar "Nouveau document" empilées sur mobile */
 .doclist-2col { display: grid; grid-template-columns: 1fr 260px; gap: 20px; align-items: start; }
 @media (max-width: 860px) {

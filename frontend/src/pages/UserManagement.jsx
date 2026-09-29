@@ -65,12 +65,12 @@ const tdStyle    = { padding: '11px 14px', verticalAlign: 'middle' };
 function Modal({ title, onClose, children, footer }) {
   return ReactDOM.createPortal(
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 440, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 440, maxHeight: 'calc(100dvh - 32px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{title}</h2>
           <button onClick={onClose} style={{ ...iconBtn }}><X size={16} /></button>
         </div>
-        <div style={{ padding: 18 }}>{children}</div>
+        <div style={{ padding: 18, overflowY: 'auto', minHeight: 0 }}>{children}</div>
         {footer && (
           <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             {footer}
@@ -346,10 +346,10 @@ const UserManagement = () => {
   );
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 40px' }} className="animate-pageFade">
+    <div className="stats-page um-page animate-pageFade">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, paddingTop: 4 }}>
+      <div className="stats-header" style={{ marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: '0 0 4px', letterSpacing: '-0.3px' }}>
             {t('Utilisateurs')}
@@ -366,7 +366,7 @@ const UserManagement = () => {
       {/* ── Filter bar ─────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         {/* Search */}
-        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 200 }}>
+        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 0 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} />
           <input
             type="text"
@@ -397,7 +397,7 @@ const UserManagement = () => {
 
       {/* ── Table ──────────────────────────────────────────────────────── */}
       <div className="ged-card" style={{ overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="um-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--surface-2)' }}>
               <th style={{ ...thStyle, width: 40, paddingRight: 4 }}>
@@ -426,27 +426,27 @@ const UserManagement = () => {
                   onMouseLeave={e => { if (!isChecked) e.currentTarget.style.background = 'var(--surface)'; }}
                 >
                   {/* Checkbox */}
-                  <td style={{ ...tdStyle, width: 40, paddingRight: 4 }}>
+                  <td className="um-td-check" style={{ ...tdStyle, width: 40, paddingRight: 4 }}>
                     <input type="checkbox" checked={isChecked}
                       onChange={() => setSelected(s => { const n = new Set(s); n.has(u.id) ? n.delete(u.id) : n.add(u.id); return n; })}
                       style={{ cursor: 'pointer', width: 14, height: 14 }} />
                   </td>
 
                   {/* Utilisateur */}
-                  <td style={tdStyle}>
+                  <td className="um-td-user" style={tdStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 34, height: 34, borderRadius: '50%', background: bg, color: ac, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                         {initials}
                       </div>
-                      <div>
+                      <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)' }}>{u.firstName} {u.lastName}</div>
-                        <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{u.email}</div>
+                        <div style={{ fontSize: 11, color: 'var(--fg-muted)', overflowWrap: 'anywhere' }}>{u.email}</div>
                       </div>
                     </div>
                   </td>
 
                   {/* Rôle · Service */}
-                  <td style={tdStyle}>
+                  <td className="um-td-meta" style={tdStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', fontSize: 11, fontWeight: 600, background: role.bg, color: role.color }}>
                         {t(role.label)}
@@ -458,7 +458,7 @@ const UserManagement = () => {
                   </td>
 
                   {/* Signature / Cachet */}
-                  <td style={tdStyle}>
+                  <td className="um-td-meta" style={tdStyle}>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -480,7 +480,7 @@ const UserManagement = () => {
                   </td>
 
                   {/* Présence */}
-                  <td style={tdStyle}>
+                  <td className="um-td-presence" style={tdStyle}>
                     <button
                       onClick={() => handleToggleAbsence(u)}
                       title={u.isAbsent ? t('Cliquer pour repasser en ligne') : t('Cliquer pour se mettre absent')}
@@ -497,12 +497,12 @@ const UserManagement = () => {
                   </td>
 
                   {/* Dernière activité */}
-                  <td style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>
+                  <td className="um-td-activity" style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>
                     {relativeTime(u.lastLogin || u.updatedAt)}
                   </td>
 
                   {/* Actions */}
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  <td className="um-td-actions" style={{ ...tdStyle, textAlign: 'right' }}>
                     <ActionMenu
                       u={u}
                       onEdit={() => handleEdit(u)}
@@ -589,7 +589,7 @@ const UserManagement = () => {
             <button form="user-form" type="submit" style={btnPrimary}>{t('Sauvegarder')}</button>
           </>}>
           <form id="user-form" onSubmit={handleSave}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div className="um-name-grid">
               <div>
                 <label style={labelStyle}>{t('Prénom')}</label>
                 <input type="text" required placeholder={t('Prénom')} value={modalData.firstName || ''}
