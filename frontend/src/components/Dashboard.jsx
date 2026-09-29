@@ -643,19 +643,27 @@ const Dashboard = () => {
         urgent:   pending.filter(d => Math.floor((Date.now() - new Date(d.createdAt)) / 86400000) >= 2).length,
       });
       // 7 derniers jours : créations, arrivées encore en validation, approbations
-      // (date d'approbation ≈ dernière modification du document approuvé)
+      // (date d'approbation = date réelle de la dernière validation du circuit)
       const days = lastDays(7);
+      // Dates de décision réelles (circuit de validation). Repli, si la route ne répond
+      // pas : date de dernière modification des documents approuvés / rejetés.
+      let decisions;
+      try {
+        decisions = (await documentsAPI.getRecentDecisions(7)).data.decisions || [];
+      } catch {
+        decisions = docs.filter(d => ['approved', 'rejected'].includes(d.status) && d.updatedAt && daysSince(d.updatedAt) < 7)
+          .map(d => ({ documentId: d.id, status: d.status, decidedAt: d.updatedAt, userId: d.userId ?? d.uploadedBy?.id }));
+      }
       setSeries({
         total:    dailyCounts(docs, 'createdAt', days),
         pending:  dailyCounts(pending, 'createdAt', days),
-        approved: dailyCounts(docs.filter(d => d.status === 'approved'), 'updatedAt', days),
+        approved: dailyCounts(decisions.filter(d => d.status === 'approved'), 'decidedAt', days),
       });
-      // Mes documents approuvés / rejetés ces 7 derniers jours (≈ date de dernière modification)
-      const mineThisWeek = docs.filter(d =>
-        (d.userId === user.id || d.uploadedBy?.id === user.id) && d.updatedAt && daysSince(d.updatedAt) < 7);
+      // Mes documents approuvés / rejetés ces 7 derniers jours
+      const mine = decisions.filter(d => d.userId === user.id && daysSince(d.decidedAt) < 7);
       setOwnWeek({
-        approved: mineThisWeek.filter(d => d.status === 'approved').length,
-        rejected: mineThisWeek.filter(d => d.status === 'rejected').length,
+        approved: mine.filter(d => d.status === 'approved').length,
+        rejected: mine.filter(d => d.status === 'rejected').length,
       });
       setRecentDocuments([...docs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10));
       try {

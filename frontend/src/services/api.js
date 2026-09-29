@@ -224,6 +224,7 @@ export const documentsAPI = {
   getValidatedDemandesTravaux: () => api.get('/documents/demandes-travaux/valides'),
   getNextNumero: (category) => api.get(`/documents/next-numero?category=${encodeURIComponent(category)}`),
   getArchives: () => api.get('/documents/archives'),
+  getRecentDecisions: (days = 7) => api.get('/documents/recent-decisions', { params: { days } }),
   archive: (id) => api.patch(`/documents/${id}/archive`),
   unarchive: (id) => api.patch(`/documents/${id}/unarchive`),
   // OnlyOffice

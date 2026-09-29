@@ -17,6 +17,7 @@ import {
   unarchiveDocument,
   getArchivedDocuments,
   getPieceDeCaisseHistory,
+  getRecentDecisions,
 } from '../controllers/documentController.js';
 import { Document, User, Workflow } from '../models/index.js';
 import { Op } from 'sequelize'; // ✅ AJOUT IMPORTANT
@@ -181,6 +182,11 @@ router.get('/archives', protect, getArchivedDocuments);
 // @desc    Historique des Pièces de caisse payées (rapport caissière), filtrable par date
 // @access  Private (caissier/admin)
 router.get('/piece-de-caisse-history', protect, getPieceDeCaisseHistory);
+
+// @route   GET /api/documents/recent-decisions?days=7
+// @desc    Dates réelles d'approbation finale / de rejet (circuit) des documents visibles
+// @access  Private
+router.get('/recent-decisions', protect, getRecentDecisions);
 
 // @route   GET /api/documents/categories
 // @desc    Retourne la liste distincte des catégories (léger, sans charger tous les docs)
