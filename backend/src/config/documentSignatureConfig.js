@@ -151,6 +151,23 @@ export const SIGNATURE_CONFIGS = {
     layout: 'horizontal'
   },
 
+  // Configuration de secours pour la Demande d'explication (utilisée seulement
+  // si document.metadata.signatureZones est absent — normalement les zones sont
+  // calculées dynamiquement depuis le DOM à la création, cf. CreateFromTemplate.jsx).
+  // 1 seule zone de signature (Le Directeur Général), en bas à droite.
+  "Demande d'explication": {
+    numberOfSignatures: 1,
+    signatureY: 165,
+    stampY: 200,
+    signatureWidth: 140,
+    signatureHeight: 55,
+    stampWidth: 80,
+    stampHeight: 80,
+    blockWidth: 150,
+    margin: 390,
+    layout: 'horizontal'
+  },
+
   // Configuration par défaut
   'default': {
     numberOfSignatures: 3,
