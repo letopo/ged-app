@@ -224,6 +224,7 @@ const EmployeeManagement = () => {
                 { key: 'matricule', label: 'Matricule' },
                 { key: 'lastName', label: 'Nom & Prénom' },
                 { key: 'service', label: 'Service' },
+                { key: 'categorie', label: 'Catégorie' },
                 { key: 'dateNaissance', label: 'Date Naissance' },
                 { key: 'sexe', label: 'Sexe' },
               ].map(col => (
@@ -264,6 +265,11 @@ const EmployeeManagement = () => {
                 <td style={tdStyle}>
                   <span style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
                     {employee.service?.name}
+                  </span>
+                </td>
+                <td style={tdStyle}>
+                  <span style={{ fontSize: 13, color: employee.categorie ? 'var(--fg-muted)' : 'var(--fg-subtle)' }}>
+                    {employee.categorie || '—'}
                   </span>
                 </td>
                 <td style={{ ...tdStyle, fontSize: 13, color: 'var(--fg-muted)' }}>

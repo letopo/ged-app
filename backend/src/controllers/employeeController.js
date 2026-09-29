@@ -106,12 +106,14 @@ export const createEmployee = async (req, res, next) => {
       childrenCount,
       matricule,
       maritalStatus,
-      serviceId
+      serviceId,
+      userId,
+      categorie
     } = req.body;
 
     // Validation des champs requis
-    if (!firstName || !lastName || !birthDate || !birthPlace || !gender || 
-        !matricule || !maritalStatus || !serviceId) {
+    if (!firstName || !lastName || !birthDate || !birthPlace || !gender ||
+      !matricule || !maritalStatus || !serviceId) {
       return res.status(400).json({ success: false, error: 'Tous les champs sont requis' });
     }
 
@@ -121,6 +123,19 @@ export const createEmployee = async (req, res, next) => {
       return res.status(409).json({ success: false, error: 'Matricule déjà utilisé' });
     }
 
+    // Compte utilisateur optionnel : vérifier l'unicité seulement s'il est renseigné
+    if (userId) {
+      const existingUserEmployee = await Employee.findOne({
+        where: { userId }
+      });
+
+      if (existingUserEmployee) {
+        return res.status(409).json({
+          success: false,
+          error: 'Ce compte utilisateur est déjà associé à un employé'
+        });
+      }
+    }
     // Vérifier si le service existe
     const service = await Service.findByPk(serviceId);
     if (!service) {
@@ -136,7 +151,9 @@ export const createEmployee = async (req, res, next) => {
       childrenCount: childrenCount || 0,
       matricule,
       maritalStatus,
-      serviceId
+      serviceId,
+      userId: userId || null,
+      categorie: categorie || null
     });
 
     const employeeWithService = await Employee.findByPk(employee.id, {
@@ -181,6 +198,8 @@ export const updateEmployee = async (req, res, next) => {
       matricule,
       maritalStatus,
       serviceId,
+      userId,
+      categorie,
       isActive
     } = req.body;
 
@@ -203,7 +222,24 @@ export const updateEmployee = async (req, res, next) => {
       }
       employee.serviceId = serviceId;
     }
+    // Vérifier l'unicité du compte utilisateur si modifié
+    if (userId !== undefined && userId !== employee.userId) {
+      const existingUserEmployee = await Employee.findOne({
+        where: {
+          userId,
+          id: { [Op.ne]: employee.id }
+        }
+      });
 
+      if (existingUserEmployee) {
+        return res.status(409).json({
+          success: false,
+          error: 'Ce compte utilisateur est déjà associé à un autre employé'
+        });
+      }
+
+      employee.userId = userId || null;
+    }
     // Mettre à jour les autres champs
     if (firstName !== undefined) employee.firstName = firstName;
     if (lastName !== undefined) employee.lastName = lastName;
@@ -213,7 +249,7 @@ export const updateEmployee = async (req, res, next) => {
     if (childrenCount !== undefined) employee.childrenCount = childrenCount;
     if (maritalStatus !== undefined) employee.maritalStatus = maritalStatus;
     if (isActive !== undefined) employee.isActive = isActive;
-
+    if (categorie !== undefined) employee.categorie = categorie;
     await employee.save();
 
     const updatedEmployee = await Employee.findByPk(employee.id, {

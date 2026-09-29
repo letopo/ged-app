@@ -1,17 +1,18 @@
 // frontend/src/components/AddEmployeeModal.jsx
 import React, { useState, useEffect } from 'react';
-import { employeesAPI, servicesAPI } from '../services/api';
+import { employeesAPI, servicesAPI, usersAPI, missionMealAPI } from '../services/api';
 import { Loader, X } from 'lucide-react';
 
 const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', birthDate: '', birthPlace: '',
-    gender: '', childrenCount: 0, matricule: '', maritalStatus: '', serviceId: ''
+    firstName: '', lastName: '', birthDate: '', birthPlace: '', gender: '',
+    childrenCount: 0, matricule: '', maritalStatus: '', serviceId: '', userId: '', categorie: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [services, setServices] = useState(initialServices || []);
-
+  const [users, setUsers] = useState([]);
+  const [categories, setCategories] = useState([]);
   const isEditing = !!employee;
 
   useEffect(() => {
@@ -31,17 +32,53 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
   }, [services.length]);
 
   useEffect(() => {
+    const loadUsersAndCategories = async () => {
+      try {
+        const [usersResponse, categoriesResponse] = await Promise.all([
+          usersAPI.getAll(),
+          missionMealAPI.get()
+        ]);
+
+        // Utilisateurs GED
+        const usersData =
+          usersResponse.data?.users ||
+          usersResponse.data?.data ||
+          usersResponse.data ||
+          [];
+
+        setUsers(Array.isArray(usersData) ? usersData : []);
+
+        // Catégories de mission (barème repas : GET /mission-meal-rates -> { data: { rates, thresholds } })
+        const categoriesData = categoriesResponse.data?.data?.rates || [];
+
+        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+
+      } catch (err) {
+        console.error('Erreur chargement utilisateurs/catégories:', err);
+        setUsers([]);
+        setCategories([]);
+      }
+    };
+
+    loadUsersAndCategories();
+  }, []);
+
+  useEffect(() => {
     if (employee) {
       setFormData({
         firstName: employee.firstName || '',
         lastName: employee.lastName || '',
-        birthDate: employee.birthDate ? employee.birthDate.split('T')[0] : '',
+        birthDate: employee.birthDate
+          ? employee.birthDate.split('T')[0]
+          : '',
         birthPlace: employee.birthPlace || '',
         gender: employee.gender || '',
         childrenCount: employee.childrenCount || 0,
         matricule: employee.matricule || '',
         maritalStatus: employee.maritalStatus || '',
-        serviceId: employee.serviceId || ''
+        serviceId: employee.serviceId || '',
+        userId: employee.userId || '',
+        categorie: employee.categorie || ''
       });
     }
   }, [employee]);
@@ -147,6 +184,72 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
                 <label style={labelStyle}>Nombre d'enfants</label>
                 <input type="number" name="childrenCount" value={formData.childrenCount} onChange={handleChange}
                   min="0" max="20" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Compte utilisateur GED</label>
+
+                <select
+                  name="userId"
+                  value={formData.userId}
+                  onChange={handleChange}
+                  style={inputStyle}
+                >
+                  <option value="">Aucun</option>
+
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName}
+                      {user.username ? ` (${user.username})` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {users.length === 0 && (
+                  <p style={{
+                    fontSize: 12,
+                    color: 'var(--fg-muted)',
+                    marginTop: 4
+                  }}>
+                    Aucun utilisateur disponible
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label style={labelStyle}>Catégorie de mission</label>
+
+                <select
+                  name="categorie"
+                  value={formData.categorie}
+                  onChange={handleChange}
+                  style={inputStyle}
+                >
+                  <option value="">Aucune</option>
+
+                  {categories.map(category => {
+                    const label =
+                      category.categorie ||
+                      category.category ||
+                      category.label ||
+                      category.name;
+
+                    return (
+                      <option key={label} value={label}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {categories.length === 0 && (
+                  <p style={{
+                    fontSize: 12,
+                    color: 'var(--fg-muted)',
+                    marginTop: 4
+                  }}>
+                    Aucune catégorie disponible
+                  </p>
+                )}
               </div>
             </div>
           </div>
