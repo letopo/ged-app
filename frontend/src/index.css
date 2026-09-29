@@ -369,6 +369,15 @@
 .wf-filter-menu { right: 0; }
 /* Tableau de bord — boutons de la carte « À traiter maintenant » */
 .dash-hero-actions { display: flex; gap: 8px; flex-shrink: 0; }
+/* Upload — assistant en 3 étapes */
+.upl-topbar   { padding: 0 32px; }
+.upl-content  { padding: 40px 24px; }
+.upl-title    { font-size: 28px; }
+.upl-drop     { padding: 56px 24px; }
+.upl-card     { padding: 24px; }
+.upl-2col     { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.upl-step-line { margin: 0 12px; min-width: 32px; }
+.upl-mobile-hint { display: flex; }
 /* Utilisateurs — formulaire Prénom/Nom */
 .um-name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 /* Archives — colonne de filtres + lignes de documents */
@@ -421,6 +430,19 @@
   .dash-header > div:first-child { min-width: 0; }
   .dash-hero-actions { width: 100%; }
   .dash-hero-actions > * { flex: 1; justify-content: center; }
+
+  /* Upload : barre d'étapes compacte (seul le libellé de l'étape en cours reste
+     affiché), une colonne, carte « app mobile » masquée puisqu'on y est déjà */
+  .upl-topbar   { padding: 0 16px; }
+  .upl-content  { padding: 20px 16px; }
+  .upl-title    { font-size: 22px; }
+  .upl-drop     { padding: 36px 16px; }
+  .upl-card     { padding: 16px; }
+  .upl-2col     { grid-template-columns: 1fr; gap: 16px; }
+  .upl-steps    { margin-bottom: 24px !important; }
+  .upl-step-label:not(.is-active) { display: none; }
+  .upl-step-line { margin: 0 8px; min-width: 12px; }
+  .upl-mobile-hint { display: none; }
 }
 
 /* Documents — liste + sidebar "Nouveau document" empilées sur mobile */
