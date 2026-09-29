@@ -2088,5 +2088,16 @@
   "Aucune nouveauté pour le moment.": "لا توجد مستجدات حالياً.",
   "Navigation principale": "التنقل الرئيسي",
   "7 derniers jours": "آخر 7 أيام",
-  "{{count}} cette semaine": "{{count}} هذا الأسبوع"
+  "{{count}} cette semaine": "{{count}} هذا الأسبوع",
+  "À traiter en priorité": "للمعالجة بأولوية",
+  "Synthèse du jour": "ملخص اليوم",
+  "{{count}} document(s) attendent votre validation, dont {{late}} depuis plus de {{days}} jours.": "{{count}} وثيقة بانتظار مصادقتك، منها {{late}} منذ أكثر من {{days}} أيام.",
+  "{{count}} document(s) attendent votre validation.": "{{count}} وثيقة بانتظار مصادقتك.",
+  "Rien à valider pour le moment.": "لا شيء للمصادقة حالياً.",
+  "Le plus ancien, « {{title}} », attend depuis {{days}} jour(s).": "الأقدم، «{{title}}»، ينتظر منذ {{days}} يوم.",
+  "{{count}} de vos documents rejeté(s) cette semaine : pensez à les corriger.": "{{count}} من وثائقك رُفضت هذا الأسبوع: يرجى تصحيحها.",
+  "{{count}} de vos documents approuvé(s) cette semaine.": "{{count}} من وثائقك تمت الموافقة عليها هذا الأسبوع.",
+  "Tout est à jour. Bonne journée !": "كل شيء محدّث. يوماً سعيداً!",
+  "Voir mes tâches": "عرض مهامي",
+  "Voir les documents rejetés": "عرض الوثائق المرفوضة"
 }

@@ -2088,5 +2088,16 @@
   "Aucune nouveauté pour le moment.": "Todavía no hay novedades.",
   "Navigation principale": "Navegación principal",
   "7 derniers jours": "Últimos 7 días",
-  "{{count}} cette semaine": "{{count}} esta semana"
+  "{{count}} cette semaine": "{{count}} esta semana",
+  "À traiter en priorité": "Prioritario",
+  "Synthèse du jour": "Resumen del día",
+  "{{count}} document(s) attendent votre validation, dont {{late}} depuis plus de {{days}} jours.": "{{count}} documento(s) esperan su validación, {{late}} desde hace más de {{days}} días.",
+  "{{count}} document(s) attendent votre validation.": "{{count}} documento(s) esperan su validación.",
+  "Rien à valider pour le moment.": "Nada que validar por ahora.",
+  "Le plus ancien, « {{title}} », attend depuis {{days}} jour(s).": "El más antiguo, «{{title}}», espera desde hace {{days}} día(s).",
+  "{{count}} de vos documents rejeté(s) cette semaine : pensez à les corriger.": "{{count}} de sus documentos rechazado(s) esta semana: recuerde corregirlos.",
+  "{{count}} de vos documents approuvé(s) cette semaine.": "{{count}} de sus documentos aprobado(s) esta semana.",
+  "Tout est à jour. Bonne journée !": "Todo está al día. ¡Buen día!",
+  "Voir mes tâches": "Ver mis tareas",
+  "Voir les documents rejetés": "Ver documentos rechazados"
 }

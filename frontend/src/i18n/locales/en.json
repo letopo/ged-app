@@ -2088,5 +2088,16 @@
   "Aucune nouveauté pour le moment.": "No updates yet.",
   "Navigation principale": "Main navigation",
   "7 derniers jours": "Last 7 days",
-  "{{count}} cette semaine": "{{count}} this week"
+  "{{count}} cette semaine": "{{count}} this week",
+  "À traiter en priorité": "Needs attention",
+  "Synthèse du jour": "Today's summary",
+  "{{count}} document(s) attendent votre validation, dont {{late}} depuis plus de {{days}} jours.": "{{count}} document(s) awaiting your approval, {{late}} of them for more than {{days}} days.",
+  "{{count}} document(s) attendent votre validation.": "{{count}} document(s) awaiting your approval.",
+  "Rien à valider pour le moment.": "Nothing to approve right now.",
+  "Le plus ancien, « {{title}} », attend depuis {{days}} jour(s).": "The oldest, “{{title}}”, has been waiting for {{days}} day(s).",
+  "{{count}} de vos documents rejeté(s) cette semaine : pensez à les corriger.": "{{count}} of your documents rejected this week: remember to fix them.",
+  "{{count}} de vos documents approuvé(s) cette semaine.": "{{count}} of your documents approved this week.",
+  "Tout est à jour. Bonne journée !": "Everything is up to date. Have a good day!",
+  "Voir mes tâches": "View my tasks",
+  "Voir les documents rejetés": "View rejected documents"
 }

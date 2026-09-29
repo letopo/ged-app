@@ -10,6 +10,7 @@ const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import {
   Clock, CheckCircle, FileText, TrendingDown, TrendingUp,
   Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader, Hourglass,
+  AlertTriangle, Sparkles,
 } from 'lucide-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -151,6 +152,63 @@ function HeroCard({ task, onApprove }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Synthèse du jour ──────────────────────────────────────────────────────────
+// Carte façon « Exercise Ring Update » (app Santé) : une phrase-titre qui dit
+// quoi faire, quelques phrases de contexte, une action. Calculée uniquement sur
+// les tâches et documents déjà chargés pour l'utilisateur.
+
+const LATE_DAYS = 2;
+const daysSince = (v) => Math.floor((Date.now() - new Date(v)) / 86400000);
+
+function DailySummary({ tasks, own }) {
+  const { t } = useTranslation();
+  const ages = tasks.map(tk => daysSince(tk.createdAt || tk.document?.createdAt));
+  const late = ages.filter(d => d >= LATE_DAYS).length;
+  const oldestIdx = ages.length ? ages.indexOf(Math.max(...ages)) : -1;
+  const oldest = oldestIdx >= 0 ? { days: ages[oldestIdx], title: tasks[oldestIdx].document?.title } : null;
+
+  const tone = late > 0 ? 'late' : tasks.length > 0 ? 'todo' : 'calm';
+  const TONES = {
+    late: { color: 'var(--warning)', icon: AlertTriangle, label: t('À traiter en priorité') },
+    todo: { color: 'var(--brand)',   icon: Clock,         label: t('Synthèse du jour') },
+    calm: { color: 'var(--success)', icon: Sparkles,      label: t('Synthèse du jour') },
+  };
+  const { color, icon: Icon, label } = TONES[tone];
+
+  const headline = tone === 'late'
+    ? t('{{count}} document(s) attendent votre validation, dont {{late}} depuis plus de {{days}} jours.', { count: tasks.length, late, days: LATE_DAYS })
+    : tone === 'todo'
+      ? t('{{count}} document(s) attendent votre validation.', { count: tasks.length })
+      : t('Rien à valider pour le moment.');
+
+  const lines = [];
+  if (oldest && oldest.days >= 1 && oldest.title) lines.push(t('Le plus ancien, « {{title}} », attend depuis {{days}} jour(s).', { title: oldest.title, days: oldest.days }));
+  if (own.rejected > 0) lines.push(t('{{count}} de vos documents rejeté(s) cette semaine : pensez à les corriger.', { count: own.rejected }));
+  if (own.approved > 0) lines.push(t('{{count}} de vos documents approuvé(s) cette semaine.', { count: own.approved }));
+  if (lines.length === 0 && tone === 'calm') lines.push(t('Tout est à jour. Bonne journée !'));
+
+  const actions = [];
+  if (tasks.length > 0) actions.push({ to: '/my-tasks', label: t('Voir mes tâches'), primary: true });
+  if (own.rejected > 0) actions.push({ to: '/documents?status=rejected', label: t('Voir les documents rejetés') });
+
+  return (
+    <div className="ged-card dash-summary" style={{ '--summary-color': color }}>
+      <div className="dash-summary-label"><Icon size={14} strokeWidth={2.2} /> {label}</div>
+      <div className="dash-summary-headline">{headline}</div>
+      {lines.map((l, i) => <p key={i} className="dash-summary-line">{l}</p>)}
+      {actions.length > 0 && (
+        <div className="dash-summary-actions">
+          {actions.map(a => (
+            <Link key={a.to} to={a.to} className={a.primary ? 'dash-summary-btn is-primary' : 'dash-summary-btn'}>
+              {a.label} <ArrowRight size={13} />
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -557,6 +615,7 @@ const Dashboard = () => {
 
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, urgent: 0 });
   const [series, setSeries] = useState(null);
+  const [ownWeek, setOwnWeek] = useState({ approved: 0, rejected: 0 });
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [myTasks, setMyTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -590,6 +649,13 @@ const Dashboard = () => {
         total:    dailyCounts(docs, 'createdAt', days),
         pending:  dailyCounts(pending, 'createdAt', days),
         approved: dailyCounts(docs.filter(d => d.status === 'approved'), 'updatedAt', days),
+      });
+      // Mes documents approuvés / rejetés ces 7 derniers jours (≈ date de dernière modification)
+      const mineThisWeek = docs.filter(d =>
+        (d.userId === user.id || d.uploadedBy?.id === user.id) && d.updatedAt && daysSince(d.updatedAt) < 7);
+      setOwnWeek({
+        approved: mineThisWeek.filter(d => d.status === 'approved').length,
+        rejected: mineThisWeek.filter(d => d.status === 'rejected').length,
       });
       setRecentDocuments([...docs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10));
       try {
@@ -654,13 +720,6 @@ const Dashboard = () => {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>
             {getGreeting()}, {user?.firstName || user?.username}.
           </h1>
-          {myTasks.length > 0 && (
-            <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>
-              {t('Vous avez')}{' '}
-              <strong style={{ color: 'var(--warning)' }}>{t('{{count}} tâche(s) en attente', { count: myTasks.length })}</strong>
-              {stats.pending > 0 && ` ${t('et {{count}} document(s) à examiner.', { count: stats.pending })}`}
-            </div>
-          )}
         </div>
         <button onClick={loadData}
           style={{
@@ -674,6 +733,9 @@ const Dashboard = () => {
           {t('Actualiser')}
         </button>
       </div>
+
+      {/* Synthèse du jour */}
+      {!loading && <DailySummary tasks={myTasks} own={ownWeek} />}
 
       {/* Hero */}
       <HeroCard task={heroTask} onApprove={handleApprove} />
