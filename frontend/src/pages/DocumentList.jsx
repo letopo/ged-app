@@ -22,6 +22,12 @@ import { useFavorites } from '../hooks/useFavorites';
 import TemplatePermissionsModal from '../components/TemplatePermissionsModal';
 import MissionMealRatesModal from '../components/MissionMealRatesModal';
 
+// Types dont le circuit de validation est construit par le serveur (postes) : la
+// fenêtre « Soumettre » affiche le circuit imposé au lieu du choix libre des validateurs.
+// Demande d'explication : cf. backend utils/posteChain.js.
+const SERVER_CHAIN_CATEGORIES = ['Ordre de mission', 'Pièce de caisse', "Demande d'explication"];
+const isServerChainCategory = (category) => SERVER_CHAIN_CATEGORIES.includes(category);
+
 const DocumentList = () => {
   const { t } = useTranslation();
   const { lang } = useLanguage();
@@ -307,14 +313,16 @@ const DocumentList = () => {
 
     // Ordre de mission / Pièce de caisse : circuit construit côté serveur → on charge
     // l'aperçu (postes + titulaires) au lieu de la sélection manuelle des validateurs.
-    if (document.category === 'Ordre de mission' || document.category === 'Pièce de caisse') {
+    if (isServerChainCategory(document.category)) {
       setWorkflowTemplates([]);
       setAvailableUsers([]);
       setLoadingUsers(true);
       try {
         const res = document.category === 'Ordre de mission'
           ? await workflowAPI.getOrdreMissionPreview(document.id)
-          : await workflowAPI.getPieceDeCaisseChainPreview(document.id);
+          : document.category === 'Pièce de caisse'
+            ? await workflowAPI.getPieceDeCaisseChainPreview(document.id)
+            : await workflowAPI.getPosteChainPreview(document.id);
         const steps = res.data?.steps || [];
         setOmPreview({ steps });
         // Pré-remplir les postes à 1 titulaire
@@ -415,11 +423,8 @@ const DocumentList = () => {
   };
 
   const handleSubmitWorkflow = async () => {
-    const isOM = documentToSubmit?.category === 'Ordre de mission';
-    const isPC = documentToSubmit?.category === 'Pièce de caisse';
-
     let workflowData;
-    if (isOM || isPC) {
+    if (isServerChainCategory(documentToSubmit?.category)) {
       // Vérifier que chaque poste multi-titulaires a bien un titulaire choisi
       const steps = omPreview?.steps || [];
       const missing = steps.find(s => s.posteCode && !omSelections[s.posteCode]);
@@ -1063,7 +1068,7 @@ const DocumentList = () => {
               <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>{t('Document :')} <span style={{ fontWeight: 500 }}>{documentToSubmit?.title}</span></p>
 
               {/* Ordre de mission / Pièce de caisse : circuit auto + choix du titulaire si plusieurs */}
-              {(documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse') && (
+              {isServerChainCategory(documentToSubmit?.category) && (
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>{t('Circuit de validation')}</label>
                   {loadingUsers ? (
@@ -1117,7 +1122,7 @@ const DocumentList = () => {
                   </div>
                 </div>
               )}
-              <div style={{ display: (documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse') ? 'none' : undefined }}>
+              <div style={{ display: isServerChainCategory(documentToSubmit?.category) ? 'none' : undefined }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>{t("Sélectionnez les validateurs (dans l'ordre)")}</label>
                 {loadingUsers
                   ? <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}><Loader className="animate-spin" style={{ color: 'var(--brand)' }} /></div>
@@ -1198,7 +1203,7 @@ const DocumentList = () => {
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={handleCloseSubmitModal} disabled={submitLoading} style={{ padding: '7px 16px', background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13 }}>{t('Annuler')}</button>
               {(() => {
-                const isServerChainSubmit = documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse';
+                const isServerChainSubmit = isServerChainCategory(documentToSubmit?.category);
                 const submitDisabled = submitLoading || (isServerChainSubmit ? (!omPreview || !!omPreview.error) : selectedValidators.length === 0);
                 return (
               <button onClick={handleSubmitWorkflow} disabled={submitDisabled} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: submitDisabled ? 0.5 : 1 }}>
