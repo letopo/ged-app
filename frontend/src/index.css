@@ -487,6 +487,36 @@ a.kpi-card:active { transform: scale(0.98); }
 .kpi-card-sub { margin-top: 6px; font-size: 11px; display: flex; align-items: center; gap: 4px; }
 .kpi-bars { width: 72px; height: 36px; flex-shrink: 0; }
 
+/* Nouveautés — page d'historique + rédaction (admins) */
+.rn-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.rn-btn:disabled, .rn-btn-secondary:disabled { opacity: .6; cursor: default; }
+.rn-btn-secondary { height: 36px; padding: 0 14px; border-radius: var(--radius-2); border: 1px solid var(--border); background: var(--surface); color: var(--fg); font-size: 13px; font-weight: 500; cursor: pointer; }
+.rn-editor { max-width: 560px; }
+.rn-editor .rn-modal-foot { justify-content: flex-end; }
+.rn-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 24px 6px; }
+.rn-editor-head h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--fg); }
+.rn-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; flex: 1; min-width: 0; }
+.rn-field > span { font-size: 12px; font-weight: 600; color: var(--fg); }
+.rn-field > span em { font-style: normal; font-weight: 400; color: var(--fg-muted); }
+.rn-field input, .rn-field textarea, .rn-field select {
+  width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-2);
+  background: var(--surface-2); color: var(--fg); font-size: 13px; font-family: inherit; outline: none;
+}
+.rn-field input, .rn-field select { height: 38px; padding-top: 0; padding-bottom: 0; }
+.rn-field textarea { resize: vertical; line-height: 1.5; }
+.rn-field input:focus, .rn-field textarea:focus, .rn-field select:focus { border-color: var(--brand); }
+.rn-field-row { display: flex; gap: 12px; }
+.rn-hint { margin: -2px 0 14px; font-size: 12px; line-height: 1.5; color: var(--fg-muted); }
+.rn-preview { border: 1px dashed var(--border-strong); border-radius: var(--radius-3); padding: 12px 14px; }
+.rn-preview-label { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--fg-subtle); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.rn-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-full); background: var(--surface-3); color: var(--fg-muted); }
+.rn-tag.is-draft { background: var(--warning-soft, #FEF3C7); color: var(--warning, #B45309); }
+.rn-section-label { font-size: 11px; font-weight: 700; color: var(--fg-subtle); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; font-family: var(--font-mono); }
+.rn-card-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--fg-subtle); }
+.rn-card-actions span { margin-right: auto; }
+.rn-card-actions button { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: none; background: none; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--brand); font-family: inherit; }
+.rn-card-actions button.is-danger { color: var(--danger); }
+
 /* Tableau de bord — boutons de la carte « À traiter maintenant » */
 .dash-hero-actions { display: flex; gap: 8px; flex-shrink: 0; }
 /* Upload — assistant en 3 étapes */
@@ -578,6 +608,9 @@ a.kpi-card:active { transform: scale(0.98); }
   .rn-modal-head { padding: 20px 18px 10px; }
   .rn-modal-body { padding: 6px 18px 14px; }
   .rn-modal-foot { padding: 12px 18px; }
+  .rn-editor-head { padding: 16px 18px 4px; }
+  .rn-field-row { flex-direction: column; gap: 0; }
+  .rn-editor .rn-modal-foot > * { flex: 1; }
 }
 
 /* Documents — liste + sidebar "Nouveau document" empilées sur mobile */

@@ -193,6 +193,15 @@ export const onRightsChanged = (callback) => {
 // ============================================
 // API pour l'Authentification
 // ============================================
+// Nouveautés rédigées depuis l'application (page Nouveautés, admins)
+export const releaseNotesAPI = {
+  list:      () => api.get('/release-notes'),
+  listAdmin: () => api.get('/release-notes/admin'),
+  create:    (data) => api.post('/release-notes', data),
+  update:    (id, data) => api.put(`/release-notes/${id}`, data),
+  remove:    (id) => api.delete(`/release-notes/${id}`),
+};
+
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),

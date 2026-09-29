@@ -8,11 +8,21 @@ import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { Sparkles, X } from 'lucide-react';
-import { authAPI } from '../services/api';
+import { authAPI, releaseNotesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import RELEASE_NOTES from '../releaseNotes';
 
-const ReleaseNotesContext = createContext({ registerForm: () => () => {} });
+const ReleaseNotesContext = createContext({ registerForm: () => () => {}, notes: RELEASE_NOTES, reloadNotes: () => {} });
+
+const isAdminUser = (user) => ['admin', 'superadmin'].includes(user?.role);
+
+// Notes rédigées dans l'application : même format que src/releaseNotes.js,
+// l'audience 'admins' devient un filtre d'accès
+const fromDb = (note) => ({ ...note, access: note.audience === 'admins' ? isAdminUser : undefined });
+
+// Notes du code + notes rédigées, de la plus ancienne à la plus récente
+const mergeNotes = (dbNotes) =>
+  [...RELEASE_NOTES, ...dbNotes.map(fromDb)].sort((a, b) => a.date.localeCompare(b.date));
 
 // Une note est-elle destinée à cet utilisateur ? (hors « déjà vue »)
 export const isNoteForUser = (note, user, createdAt) => {
@@ -36,18 +46,26 @@ export function ReleaseNotesProvider({ children }) {
   const [forms, setForms] = useState([]);             // clés des formulaires actuellement ouverts
   const [bubble, setBubble] = useState(null);
   const [modalDismissed, setModalDismissed] = useState(false);
+  const [notes, setNotes] = useState(RELEASE_NOTES);
   const bubbleRef = useRef(null);
+
+  const reloadNotes = useCallback(() => {
+    releaseNotesAPI.list()
+      .then(res => setNotes(mergeNotes(res.data.notes || [])))
+      .catch(() => setNotes(RELEASE_NOTES)); // serveur sans la table : notes du code seulement
+  }, []);
 
   // État « déjà vu » lu depuis la base à chaque connexion
   useEffect(() => {
     setState(null); setModalDismissed(false); setBubble(null);
     if (!user?.id) return;
+    reloadNotes();
     let cancelled = false;
     authAPI.getReleaseNotes()
       .then(res => { if (!cancelled) setState({ seen: new Set(res.data.seen || []), createdAt: res.data.createdAt }); })
       .catch(() => { /* hors ligne / backend ancien : pas de nouveautés plutôt qu'une erreur */ });
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, reloadNotes]);
 
   const eligible = useCallback(
     (note) => !!state && !state.seen.has(note.id) && isNoteForUser(note, user, state.createdAt),
@@ -60,13 +78,13 @@ export function ReleaseNotesProvider({ children }) {
     authAPI.markReleaseNotesSeen(ids).catch(() => { /* réessayé à la prochaine ouverture */ });
   }, []);
 
-  const appNotes = useMemo(() => RELEASE_NOTES.filter(n => n.target === 'app' && eligible(n)), [eligible]);
+  const appNotes = useMemo(() => notes.filter(n => n.target === 'app' && eligible(n)), [notes, eligible]);
   const showModal = appNotes.length > 0 && !modalDismissed;
 
   // Bulle de la page / du formulaire courant (après la fenêtre générale)
   useEffect(() => {
     if (!state || showModal) return;
-    const note = RELEASE_NOTES.find(n => eligible(n) && (
+    const note = notes.find(n => eligible(n) && (
       matchesRoute(n.target, location.pathname) ||
       (n.target.startsWith('form:') && forms.includes(n.target.slice(5)))
     )) || null;
@@ -74,7 +92,7 @@ export function ReleaseNotesProvider({ children }) {
     if (bubbleRef.current && bubbleRef.current.id !== note?.id) markSeen([bubbleRef.current.id]);
     bubbleRef.current = note;
     setBubble(note);
-  }, [state, showModal, location.pathname, forms, eligible, markSeen]);
+  }, [state, showModal, location.pathname, forms, notes, eligible, markSeen]);
 
   const registerForm = useCallback((key) => {
     setForms(f => [...f, key]);
@@ -85,7 +103,7 @@ export function ReleaseNotesProvider({ children }) {
   const closeBubble = () => { if (bubble) markSeen([bubble.id]); bubbleRef.current = null; setBubble(null); };
 
   return (
-    <ReleaseNotesContext.Provider value={{ registerForm }}>
+    <ReleaseNotesContext.Provider value={{ registerForm, notes, reloadNotes }}>
       {children}
 
       {showModal && ReactDOM.createPortal(
@@ -128,6 +146,12 @@ export function ReleaseNotesProvider({ children }) {
       )}
     </ReleaseNotesContext.Provider>
   );
+}
+
+// Toutes les notes (code + rédigées) et rechargement après rédaction
+export function useReleaseNotes() {
+  const { notes, reloadNotes } = useContext(ReleaseNotesContext);
+  return { notes, reloadNotes };
 }
 
 // À appeler dans un formulaire : affiche (une fois) les notes 'form:<clé>'.
