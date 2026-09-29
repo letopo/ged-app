@@ -151,62 +151,27 @@ function ExplorerView({ data }) {
   const [chartType, setChartType]     = useState('Bar');
   const [showChartMenu, setShowChartMenu] = useState(false);
 
-  // Build chart data from available API data
+  // Données réelles calculées par le serveur (data.explorer) : pour chaque dimension,
+  // nombre de documents, délai moyen création → décision finale et % approuvés
+  // parmi les documents décidés, sur la période choisie.
   const chartData = useMemo(() => {
-    if (!data) return [];
+    const rows = data?.explorer?.[activeDim === 'type' ? 'type' : activeDim] || [];
+    const STATUS_LABELS = { draft:'Brouillon', pending_validation:'En attente', in_progress:'En cours', approved:'Approuvé', rejected:'Rejeté', archived:'Archivé' };
+    const MONTH_FR2 = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+    const label = (name) => {
+      if (activeDim === 'statut') return STATUS_LABELS[name] || name;
+      if (activeDim === 'date') { const [y, m] = name.split('-'); return `${MONTH_FR2[parseInt(m, 10) - 1]} ${y.slice(2)}`; }
+      return name;
+    };
+    const value = (r) => activeMeasure === 'nombre' ? r.count
+      : activeMeasure === 'delai' ? r.avgDays
+      : r.approvalRate;
 
-    if (activeDim === 'type' || activeDim === 'service') {
-      // Use byCategory as proxy for type/service
-      const raw = (data.byCategory || []).map(c => ({
-        name: c.category || 'Autres',
-        count: parseInt(c.count),
-      }));
-
-      if (activeMeasure === 'nombre') {
-        return raw.sort((a, b) => b.count - a.count).slice(0, 8)
-          .map(r => ({ name: r.name, value: r.count }));
-      }
-      if (activeMeasure === 'delai') {
-        // Simulate avg delay per category (in absence of real per-cat delay data)
-        const delays = { 'Bon de commande': 2.1, 'Demande de permission': 3.4, 'Ordre de mission': 1.8,
-          'Pièce de caisse': 4.2, 'Facture': 5.6, 'Permutation': 2.5, 'Demande de travaux': 1.2 };
-        return raw.map(r => ({
-          name: r.name,
-          value: delays[r.name] ?? +(Math.random() * 4 + 1).toFixed(1),
-        })).sort((a, b) => b.value - a.value).slice(0, 8);
-      }
-      if (activeMeasure === 'approuves') {
-        return raw.map(r => ({ name: r.name, value: Math.round(60 + Math.random() * 35) }))
-          .sort((a, b) => b.value - a.value).slice(0, 8);
-      }
-    }
-
-    if (activeDim === 'auteur') {
-      return (data.topUploaders || []).slice(0, 8).map(u => ({
-        name: u.uploadedBy
-          ? `${u.uploadedBy.firstName||''} ${u.uploadedBy.lastName||''}`.trim()
-          : 'Inconnu',
-        value: activeMeasure === 'nombre' ? parseInt(u.count) : +(Math.random() * 4 + 1).toFixed(1),
-      })).sort((a, b) => b.value - a.value);
-    }
-
-    if (activeDim === 'statut') {
-      const STATUS_LABELS = { draft:'Brouillon', pending_validation:'En attente', in_progress:'En cours', approved:'Approuvé', rejected:'Rejeté' };
-      return (data.byStatus || []).map(s => ({
-        name: STATUS_LABELS[s.status] || s.status,
-        value: parseInt(s.count),
-      }));
-    }
-
-    if (activeDim === 'date') {
-      const MONTH_FR2 = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-      return (data.byMonth || []).map(m => {
-        const d = new Date(m.month);
-        return { name: MONTH_FR2[d.getMonth()], value: parseInt(m.count) };
-      });
-    }
-
-    return [];
+    const out = rows
+      .filter(r => value(r) !== null && value(r) !== undefined)   // pas de délai / % sans document décidé
+      .map(r => ({ key: r.name, name: label(r.name), value: value(r), decided: r.decided }));
+    if (activeDim === 'date') return out.sort((a, b) => a.key.localeCompare(b.key));
+    return out.sort((a, b) => b.value - a.value).slice(0, 8);
   }, [data, activeDim, activeMeasure]);
 
   const maxVal = Math.max(...chartData.map(d => d.value), 1);
@@ -307,6 +272,12 @@ function ExplorerView({ data }) {
               </div>
             )}
           </div>
+        </div>
+
+        <div style={{ fontSize: 12, color: 'var(--fg-muted)', margin: '-8px 0 16px' }}>
+          {activeMeasure === 'nombre' && 'Documents créés pendant la période.'}
+          {activeMeasure === 'delai' && 'Jours entre la création et la décision finale (approbation ou rejet), pour les documents décidés pendant la période.'}
+          {activeMeasure === 'approuves' && 'Part des documents approuvés parmi ceux qui ont reçu une décision (approuvés ou rejetés) pendant la période.'}
         </div>
 
         {/* Chart */}
