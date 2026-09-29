@@ -401,6 +401,19 @@
   .app-main { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important; }
 }
 
+/* Grands titres façon iOS (mobile) : titre de page en grand, petit titre de la
+   barre du haut qui n'apparaît qu'une fois le grand titre sorti de l'écran */
+.topbar-title { transition: opacity .2s ease, transform .2s ease; }
+.app-topbar { transition: box-shadow .2s ease; }
+@media (max-width: 1023.98px) {
+  .topbar-title.has-large-title { opacity: 0; transform: translateY(6px); pointer-events: none; }
+  .topbar-title.has-large-title.is-condensed { opacity: 1; transform: none; pointer-events: auto; }
+  .app-topbar.is-condensed { box-shadow: 0 1px 8px rgba(15,27,45,0.08); }
+}
+@media (max-width: 860px) {
+  .stats-header h1 { font-size: 28px !important; letter-spacing: -0.6px !important; line-height: 1.15 !important; }
+}
+
 /* Menu « Plus » mobile — grille de modules colorés par métier (façon catégories Santé) */
 .more-sheet-overlay { position: fixed; inset: 0; z-index: 130; display: flex; align-items: flex-end; background: var(--overlay, rgba(15,27,45,0.4)); animation: fadeIn 200ms ease; }
 .more-sheet {

@@ -423,7 +423,7 @@ const timeAgo = (date) => {
   const d = Math.floor(h / 24); return i18n.t('il y a {{d}} j', { d });
 };
 
-const Topbar = ({ onToggleSidebar }) => {
+const Topbar = ({ onToggleSidebar, largeTitle }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -499,7 +499,7 @@ const Topbar = ({ onToggleSidebar }) => {
   };
 
   return (
-    <header style={{
+    <header className={`app-topbar${largeTitle?.hidden ? ' is-condensed' : ''}`} style={{
       height: 53, flexShrink: 0,
       borderBottom: '1px solid var(--border)',
       background: 'var(--surface)',
@@ -521,8 +521,11 @@ const Topbar = ({ onToggleSidebar }) => {
         </button>
       </span>
 
-      {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-muted)' }}>
+      {/* Breadcrumb — sur mobile, masqué tant que le grand titre de la page est visible,
+          puis affiché en fondu quand il sort de l'écran au défilement (façon iOS) */}
+      <div
+        className={`topbar-title${largeTitle?.present ? ' has-large-title' : ''}${largeTitle?.hidden ? ' is-condensed' : ''}`}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-muted)', minWidth: 0 }}>
         {crumbs.map((c, i) => (
           <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {i > 0 && <ChevronRight size={12} style={{ opacity: 0.4 }} />}
@@ -762,6 +765,9 @@ export default function AppShell({ onLogout }) {
   const { unreadCount: chatUnread, refresh: refreshChatUnread } = useChatUnread();
   const [pendingCount,    setPendingCount]    = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Grand titre façon iOS : présent sur la page ? sorti de l'écran au défilement ?
+  const mainRef = useRef(null);
+  const [largeTitle, setLargeTitle] = useState({ present: false, hidden: false });
   const [sheetOpen, setSheetOpen] = useState(false);
   const location = useLocation();
 
@@ -796,6 +802,30 @@ export default function AppShell({ onLogout }) {
       clearInterval(interval);
     };
   }, [user]);
+
+  // Suit le grand titre de la page (h1 des en-têtes .stats-header / Upload). Le
+  // contenu arrive souvent après un chargement : on (re)cherche le titre à chaque
+  // changement du DOM de <main> tant qu'il n'est pas observé ou a été remplacé.
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return undefined;
+    let observed = null;
+    let io = null;
+    const update = (next) => setLargeTitle(prev =>
+      prev.present === next.present && prev.hidden === next.hidden ? prev : next);
+    const attach = () => {
+      if (observed && observed.isConnected) return;
+      io?.disconnect(); io = null;
+      observed = main.querySelector('.stats-header h1, h1.upl-title');
+      if (!observed) { update({ present: false, hidden: false }); return; }
+      io = new IntersectionObserver(([entry]) => update({ present: true, hidden: !entry.isIntersecting }), { root: main, threshold: 0 });
+      io.observe(observed);
+    };
+    attach();
+    const mo = new MutationObserver(attach);
+    mo.observe(main, { childList: true, subtree: true });
+    return () => { mo.disconnect(); io?.disconnect(); };
+  }, [location.pathname]);
 
   return (
     <ReleaseNotesProvider>
@@ -834,8 +864,9 @@ export default function AppShell({ onLogout }) {
 
       {/* ── Colonne principale ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-        <Topbar onToggleSidebar={() => setMobileOpen(o => !o)} />
+        <Topbar onToggleSidebar={() => setMobileOpen(o => !o)} largeTitle={largeTitle} />
         <main
+          ref={mainRef}
           key={location.pathname}
           className="animate-pageFade app-main"
           style={{
