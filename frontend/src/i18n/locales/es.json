@@ -2085,5 +2085,8 @@
   "Nouveau": "Nuevo",
   "Toute l'application": "Toda la aplicación",
   "Les améliorations et ajustements apportés à l’application": "Mejoras y ajustes realizados en la aplicación",
-  "Aucune nouveauté pour le moment.": "Todavía no hay novedades."
+  "Aucune nouveauté pour le moment.": "Todavía no hay novedades.",
+  "Navigation principale": "Navegación principal",
+  "7 derniers jours": "Últimos 7 días",
+  "{{count}} cette semaine": "{{count}} esta semana"
 }

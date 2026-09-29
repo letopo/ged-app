@@ -2085,5 +2085,8 @@
   "Nouveau": "New",
   "Toute l'application": "Whole application",
   "Les améliorations et ajustements apportés à l’application": "Improvements and adjustments made to the application",
-  "Aucune nouveauté pour le moment.": "No updates yet."
+  "Aucune nouveauté pour le moment.": "No updates yet.",
+  "Navigation principale": "Main navigation",
+  "7 derniers jours": "Last 7 days",
+  "{{count}} cette semaine": "{{count}} this week"
 }

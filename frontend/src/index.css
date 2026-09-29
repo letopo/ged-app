@@ -367,6 +367,61 @@
 .stats-bar-row  { display: flex; align-items: center; gap: 14px; }
 .stats-bar-label { width: 120px; }
 .wf-filter-menu { right: 0; }
+/* Barre d'onglets mobile — pilule flottante translucide (façon iOS) */
+.tabbar-pill {
+  position: fixed; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  max-width: 480px; margin: 0 auto; z-index: 120;
+  display: flex; gap: 2px; padding: 6px; border-radius: 28px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow: 0 8px 28px rgba(15,27,45,0.16), 0 1px 2px rgba(15,27,45,0.06);
+}
+/* Téléphones sans flou (ou trop lents) : fond plein, même forme */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar-pill { background: var(--surface); }
+}
+.tabbar-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 2px 6px; border-radius: 22px; border: none; background: none; cursor: pointer;
+  color: var(--fg-muted); font-size: 10.5px; font-weight: 500; font-family: inherit; text-decoration: none;
+  transition: background .2s, color .2s, transform .1s;
+}
+.tabbar-item:active { transform: scale(0.95); }
+.tabbar-item.is-active { color: var(--brand); font-weight: 600; background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.tabbar-icon { position: relative; line-height: 0; }
+.tabbar-badge {
+  position: absolute; top: -5px; left: 13px; min-width: 16px; height: 16px; padding: 0 4px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--warning); color: #fff; border-radius: 9px; font-size: 9px; font-weight: 700;
+  border: 1.5px solid var(--surface);
+}
+/* Le contenu ne passe plus sous la barre flottante */
+@media (max-width: 1023.98px) {
+  .app-main { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+/* Menu « Plus » mobile — grille de modules colorés par métier (façon catégories Santé) */
+.more-sheet-overlay { position: fixed; inset: 0; z-index: 130; display: flex; align-items: flex-end; background: var(--overlay, rgba(15,27,45,0.4)); animation: fadeIn 200ms ease; }
+.more-sheet {
+  width: 100%; max-height: 86dvh; overflow-y: auto; background: var(--surface);
+  border-radius: 22px 22px 0 0; padding: 4px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  box-shadow: var(--shadow-3); animation: sheetUp 260ms cubic-bezier(0.4,0,0.2,1);
+}
+.more-sheet-grip { width: 38px; height: 5px; border-radius: 3px; background: var(--border-strong); margin: 8px auto 6px; }
+.more-section h3 { margin: 16px 2px 10px; font-size: 17px; font-weight: 700; color: var(--fg); letter-spacing: -0.2px; }
+.module-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 600px) { .module-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.module-tile {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-height: 92px;
+  padding: 14px 14px 12px; border-radius: 18px; background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--fg); font-size: 14.5px; font-weight: 600; line-height: 1.25; text-decoration: none;
+  transition: transform .1s, background .15s, border-color .15s;
+}
+.module-tile:active { transform: scale(0.97); }
+.module-tile-icon { color: var(--tile-color); flex-shrink: 0; }
+.module-tile.is-active { border-color: var(--tile-color); background: color-mix(in srgb, var(--tile-color) 10%, var(--surface-2)); }
+
 /* Nouveautés — fenêtre générale + bulle par page/formulaire (components/ReleaseNotes.jsx) */
 .rn-overlay { position: fixed; inset: 0; z-index: 9500; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15,27,45,0.45); backdrop-filter: blur(2px); }
 .rn-modal { width: 100%; max-width: 460px; max-height: calc(100dvh - 32px); display: flex; flex-direction: column; overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-4); box-shadow: var(--shadow-3); }
@@ -391,6 +446,24 @@
 .rn-bubble-ok { margin-top: 2px; padding: 0; border: none; background: none; color: var(--brand); font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .rn-bubble-close { align-self: flex-start; padding: 2px; border: none; background: none; color: var(--fg-subtle); cursor: pointer; line-height: 0; }
 @keyframes rn-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Tableau de bord — cartes indicateurs façon « épinglées » (titre coloré + mini-barres 7 jours) */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.kpi-card {
+  display: flex; flex-direction: column; gap: 14px; padding: 14px 16px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  text-decoration: none; transition: border-color .15s, box-shadow .15s, transform .1s;
+}
+a.kpi-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-1, 0 1px 3px rgba(15,27,45,0.06)); }
+a.kpi-card:active { transform: scale(0.98); }
+.kpi-card-head { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.kpi-card-head span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-card-chevron { color: var(--fg-subtle); flex-shrink: 0; }
+.kpi-card-body { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.kpi-card-value { font-size: 30px; font-weight: 700; color: var(--fg); letter-spacing: -0.8px; line-height: 1; }
+.kpi-card-unit { font-size: 16px; font-weight: 500; opacity: 0.5; margin-left: 1px; }
+.kpi-card-sub { margin-top: 6px; font-size: 11px; display: flex; align-items: center; gap: 4px; }
+.kpi-bars { width: 72px; height: 36px; flex-shrink: 0; }
 
 /* Tableau de bord — boutons de la carte « À traiter maintenant » */
 .dash-hero-actions { display: flex; gap: 8px; flex-shrink: 0; }
@@ -455,6 +528,12 @@
   .dash-header > div:first-child { min-width: 0; }
   .dash-hero-actions { width: 100%; }
   .dash-hero-actions > * { flex: 1; justify-content: center; }
+  /* Indicateurs : 2 par ligne, barres sous la valeur quand la carte est étroite */
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi-card { padding: 12px 12px 12px; gap: 10px; border-radius: 16px; }
+  .kpi-card-body { flex-wrap: wrap; }
+  .kpi-card-value { font-size: 24px; }
+  .kpi-bars { width: 100%; height: 26px; }
 
   /* Upload : barre d'étapes compacte (seul le libellé de l'étape en cours reste
      affiché), une colonne, carte « app mobile » masquée puisqu'on y est déjà */

@@ -9,7 +9,7 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import {
   Clock, CheckCircle, FileText, TrendingDown, TrendingUp,
-  Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader,
+  Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader, Hourglass,
 } from 'lucide-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -156,57 +156,92 @@ function HeroCard({ task, onApprove }) {
 }
 
 // ── KPI grid ─────────────────────────────────────────────────────────────────
+// Cartes façon « épinglées » (app Santé) : titre coloré, grande valeur et
+// mini-barres des 7 derniers jours (aujourd'hui en couleur, à droite).
 
-function KpiGrid({ stats }) {
+const lastDays = (n) => {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Array.from({ length: n }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() - (n - 1 - i)); return d; });
+};
+const dayKey = (v) => { const d = new Date(v); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+
+// Nombre de documents par jour (sur `field`) pour les jours donnés
+const dailyCounts = (docs, field, days) => {
+  const index = Object.fromEntries(days.map((d, i) => [dayKey(d), i]));
+  const counts = days.map(() => 0);
+  docs.forEach(doc => { const i = doc[field] ? index[dayKey(doc[field])] : undefined; if (i !== undefined) counts[i]++; });
+  return counts;
+};
+
+function MiniBars({ values, color, title }) {
+  const max = Math.max(...values, 1);
+  const W = 10;
+  return (
+    <svg className="kpi-bars" viewBox={`0 0 ${values.length * W} 32`} preserveAspectRatio="none" role="img" aria-label={title}>
+      <title>{title}</title>
+      {values.map((v, i) => {
+        const last = i === values.length - 1;
+        const h = v > 0 ? Math.max(3, (v / max) * 30) : 1.5;
+        return <rect key={i} x={i * W + 1.5} y={32 - h} width={W - 3} height={h} rx={1.5}
+          fill={last ? color : 'var(--border-strong)'} opacity={last ? 1 : 0.75} />;
+      })}
+    </svg>
+  );
+}
+
+function KpiGrid({ stats, series }) {
   const { t } = useTranslation();
+  const days = lastDays(7);
+  const fmtDay = (d) => d.toLocaleDateString(currentLocale(), { weekday: 'short' });
+  const barsTitle = (values) => `${t('7 derniers jours')} : ` + values.map((v, i) => `${fmtDay(days[i])} ${v}`).join(', ');
+
   const items = [
-    { label: t('Total documents'), value: stats.total,    sub: null,              trend: null,   to: '/documents' },
-    { label: t('En validation'),   value: stats.pending,  sub: t('{{count}} urgents', { count: stats.urgent || 0 }), trend: null, to: '/documents?status=pending_validation' },
-    { label: t('Approuvés'),       value: stats.approved, sub: stats.total ? `${Math.round(stats.approved/stats.total*100)}%` : '—', trend: 'up', to: '/documents?status=approved' },
-    { label: t('Délai moyen'),     value: stats.avgDays != null ? stats.avgDays : '—',
-      sub: stats.avgDelta ? `${stats.avgDelta > 0 ? '+' : ''}${stats.avgDelta}j` : null,
+    { label: t('Documents'),     icon: FileText,    color: '#2563EB', value: stats.total,    bars: series?.total,
+      sub: series ? t('{{count}} cette semaine', { count: series.total.reduce((a, b) => a + b, 0) }) : null, to: '/documents' },
+    { label: t('En validation'), icon: Clock,       color: '#D97706', value: stats.pending,  bars: series?.pending,
+      sub: t('{{count}} urgents', { count: stats.urgent || 0 }), to: '/documents?status=pending_validation' },
+    { label: t('Approuvés'),     icon: CheckCircle, color: '#059669', value: stats.approved, bars: series?.approved,
+      sub: stats.total ? `${Math.round(stats.approved / stats.total * 100)}%` : '—', trend: 'up', to: '/documents?status=approved' },
+    { label: t('Délai moyen'),   icon: Hourglass,   color: '#8B5CF6', value: stats.avgDays != null ? stats.avgDays : '—',
       unit: stats.avgDays != null ? 'j' : '',
+      sub: stats.avgDelta ? `${stats.avgDelta > 0 ? '+' : ''}${stats.avgDelta}j` : null,
       trend: stats.avgDelta < 0 ? 'up' : null, to: null },
   ];
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-      gap: 12, marginBottom: 24,
-    }}>
+    <div className="kpi-grid">
       {items.map((k, i) => (
-        <ConditionalLink key={i} to={k.to}
-          style={{
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-3)', padding: '16px 18px',
-            textDecoration: 'none', display: 'block',
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            {k.label}
+        <ConditionalLink key={i} to={k.to} className="kpi-card">
+          <div className="kpi-card-head" style={{ color: k.color }}>
+            <k.icon size={15} strokeWidth={2} />
+            <span>{k.label}</span>
+            {k.to && <ChevronRight size={14} className="kpi-card-chevron" />}
           </div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.5px', lineHeight: 1 }}>
-            {k.value}
-            {k.unit && <span style={{ fontSize: 16, opacity: 0.5, fontWeight: 500 }}>{k.unit}</span>}
-          </div>
-          {k.sub && (
-            <div style={{ marginTop: 6, fontSize: 11, display: 'flex', alignItems: 'center', gap: 4,
-              color: k.trend === 'up' ? 'var(--success)' : 'var(--fg-muted)' }}>
-              {k.trend === 'up' && <TrendingUp size={11} />}
-              {k.trend === 'down' && <TrendingDown size={11} />}
-              {k.sub}
+          <div className="kpi-card-body">
+            <div style={{ minWidth: 0 }}>
+              <div className="kpi-card-value">
+                {k.value}
+                {k.unit && <span className="kpi-card-unit">{k.unit}</span>}
+              </div>
+              {k.sub && (
+                <div className="kpi-card-sub" style={{ color: k.trend === 'up' ? 'var(--success)' : 'var(--fg-muted)' }}>
+                  {k.trend === 'up' && <TrendingUp size={11} />}
+                  {k.trend === 'down' && <TrendingDown size={11} />}
+                  {k.sub}
+                </div>
+              )}
             </div>
-          )}
+            {k.bars && <MiniBars values={k.bars} color={k.color} title={barsTitle(k.bars)} />}
+          </div>
         </ConditionalLink>
       ))}
     </div>
   );
 }
 
-function ConditionalLink({ to, children, style }) {
-  if (to) return <Link to={to} style={style}>{children}</Link>;
-  return <div style={style}>{children}</div>;
+function ConditionalLink({ to, children, style, className }) {
+  if (to) return <Link to={to} style={style} className={className}>{children}</Link>;
+  return <div style={style} className={className}>{children}</div>;
 }
 
 // ── Mini calendar ─────────────────────────────────────────────────────────────
@@ -416,10 +451,10 @@ function RecentDocs({ documents }) {
 function QuickActions({ pendingCount }) {
   const { t } = useTranslation();
   const items = [
-    { icon: Upload,     label: t('Upload'),        sub: t('Document unique'),        to: '/upload' },
-    { icon: FileText,   label: t('Mes tâches'),    sub: t('{{count}} en attente', { count: pendingCount || 0 }), to: '/my-tasks' },
-    { icon: BarChart3,  label: t('Statistiques'),  sub: t('Vue mensuelle'),           to: '/statistiques' },
-    { icon: CheckCircle,label: t('Workflow'),      sub: t('Suivi validation'),        to: '/workflow-dashboard' },
+    { icon: Upload,     color: '#2563EB', label: t('Upload'),        sub: t('Document unique'),        to: '/upload' },
+    { icon: FileText,   color: '#D97706', label: t('Mes tâches'),    sub: t('{{count}} en attente', { count: pendingCount || 0 }), to: '/my-tasks' },
+    { icon: BarChart3,  color: '#8B5CF6', label: t('Statistiques'),  sub: t('Vue mensuelle'),           to: '/statistiques' },
+    { icon: CheckCircle,color: '#059669', label: t('Workflow'),      sub: t('Suivi validation'),        to: '/workflow-dashboard' },
   ];
 
   return (
@@ -438,7 +473,7 @@ function QuickActions({ pendingCount }) {
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
             >
-              <Icon size={17} color="var(--brand)" />
+              <Icon size={20} strokeWidth={1.9} color={a.color || 'var(--brand)'} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)' }}>{a.label}</div>
                 <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{a.sub}</div>
@@ -521,6 +556,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, urgent: 0 });
+  const [series, setSeries] = useState(null);
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [myTasks, setMyTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -546,6 +582,14 @@ const Dashboard = () => {
         rejected: docs.filter(d => d.status === 'rejected').length,
         pending:  pending.length,
         urgent:   pending.filter(d => Math.floor((Date.now() - new Date(d.createdAt)) / 86400000) >= 2).length,
+      });
+      // 7 derniers jours : créations, arrivées encore en validation, approbations
+      // (date d'approbation ≈ dernière modification du document approuvé)
+      const days = lastDays(7);
+      setSeries({
+        total:    dailyCounts(docs, 'createdAt', days),
+        pending:  dailyCounts(pending, 'createdAt', days),
+        approved: dailyCounts(docs.filter(d => d.status === 'approved'), 'updatedAt', days),
       });
       setRecentDocuments([...docs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10));
       try {
@@ -635,7 +679,7 @@ const Dashboard = () => {
       <HeroCard task={heroTask} onApprove={handleApprove} />
 
       {/* KPIs */}
-      <KpiGrid stats={stats} />
+      <KpiGrid stats={stats} series={series} />
 
       {/* Two-column layout */}
       <div className="dashboard-2col">
