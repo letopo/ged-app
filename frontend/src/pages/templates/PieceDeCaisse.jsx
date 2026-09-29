@@ -230,9 +230,11 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32, fontSize: 12, marginTop: 'auto', borderTop: '2px solid #000', paddingTop: 16 }}>
-                    <SignatureFrame label={t('Visa Bénéficiaire')} signatureUrl={isComptable ? null : mySig} stampUrl={isComptable ? null : myStamp} zoneIndex={1} />
+                    {/* Ordre = ordre du circuit (DG → Comptable → Bénéficiaire) : le backend
+                        place la signature de l'étape N dans la zone N. */}
+                    <SignatureFrame label={t('Visa Directeur')} signatureUrl={null} stampUrl={null} zoneIndex={1} />
                     <SignatureFrame label={t('Comptabilité')} signatureUrl={isComptable ? mySig : null} stampUrl={isComptable ? myStamp : null} zoneIndex={2} />
-                    <SignatureFrame label={t('Visa Directeur')} signatureUrl={null} stampUrl={null} zoneIndex={3} />
+                    <SignatureFrame label={t('Visa Bénéficiaire')} signatureUrl={isComptable ? null : mySig} stampUrl={isComptable ? null : myStamp} zoneIndex={3} />
                 </div>
             </div>
 

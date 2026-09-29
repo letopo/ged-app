@@ -543,8 +543,15 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
           ? metadataNbSig
           : signatureConfig.numberOfSignatures;
 
+      // Pièce de caisse : circuit DG → Comptable → [Bénéficiaire] → Caissière.
+      // Les zones suivent l'ordre du circuit (étape N → zone N) ; la caissière
+      // (dernière étape) paie sans signer, donc on ne peut pas raisonner « depuis la fin ».
+      const isPieceDeCaisse = document.category === 'Pièce de caisse';
+
       // Vérification de la zone de signature
-      const isInSignatureRange = task.step > (totalStepsWithoutComptable - numberOfSignatures);
+      const isInSignatureRange = isPieceDeCaisse
+        ? task.step <= numberOfSignatures
+        : task.step > (totalStepsWithoutComptable - numberOfSignatures);
 
       // Si on essaie de signer hors zone, on bloque (sauf pour dater)
       if ((validationType === 'approve_sign_stamp' || ['signature', 'stamp'].includes(validationType)) && !isInSignatureRange) {
@@ -578,7 +585,9 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         const { width, height } = targetPage.getSize();
 
         // CALCUL POSITION
-        let positionInSignatureGroup = task.step - (totalStepsWithoutComptable - numberOfSignatures);
+        let positionInSignatureGroup = isPieceDeCaisse
+          ? task.step
+          : task.step - (totalStepsWithoutComptable - numberOfSignatures);
         // Utiliser le nombre de signataires effectif pour le calcul des positions X
         const effectiveConfig = { ...signatureConfig, numberOfSignatures };
         let baseX = calculateSignatureX(positionInSignatureGroup, effectiveConfig, width);
