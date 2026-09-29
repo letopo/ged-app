@@ -2394,6 +2394,7 @@ function LocalisationPanel({ equipements = [] }) {
 // ─── HISTORIQUE PANEL ─────────────────────────────────────────────────────────
 
 function HistoriquePanel({ equipements = [] }) {
+  const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState('');
   const [interventions, setInterventions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -2421,14 +2422,14 @@ function HistoriquePanel({ equipements = [] }) {
       <div className="flex items-center gap-4 mb-6">
         <div className="flex-1 max-w-sm">
           <label className="block text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--fg-subtle)' }}>
-            Équipement
+            {t('Équipement')}
           </label>
           <select
             className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)' }}
             value={selectedId}
             onChange={e => loadHistory(e.target.value)}
           >
-            <option value="">— Sélectionner un équipement —</option>
+            <option value="">{t('— Sélectionner un équipement —')}</option>
             {equipements.map(eq => (
               <option key={eq.id} value={eq.id}>{eq.nom} {eq.service ? `(${eq.service})` : ''}</option>
             ))}
@@ -2436,16 +2437,16 @@ function HistoriquePanel({ equipements = [] }) {
         </div>
         {interventions.length > 0 && (
           <div className="flex gap-2 mt-5">
-            {['', 'preventive', 'corrective'].map(t => (
+            {['', 'preventive', 'corrective'].map(ft => (
               <button
-                key={t}
-                onClick={() => setFilterType(t)}
+                key={ft}
+                onClick={() => setFilterType(ft)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={filterType === t
+                style={filterType === ft
                   ? { background: '#1e293b', color: '#fff' }
                   : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg-muted)' }}
               >
-                {t === '' ? 'Tous' : t === 'preventive' ? 'Préventif' : 'Correctif'}
+                {ft === '' ? t('Tous') : ft === 'preventive' ? t('Préventif') : t('Correctif')}
               </button>
             ))}
           </div>
@@ -2455,7 +2456,7 @@ function HistoriquePanel({ equipements = [] }) {
       {!selectedId ? (
         <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}>
           <Clock className="w-12 h-12 mx-auto mb-3 opacity-20" />
-          <p className="text-sm">Sélectionnez un équipement pour voir son historique</p>
+          <p className="text-sm">{t('Sélectionnez un équipement pour voir son historique')}</p>
         </div>
       ) : loading ? (
         <div className="flex justify-center py-12">
@@ -2464,7 +2465,7 @@ function HistoriquePanel({ equipements = [] }) {
       ) : filtered.length === 0 ? (
         <div className="text-center py-16" style={{ color: 'var(--fg-subtle)' }}>
           <CheckCircle className="w-10 h-10 mx-auto mb-3 opacity-20" />
-          <p className="text-sm">Aucune intervention enregistrée pour cet équipement</p>
+          <p className="text-sm">{t('Aucune intervention enregistrée pour cet équipement')}</p>
         </div>
       ) : (
         <div>

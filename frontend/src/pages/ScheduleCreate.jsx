@@ -1,11 +1,13 @@
 // frontend/src/pages/ScheduleCreate.jsx
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import scheduleService from '../services/scheduleService';
 import toast from 'react-hot-toast';
 
 const ScheduleCreate = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
@@ -54,7 +56,7 @@ const ScheduleCreate = () => {
 
     // Validation
     if (!formData.scheduleType) {
-      toast('Veuillez sélectionner un type de planning');
+      toast(t('Veuillez sélectionner un type de planning'));
       return;
     }
 
@@ -99,7 +101,7 @@ const ScheduleCreate = () => {
       console.error('Erreur création planning:', error);
       const errorMessage = error.response?.data?.message ||
                           error.message ||
-                          'Erreur lors de la création du planning';
+                          t('Erreur lors de la création du planning');
       toast(errorMessage);
     } finally {
       setLoading(false);
@@ -135,10 +137,10 @@ const ScheduleCreate = () => {
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Retour à la liste
+          {t('Retour à la liste')}
         </button>
-        <h1 className="text-3xl font-bold" style={{ color: 'var(--fg)' }}>Nouveau Planning</h1>
-        <p className="mt-1" style={{ color: 'var(--fg-muted)' }}>Créez un nouveau planning de rotation du personnel</p>
+        <h1 className="text-3xl font-bold" style={{ color: 'var(--fg)' }}>{t('Nouveau Planning')}</h1>
+        <p className="mt-1" style={{ color: 'var(--fg-muted)' }}>{t('Créez un nouveau planning de rotation du personnel')}</p>
       </div>
 
       {/* Formulaire */}
@@ -147,7 +149,7 @@ const ScheduleCreate = () => {
           {/* Type de planning */}
           <div>
             <label style={labelStyle}>
-              Type de planning <span style={{ color: 'var(--danger)' }}>*</span>
+              {t('Type de planning')} <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <select
               value={formData.scheduleType}
@@ -155,13 +157,13 @@ const ScheduleCreate = () => {
               style={inputStyle}
               required
             >
-              <option value="">-- Sélectionnez un type --</option>
+              <option value="">{t('-- Sélectionnez un type --')}</option>
               {Object.entries(scheduleTypeLabels).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
             <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>
-              Le workflow de validation sera automatiquement configuré selon le type
+              {t('Le workflow de validation sera automatiquement configuré selon le type')}
             </p>
           </div>
 
@@ -169,7 +171,7 @@ const ScheduleCreate = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label style={labelStyle}>
-                Mois <span style={{ color: 'var(--danger)' }}>*</span>
+                {t('Mois')} <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <select
                 value={formData.month}
