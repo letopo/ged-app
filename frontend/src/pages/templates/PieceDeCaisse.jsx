@@ -7,10 +7,12 @@ import DocumentViewer from '../../components/DocumentViewer';
 import { useAuth } from '../../contexts/AuthContext';
 import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 import PersonAutocomplete from '../../components/PersonAutocomplete';
+import { useFeatureNote } from '../../components/ReleaseNotes';
 
 const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissionSelector = true }) => {
     const { user } = useAuth();
     const { t } = useTranslation();
+    useFeatureNote('piece-de-caisse');
     // Si c'est le comptable qui génère la PC, sa signature/cachet va sur la zone
     // « Comptabilité », pas sur « Visa Bénéficiaire ».
     const isComptable = (user?.postes || []).includes('comptable');
@@ -230,9 +232,11 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32, fontSize: 12, marginTop: 'auto', borderTop: '2px solid #000', paddingTop: 16 }}>
-                    <SignatureFrame label={t('Visa Bénéficiaire')} signatureUrl={isComptable ? null : mySig} stampUrl={isComptable ? null : myStamp} zoneIndex={1} />
+                    {/* Ordre = ordre du circuit (DG → Comptable → Bénéficiaire) : le backend
+                        place la signature de l'étape N dans la zone N. */}
+                    <SignatureFrame label={t('Visa Directeur')} signatureUrl={null} stampUrl={null} zoneIndex={1} />
                     <SignatureFrame label={t('Comptabilité')} signatureUrl={isComptable ? mySig : null} stampUrl={isComptable ? myStamp : null} zoneIndex={2} />
-                    <SignatureFrame label={t('Visa Directeur')} signatureUrl={null} stampUrl={null} zoneIndex={3} />
+                    <SignatureFrame label={t('Visa Bénéficiaire')} signatureUrl={isComptable ? null : mySig} stampUrl={isComptable ? null : myStamp} zoneIndex={3} />
                 </div>
             </div>
 

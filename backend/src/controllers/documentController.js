@@ -486,6 +486,53 @@ export const unarchiveDocument = async (req, res) => {
   }
 };
 
+// @desc   Dates de décision réelles (approbation finale / rejet) des documents
+//         visibles par l'utilisateur, sur les N derniers jours (Accueil : barres
+//         « Approuvés », synthèse « mes documents approuvés/rejetés cette semaine »).
+//         La date vient du circuit (Workflow.validatedAt), pas de Document.updatedAt.
+export const getRecentDecisions = async (req, res) => {
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), 31);
+    const since = new Date(Date.now() - days * 86400000);
+
+    // Même périmètre que la liste des documents (getDocuments) : non archivés + droits d'accès
+    const docWhere = { archived: false, status: { [Op.in]: ['approved', 'rejected'] } };
+    const andConditions = [];
+    const accessWhere = await buildDocumentAccessWhere(req.user);
+    if (accessWhere) andConditions.push(accessWhere);
+    const restricted = await getRestrictedCategories(req.user);
+    if (restricted.length > 0) andConditions.push({ category: { [Op.notIn]: restricted } });
+    if (andConditions.length > 0) docWhere[Op.and] = andConditions;
+
+    const steps = await Workflow.findAll({
+      where: { status: { [Op.in]: ['approved', 'rejected'] }, validatedAt: { [Op.gte]: since } },
+      attributes: ['documentId', 'status', 'validatedAt'],
+      include: [{ model: Document, as: 'document', where: docWhere, required: true, attributes: ['id', 'status', 'userId'] }],
+    });
+
+    // Une décision par document : l'étape qui correspond à son statut actuel, la plus
+    // récente (approuvé = dernière approbation du circuit ; rejeté = l'étape de rejet)
+    const byDoc = new Map();
+    for (const step of steps) {
+      if (step.status !== step.document.status) continue;
+      const prev = byDoc.get(step.documentId);
+      if (!prev || new Date(step.validatedAt) > new Date(prev.decidedAt)) {
+        byDoc.set(step.documentId, {
+          documentId: step.documentId,
+          status: step.status,
+          decidedAt: step.validatedAt,
+          userId: step.document.userId,
+        });
+      }
+    }
+
+    res.json({ success: true, days, decisions: [...byDoc.values()] });
+  } catch (error) {
+    console.error('Erreur dates de décision:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
 export const getArchivedDocuments = async (req, res) => {
   try {
     const whereClause = { archived: true };

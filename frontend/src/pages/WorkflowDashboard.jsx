@@ -38,8 +38,8 @@ function FilterDropdown({ label, options, value, onChange }) {
         {selected ? selected.label : label} <ChevronDown size={12} />
       </button>
       {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', right: 0, zIndex: 200,
+        <div className="wf-filter-menu" style={{
+          position: 'absolute', top: 'calc(100% + 4px)', zIndex: 200,
           background: 'var(--surface)', border: '1px solid var(--border)',
           borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)',
           minWidth: 180, overflow: 'hidden',
@@ -167,12 +167,12 @@ function StatCard({ label, sublabel, value, delta, deltaLabel, urgent }) {
   const deltaColor = isUp ? 'var(--success)' : isDown ? 'var(--danger)' : 'var(--fg-muted)';
 
   return (
-    <div className="ged-card" style={{ padding: '16px 20px', flex: 1 }}>
+    <div className="ged-card stats-kpi">
       <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 6, fontWeight: 500 }}>
         {label}
         {sublabel && <span style={{ color: 'var(--fg-subtle)', fontWeight: 400 }}> · {sublabel}</span>}
       </div>
-      <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-1px', lineHeight: 1.1 }}>
+      <div className="stats-kpi-value" style={{ fontWeight: 700, color: 'var(--fg)', letterSpacing: '-1px', lineHeight: 1.1 }}>
         {value}
       </div>
       <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -348,15 +348,15 @@ export default function WorkflowDashboard() {
   const hasActiveFilter = filterService !== 'all' || filterType !== 'all';
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 48px' }} className="animate-pageFade">
+    <div className="stats-page animate-pageFade">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:28, paddingTop:4 }}>
+      <div className="stats-header">
         <div>
           <h1 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 4px', letterSpacing:'-0.3px' }}>{t('Workflow')}</h1>
           <div style={{ fontSize:13, color:'var(--fg-muted)' }}>{t("Vue d'ensemble du flux de validation et goulots d'étranglement")}</div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div className="stats-actions">
           <button style={{ display:'inline-flex', alignItems:'center', gap:6, height:34, padding:'0 14px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor:'pointer' }}>
             {t('{{count}} derniers jours', { count: period })} <ChevronDown size={14} color="var(--fg-muted)" />
           </button>
@@ -371,7 +371,7 @@ export default function WorkflowDashboard() {
       </div>
 
       {/* ── KPI cards ──────────────────────────────────────────────────────── */}
-      <div style={{ display:'flex', gap:14, marginBottom:20 }}>
+      <div className="stats-kpis">
         <StatCard label={t('Entrées')} sublabel={`${period}j`}  value={stats.total}    delta={null} deltaLabel={null} />
         <StatCard label={t('En attente')}                        value={stats.pending}  delta={null} deltaLabel={null} urgent={urgentCount > 0 ? t('{{count}} urgente(s)', { count: urgentCount }) : null} />
         <StatCard label={t('Approuvées')}                        value={stats.approved} delta={null} deltaLabel={null} />
@@ -379,13 +379,13 @@ export default function WorkflowDashboard() {
       </div>
 
       {/* ── Sankey card ────────────────────────────────────────────────────── */}
-      <div className="ged-card" style={{ padding:'20px 24px', marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
+      <div className="ged-card stats-insight" style={{ marginBottom:20 }}>
+        <div className="stats-header" style={{ marginBottom:16, paddingTop:0 }}>
           <div>
             <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)', marginBottom:2 }}>{t('Flux de validation')}</div>
             <div style={{ fontSize:12, color:'var(--fg-muted)' }}>{t('Entrées → étapes → sorties')}</div>
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div className="stats-actions">
             {hasActiveFilter && (
               <button
                 onClick={() => { setFilterService('all'); setFilterType('all'); }}
@@ -411,7 +411,7 @@ export default function WorkflowDashboard() {
 
         {/* Active filter chips */}
         {hasActiveFilter && (
-          <div style={{ display:'flex', gap:6, marginBottom:12 }}>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
             {filterService !== 'all' && (
               <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:'var(--radius-full)', background:'var(--brand-soft)', color:'var(--brand)', fontSize:11, fontWeight:500 }}>
                 {t('Service')} : {filterService}
@@ -440,10 +440,10 @@ export default function WorkflowDashboard() {
       </div>
 
       {/* ── Bottom row ─────────────────────────────────────────────────────── */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+      <div className="stats-2col" style={{ marginBottom:0 }}>
 
         {/* Goulots d'étranglement */}
-        <div className="ged-card" style={{ padding:'20px 24px' }}>
+        <div className="ged-card stats-insight">
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
             <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>{t("Goulots d'étranglement")}</div>
             <button style={{ fontSize:12, color:'var(--brand)', background:'none', border:'none', cursor:'pointer', fontWeight:500 }}>{t('Détails →')}</button>
@@ -458,7 +458,7 @@ export default function WorkflowDashboard() {
         </div>
 
         {/* Top valideurs */}
-        <div className="ged-card" style={{ padding:'20px 24px' }}>
+        <div className="ged-card stats-insight">
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
             <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>
               {t('Top valideurs')} <span style={{ fontWeight:400, color:'var(--fg-muted)' }}>· {period}j</span>

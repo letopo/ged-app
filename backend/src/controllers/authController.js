@@ -121,6 +121,37 @@ export const getProfile = async (req, res, next) => {
     }
 };
   
+// ── Nouveautés : notes déjà vues par l'utilisateur ────────────────────────────
+// Lu depuis la base (et non le user en cache côté navigateur) pour qu'une note
+// vue sur le PC ne réapparaisse pas sur le téléphone.
+export const getReleaseNotesState = async (req, res, next) => {
+    try {
+        const user = await User.findByPk(req.user.id, { attributes: ['id', 'seenReleaseNotes', 'createdAt'] });
+        if (!user) return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
+        res.json({ success: true, seen: user.seenReleaseNotes || [], createdAt: user.createdAt });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const markReleaseNotesSeen = async (req, res, next) => {
+    try {
+        const ids = Array.isArray(req.body?.ids)
+            ? req.body.ids.filter(id => typeof id === 'string' && id.length <= 100)
+            : [];
+        if (ids.length === 0) return res.status(400).json({ success: false, error: 'ids requis' });
+
+        const user = await User.findByPk(req.user.id);
+        if (!user) return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
+
+        const seen = Array.from(new Set([...(user.seenReleaseNotes || []), ...ids]));
+        await user.update({ seenReleaseNotes: seen });
+        res.json({ success: true, seen });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const updateProfile = async (req, res, next) => {
     try {
         const { firstName, lastName, username, lang, currentPassword, newPassword } = req.body;

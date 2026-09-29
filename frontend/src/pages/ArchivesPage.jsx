@@ -8,7 +8,7 @@ import i18n from '../i18n/config';
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 import {
   Search, Download, RotateCcw, Loader, FolderOpen, AlertTriangle,
-  Bell, FileText, ChevronDown, Share2, Clock,
+  Bell, FileText, ChevronDown, Share2, Clock, SlidersHorizontal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../components/ConfirmModal';
@@ -145,6 +145,7 @@ export default function ArchivesPage() {
   const [dateTo, setDateTo]           = useState('');
   const [selectedAuthors, setSelectedAuthors] = useState(new Set());
   const [sort, setSort]               = useState('date');   // 'date' | 'name' | 'size'
+  const [showFilters, setShowFilters] = useState(false);    // mobile : filtres repliés par défaut
 
   useEffect(() => { loadArchives(); }, []);
 
@@ -248,6 +249,8 @@ export default function ArchivesPage() {
     a.download = 'archives.csv'; a.click();
   };
 
+  const activeFilterCount = selectedTypes.size + selectedAuthors.size + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+
   const toggleType = (cat, checked) => {
     setSelectedTypes(prev => {
       const next = new Set(prev);
@@ -276,17 +279,17 @@ export default function ArchivesPage() {
   );
 
   return (
-    <div style={{ maxWidth: 1200, margin:'0 auto', padding:'0 24px 48px' }} className="animate-pageFade">
+    <div className="stats-page animate-pageFade">
 
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:24, paddingTop:4 }}>
+      <div className="stats-header" style={{ marginBottom:24 }}>
         <div>
           <h1 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 4px', letterSpacing:'-0.3px' }}>{t('Archives')}</h1>
           <div style={{ fontSize:13, color:'var(--fg-muted)' }}>
             {t('{{count}} document(s) archivé(s) · recherche plein texte (OCR indexé)', { count: total })}
           </div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        <div className="stats-actions">
           {/* View toggle */}
           <div style={{ display:'flex', border:'1px solid var(--border)', borderRadius:'var(--radius-2)', overflow:'hidden' }}>
             {[
@@ -315,10 +318,10 @@ export default function ArchivesPage() {
       </div>
 
       {/* ── Body: sidebar + main ──────────────────────────────────────────── */}
-      <div style={{ display:'flex', gap:20, alignItems:'flex-start' }}>
+      <div className="stats-explorer">
 
         {/* ── Left sidebar ─────────────────────────────────────────────── */}
-        <div style={{ width:230, flexShrink:0, display:'flex', flexDirection:'column', gap:0 }} className="ged-card">
+        <div className="ged-card archives-side">
           {/* OCR search */}
           <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface-2)' }}>
@@ -330,7 +333,15 @@ export default function ArchivesPage() {
               />
               {search && <button onClick={() => setSearch('')} style={{ border:'none', background:'none', cursor:'pointer', color:'var(--fg-subtle)', padding:0, lineHeight:1, fontSize:14 }}>×</button>}
             </div>
+            {/* Mobile uniquement : déplie/replie Type · Période · Auteur */}
+            <button className="archives-filter-toggle" onClick={() => setShowFilters(v => !v)} style={{ marginTop:8, alignItems:'center', gap:6, height:30, padding:'0 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background: showFilters ? 'var(--brand-soft)' : 'var(--surface-2)', color: showFilters ? 'var(--brand)' : 'var(--fg)', fontSize:12, cursor:'pointer' }}>
+              <SlidersHorizontal size={12} /> {t('Filtres')}
+              {activeFilterCount > 0 && <span style={{ fontWeight:700 }}>({activeFilterCount})</span>}
+              <ChevronDown size={12} style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition:'transform .15s' }} />
+            </button>
           </div>
+
+          <div className={`archives-filters${showFilters ? ' is-open' : ''}`}>
 
           {/* TYPE */}
           <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)' }}>
@@ -395,13 +406,14 @@ export default function ArchivesPage() {
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* ── Main content ─────────────────────────────────────────────── */}
         <div style={{ flex:1, minWidth:0 }}>
 
           {/* Results bar */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:12 }}>
             <div style={{ fontSize:13, color:'var(--fg-muted)' }}>
               <span style={{ color:'var(--fg)', fontWeight:500 }}>{t('{{count}} résultat(s)', { count: filteredDocs.length })}</span>
               {' · '}<span>{t('trié par {{sort}}', { sort: t({ date: 'date', name: 'nom', size: 'taille' }[sort]) })}</span>
@@ -443,9 +455,8 @@ export default function ArchivesPage() {
                 return (
                   <div
                     key={doc.id}
+                    className="archives-row"
                     style={{
-                      display:'flex', alignItems:'center', gap:14,
-                      padding:'14px 16px',
                       borderBottom: i < filteredDocs.length - 1 ? '1px solid var(--border)' : 'none',
                       transition:'background .12s', cursor:'pointer',
                     }}
@@ -478,7 +489,7 @@ export default function ArchivesPage() {
                     </div>
 
                     {/* Actions */}
-                    <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }} onClick={e => e.stopPropagation()}>
+                    <div className="archives-row-actions" onClick={e => e.stopPropagation()}>
                       <a
                         href={doc.filePath ? `/api/files/${doc.filePath}` : '#'}
                         download

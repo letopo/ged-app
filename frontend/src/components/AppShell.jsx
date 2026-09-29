@@ -11,7 +11,7 @@ import {
   ShoppingCart, Wrench, Stethoscope, Shield, Archive,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
-  MessageSquare, FileSpreadsheet,
+  MessageSquare, FileSpreadsheet, Sparkles,
 } from 'lucide-react';
 import { workflowAPI, tenantBrandingAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,6 +20,7 @@ import i18n from '../i18n/config';
 import GlobalSearch from './GlobalSearch';
 import GlobalChatBubble from './GlobalChatBubble';
 import useChatUnread from '../hooks/useChatUnread';
+import { ReleaseNotesProvider } from './ReleaseNotes';
 import toast from 'react-hot-toast';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
@@ -116,6 +117,126 @@ const NavSection = ({ title, children }) => (
   </div>
 );
 
+/* ─── Accès + groupes métier (partagés : menu latéral, menu « Plus » mobile) ── */
+
+const makeCanAccess = (user) => (item) => {
+  if (!user) return false;
+  const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+  if (item.superAdminOnly) return user.role === 'superadmin';
+  if (item.adminOnly && !isAdmin) return false;
+  if (item.kanbanOnly)      return isAdmin || (user.postes || []).includes('kanban');
+  if (item.rhOrAdminOnly)   return isAdmin || (user.postes || []).includes('rh');
+  if (item.gardienOnly)     return isAdmin || user.role === 'gardien';
+  if (item.accueilOnly)     return isAdmin || ['agent_accueil_php','agent_accueil_normal'].includes(user.role);
+  if (item.caisseOnly)      return isAdmin || user.role === 'caissier';
+  if (item.managementOnly)  return isAdmin || ['director','dds','medical_chief'].includes(user.role);
+  if (item.demandeAchatOnly) return isAdmin || ['achat','user'].includes(user.role);
+  if (item.gmaoOnly)        return isAdmin || (user.postes || []).includes('gmao');
+  if (item.phpOnly)         return isAdmin || user.role === 'agent_accueil_php';
+  if (item.comptaOnly)      return isAdmin || (user.postes || []).includes('comptable');
+  return true;
+};
+
+// Groupes métier de la section « Organisation », déjà filtrés selon les droits.
+// Dans le menu latéral : sous-menus repliables (un groupe d'une seule entrée
+// s'affiche à plat). Dans le menu « Plus » mobile : grille de tuiles colorées.
+const buildOrgGroups = (t, user) => {
+  return [
+    { id: 'admin', color: '#6366F1', icon: Shield, label: t('Administration'), items: [
+      { path: '/user-management',    icon: Users,       label: t('Utilisateurs'),       adminOnly: true },
+      { path: '/admin/droits-acces', icon: Shield,      label: t("Droits d'accès"),     adminOnly: true },
+      { path: '/postes',             icon: Briefcase,   label: t('Postes & Fonctions'), adminOnly: true },
+      { path: '/services',           icon: LayoutGrid,  label: t('Services'),           adminOnly: true },
+      { path: '/audit-log',          icon: Shield,      label: t("Journal d'audit"),    adminOnly: true },
+    ]},
+    { id: 'rh', color: '#0D9488', icon: Users, label: t('Ressources humaines'), items: [
+      { path: '/employees',          icon: Users,       label: t('Employés'),           rhOrAdminOnly: true },
+      { path: '/schedules',          icon: Calendar,    label: t('Plannings'),          managementOnly: true },
+    ]},
+    { id: 'parametrage', color: '#8B5CF6', icon: LayoutGrid, label: t('Paramétrage'), items: [
+      { path: '/workflow-templates', icon: LayoutGrid,    label: t('Modèles workflow'), adminOnly: true },
+      { path: '/forms',              icon: ClipboardList, label: t('Formulaires'),      adminOnly: true },
+      { path: '/statistiques',       icon: BarChart3,     label: t('Statistiques'),     adminOnly: true },
+    ]},
+    { id: 'files', color: '#D97706', icon: DoorOpen, label: t("Files d'attente"), items: [
+      { path: '/portail',            icon: UserPlus,    label: t('Portail'),            gardienOnly: true },
+      { path: '/accueil',            icon: DoorOpen,    label: t('Accueil'),            accueilOnly: true },
+      { path: '/caisse',             icon: DollarSign,  label: t('Caisse'),             caisseOnly: true },
+    ]},
+    { id: 'finances', color: '#059669', icon: Calculator, label: t('Finances'), items: [
+      { path: '/demandes-achat',     icon: ShoppingCart,    label: t("Demandes d'achat"),    demandeAchatOnly: true },
+      { path: '/compta',             icon: Calculator,      label: t('Comptabilité'),        comptaOnly: true },
+      { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
+      { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), adminOnly: true },
+    ]},
+    { id: 'php', color: '#DC2626', icon: Stethoscope, label: t('Module PHP'), items: [
+      { path: '/php',                icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
+      { path: '/php/factures',       icon: Receipt,     label: t('Factures PHP'),       phpOnly: true },
+    ]},
+    { id: 'technique', color: '#EA580C', icon: Wrench, label: t('Technique'), items: [
+      { path: '/kanban/MG',          icon: Kanban,      label: t('Suivi technique'),    kanbanOnly: true },
+      { path: '/gmao',               icon: Wrench,      label: t('GMAO'),               gmaoOnly: true },
+    ]},
+  ]
+    .map(g => ({ ...g, items: g.items.filter(makeCanAccess(user)) }))
+    .filter(g => g.items.length > 0);
+};
+
+/* ─── NavGroup (sous-menu repliable) ───────────────────────────────── */
+// Ouvert d'office si une de ses pages est active ; sinon l'état ouvert/fermé
+// choisi par l'utilisateur est mémorisé (localStorage, simple confort).
+const NAV_GROUPS_KEY = 'ged.navGroups.open';
+const readOpenGroups = () => {
+  try { return JSON.parse(localStorage.getItem(NAV_GROUPS_KEY)) || {}; } catch { return {}; }
+};
+
+const NavGroup = ({ id, icon: Icon, label, items, isActive }) => {
+  const hasActive = items.some(item => isActive(item.path));
+  const [open, setOpen] = useState(() => hasActive || !!readOpenGroups()[id]);
+
+  // Navigation vers une page du groupe (ex. via la recherche) → on le déplie
+  useEffect(() => { if (hasActive) setOpen(true); }, [hasActive]);
+
+  const toggle = () => {
+    setOpen(o => {
+      const next = !o;
+      try { localStorage.setItem(NAV_GROUPS_KEY, JSON.stringify({ ...readOpenGroups(), [id]: next })); } catch {}
+      return next;
+    });
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+          padding: '6px 10px', borderRadius: 'var(--radius-2)', border: 'none',
+          background: 'transparent', cursor: 'pointer', textAlign: 'left',
+          color: hasActive ? 'var(--fg)' : 'var(--fg-muted)',
+          fontSize: 13, fontWeight: hasActive ? 600 : 500, fontFamily: 'inherit',
+          transition: 'background 120ms var(--ease), color 120ms var(--ease)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--fg)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = hasActive ? 'var(--fg)' : 'var(--fg-muted)'; }}
+      >
+        {Icon && <Icon size={16} strokeWidth={1.5} style={{ flexShrink: 0, color: hasActive ? 'var(--brand)' : 'currentColor' }} />}
+        <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+        <ChevronRight size={14} strokeWidth={1.5} style={{ flexShrink: 0, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 150ms var(--ease)' }} />
+      </button>
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, margin: '1px 0 4px 17px', paddingLeft: 9, borderLeft: '1px solid var(--border)' }}>
+          {items.map(item => (
+            <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} badge={item.badge} urgent={item.urgent} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ─── Sidebar ──────────────────────────────────────────────────────── */
 
 const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
@@ -124,58 +245,17 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
   const isActive = (path) =>
     location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path + '/'));
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-
-  const canAccess = (item) => {
-    if (!user) return false;
-    if (item.superAdminOnly) return user.role === 'superadmin';
-    if (item.adminOnly && !isAdmin) return false;
-    if (item.kanbanOnly)      return isAdmin || (user.postes || []).includes('kanban');
-    if (item.rhOrAdminOnly)   return isAdmin || (user.postes || []).includes('rh');
-    if (item.gardienOnly)     return isAdmin || user.role === 'gardien';
-    if (item.accueilOnly)     return isAdmin || ['agent_accueil_php','agent_accueil_normal'].includes(user.role);
-    if (item.caisseOnly)      return isAdmin || user.role === 'caissier';
-    if (item.managementOnly)  return isAdmin || ['director','dds','medical_chief'].includes(user.role);
-    if (item.demandeAchatOnly) return isAdmin || ['achat','user'].includes(user.role);
-    if (item.gmaoOnly)        return isAdmin || (user.postes || []).includes('gmao');
-    if (item.phpOnly)         return isAdmin || user.role === 'agent_accueil_php';
-    if (item.comptaOnly)      return isAdmin || (user.postes || []).includes('comptable');
-    return true;
-  };
+  const canAccess = makeCanAccess(user);
 
   const orgName = user?.Service?.name
     ? user.Service.name.substring(0, 4).toUpperCase()
     : 'HSJM';
 
-  const gestionItems = [
-    { path: '/schedules',          icon: Calendar,    label: t('Plannings'),        managementOnly: true },
-    { path: '/employees',          icon: Users,       label: t('Employés'),         rhOrAdminOnly: true },
-    { path: '/user-management',    icon: Users,       label: t('Utilisateurs'),     adminOnly: true },
-    { path: '/admin/droits-acces', icon: Shield,      label: t("Droits d'accès"),  adminOnly: true },
-    { path: '/postes',             icon: Briefcase,   label: t('Postes & Fonctions'), adminOnly: true },
-    { path: '/services',           icon: LayoutGrid,  label: t('Services'),         adminOnly: true },
-    { path: '/audit-log',          icon: Shield,      label: t("Journal d'audit"),  adminOnly: true },
-    { path: '/statistiques',       icon: BarChart3,   label: t('Statistiques'),     adminOnly: true },
-    { path: '/workflow-templates', icon: LayoutGrid,    label: t('Modèles workflow'), adminOnly: true },
-    { path: '/forms',              icon: ClipboardList, label: t('Formulaires'),      adminOnly: true },
-  ].filter(canAccess);
+  const orgGroups = buildOrgGroups(t, user);
 
-  const appsItems = [
-    { path: '/portail',         icon: UserPlus,    label: t('Portail'),            gardienOnly: true },
-    { path: '/accueil',         icon: DoorOpen,    label: t('Accueil'),            accueilOnly: true },
-    { path: '/caisse',          icon: DollarSign,  label: t('Caisse'),             caisseOnly: true },
-    { path: '/demandes-achat',  icon: ShoppingCart,label: t("Demandes d'achat"),   demandeAchatOnly: true },
-    { path: '/php',             icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
-    { path: '/php/factures',    icon: Receipt,     label: t('Factures PHP'),       phpOnly: true },
-    { path: '/sage-factures-php', icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), adminOnly: true },
-    { path: '/compta',          icon: Calculator,  label: t('Comptabilité'),       comptaOnly: true },
-  ].filter(canAccess);
-
-  const toolsItems = [
-    { path: '/kanban/MG', icon: Kanban,   label: t('Suivi technique'), kanbanOnly: true },
-    { path: '/invoices',  icon: Receipt,  label: t('Factures'),        managementOnly: true },
-    { path: '/gmao',      icon: Wrench,   label: t('GMAO'),            gmaoOnly: true },
-  ].filter(canAccess);
+  // /php est un préfixe de /php/factures : on ne surligne que l'entrée la plus précise
+  const isActiveItem = (path) =>
+    isActive(path) && !(path === '/php' && location.pathname.startsWith('/php/factures'));
 
   const superAdminItems = [
     { path: '/super-admin', icon: Shield, label: t('Clients SaaS'), superAdminOnly: true },
@@ -247,16 +327,12 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
           <NavItem icon={MessageSquare} label={t('Discussion')}      to="/chat"                 active={isActive('/chat')} badge={chatUnread} urgent={chatUnread > 0} />
         </NavSection>
 
-        {(gestionItems.length > 0 || appsItems.length > 0 || toolsItems.length > 0) && (
+        {orgGroups.length > 0 && (
           <NavSection title={t('Organisation')}>
-            {gestionItems.map(item => (
-              <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
-            ))}
-            {appsItems.map(item => (
-              <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
-            ))}
-            {toolsItems.map(item => (
-              <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
+            {orgGroups.map(g => g.items.length === 1 ? (
+              <NavItem key={g.id} icon={g.items[0].icon} label={g.items[0].label} to={g.items[0].path} active={isActiveItem(g.items[0].path)} />
+            ) : (
+              <NavGroup key={g.id} id={g.id} icon={g.icon} label={g.label} items={g.items} isActive={isActiveItem} />
             ))}
           </NavSection>
         )}
@@ -270,6 +346,7 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
         )}
 
         <NavSection title={t('Système')}>
+          <NavItem icon={Sparkles} label={t('Nouveautés')} to="/nouveautes" active={isActive('/nouveautes')} />
           <NavItem icon={Settings} label={t('Paramètres')} to="/settings" active={isActive('/settings')} />
         </NavSection>
       </div>
@@ -346,7 +423,7 @@ const timeAgo = (date) => {
   const d = Math.floor(h / 24); return i18n.t('il y a {{d}} j', { d });
 };
 
-const Topbar = ({ onToggleSidebar }) => {
+const Topbar = ({ onToggleSidebar, largeTitle }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -422,7 +499,7 @@ const Topbar = ({ onToggleSidebar }) => {
   };
 
   return (
-    <header style={{
+    <header className={`app-topbar${largeTitle?.hidden ? ' is-condensed' : ''}`} style={{
       height: 53, flexShrink: 0,
       borderBottom: '1px solid var(--border)',
       background: 'var(--surface)',
@@ -430,19 +507,25 @@ const Topbar = ({ onToggleSidebar }) => {
       padding: '0 24px', gap: 12,
       position: 'sticky', top: 0, zIndex: 20,
     }}>
-      {/* Menu toggle (mobile) */}
-      <button
-        className="lg:hidden"
-        onClick={onToggleSidebar}
-        style={{ ...iconBtnStyle, border: '1px solid var(--border)' }}
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-      >
-        <Menu size={15} />
-      </button>
+      {/* Menu toggle (mobile) — le `display` inline du bouton annulerait `lg:hidden`,
+          d'où l'enveloppe : sur PC le menu est toujours visible, ce bouton n'y sert pas. */}
+      <span className="lg:hidden" style={{ lineHeight: 0 }}>
+        <button
+          onClick={onToggleSidebar}
+          aria-label="Menu"
+          style={{ ...iconBtnStyle, border: '1px solid var(--border)' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <Menu size={15} />
+        </button>
+      </span>
 
-      {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-muted)' }}>
+      {/* Breadcrumb — sur mobile, masqué tant que le grand titre de la page est visible,
+          puis affiché en fondu quand il sort de l'écran au défilement (façon iOS) */}
+      <div
+        className={`topbar-title${largeTitle?.present ? ' has-large-title' : ''}${largeTitle?.hidden ? ' is-condensed' : ''}`}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-muted)', minWidth: 0 }}>
         {crumbs.map((c, i) => (
           <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {i > 0 && <ChevronRight size={12} style={{ opacity: 0.4 }} />}
@@ -607,48 +690,22 @@ const MobileTabBar = ({ pendingCount, onMore }) => {
   ];
 
   return (
-    <nav style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0,
-      zIndex: 120,
-      background: 'var(--surface)',
-      borderTop: '1px solid var(--border)',
-      padding: '6px 4px calc(6px + env(safe-area-inset-bottom, 0px))',
-      display: 'flex', justifyContent: 'space-around',
-      boxShadow: '0 -1px 3px rgba(15,27,45,0.04)',
-    }}>
+    <nav className="tabbar-pill" aria-label={t('Navigation principale')}>
       {tabs.map(t => {
         const active = isActive(t.to);
         return (
-          <Link key={t.to} to={t.to} style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', gap: 3, padding: '6px 2px',
-            color: active ? 'var(--brand)' : 'var(--fg-muted)',
-            textDecoration: 'none', position: 'relative',
-            fontSize: 10.5, fontWeight: 500,
-          }}>
-            <t.icon size={20} strokeWidth={active ? 2 : 1.5} />
-            {t.badge > 0 && (
-              <span style={{
-                position: 'absolute', top: 2, left: 'calc(50% + 6px)',
-                minWidth: 15, height: 15, padding: '0 4px',
-                background: 'var(--warning)', color: '#fff',
-                borderRadius: 9, fontSize: 9, fontWeight: 700,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '1.5px solid var(--surface)',
-              }}>{t.badge}</span>
-            )}
+          <Link key={t.to} to={t.to} className={`tabbar-item${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined}>
+            <span className="tabbar-icon">
+              <t.icon size={20} strokeWidth={active ? 2.2 : 1.6} />
+              {t.badge > 0 && <span className="tabbar-badge">{t.badge}</span>}
+            </span>
             <span>{t.label}</span>
           </Link>
         );
       })}
       {/* Plus */}
-      <button onClick={onMore} style={{
-        flex: 1, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', gap: 3, padding: '6px 2px',
-        background: 'none', border: 'none',
-        color: 'var(--fg-muted)', fontSize: 10.5, fontWeight: 500, cursor: 'pointer',
-      }}>
-        <MoreHorizontal size={20} strokeWidth={1.5} />
+      <button type="button" onClick={onMore} className="tabbar-item">
+        <span className="tabbar-icon"><LayoutGrid size={20} strokeWidth={1.6} /></span>
         <span>{t('Plus')}</span>
       </button>
     </nav>
@@ -657,55 +714,45 @@ const MobileTabBar = ({ pendingCount, onMore }) => {
 
 /* ─── Mobile "Plus" sheet ──────────────────────────────────────────── */
 
-const MoreSheet = ({ onClose }) => {
+const MoreSheet = ({ onClose, user }) => {
   const { t } = useTranslation();
-  const MORE_ITEMS = [
-    { to: '/upload',           icon: Upload,      label: t('Upload') },
-    { to: '/workflow-dashboard', icon: GitBranch, label: t('Workflow') },
-    { to: '/archives',         icon: Archive,     label: t('Archives') },
-    { to: '/services',         icon: LayoutGrid,  label: t('Services') },
-    { to: '/user-management',  icon: Users,       label: t('Utilisateurs') },
-    { to: '/settings',         icon: Settings,    label: t('Paramètres') },
-  ];
   const location = useLocation();
+  const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + '/');
+
+  // Mêmes modules et mêmes droits que le menu latéral, en tuiles colorées par métier
+  const sections = [
+    { id: 'travail', label: t('Travail'), color: '#2563EB', items: [
+      { path: '/upload',             icon: Upload,        label: t('Upload') },
+      { path: '/archives',           icon: Archive,       label: t('Archives') },
+      { path: '/workflow-dashboard', icon: GitBranch,     label: t('Workflow') },
+      { path: '/chat',               icon: MessageSquare, label: t('Discussion') },
+    ]},
+    ...buildOrgGroups(t, user),
+    { id: 'systeme', label: t('Système'), color: '#64748B', items: [
+      { path: '/nouveautes', icon: Sparkles, label: t('Nouveautés') },
+      { path: '/settings',   icon: Settings, label: t('Paramètres') },
+    ]},
+  ];
 
   return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 130,
-        background: 'var(--overlay, rgba(15,27,45,0.4))',
-        display: 'flex', alignItems: 'flex-end',
-        animation: 'fadeIn 200ms ease',
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: '100%', background: 'var(--surface)',
-          borderRadius: '16px 16px 0 0',
-          padding: '8px 12px calc(20px + env(safe-area-inset-bottom, 0px))',
-          boxShadow: 'var(--shadow-3)',
-          animation: 'sheetUp 260ms cubic-bezier(0.4,0,0.2,1)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ width: 36, height: 4, background: 'var(--border-strong)', borderRadius: 2, margin: '8px auto 12px' }} />
-        {MORE_ITEMS.map(item => {
-          const active = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
-          return (
-            <Link key={item.to} to={item.to} onClick={onClose} style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              padding: '12px 10px', borderRadius: 'var(--radius-2)',
-              fontSize: 15, fontWeight: 500,
-              color: active ? 'var(--brand)' : 'var(--fg)',
-              background: active ? 'var(--brand-soft)' : 'transparent',
-              textDecoration: 'none',
-            }}>
-              <item.icon size={18} strokeWidth={1.5} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+    <div className="more-sheet-overlay" onClick={onClose}>
+      <div className="more-sheet" onClick={e => e.stopPropagation()} role="dialog" aria-label={t('Plus')}>
+        <div className="more-sheet-grip" />
+        {sections.map(sec => (
+          <section key={sec.id} className="more-section">
+            <h3>{sec.label}</h3>
+            <div className="module-grid">
+              {sec.items.map(item => (
+                <Link key={item.path} to={item.path} onClick={onClose}
+                  className={`module-tile${isActive(item.path) ? ' is-active' : ''}`}
+                  style={{ '--tile-color': sec.color }}>
+                  <item.icon size={24} strokeWidth={1.8} className="module-tile-icon" />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   );
@@ -718,6 +765,9 @@ export default function AppShell({ onLogout }) {
   const { unreadCount: chatUnread, refresh: refreshChatUnread } = useChatUnread();
   const [pendingCount,    setPendingCount]    = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Grand titre façon iOS : présent sur la page ? sorti de l'écran au défilement ?
+  const mainRef = useRef(null);
+  const [largeTitle, setLargeTitle] = useState({ present: false, hidden: false });
   const [sheetOpen, setSheetOpen] = useState(false);
   const location = useLocation();
 
@@ -753,7 +803,32 @@ export default function AppShell({ onLogout }) {
     };
   }, [user]);
 
+  // Suit le grand titre de la page (h1 des en-têtes .stats-header / Upload). Le
+  // contenu arrive souvent après un chargement : on (re)cherche le titre à chaque
+  // changement du DOM de <main> tant qu'il n'est pas observé ou a été remplacé.
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return undefined;
+    let observed = null;
+    let io = null;
+    const update = (next) => setLargeTitle(prev =>
+      prev.present === next.present && prev.hidden === next.hidden ? prev : next);
+    const attach = () => {
+      if (observed && observed.isConnected) return;
+      io?.disconnect(); io = null;
+      observed = main.querySelector('.stats-header h1, h1.upl-title');
+      if (!observed) { update({ present: false, hidden: false }); return; }
+      io = new IntersectionObserver(([entry]) => update({ present: true, hidden: !entry.isIntersecting }), { root: main, threshold: 0 });
+      io.observe(observed);
+    };
+    attach();
+    const mo = new MutationObserver(attach);
+    mo.observe(main, { childList: true, subtree: true });
+    return () => { mo.disconnect(); io?.disconnect(); };
+  }, [location.pathname]);
+
   return (
+    <ReleaseNotesProvider>
     <div style={{
       display: 'flex', height: '100vh',
       background: 'var(--bg)',
@@ -765,29 +840,35 @@ export default function AppShell({ onLogout }) {
       </div>
 
       {/* ── Overlay sidebar mobile ── */}
+      {/* Overlay + drawer au-dessus de la barre d'onglets mobile (zIndex 120) : sinon
+          elle recouvre le bloc utilisateur (compte + déconnexion) en bas du drawer. */}
       {mobileOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(15,27,45,0.4)', backdropFilter: 'blur(2px)' }}
+          className="lg:hidden"
+          style={{ position: 'fixed', inset: 0, zIndex: 124, background: 'rgba(15,27,45,0.4)', backdropFilter: 'blur(2px)' }}
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* ── Sidebar mobile (drawer) ── */}
       <div className="lg:hidden" style={{
-        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50,
+        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 125,
         transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.25s var(--ease)',
         width: 240,
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        background: 'var(--surface)',
       }}>
         <Sidebar user={user} onLogout={onLogout} pendingCount={pendingCount} chatUnread={chatUnread} />
       </div>
 
       {/* ── Colonne principale ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-        <Topbar onToggleSidebar={() => setMobileOpen(o => !o)} />
+        <Topbar onToggleSidebar={() => setMobileOpen(o => !o)} largeTitle={largeTitle} />
         <main
+          ref={mainRef}
           key={location.pathname}
-          className="animate-pageFade"
+          className="animate-pageFade app-main"
           style={{
             flex: 1,
             overflow: location.pathname.startsWith('/chat') ? 'hidden' : 'auto',
@@ -806,7 +887,7 @@ export default function AppShell({ onLogout }) {
       </div>
 
       {/* ── Sheet "Plus" mobile ── */}
-      {sheetOpen && <MoreSheet onClose={() => setSheetOpen(false)} />}
+      {sheetOpen && <MoreSheet user={user} onClose={() => setSheetOpen(false)} />}
 
       {/* ── Recherche globale (⌘K + déclenchée par la barre sidebar) ── */}
       <GlobalSearch hideTrigger />
@@ -814,5 +895,6 @@ export default function AppShell({ onLogout }) {
       {/* ── Bulle de discussion globale ── */}
       <GlobalChatBubble unreadCount={chatUnread} onUnreadChange={refreshChatUnread} />
     </div>
+    </ReleaseNotesProvider>
   );
 }

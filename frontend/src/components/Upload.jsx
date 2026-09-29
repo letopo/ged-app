@@ -63,7 +63,7 @@ function StepBar({ step }) {
   const { t } = useTranslation();
   const steps = [t('Fichier'), t('Métadonnées'), t('Workflow')];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 32 }}>
+    <div className="upl-steps" style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 32 }}>
       {steps.map((label, i) => {
         const idx  = i + 1;
         const done = step > idx;
@@ -79,12 +79,12 @@ function StepBar({ step }) {
               }}>
                 {done ? <CheckCircle size={16} /> : idx}
               </div>
-              <span style={{ fontSize: 13, fontWeight: active ? 600 : 400, color: active ? 'var(--fg)' : done ? 'var(--success)' : 'var(--fg-muted)', whiteSpace: 'nowrap' }}>
+              <span className={active ? 'upl-step-label is-active' : 'upl-step-label'} style={{ fontSize: 13, fontWeight: active ? 600 : 400, color: active ? 'var(--fg)' : done ? 'var(--success)' : 'var(--fg-muted)', whiteSpace: 'nowrap' }}>
                 {label}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div style={{ flex: 1, height: 1, background: done ? 'var(--success)' : 'var(--border)', margin: '0 12px', minWidth: 32, transition: 'background .3s' }} />
+              <div className="upl-step-line" style={{ flex: 1, height: 1, background: done ? 'var(--success)' : 'var(--border)', transition: 'background .3s' }} />
             )}
           </React.Fragment>
         );
@@ -224,7 +224,7 @@ const Upload = () => {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       {/* Top bar */}
-      <div style={{ borderBottom: '1px solid var(--border)', padding: '0 32px', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)', flexShrink: 0 }}>
+      <div className="upl-topbar" style={{ borderBottom: '1px solid var(--border)', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-muted)' }}>
           <span style={{ cursor: 'pointer', color: 'var(--brand)' }} onClick={() => navigate('/documents')}>{t('Documents')}</span>
           <span>›</span>
@@ -236,13 +236,13 @@ const Upload = () => {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '40px 24px' }}>
+      <div className="upl-content" style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: 600 }}>
 
           {/* Title */}
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>{t('Nouveau document')}</div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--fg)', margin: '0 0 6px', letterSpacing: '-0.5px' }}>{t('Ajouter un document à la GED')}</h1>
+            <h1 className="upl-title" style={{ fontWeight: 800, color: 'var(--fg)', margin: '0 0 6px', letterSpacing: '-0.5px' }}>{t('Ajouter un document à la GED')}</h1>
             <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>{t("L'OCR détecte le type, extrait les zones de signature et suggère un workflow.")}</p>
           </div>
 
@@ -257,9 +257,10 @@ const Upload = () => {
                 <div
                   onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
+                  className="upl-drop"
                   style={{
                     border: `2px dashed ${drag ? 'var(--brand)' : 'var(--border)'}`,
-                    borderRadius: 'var(--radius-4)', padding: '56px 24px', textAlign: 'center',
+                    borderRadius: 'var(--radius-4)', textAlign: 'center',
                     background: drag ? 'var(--brand-soft)' : 'var(--surface)',
                     cursor: 'pointer', transition: 'border-color .15s, background .15s', marginBottom: 14,
                   }}
@@ -284,8 +285,8 @@ const Upload = () => {
                 <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', overflow: 'hidden', marginBottom: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'var(--surface)' }}>
                     <PdfBadge ext={fileExt} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', marginBottom: 2 }}>{file.name}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', marginBottom: 2, overflowWrap: 'anywhere' }}>{file.name}</div>
                       <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
                         {formatSize(file.size)}{analysis ? ` · ${t('{{count}} page(s)', { count: analysis.pages })}` : ''}
                       </div>
@@ -326,7 +327,7 @@ const Upload = () => {
               </div>
 
               {/* Mobile card */}
-              <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-3)', border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
+              <div className="upl-mobile-hint" style={{ padding: '14px 16px', borderRadius: 'var(--radius-3)', border: '1px solid var(--border)', background: 'var(--surface)', alignItems: 'center', gap: 14, marginBottom: 28 }}>
                 <Smartphone size={28} color="var(--brand)" strokeWidth={1.5} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 2 }}>{t("Sur le terrain ? Utilisez l'app mobile.")}</div>
@@ -341,7 +342,7 @@ const Upload = () => {
 
           {/* ── STEP 2 ───────────────────────────────────────────────── */}
           {step === 2 && (
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', padding: 24, marginBottom: 28 }}>
+            <div className="upl-card" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', marginBottom: 28 }}>
               {/* IA banner */}
               <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-3)', background: 'var(--brand-soft)', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 13, color: 'var(--brand)' }}>
                 <Sparkles size={14} />
@@ -359,7 +360,7 @@ const Upload = () => {
               </div>
 
               {/* Type + Service */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+              <div className="upl-2col">
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg)', display: 'block', marginBottom: 5 }}>{t('Type')}</label>
                   <select value={category} onChange={e => setCategory(e.target.value)}

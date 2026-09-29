@@ -1,7 +1,7 @@
 ﻿// backend/src/routes/auth.js
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import { register, login, getProfile, updateProfile } from '../controllers/authController.js';
+import { register, login, getProfile, updateProfile, getReleaseNotesState, markReleaseNotesSeen } from '../controllers/authController.js';
 import {
   setup2FA,
   enable2FA,
@@ -17,6 +17,8 @@ router.post('/register', register);
 router.post('/login', loginLimiter, login);
 router.get('/profile',  protect, getProfile);
 router.put('/profile',  protect, updateProfile);
+router.get('/release-notes',       protect, getReleaseNotesState);
+router.post('/release-notes/seen', protect, markReleaseNotesSeen);
 
 // ── 2FA ──────────────────────────────────────────────────────────────────────
 router.post('/2fa/verify-login', twoFALimiter, verifyLogin2FA);   // étape 2 du login (sans protect)

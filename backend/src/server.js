@@ -60,6 +60,7 @@ import formRoutes from './routes/forms.js'; // ✅ Form Builder
 import postesRoutes from './routes/postes.js'; // ✅ Postes organisationnels
 import missionMealRoutes from './routes/missionMeal.js'; // ✅ Indemnités de repas de mission
 import chatRoutes from './routes/chat.js';     // ✅ Module Discussion
+import releaseNoteRoutes from './routes/releaseNotes.js'; // ✅ Nouveautés rédigées depuis l'application
 import tenantBrandingRoutes from './routes/tenantBrandingRoutes.js'; // ✅ Branding tenant
 import { startPHPAutoCloseScheduler, cloturerConsultationsPassees } from './utils/phpAutoClose.js';
 import { startSageFactureSync } from './utils/sageFactureSync.js';
@@ -239,6 +240,7 @@ app.use('/api/onlyoffice', onlyofficeRoutes);
 app.use('/api/postes', postesRoutes); // ✅ Postes organisationnels
 app.use('/api/mission-meal-rates', missionMealRoutes); // ✅ Indemnités de repas de mission
 app.use('/api/chat',   chatRoutes);   // ✅ Module Discussion
+app.use('/api/release-notes', releaseNoteRoutes); // ✅ Nouveautés
 app.use('/api/tenant', tenantBrandingRoutes); // ✅ Branding tenant (logo + couleur)
 app.use('/api/super-admin', superAdminRoutes);
 

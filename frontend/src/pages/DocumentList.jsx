@@ -195,6 +195,9 @@ const DocumentList = () => {
   useEffect(() => {
     const q = searchParams.get('q');
     if (q) setSearchInput(q);
+    // ?status=… (liens des cartes de l'Accueil : En validation, Approuvés, rejetés)
+    const status = searchParams.get('status');
+    if (['draft', 'pending_validation', 'approved', 'rejected'].includes(status)) setFilterStatus(status);
   }, [searchParams]);
 
   // Debounce recherche : attendre 400ms apres la derniere frappe

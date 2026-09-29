@@ -9,7 +9,8 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import {
   Clock, CheckCircle, FileText, TrendingDown, TrendingUp,
-  Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader,
+  Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader, Hourglass,
+  AlertTriangle, Sparkles,
 } from 'lucide-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -123,7 +124,7 @@ function HeroCard({ task, onApprove }) {
             {doc.category ? ` · ${doc.category}` : ''}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div className="dash-hero-actions">
           {doc.id && (
             <Link
               to={`/documents/${doc.id}`}
@@ -155,58 +156,150 @@ function HeroCard({ task, onApprove }) {
   );
 }
 
-// ── KPI grid ─────────────────────────────────────────────────────────────────
+// ── Synthèse du jour ──────────────────────────────────────────────────────────
+// Carte façon « Exercise Ring Update » (app Santé) : une phrase-titre qui dit
+// quoi faire, quelques phrases de contexte, une action. Calculée uniquement sur
+// les tâches et documents déjà chargés pour l'utilisateur.
 
-function KpiGrid({ stats }) {
+const LATE_DAYS = 2;
+const daysSince = (v) => Math.floor((Date.now() - new Date(v)) / 86400000);
+
+function DailySummary({ tasks, own }) {
   const { t } = useTranslation();
+  const ages = tasks.map(tk => daysSince(tk.createdAt || tk.document?.createdAt));
+  const late = ages.filter(d => d >= LATE_DAYS).length;
+  const oldestIdx = ages.length ? ages.indexOf(Math.max(...ages)) : -1;
+  const oldest = oldestIdx >= 0 ? { days: ages[oldestIdx], title: tasks[oldestIdx].document?.title } : null;
+
+  const tone = late > 0 ? 'late' : tasks.length > 0 ? 'todo' : 'calm';
+  const TONES = {
+    late: { color: 'var(--warning)', icon: AlertTriangle, label: t('À traiter en priorité') },
+    todo: { color: 'var(--brand)',   icon: Clock,         label: t('Synthèse du jour') },
+    calm: { color: 'var(--success)', icon: Sparkles,      label: t('Synthèse du jour') },
+  };
+  const { color, icon: Icon, label } = TONES[tone];
+
+  const headline = tone === 'late'
+    ? t('{{count}} document(s) attendent votre validation, dont {{late}} depuis plus de {{days}} jours.', { count: tasks.length, late, days: LATE_DAYS })
+    : tone === 'todo'
+      ? t('{{count}} document(s) attendent votre validation.', { count: tasks.length })
+      : t('Rien à valider pour le moment.');
+
+  const lines = [];
+  if (oldest && oldest.days >= 1 && oldest.title) lines.push(t('Le plus ancien, « {{title}} », attend depuis {{days}} jour(s).', { title: oldest.title, days: oldest.days }));
+  if (own.rejected > 0) lines.push(t('{{count}} de vos documents rejeté(s) cette semaine : pensez à les corriger.', { count: own.rejected }));
+  if (own.approved > 0) lines.push(t('{{count}} de vos documents approuvé(s) cette semaine.', { count: own.approved }));
+  if (lines.length === 0 && tone === 'calm') lines.push(t('Tout est à jour. Bonne journée !'));
+
+  const actions = [];
+  if (tasks.length > 0) actions.push({ to: '/my-tasks', label: t('Voir mes tâches'), primary: true });
+  if (own.rejected > 0) actions.push({ to: '/documents?status=rejected', label: t('Voir les documents rejetés') });
+
+  return (
+    <div className="ged-card dash-summary" style={{ '--summary-color': color }}>
+      <div className="dash-summary-label"><Icon size={14} strokeWidth={2.2} /> {label}</div>
+      <div className="dash-summary-headline">{headline}</div>
+      {lines.map((l, i) => <p key={i} className="dash-summary-line">{l}</p>)}
+      {actions.length > 0 && (
+        <div className="dash-summary-actions">
+          {actions.map(a => (
+            <Link key={a.to} to={a.to} className={a.primary ? 'dash-summary-btn is-primary' : 'dash-summary-btn'}>
+              {a.label} <ArrowRight size={13} />
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── KPI grid ─────────────────────────────────────────────────────────────────
+// Cartes façon « épinglées » (app Santé) : titre coloré, grande valeur et
+// mini-barres des 7 derniers jours (aujourd'hui en couleur, à droite).
+
+const lastDays = (n) => {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Array.from({ length: n }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() - (n - 1 - i)); return d; });
+};
+const dayKey = (v) => { const d = new Date(v); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+
+// Nombre de documents par jour (sur `field`) pour les jours donnés
+const dailyCounts = (docs, field, days) => {
+  const index = Object.fromEntries(days.map((d, i) => [dayKey(d), i]));
+  const counts = days.map(() => 0);
+  docs.forEach(doc => { const i = doc[field] ? index[dayKey(doc[field])] : undefined; if (i !== undefined) counts[i]++; });
+  return counts;
+};
+
+function MiniBars({ values, color, title }) {
+  const max = Math.max(...values, 1);
+  const W = 10;
+  return (
+    <svg className="kpi-bars" viewBox={`0 0 ${values.length * W} 32`} preserveAspectRatio="none" role="img" aria-label={title}>
+      <title>{title}</title>
+      {values.map((v, i) => {
+        const last = i === values.length - 1;
+        const h = v > 0 ? Math.max(3, (v / max) * 30) : 1.5;
+        return <rect key={i} x={i * W + 1.5} y={32 - h} width={W - 3} height={h} rx={1.5}
+          fill={last ? color : 'var(--border-strong)'} opacity={last ? 1 : 0.75} />;
+      })}
+    </svg>
+  );
+}
+
+function KpiGrid({ stats, series }) {
+  const { t } = useTranslation();
+  const days = lastDays(7);
+  const fmtDay = (d) => d.toLocaleDateString(currentLocale(), { weekday: 'short' });
+  const barsTitle = (values) => `${t('7 derniers jours')} : ` + values.map((v, i) => `${fmtDay(days[i])} ${v}`).join(', ');
+
   const items = [
-    { label: t('Total documents'), value: stats.total,    sub: null,              trend: null,   to: '/documents' },
-    { label: t('En validation'),   value: stats.pending,  sub: t('{{count}} urgents', { count: stats.urgent || 0 }), trend: null, to: '/documents?status=pending_validation' },
-    { label: t('Approuvés'),       value: stats.approved, sub: stats.total ? `${Math.round(stats.approved/stats.total*100)}%` : '—', trend: 'up', to: '/documents?status=approved' },
-    { label: t('Délai moyen'),     value: stats.avgDays != null ? stats.avgDays : '—',
-      sub: stats.avgDelta ? `${stats.avgDelta > 0 ? '+' : ''}${stats.avgDelta}j` : null,
+    { label: t('Documents'),     icon: FileText,    color: '#2563EB', value: stats.total,    bars: series?.total,
+      sub: series ? t('{{count}} cette semaine', { count: series.total.reduce((a, b) => a + b, 0) }) : null, to: '/documents' },
+    { label: t('En validation'), icon: Clock,       color: '#D97706', value: stats.pending,  bars: series?.pending,
+      sub: t('{{count}} urgents', { count: stats.urgent || 0 }), to: '/documents?status=pending_validation' },
+    { label: t('Approuvés'),     icon: CheckCircle, color: '#059669', value: stats.approved, bars: series?.approved,
+      sub: stats.total ? `${Math.round(stats.approved / stats.total * 100)}%` : '—', trend: 'up', to: '/documents?status=approved' },
+    { label: t('Délai moyen'),   icon: Hourglass,   color: '#8B5CF6', value: stats.avgDays != null ? stats.avgDays : '—',
       unit: stats.avgDays != null ? 'j' : '',
+      sub: stats.avgDelta ? `${stats.avgDelta > 0 ? '+' : ''}${stats.avgDelta}j` : null,
       trend: stats.avgDelta < 0 ? 'up' : null, to: null },
   ];
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-      gap: 12, marginBottom: 24,
-    }}>
+    <div className="kpi-grid">
       {items.map((k, i) => (
-        <ConditionalLink key={i} to={k.to}
-          style={{
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-3)', padding: '16px 18px',
-            textDecoration: 'none', display: 'block',
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            {k.label}
+        <ConditionalLink key={i} to={k.to} className="kpi-card">
+          <div className="kpi-card-head" style={{ color: k.color }}>
+            <k.icon size={15} strokeWidth={2} />
+            <span>{k.label}</span>
+            {k.to && <ChevronRight size={14} className="kpi-card-chevron" />}
           </div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.5px', lineHeight: 1 }}>
-            {k.value}
-            {k.unit && <span style={{ fontSize: 16, opacity: 0.5, fontWeight: 500 }}>{k.unit}</span>}
-          </div>
-          {k.sub && (
-            <div style={{ marginTop: 6, fontSize: 11, display: 'flex', alignItems: 'center', gap: 4,
-              color: k.trend === 'up' ? 'var(--success)' : 'var(--fg-muted)' }}>
-              {k.trend === 'up' && <TrendingUp size={11} />}
-              {k.trend === 'down' && <TrendingDown size={11} />}
-              {k.sub}
+          <div className="kpi-card-body">
+            <div style={{ minWidth: 0 }}>
+              <div className="kpi-card-value">
+                {k.value}
+                {k.unit && <span className="kpi-card-unit">{k.unit}</span>}
+              </div>
+              {k.sub && (
+                <div className="kpi-card-sub" style={{ color: k.trend === 'up' ? 'var(--success)' : 'var(--fg-muted)' }}>
+                  {k.trend === 'up' && <TrendingUp size={11} />}
+                  {k.trend === 'down' && <TrendingDown size={11} />}
+                  {k.sub}
+                </div>
+              )}
             </div>
-          )}
+            {k.bars && <MiniBars values={k.bars} color={k.color} title={barsTitle(k.bars)} />}
+          </div>
         </ConditionalLink>
       ))}
     </div>
   );
 }
 
-function ConditionalLink({ to, children, style }) {
-  if (to) return <Link to={to} style={style}>{children}</Link>;
-  return <div style={style}>{children}</div>;
+function ConditionalLink({ to, children, style, className }) {
+  if (to) return <Link to={to} style={style} className={className}>{children}</Link>;
+  return <div style={style} className={className}>{children}</div>;
 }
 
 // ── Mini calendar ─────────────────────────────────────────────────────────────
@@ -416,10 +509,10 @@ function RecentDocs({ documents }) {
 function QuickActions({ pendingCount }) {
   const { t } = useTranslation();
   const items = [
-    { icon: Upload,     label: t('Upload'),        sub: t('Document unique'),        to: '/upload' },
-    { icon: FileText,   label: t('Mes tâches'),    sub: t('{{count}} en attente', { count: pendingCount || 0 }), to: '/my-tasks' },
-    { icon: BarChart3,  label: t('Statistiques'),  sub: t('Vue mensuelle'),           to: '/statistiques' },
-    { icon: CheckCircle,label: t('Workflow'),      sub: t('Suivi validation'),        to: '/workflow-dashboard' },
+    { icon: Upload,     color: '#2563EB', label: t('Upload'),        sub: t('Document unique'),        to: '/upload' },
+    { icon: FileText,   color: '#D97706', label: t('Mes tâches'),    sub: t('{{count}} en attente', { count: pendingCount || 0 }), to: '/my-tasks' },
+    { icon: BarChart3,  color: '#8B5CF6', label: t('Statistiques'),  sub: t('Vue mensuelle'),           to: '/statistiques' },
+    { icon: CheckCircle,color: '#059669', label: t('Workflow'),      sub: t('Suivi validation'),        to: '/workflow-dashboard' },
   ];
 
   return (
@@ -438,7 +531,7 @@ function QuickActions({ pendingCount }) {
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
             >
-              <Icon size={17} color="var(--brand)" />
+              <Icon size={20} strokeWidth={1.9} color={a.color || 'var(--brand)'} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)' }}>{a.label}</div>
                 <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{a.sub}</div>
@@ -493,7 +586,7 @@ function ActivityFeed({ documents }) {
                   borderBottom: i < group.items.length - 1 ? '1px solid var(--surface-3)' : 'none',
                 }}>
                   <Avatar text={initials(doc)} idx={i} size={28} />
-                  <div style={{ flex: 1, fontSize: 12.5 }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflowWrap: 'anywhere' }}>
                     <span style={{ fontWeight: 600, color: 'var(--fg)' }}>
                       {who ? `${who.firstName} ${who.lastName}` : t('Système')}
                     </span>{' '}
@@ -521,6 +614,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, urgent: 0 });
+  const [series, setSeries] = useState(null);
+  const [ownWeek, setOwnWeek] = useState({ approved: 0, rejected: 0 });
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [myTasks, setMyTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -546,6 +641,29 @@ const Dashboard = () => {
         rejected: docs.filter(d => d.status === 'rejected').length,
         pending:  pending.length,
         urgent:   pending.filter(d => Math.floor((Date.now() - new Date(d.createdAt)) / 86400000) >= 2).length,
+      });
+      // 7 derniers jours : créations, arrivées encore en validation, approbations
+      // (date d'approbation = date réelle de la dernière validation du circuit)
+      const days = lastDays(7);
+      // Dates de décision réelles (circuit de validation). Repli, si la route ne répond
+      // pas : date de dernière modification des documents approuvés / rejetés.
+      let decisions;
+      try {
+        decisions = (await documentsAPI.getRecentDecisions(7)).data.decisions || [];
+      } catch {
+        decisions = docs.filter(d => ['approved', 'rejected'].includes(d.status) && d.updatedAt && daysSince(d.updatedAt) < 7)
+          .map(d => ({ documentId: d.id, status: d.status, decidedAt: d.updatedAt, userId: d.userId ?? d.uploadedBy?.id }));
+      }
+      setSeries({
+        total:    dailyCounts(docs, 'createdAt', days),
+        pending:  dailyCounts(pending, 'createdAt', days),
+        approved: dailyCounts(decisions.filter(d => d.status === 'approved'), 'decidedAt', days),
+      });
+      // Mes documents approuvés / rejetés ces 7 derniers jours
+      const mine = decisions.filter(d => d.userId === user.id && daysSince(d.decidedAt) < 7);
+      setOwnWeek({
+        approved: mine.filter(d => d.status === 'approved').length,
+        rejected: mine.filter(d => d.status === 'rejected').length,
       });
       setRecentDocuments([...docs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10));
       try {
@@ -598,10 +716,10 @@ const Dashboard = () => {
   const orgName = user?.Service?.name || 'Hôpital Saint-Jean-de-Malte';
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 40px' }} className="animate-pageFade">
+    <div className="stats-page animate-pageFade" style={{ maxWidth: 1100 }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, paddingTop: 4 }}>
+      <div className="stats-header dash-header" style={{ marginBottom: 24 }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-subtle)', letterSpacing: '0.6px',
             textTransform: 'uppercase', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>
@@ -610,13 +728,6 @@ const Dashboard = () => {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>
             {getGreeting()}, {user?.firstName || user?.username}.
           </h1>
-          {myTasks.length > 0 && (
-            <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>
-              {t('Vous avez')}{' '}
-              <strong style={{ color: 'var(--warning)' }}>{t('{{count}} tâche(s) en attente', { count: myTasks.length })}</strong>
-              {stats.pending > 0 && ` ${t('et {{count}} document(s) à examiner.', { count: stats.pending })}`}
-            </div>
-          )}
         </div>
         <button onClick={loadData}
           style={{
@@ -631,11 +742,14 @@ const Dashboard = () => {
         </button>
       </div>
 
+      {/* Synthèse du jour */}
+      {!loading && <DailySummary tasks={myTasks} own={ownWeek} />}
+
       {/* Hero */}
       <HeroCard task={heroTask} onApprove={handleApprove} />
 
       {/* KPIs */}
-      <KpiGrid stats={stats} />
+      <KpiGrid stats={stats} series={series} />
 
       {/* Two-column layout */}
       <div className="dashboard-2col">

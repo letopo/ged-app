@@ -193,11 +193,22 @@ export const onRightsChanged = (callback) => {
 // ============================================
 // API pour l'Authentification
 // ============================================
+// Nouveautés rédigées depuis l'application (page Nouveautés, admins)
+export const releaseNotesAPI = {
+  list:      () => api.get('/release-notes'),
+  listAdmin: () => api.get('/release-notes/admin'),
+  create:    (data) => api.post('/release-notes', data),
+  update:    (id, data) => api.put(`/release-notes/${id}`, data),
+  remove:    (id) => api.delete(`/release-notes/${id}`),
+};
+
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   getProfile: () => api.get('/auth/profile'),
-  updateProfile: (data) => api.put('/auth/profile', data)
+  updateProfile: (data) => api.put('/auth/profile', data),
+  getReleaseNotes: () => api.get('/auth/release-notes'),
+  markReleaseNotesSeen: (ids) => api.post('/auth/release-notes/seen', { ids }),
 };
 
 // ============================================
@@ -222,6 +233,7 @@ export const documentsAPI = {
   getValidatedDemandesTravaux: () => api.get('/documents/demandes-travaux/valides'),
   getNextNumero: (category) => api.get(`/documents/next-numero?category=${encodeURIComponent(category)}`),
   getArchives: () => api.get('/documents/archives'),
+  getRecentDecisions: (days = 7) => api.get('/documents/recent-decisions', { params: { days } }),
   archive: (id) => api.patch(`/documents/${id}/archive`),
   unarchive: (id) => api.patch(`/documents/${id}/unarchive`),
   // OnlyOffice
