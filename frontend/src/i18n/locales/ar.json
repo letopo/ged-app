@@ -2073,5 +2073,9 @@
   "Échec de la ré-extraction.": "فشلت إعادة الاستخراج.",
   "Échec de la suppression.": "فشل الحذف.",
   "← Sélectionner le parcours": "← اختر المسار",
-  "✓ Confirmer ({{count}} étape(s))": "✓ تأكيد ({{count}} خطوة/خطوات)"
+  "✓ Confirmer ({{count}} étape(s))": "✓ تأكيد ({{count}} خطوة/خطوات)",
+  "Ressources humaines": "الموارد البشرية",
+  "Paramétrage": "الإعدادات",
+  "Finances": "المالية",
+  "Technique": "الشؤون التقنية"
 }

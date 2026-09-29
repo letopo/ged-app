@@ -2073,5 +2073,9 @@
   "Échec de la ré-extraction.": "Failed to re-extract.",
   "Échec de la suppression.": "Failed to delete.",
   "← Sélectionner le parcours": "← Select the pathway",
-  "✓ Confirmer ({{count}} étape(s))": "✓ Confirm ({{count}} step(s))"
+  "✓ Confirmer ({{count}} étape(s))": "✓ Confirm ({{count}} step(s))",
+  "Ressources humaines": "Human resources",
+  "Paramétrage": "Configuration",
+  "Finances": "Finance",
+  "Technique": "Technical"
 }

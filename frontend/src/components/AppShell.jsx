@@ -116,6 +116,61 @@ const NavSection = ({ title, children }) => (
   </div>
 );
 
+/* ─── NavGroup (sous-menu repliable) ───────────────────────────────── */
+// Ouvert d'office si une de ses pages est active ; sinon l'état ouvert/fermé
+// choisi par l'utilisateur est mémorisé (localStorage, simple confort).
+const NAV_GROUPS_KEY = 'ged.navGroups.open';
+const readOpenGroups = () => {
+  try { return JSON.parse(localStorage.getItem(NAV_GROUPS_KEY)) || {}; } catch { return {}; }
+};
+
+const NavGroup = ({ id, icon: Icon, label, items, isActive }) => {
+  const hasActive = items.some(item => isActive(item.path));
+  const [open, setOpen] = useState(() => hasActive || !!readOpenGroups()[id]);
+
+  // Navigation vers une page du groupe (ex. via la recherche) → on le déplie
+  useEffect(() => { if (hasActive) setOpen(true); }, [hasActive]);
+
+  const toggle = () => {
+    setOpen(o => {
+      const next = !o;
+      try { localStorage.setItem(NAV_GROUPS_KEY, JSON.stringify({ ...readOpenGroups(), [id]: next })); } catch {}
+      return next;
+    });
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+          padding: '6px 10px', borderRadius: 'var(--radius-2)', border: 'none',
+          background: 'transparent', cursor: 'pointer', textAlign: 'left',
+          color: hasActive ? 'var(--fg)' : 'var(--fg-muted)',
+          fontSize: 13, fontWeight: hasActive ? 600 : 500, fontFamily: 'inherit',
+          transition: 'background 120ms var(--ease), color 120ms var(--ease)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--fg)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = hasActive ? 'var(--fg)' : 'var(--fg-muted)'; }}
+      >
+        {Icon && <Icon size={16} strokeWidth={1.5} style={{ flexShrink: 0, color: hasActive ? 'var(--brand)' : 'currentColor' }} />}
+        <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+        <ChevronRight size={14} strokeWidth={1.5} style={{ flexShrink: 0, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 150ms var(--ease)' }} />
+      </button>
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, margin: '1px 0 4px 17px', paddingLeft: 9, borderLeft: '1px solid var(--border)' }}>
+          {items.map(item => (
+            <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} badge={item.badge} urgent={item.urgent} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ─── Sidebar ──────────────────────────────────────────────────────── */
 
 const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
@@ -147,35 +202,51 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
     ? user.Service.name.substring(0, 4).toUpperCase()
     : 'HSJM';
 
-  const gestionItems = [
-    { path: '/schedules',          icon: Calendar,    label: t('Plannings'),        managementOnly: true },
-    { path: '/employees',          icon: Users,       label: t('Employés'),         rhOrAdminOnly: true },
-    { path: '/user-management',    icon: Users,       label: t('Utilisateurs'),     adminOnly: true },
-    { path: '/admin/droits-acces', icon: Shield,      label: t("Droits d'accès"),  adminOnly: true },
-    { path: '/postes',             icon: Briefcase,   label: t('Postes & Fonctions'), adminOnly: true },
-    { path: '/services',           icon: LayoutGrid,  label: t('Services'),         adminOnly: true },
-    { path: '/audit-log',          icon: Shield,      label: t("Journal d'audit"),  adminOnly: true },
-    { path: '/statistiques',       icon: BarChart3,   label: t('Statistiques'),     adminOnly: true },
-    { path: '/workflow-templates', icon: LayoutGrid,    label: t('Modèles workflow'), adminOnly: true },
-    { path: '/forms',              icon: ClipboardList, label: t('Formulaires'),      adminOnly: true },
-  ].filter(canAccess);
+  // Groupes métier de la section « Organisation » (sous-menus repliables).
+  // Un groupe réduit à une seule entrée visible s'affiche à plat.
+  const orgGroups = [
+    { id: 'admin', icon: Shield, label: t('Administration'), items: [
+      { path: '/user-management',    icon: Users,       label: t('Utilisateurs'),       adminOnly: true },
+      { path: '/admin/droits-acces', icon: Shield,      label: t("Droits d'accès"),     adminOnly: true },
+      { path: '/postes',             icon: Briefcase,   label: t('Postes & Fonctions'), adminOnly: true },
+      { path: '/services',           icon: LayoutGrid,  label: t('Services'),           adminOnly: true },
+      { path: '/audit-log',          icon: Shield,      label: t("Journal d'audit"),    adminOnly: true },
+    ]},
+    { id: 'rh', icon: Users, label: t('Ressources humaines'), items: [
+      { path: '/employees',          icon: Users,       label: t('Employés'),           rhOrAdminOnly: true },
+      { path: '/schedules',          icon: Calendar,    label: t('Plannings'),          managementOnly: true },
+    ]},
+    { id: 'parametrage', icon: LayoutGrid, label: t('Paramétrage'), items: [
+      { path: '/workflow-templates', icon: LayoutGrid,    label: t('Modèles workflow'), adminOnly: true },
+      { path: '/forms',              icon: ClipboardList, label: t('Formulaires'),      adminOnly: true },
+      { path: '/statistiques',       icon: BarChart3,     label: t('Statistiques'),     adminOnly: true },
+    ]},
+    { id: 'files', icon: DoorOpen, label: t("Files d'attente"), items: [
+      { path: '/portail',            icon: UserPlus,    label: t('Portail'),            gardienOnly: true },
+      { path: '/accueil',            icon: DoorOpen,    label: t('Accueil'),            accueilOnly: true },
+      { path: '/caisse',             icon: DollarSign,  label: t('Caisse'),             caisseOnly: true },
+    ]},
+    { id: 'finances', icon: Calculator, label: t('Finances'), items: [
+      { path: '/demandes-achat',     icon: ShoppingCart,    label: t("Demandes d'achat"),    demandeAchatOnly: true },
+      { path: '/compta',             icon: Calculator,      label: t('Comptabilité'),        comptaOnly: true },
+      { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
+      { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), adminOnly: true },
+    ]},
+    { id: 'php', icon: Stethoscope, label: t('Module PHP'), items: [
+      { path: '/php',                icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
+      { path: '/php/factures',       icon: Receipt,     label: t('Factures PHP'),       phpOnly: true },
+    ]},
+    { id: 'technique', icon: Wrench, label: t('Technique'), items: [
+      { path: '/kanban/MG',          icon: Kanban,      label: t('Suivi technique'),    kanbanOnly: true },
+      { path: '/gmao',               icon: Wrench,      label: t('GMAO'),               gmaoOnly: true },
+    ]},
+  ]
+    .map(g => ({ ...g, items: g.items.filter(canAccess) }))
+    .filter(g => g.items.length > 0);
 
-  const appsItems = [
-    { path: '/portail',         icon: UserPlus,    label: t('Portail'),            gardienOnly: true },
-    { path: '/accueil',         icon: DoorOpen,    label: t('Accueil'),            accueilOnly: true },
-    { path: '/caisse',          icon: DollarSign,  label: t('Caisse'),             caisseOnly: true },
-    { path: '/demandes-achat',  icon: ShoppingCart,label: t("Demandes d'achat"),   demandeAchatOnly: true },
-    { path: '/php',             icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
-    { path: '/php/factures',    icon: Receipt,     label: t('Factures PHP'),       phpOnly: true },
-    { path: '/sage-factures-php', icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), adminOnly: true },
-    { path: '/compta',          icon: Calculator,  label: t('Comptabilité'),       comptaOnly: true },
-  ].filter(canAccess);
-
-  const toolsItems = [
-    { path: '/kanban/MG', icon: Kanban,   label: t('Suivi technique'), kanbanOnly: true },
-    { path: '/invoices',  icon: Receipt,  label: t('Factures'),        managementOnly: true },
-    { path: '/gmao',      icon: Wrench,   label: t('GMAO'),            gmaoOnly: true },
-  ].filter(canAccess);
+  // /php est un préfixe de /php/factures : on ne surligne que l'entrée la plus précise
+  const isActiveItem = (path) =>
+    isActive(path) && !(path === '/php' && location.pathname.startsWith('/php/factures'));
 
   const superAdminItems = [
     { path: '/super-admin', icon: Shield, label: t('Clients SaaS'), superAdminOnly: true },
@@ -247,16 +318,12 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
           <NavItem icon={MessageSquare} label={t('Discussion')}      to="/chat"                 active={isActive('/chat')} badge={chatUnread} urgent={chatUnread > 0} />
         </NavSection>
 
-        {(gestionItems.length > 0 || appsItems.length > 0 || toolsItems.length > 0) && (
+        {orgGroups.length > 0 && (
           <NavSection title={t('Organisation')}>
-            {gestionItems.map(item => (
-              <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
-            ))}
-            {appsItems.map(item => (
-              <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
-            ))}
-            {toolsItems.map(item => (
-              <NavItem key={item.path} icon={item.icon} label={item.label} to={item.path} active={isActive(item.path)} />
+            {orgGroups.map(g => g.items.length === 1 ? (
+              <NavItem key={g.id} icon={g.items[0].icon} label={g.items[0].label} to={g.items[0].path} active={isActiveItem(g.items[0].path)} />
+            ) : (
+              <NavGroup key={g.id} id={g.id} icon={g.icon} label={g.label} items={g.items} isActive={isActiveItem} />
             ))}
           </NavSection>
         )}
@@ -765,19 +832,23 @@ export default function AppShell({ onLogout }) {
       </div>
 
       {/* ── Overlay sidebar mobile ── */}
+      {/* Overlay + drawer au-dessus de la barre d'onglets mobile (zIndex 120) : sinon
+          elle recouvre le bloc utilisateur (compte + déconnexion) en bas du drawer. */}
       {mobileOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(15,27,45,0.4)', backdropFilter: 'blur(2px)' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 124, background: 'rgba(15,27,45,0.4)', backdropFilter: 'blur(2px)' }}
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* ── Sidebar mobile (drawer) ── */}
       <div className="lg:hidden" style={{
-        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50,
+        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 125,
         transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.25s var(--ease)',
         width: 240,
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        background: 'var(--surface)',
       }}>
         <Sidebar user={user} onLogout={onLogout} pendingCount={pendingCount} chatUnread={chatUnread} />
       </div>

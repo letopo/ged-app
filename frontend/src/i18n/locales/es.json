@@ -2073,5 +2073,9 @@
   "Échec de la ré-extraction.": "Error al volver a extraer.",
   "Échec de la suppression.": "Error al eliminar.",
   "← Sélectionner le parcours": "← Seleccionar el recorrido",
-  "✓ Confirmer ({{count}} étape(s))": "✓ Confirmar ({{count}} etapa(s))"
+  "✓ Confirmer ({{count}} étape(s))": "✓ Confirmar ({{count}} etapa(s))",
+  "Ressources humaines": "Recursos humanos",
+  "Paramétrage": "Configuración",
+  "Finances": "Finanzas",
+  "Technique": "Técnico"
 }
