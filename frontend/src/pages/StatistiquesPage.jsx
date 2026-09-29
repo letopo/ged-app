@@ -130,7 +130,22 @@ function delayColor(v) {
   return '#3DBE7A';
 }
 
+// Vrai sur les écrans étroits (même bascule que le CSS mobile) — suit le redimensionnement
+function useIsNarrow(maxWidth = 860) {
+  const query = `(max-width: ${maxWidth}px)`;
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia?.(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(query);
+    if (!mq) return undefined;
+    const onChange = (e) => setNarrow(e.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, [query]);
+  return narrow;
+}
+
 function ExplorerView({ data }) {
+  const isNarrow = useIsNarrow();
   const [activeDim, setActiveDim]     = useState('service');
   const [activeMeasure, setActiveMeasure] = useState('delai');
   const [chartType, setChartType]     = useState('Bar');
@@ -337,16 +352,32 @@ function ExplorerView({ data }) {
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          /* Pie */
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie data={chartData} cx="50%" cy="50%" outerRadius={110} paddingAngle={2} dataKey="value"
-                label={({ name, percent }) => percent > 0.05 ? `${name} ${Math.round(percent*100)}%` : ''} labelLine={false}>
-                {chartData.map((_, i) => <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]} />)}
-              </Pie>
-              <Tooltip formatter={(v) => [`${v}${unit}`]} />
-            </PieChart>
-          </ResponsiveContainer>
+          /* Pie — rayon relatif à la carte ; sur petit écran, pas d'étiquettes sur les
+             parts (elles sortaient de la carte) : la légende en dessous les remplace */
+          <>
+            <ResponsiveContainer width="100%" height={isNarrow ? 230 : 300}>
+              <PieChart>
+                <Pie data={chartData} cx="50%" cy="50%" outerRadius={isNarrow ? '85%' : '70%'} paddingAngle={2} dataKey="value"
+                  label={isNarrow ? false : ({ name, percent }) => percent > 0.05 ? `${name} ${Math.round(percent*100)}%` : ''} labelLine={false}>
+                  {chartData.map((_, i) => <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v) => [`${v}${unit}`]} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="stats-pie-legend">
+              {(() => {
+                const total = chartData.reduce((sum, d) => sum + d.value, 0) || 1;
+                return chartData.map((d, i) => (
+                  <div key={i} className="stats-pie-legend-row">
+                    <span className="stats-pie-dot" style={{ background: CAT_COLORS[i % CAT_COLORS.length] }} />
+                    <span className="stats-pie-name">{d.name}</span>
+                    <span className="stats-pie-value">{d.value}{unit}</span>
+                    <span className="stats-pie-pct">{Math.round(d.value / total * 100)}%</span>
+                  </div>
+                ));
+              })()}
+            </div>
+          </>
         )}
 
         {/* Legend for delay colors */}

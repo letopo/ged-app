@@ -366,6 +366,13 @@
 .stats-explorer-side { width: 210px; flex-shrink: 0; padding: 16px 0; }
 .stats-bar-row  { display: flex; align-items: center; gap: 14px; }
 .stats-bar-label { width: 120px; }
+/* Statistiques › Explorer — légende du camembert (remplace les étiquettes sur mobile) */
+.stats-pie-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 20px; margin-top: 12px; }
+.stats-pie-legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
+.stats-pie-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.stats-pie-name { flex: 1; min-width: 0; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats-pie-value { color: var(--fg); font-weight: 600; }
+.stats-pie-pct { width: 38px; text-align: right; color: var(--fg-muted); }
 .wf-filter-menu { right: 0; }
 /* Barre d'onglets mobile — pilule flottante translucide (façon iOS) */
 .tabbar-pill {
