@@ -174,10 +174,9 @@ const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
         </table>
 
         {/* Signatures */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32, marginTop: 48, fontSize: 13 }}>
-          <SignatureFrame label={t('Chef de Service Chirurgie')} zoneIndex={1} height="112px" />
-          <SignatureFrame label={t('Directeur des Soins Infirmiers')} zoneIndex={2} height="112px" />
-          <SignatureFrame label={t('Directeur Général')} zoneIndex={3} height="112px" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 32, marginTop: 48, fontSize: 13 }}>
+          <SignatureFrame label={t('Médecin Chef')} zoneIndex={1} height="112px" />
+          <SignatureFrame label={t('Directeur Général')} zoneIndex={2} height="112px" />
         </div>
       </div>
     </div>
