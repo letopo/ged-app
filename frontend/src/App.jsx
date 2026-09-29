@@ -40,6 +40,7 @@ import DemandeAchatDashboard from './pages/DemandeAchatDashboard';
 import ArchivesPage from './pages/ArchivesPage';
 import AuditLogPage from './pages/AuditLogPage';
 import StatistiquesPage from './pages/StatistiquesPage';
+import NouveautesPage from './pages/NouveautesPage';
 import WorkflowTemplatesPage from './pages/WorkflowTemplatesPage';
 import VerifyDocument from './pages/VerifyDocument';
 import GMAOPage from './pages/GMAOPage';
@@ -325,6 +326,7 @@ function App() {
           <Route path="/kanban/:serviceType"  element={<KanbanRoute><PageWrapper><TrelloBoard /></PageWrapper></KanbanRoute>} />
           <Route path="/settings"             element={<PageWrapper><Settings /></PageWrapper>} />
           <Route path="/parametres/notifications" element={<PageWrapper><NotificationSettings /></PageWrapper>} />
+          <Route path="/nouveautes"           element={<PageWrapper><NouveautesPage /></PageWrapper>} />
 
           <Route path="/schedules"              element={<PageWrapper><SchedulesList /></PageWrapper>} />
           <Route path="/schedules/create"       element={<PageWrapper><ScheduleCreate /></PageWrapper>} />

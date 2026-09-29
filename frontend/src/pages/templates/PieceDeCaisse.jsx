@@ -7,10 +7,12 @@ import DocumentViewer from '../../components/DocumentViewer';
 import { useAuth } from '../../contexts/AuthContext';
 import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 import PersonAutocomplete from '../../components/PersonAutocomplete';
+import { useFeatureNote } from '../../components/ReleaseNotes';
 
 const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissionSelector = true }) => {
     const { user } = useAuth();
     const { t } = useTranslation();
+    useFeatureNote('piece-de-caisse');
     // Si c'est le comptable qui génère la PC, sa signature/cachet va sur la zone
     // « Comptabilité », pas sur « Visa Bénéficiaire ».
     const isComptable = (user?.postes || []).includes('comptable');

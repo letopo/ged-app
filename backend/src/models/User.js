@@ -97,6 +97,13 @@ const User = sequelize.define('User', {
     allowNull: false,
     defaultValue: 'fr',
   },
+  // Identifiants des notes « Nouveautés » déjà vues (cf. frontend src/releaseNotes.js).
+  seenReleaseNotes: {
+    type: DataTypes.JSONB,
+    allowNull: false,
+    defaultValue: [],
+    field: 'seen_release_notes',
+  },
 }, {
   tableName: 'users',
   timestamps: true,

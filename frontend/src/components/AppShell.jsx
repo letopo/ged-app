@@ -11,7 +11,7 @@ import {
   ShoppingCart, Wrench, Stethoscope, Shield, Archive,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
-  MessageSquare, FileSpreadsheet,
+  MessageSquare, FileSpreadsheet, Sparkles,
 } from 'lucide-react';
 import { workflowAPI, tenantBrandingAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,6 +20,7 @@ import i18n from '../i18n/config';
 import GlobalSearch from './GlobalSearch';
 import GlobalChatBubble from './GlobalChatBubble';
 import useChatUnread from '../hooks/useChatUnread';
+import { ReleaseNotesProvider } from './ReleaseNotes';
 import toast from 'react-hot-toast';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
@@ -337,6 +338,7 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
         )}
 
         <NavSection title={t('Système')}>
+          <NavItem icon={Sparkles} label={t('Nouveautés')} to="/nouveautes" active={isActive('/nouveautes')} />
           <NavItem icon={Settings} label={t('Paramètres')} to="/settings" active={isActive('/settings')} />
         </NavSection>
       </div>
@@ -824,6 +826,7 @@ export default function AppShell({ onLogout }) {
   }, [user]);
 
   return (
+    <ReleaseNotesProvider>
     <div style={{
       display: 'flex', height: '100vh',
       background: 'var(--bg)',
@@ -889,5 +892,6 @@ export default function AppShell({ onLogout }) {
       {/* ── Bulle de discussion globale ── */}
       <GlobalChatBubble unreadCount={chatUnread} onUnreadChange={refreshChatUnread} />
     </div>
+    </ReleaseNotesProvider>
   );
 }
