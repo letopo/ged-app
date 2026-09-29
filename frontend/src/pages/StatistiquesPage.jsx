@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import {
   Loader, AlertTriangle, ArrowUpRight, ArrowDownRight,
-  Minus, Download, Bell, Sparkles, ChevronDown, X as XIcon,
+  Minus, Download, Sparkles, ChevronDown, X as XIcon,
 } from 'lucide-react';
 
 // ── Colors ────────────────────────────────────────────────────────────────────
@@ -528,9 +528,6 @@ export default function StatistiquesPage() {
           <button onClick={() => window.print()} style={{ display:'inline-flex', alignItems:'center', gap:5, height:32, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor:'pointer' }}>
             <Download size={13}/> Export PDF
           </button>
-          <div style={{ width:32, height:32, borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-            <Bell size={14} color="var(--fg-muted)" />
-          </div>
         </div>
       </div>
 
