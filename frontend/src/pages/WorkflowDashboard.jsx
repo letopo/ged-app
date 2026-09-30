@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { workflowAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import {
-  AlertCircle, Loader, Download, Bell,
+  AlertCircle, Loader, Download,
   ChevronDown, ArrowUpRight, ArrowDownRight, Minus, Check, X as XIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -269,9 +269,43 @@ export default function WorkflowDashboard() {
       const type = task.document?.category || task.document?.type;
       if (filterService !== 'all' && svc  !== filterService) return false;
       if (filterType    !== 'all' && type !== filterType)    return false;
+      // Période : tâches créées dans les N derniers jours ('all' = tout l'historique)
+      if (period !== 'all') {
+        const created = new Date(task.createdAt || task.document?.createdAt);
+        if (isNaN(created) || Date.now() - created.getTime() > Number(period) * 86400000) return false;
+      }
       return true;
     });
-  }, [allTasks, filterService, filterType]);
+  }, [allTasks, filterService, filterType, period]);
+
+  const periodLabel = period === 'all' ? t('tout') : `${period}j`;
+
+  // Export CSV des tâches affichées (mêmes filtres : période, service, type)
+  const exportCSV = () => {
+    const STATUS = { pending: t('En attente'), approved: t('Approuvée'), rejected: t('Rejetée') };
+    const fmt = (v) => v ? new Date(v).toLocaleDateString('fr-FR') : '';
+    const rows = [[t('Document'), t('Type'), t('Service'), t('Validateur'), t('Étape'), t('Statut'), t('Créée le'), t('Traitée le')]];
+    filteredTasks.forEach(task => {
+      const v = task.validator || task.assignedTo;
+      rows.push([
+        task.document?.title || '',
+        task.document?.category || '',
+        task.document?.service?.name || task.document?.service || task.document?.department || '',
+        v ? `${v.firstName || ''} ${v.lastName || ''}`.trim() || v.email : '',
+        task.step ?? '',
+        STATUS[task.status] || task.status || '',
+        fmt(task.createdAt),
+        task.status !== 'pending' ? fmt(task.validatedAt || task.updatedAt) : '',
+      ]);
+    });
+    // ; + BOM : ouverture directe et accents corrects dans Excel (FR)
+    const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `workflow-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   // ── Stats derived from filtered tasks ──────────────────────────────────────
   const stats = useMemo(() => {
@@ -357,22 +391,24 @@ export default function WorkflowDashboard() {
           <div style={{ fontSize:13, color:'var(--fg-muted)' }}>{t("Vue d'ensemble du flux de validation et goulots d'étranglement")}</div>
         </div>
         <div className="stats-actions">
-          <button style={{ display:'inline-flex', alignItems:'center', gap:6, height:34, padding:'0 14px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor:'pointer' }}>
-            {t('{{count}} derniers jours', { count: period })} <ChevronDown size={14} color="var(--fg-muted)" />
-          </button>
-          <button style={{ display:'inline-flex', alignItems:'center', gap:6, height:34, padding:'0 14px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor:'pointer' }}>
+          <div style={{ position:'relative' }}>
+            <select value={period} onChange={e => setPeriod(e.target.value)} aria-label={t('Période')}
+              style={{ appearance:'none', height:34, padding:'0 32px 0 14px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor:'pointer', outline:'none' }}>
+              {['7', '30', '90', '365'].map(d => <option key={d} value={d}>{t('{{count}} derniers jours', { count: d })}</option>)}
+              <option value="all">{t('Tout l’historique')}</option>
+            </select>
+            <ChevronDown size={14} color="var(--fg-muted)" style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
+          </div>
+          <button onClick={exportCSV} disabled={filteredTasks.length === 0}
+            style={{ display:'inline-flex', alignItems:'center', gap:6, height:34, padding:'0 14px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor: filteredTasks.length ? 'pointer' : 'not-allowed', opacity: filteredTasks.length ? 1 : 0.5 }}>
             <Download size={14} /> {t('Exporter')}
           </button>
-          <div style={{ width:34, height:34, borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', position:'relative' }}>
-            <Bell size={16} color="var(--fg-muted)" />
-            {urgentCount > 0 && <span style={{ position:'absolute', top:6, right:6, width:7, height:7, borderRadius:'50%', background:'var(--warning)', border:'2px solid var(--surface)' }} />}
-          </div>
         </div>
       </div>
 
       {/* ── KPI cards ──────────────────────────────────────────────────────── */}
       <div className="stats-kpis">
-        <StatCard label={t('Entrées')} sublabel={`${period}j`}  value={stats.total}    delta={null} deltaLabel={null} />
+        <StatCard label={t('Entrées')} sublabel={periodLabel}  value={stats.total}    delta={null} deltaLabel={null} />
         <StatCard label={t('En attente')}                        value={stats.pending}  delta={null} deltaLabel={null} urgent={urgentCount > 0 ? t('{{count}} urgente(s)', { count: urgentCount }) : null} />
         <StatCard label={t('Approuvées')}                        value={stats.approved} delta={null} deltaLabel={null} />
         <StatCard label={t('Délai moyen')}                       value={stats.avgDays !== '—' ? `${stats.avgDays}j` : '—'} delta={null} deltaLabel={null} />
@@ -446,7 +482,6 @@ export default function WorkflowDashboard() {
         <div className="ged-card stats-insight">
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
             <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>{t("Goulots d'étranglement")}</div>
-            <button style={{ fontSize:12, color:'var(--brand)', background:'none', border:'none', cursor:'pointer', fontWeight:500 }}>{t('Détails →')}</button>
           </div>
           {stats.bottlenecks.length > 0 ? (
             stats.bottlenecks.map((b,i) => (
@@ -461,9 +496,8 @@ export default function WorkflowDashboard() {
         <div className="ged-card stats-insight">
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
             <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>
-              {t('Top valideurs')} <span style={{ fontWeight:400, color:'var(--fg-muted)' }}>· {period}j</span>
+              {t('Top valideurs')} <span style={{ fontWeight:400, color:'var(--fg-muted)' }}>· {periodLabel}</span>
             </div>
-            <button style={{ fontSize:12, color:'var(--brand)', background:'none', border:'none', cursor:'pointer', fontWeight:500 }}>{t('Tous →')}</button>
           </div>
           {stats.topValidators.length === 0 ? (
             <div style={{ textAlign:'center', color:'var(--fg-muted)', fontSize:13, padding:'24px 0' }}>{t('Aucun valideur sur la période')}</div>

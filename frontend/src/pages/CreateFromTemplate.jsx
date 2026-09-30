@@ -22,10 +22,7 @@ import BonDeCommandeInterne from './templates/BonDeCommandeInterne';
 import CertificatAptitude from './templates/CertificatAptitude';
 import AttestationConge from './templates/AttestationConge';
 import DemandeBesoin from './templates/DemandeBesoin';
-
-// Importer le TemplateEngine DYNAMIQUE
-import TemplateEngine from '../templates/TemplateEngine';
-import demandeExplicationConfig from '../templates/configs/demande-explication.json';
+import DemandeExplication from './templates/DemandeExplication';
 
 import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
@@ -198,43 +195,16 @@ const templates = {
             date_document: new Date().toISOString().split('T')[0],
         }
     },
-    // ============================================
-    // TEMPLATES DYNAMIQUES (nouveau système)
-    // ============================================
     "Demande d'explication": {
-        type: "dynamic",
-        configFile: "demande-explication.json",
+        type: "manual",
+        component: DemandeExplication,
         initialState: {
             noms_prenoms: '',
             service: '',
-            date_lieu: 'Njombé le ' + new Date().toLocaleDateString('fr-FR'),
-            date_incident: '',
-            heure_incident: '',
-            lieu_incident: '',
-            type_incident: '',
-            description_incident: '',
-            motifs_explication: '',
-            delai_reponse: 7,
-            objet: 'Demande d\'explication'
+            date_lieu: 'Njombé, le ' + new Date().toLocaleDateString('fr-FR'),
+            corps: '',
+            copie: '',
         }
-    }
-};
-
-// Fonction pour charger les configurations dynamiques
-const dynamicTemplateConfigs = {
-    "demande-explication.json": demandeExplicationConfig
-};
-
-const loadDynamicTemplate = async (configFile) => {
-    try {
-        const config = dynamicTemplateConfigs[configFile];
-        if (!config) {
-            throw new Error(`Template ${configFile} non configuré`);
-        }
-        return config;
-    } catch (error) {
-        console.error(`❌ Erreur chargement template ${configFile}:`, error);
-        throw new Error(`Template ${configFile} introuvable: ${error.message}`);
     }
 };
 
@@ -246,8 +216,6 @@ const CreateFromTemplate = () => {
 
     const template = templates[templateName] || templates["Demande de permission"];
     const [formData, setFormData] = useState(template.initialState);
-    const [templateConfig, setTemplateConfig] = useState(null);
-    const [loadingConfig, setLoadingConfig] = useState(template.type === "dynamic");
     const pdfContainerRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [genStep, setGenStep] = useState(''); // étape lisible pendant la génération
@@ -267,42 +235,6 @@ const CreateFromTemplate = () => {
     const { draftStatus, hasDraft, restoreDraft, dismissDraft, clearDraft, getDraftAge } = useDraftAutoSave(
         templateName, formData, setFormData, template.initialState
     );
-
-    // Charger la configuration pour les templates dynamiques
-    React.useEffect(() => {
-        const loadConfig = async () => {
-            if (template.type === "dynamic") {
-                try {
-                    setLoadingConfig(true);
-                    const config = await loadDynamicTemplate(template.configFile);
-                    setTemplateConfig(config);
-
-                    // Appliquer les valeurs par défaut du template
-                    if (config.fields) {
-                        const defaults = {};
-                        config.fields.forEach(field => {
-                            if (field.defaultValue && !formData[field.name]) {
-                                if (field.defaultValue.includes('{{currentDate}}')) {
-                                    defaults[field.name] = field.defaultValue.replace('{{currentDate}}', new Date().toLocaleDateString('fr-FR'));
-                                } else {
-                                    defaults[field.name] = field.defaultValue;
-                                }
-                            }
-                        });
-                        if (Object.keys(defaults).length > 0) {
-                            setFormData(prev => ({ ...prev, ...defaults }));
-                        }
-                    }
-                } catch (err) {
-                    setError(t('Erreur chargement template: {{message}}', { message: err.message }));
-                } finally {
-                    setLoadingConfig(false);
-                }
-            }
-        };
-
-        loadConfig();
-    }, [templateName, template.type, template.configFile]);
 
     const handleSubmit = async () => {
     // Validation : une demande de permission doit avoir un nom et au moins une
@@ -568,37 +500,7 @@ const CreateFromTemplate = () => {
             );
         }
 
-        if (template.type === "dynamic") {
-            if (loadingConfig) {
-                return (
-                    <div className="flex items-center justify-center" style={{ background: 'var(--surface)', padding: 48, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', margin: '0 auto', width: '210mm', minHeight: '297mm' }}>
-                        <div className="text-center">
-                            <Loader className="animate-spin w-8 h-8 mx-auto mb-4" style={{ color: 'var(--brand)' }} />
-                            <p style={{ color: 'var(--fg-muted)' }}>{t('Chargement du template...')}</p>
-                        </div>
-                    </div>
-                );
-            }
-
-            if (!templateConfig) {
-                return (
-                    <div className="flex items-center justify-center" style={{ background: 'var(--surface)', padding: 48, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', margin: '0 auto', width: '210mm', minHeight: '297mm' }}>
-                        <div className="text-center" style={{ color: 'var(--danger)' }}>
-                            <p>{t('Erreur: Configuration du template introuvable')}</p>
-                        </div>
-                    </div>
-                );
-            }
-
-            return (
-                <TemplateEngine
-                    templateConfig={templateConfig}
-                    formData={formData}
-                    setFormData={setFormData}
-                    pdfContainerRef={pdfContainerRef}
-                />
-            );
-        } else {
+        {
             // Template manuel classique
             const TemplateComponent = template.component;
             return (
@@ -615,11 +517,6 @@ const CreateFromTemplate = () => {
         <div className="max-w-4xl mx-auto p-8" style={{ background: 'var(--surface-2)' }}>
             <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--fg)' }}>
                 {t('Créer : {{name}}', { name: t(templateName) })}
-                {template.type === "dynamic" && (
-                    <span className="ml-2 text-sm px-2 py-1 rounded-full" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
-                        {t('Dynamique')}
-                    </span>
-                )}
             </h1>
             <p className="mb-4" style={{ color: 'var(--fg-muted)' }}>
                 {t('Remplissez les champs pour générer le document PDF.')}
@@ -686,15 +583,15 @@ const CreateFromTemplate = () => {
             <div className="text-center mt-8" style={{ display: (isOrdreMission && !formData.type_mission) ? 'none' : undefined }}>
                 <button
                     onClick={handleSubmit}
-                    disabled={loading || (template.type === "dynamic" && loadingConfig)}
+                    disabled={loading}
                     className="px-8 py-3 font-semibold rounded-lg flex items-center justify-center gap-2 mx-auto transition-all"
                     style={{
-                        background: (loading || (template.type === "dynamic" && loadingConfig)) ? 'var(--fg-subtle)' : 'var(--brand)',
+                        background: loading ? 'var(--fg-subtle)' : 'var(--brand)',
                         color: '#fff',
                         border: 'none',
                         boxShadow: 'var(--shadow-2)',
-                        cursor: (loading || (template.type === "dynamic" && loadingConfig)) ? 'not-allowed' : 'pointer',
-                        opacity: (loading || (template.type === "dynamic" && loadingConfig)) ? 0.6 : 1,
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        opacity: loading ? 0.6 : 1,
                     }}
                 >
                     {loading ? (
@@ -731,7 +628,7 @@ const CreateFromTemplate = () => {
                         Template: {templateName} ({template.type})
                     </p>
                     <p className="text-sm mt-2" style={{ color: 'var(--fg-muted)' }}>
-                        Config: {template.type === "dynamic" ? template.configFile : "Manuel"}
+                        Config: Manuel
                     </p>
                     <details className="mt-2" style={{ color: 'var(--fg)' }}>
                         <summary className="text-sm font-medium cursor-pointer">Voir FormData complet</summary>

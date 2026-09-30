@@ -22,6 +22,12 @@ import { useFavorites } from '../hooks/useFavorites';
 import TemplatePermissionsModal from '../components/TemplatePermissionsModal';
 import MissionMealRatesModal from '../components/MissionMealRatesModal';
 
+// Types dont le circuit de validation est construit par le serveur (postes) : la
+// fenêtre « Soumettre » affiche le circuit imposé au lieu du choix libre des validateurs.
+// Demande d'explication : cf. backend utils/posteChain.js.
+const SERVER_CHAIN_CATEGORIES = ['Ordre de mission', 'Pièce de caisse', "Demande d'explication"];
+const isServerChainCategory = (category) => SERVER_CHAIN_CATEGORIES.includes(category);
+
 const DocumentList = () => {
   const { t } = useTranslation();
   const { lang } = useLanguage();
@@ -307,14 +313,16 @@ const DocumentList = () => {
 
     // Ordre de mission / Pièce de caisse : circuit construit côté serveur → on charge
     // l'aperçu (postes + titulaires) au lieu de la sélection manuelle des validateurs.
-    if (document.category === 'Ordre de mission' || document.category === 'Pièce de caisse') {
+    if (isServerChainCategory(document.category)) {
       setWorkflowTemplates([]);
       setAvailableUsers([]);
       setLoadingUsers(true);
       try {
         const res = document.category === 'Ordre de mission'
           ? await workflowAPI.getOrdreMissionPreview(document.id)
-          : await workflowAPI.getPieceDeCaisseChainPreview(document.id);
+          : document.category === 'Pièce de caisse'
+            ? await workflowAPI.getPieceDeCaisseChainPreview(document.id)
+            : await workflowAPI.getPosteChainPreview(document.id);
         const steps = res.data?.steps || [];
         setOmPreview({ steps });
         // Pré-remplir les postes à 1 titulaire
@@ -415,11 +423,8 @@ const DocumentList = () => {
   };
 
   const handleSubmitWorkflow = async () => {
-    const isOM = documentToSubmit?.category === 'Ordre de mission';
-    const isPC = documentToSubmit?.category === 'Pièce de caisse';
-
     let workflowData;
-    if (isOM || isPC) {
+    if (isServerChainCategory(documentToSubmit?.category)) {
       // Vérifier que chaque poste multi-titulaires a bien un titulaire choisi
       const steps = omPreview?.steps || [];
       const missing = steps.find(s => s.posteCode && !omSelections[s.posteCode]);
@@ -646,24 +651,24 @@ const DocumentList = () => {
   );
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 40px' }} className="animate-pageFade">
+    <div className="stats-page animate-pageFade" style={{ maxWidth: 1100 }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20, paddingTop: 4 }}>
+      <div className="stats-header" style={{ marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>{t('Documents')}</h1>
           <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>{t('{{total}} documents · {{pending}} en validation', { total: totalDocuments, pending: stats.pending })}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="stats-actions">
           <button onClick={exportCSV} style={btnOutline}>{t('Exporter CSV')}</button>
           <Link to="/upload" style={btnPrimary}>{t('+ Nouveau document')}</Link>
         </div>
       </div>
 
       {/* Barre de filtres (une seule ligne) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="dl-filters" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {/* Segmented view switcher : Table / Grille */}
-        <div style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', padding: 3, gap: 2 }}>
+        <div className="dl-f-view" style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', padding: 3, gap: 2 }}>
           <button onClick={() => setViewMode('list')} style={viewMode === 'list' ? segActive : segIdle}>
             <LayoutList size={13} /> {t('Table')}
           </button>
@@ -672,7 +677,7 @@ const DocumentList = () => {
           </button>
         </div>
         {/* Search */}
-        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+        <div className="dl-f-search" style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', pointerEvents: 'none' }} />
           <input
             type="text"
@@ -688,7 +693,7 @@ const DocumentList = () => {
           )}
         </div>
         {/* Chip statut */}
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
+        <select className="dl-f-half" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
           <option value="all">{t('Statut : tous')}</option>
           <option value="draft">{t('Brouillon')}</option>
           <option value="pending_validation">{t('En validation')}</option>
@@ -696,14 +701,14 @@ const DocumentList = () => {
           <option value="rejected">{t('Rejeté')}</option>
         </select>
         {/* Chip catégorie */}
-        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={selectStyle}>
+        <select className="dl-f-half" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={selectStyle}>
           <option value="all">{t('Type : tous')}</option>
           {categories.map(c => <option key={c} value={c}>{t(c)}</option>)}
         </select>
         {/* Date from - to (compact) */}
-        <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ ...selectStyle, width: 130 }} />
-        <span style={{ color: 'var(--fg-subtle)', fontSize: 12 }}>→</span>
-        <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ ...selectStyle, width: 130 }} />
+        <input className="dl-f-date" type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ ...selectStyle, width: 130 }} aria-label={t('Du')} />
+        <span className="dl-f-arrow" style={{ color: 'var(--fg-subtle)', fontSize: 12 }}>→</span>
+        <input className="dl-f-date" type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ ...selectStyle, width: 130 }} aria-label={t('Au')} />
         {activeFilterCount > 0 && (
           <button onClick={resetAllFilters} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 'var(--radius-full)', background: 'var(--danger-soft)', color: 'var(--danger)', border: 'none', cursor: 'pointer', fontSize: 12 }}>
             <X size={11} /> {t('Effacer')}
@@ -718,7 +723,7 @@ const DocumentList = () => {
           {/* Bulk action bar */}
           {selectedIds.length > 0 && (
             <div className="ged-card animate-fadeIn" style={{ padding: '10px 14px', marginBottom: 12, background: 'var(--brand-soft)', borderColor: 'var(--brand-soft-2)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 <span style={{ fontSize: 13, color: 'var(--brand-fg)', fontWeight: 500 }}>
                   <b>{selectedIds.length}</b> {t('sélectionné(s)')}
                 </span>
@@ -739,7 +744,7 @@ const DocumentList = () => {
           {/* TABLE VIEW */}
           {viewMode === 'list' && totalDocuments > 0 && (
             <div className="ged-card" style={{ overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="dl-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--surface-2)' }}>
                     <th style={thStyle}><input type="checkbox" checked={pagedDocuments.length > 0 && selectedIds.length === pagedDocuments.length} onChange={toggleSelectAll} /></th>
@@ -767,19 +772,19 @@ const DocumentList = () => {
                           onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface)'; }}
                           onClick={() => setViewingDocument(doc)}
                         >
-                          <td style={tdStyle} onClick={e => e.stopPropagation()}><input type="checkbox" checked={isSelected} onChange={() => toggleSelect(doc.id)} /></td>
-                          <td style={{ ...tdStyle, maxWidth: 300 }}>
+                          <td className="dl-td-check" style={tdStyle} onClick={e => e.stopPropagation()}><input type="checkbox" checked={isSelected} onChange={() => toggleSelect(doc.id)} /></td>
+                          <td className="dl-td-doc" style={{ ...tdStyle, maxWidth: 300 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <button onClick={e => { e.stopPropagation(); toggleFav(doc.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: isFav(doc.id) ? '#FBBF24' : 'var(--fg-subtle)' }}>
                                 <Star size={13} fill={isFav(doc.id) ? '#FBBF24' : 'none'} />
                               </button>
                               <div style={{ minWidth: 0 }}>
-                                <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
+                                <div className="dl-title" style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
                                 {doc.fileSize ? <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{formatSize(doc.fileSize)}</div> : null}
                               </div>
                             </div>
                           </td>
-                          <td style={tdStyle}>
+                          <td className="dl-td-meta" style={tdStyle}>
                             {doc.category && <span className="ged-badge ged-badge-neutral" style={{ fontSize: 11 }}>{t(doc.category)}</span>}
                             {doc.visibility && (
                               <span className={`ged-badge ${VISIBILITY_CFG[doc.visibility]?.cls || 'ged-badge-neutral'}`} style={{ fontSize: 11, marginLeft: 4 }}>
@@ -787,26 +792,26 @@ const DocumentList = () => {
                               </span>
                             )}
                           </td>
-                          <td style={tdStyle}>
+                          <td className="dl-td-meta" style={tdStyle}>
                             <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                               <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, display: 'inline-block', flexShrink: 0 }} />
                               {st.label}
                             </span>
                           </td>
-                          <td style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)' }}>
+                          <td className="dl-td-meta" style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)' }}>
                             {doc.uploadedBy ? `${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName[0]}.` : '—'}
                           </td>
-                          <td style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)' }}>
+                          <td className="dl-td-date" style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)' }}>
                             {formatDate(doc.createdAt)}
                           </td>
-                          <td style={tdStyle}>
+                          <td className="dl-td-wf" style={tdStyle}>
                             {hasWf && (
                               <button onClick={e => toggleWorkflow(doc.id, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-muted)' }}>
                                 {wfApproved}/{wfTotal}
                               </button>
                             )}
                           </td>
-                          <td style={{ ...tdStyle, textAlign: 'right' }}>
+                          <td className="dl-td-actions" style={{ ...tdStyle, textAlign: 'right' }}>
                             <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
                               <button onClick={() => setViewingDocument(doc)} style={iconBtn} title={t('Voir')}><Eye size={14} /></button>
                               <button onClick={() => handleOpenSubmitModal(doc)} disabled={doc.status !== 'draft'} style={{ ...iconBtn, opacity: doc.status !== 'draft' ? 0.3 : 1 }} title={t('Soumettre')}><Send size={14} /></button>
@@ -816,7 +821,7 @@ const DocumentList = () => {
                           </td>
                         </tr>
                         {hasWf && expandedWorkflows.has(doc.id) && (
-                          <tr style={{ background: 'var(--surface-2)' }}>
+                          <tr className="dl-wf-row" style={{ background: 'var(--surface-2)' }}>
                             <td colSpan={8} style={{ padding: '12px 18px' }}>
                               <WorkflowProgress
                                 workflows={doc.workflows}
@@ -943,7 +948,7 @@ const DocumentList = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
               <span>{t('Page')} <b style={{ color: 'var(--fg)' }}>{safePage}</b> {t('sur')} <b style={{ color: 'var(--fg)' }}>{totalPages}</b> · {t('{{count}} documents', { count: totalDocuments })}</span>
               <div style={{ display: 'flex', gap: 4 }}>
                 <button onClick={() => setCurrentPage(1)} disabled={safePage === 1} style={pageBtn}>«</button>
@@ -1063,7 +1068,7 @@ const DocumentList = () => {
               <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>{t('Document :')} <span style={{ fontWeight: 500 }}>{documentToSubmit?.title}</span></p>
 
               {/* Ordre de mission / Pièce de caisse : circuit auto + choix du titulaire si plusieurs */}
-              {(documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse') && (
+              {isServerChainCategory(documentToSubmit?.category) && (
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>{t('Circuit de validation')}</label>
                   {loadingUsers ? (
@@ -1117,7 +1122,7 @@ const DocumentList = () => {
                   </div>
                 </div>
               )}
-              <div style={{ display: (documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse') ? 'none' : undefined }}>
+              <div style={{ display: isServerChainCategory(documentToSubmit?.category) ? 'none' : undefined }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--fg)', marginBottom: 10 }}>{t("Sélectionnez les validateurs (dans l'ordre)")}</label>
                 {loadingUsers
                   ? <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}><Loader className="animate-spin" style={{ color: 'var(--brand)' }} /></div>
@@ -1198,7 +1203,7 @@ const DocumentList = () => {
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={handleCloseSubmitModal} disabled={submitLoading} style={{ padding: '7px 16px', background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13 }}>{t('Annuler')}</button>
               {(() => {
-                const isServerChainSubmit = documentToSubmit?.category === 'Ordre de mission' || documentToSubmit?.category === 'Pièce de caisse';
+                const isServerChainSubmit = isServerChainCategory(documentToSubmit?.category);
                 const submitDisabled = submitLoading || (isServerChainSubmit ? (!omPreview || !!omPreview.error) : selectedValidators.length === 0);
                 return (
               <button onClick={handleSubmitWorkflow} disabled={submitDisabled} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: submitDisabled ? 0.5 : 1 }}>

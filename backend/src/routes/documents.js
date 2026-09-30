@@ -19,7 +19,7 @@ import {
   getPieceDeCaisseHistory,
   getRecentDecisions,
 } from '../controllers/documentController.js';
-import { Document, User, Workflow } from '../models/index.js';
+import { Document, User, Workflow, Service } from '../models/index.js';
 import { Op } from 'sequelize'; // ✅ AJOUT IMPORTANT
 
 const router = express.Router();
@@ -302,7 +302,55 @@ router.get('/statistics', protect, async (req, res) => {
       raw: true,
     });
 
-    // 7. Totaux
+    // 7. Explorer : mesures réelles par dimension, sur les documents créés pendant la
+    //    période (archivés compris : ce sont souvent des documents aboutis).
+    //    Délai = création → décision finale lue dans le circuit (Workflow.validatedAt) ;
+    //    % approuvés = approuvés / (approuvés + rejetés).
+    const periodDocs = await Document.findAll({
+      where: { createdAt: { [Op.gte]: monthsAgo } },
+      attributes: ['id', 'category', 'status', 'createdAt'],
+      include: [
+        { model: Service, as: 'service', attributes: ['name'] },
+        { model: User, as: 'uploadedBy', attributes: ['firstName', 'lastName'] },
+        { model: Workflow, as: 'workflows', attributes: ['status', 'validatedAt'], required: false },
+      ],
+    });
+    const explorerAcc = { type: {}, service: {}, auteur: {}, statut: {}, date: {} };
+    for (const doc of periodDocs) {
+      const decided = ['approved', 'rejected'].includes(doc.status);
+      const decisionTimes = (doc.workflows || [])
+        .filter(w => w.status === doc.status && w.validatedAt)
+        .map(w => new Date(w.validatedAt).getTime());
+      const delayDays = decided && decisionTimes.length
+        ? (Math.max(...decisionTimes) - new Date(doc.createdAt).getTime()) / 86400000
+        : null;
+      const author = doc.uploadedBy ? `${doc.uploadedBy.firstName || ''} ${doc.uploadedBy.lastName || ''}`.trim() : '';
+      const created = new Date(doc.createdAt);
+      const keys = {
+        type: doc.category || 'Autres',
+        service: doc.service?.name || 'Sans service',
+        auteur: author || 'Inconnu',
+        statut: doc.status || 'inconnu',
+        date: `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}`,
+      };
+      for (const [dim, key] of Object.entries(keys)) {
+        const row = (explorerAcc[dim][key] ||= { name: key, count: 0, decided: 0, approved: 0, delaySum: 0, delayCount: 0 });
+        row.count++;
+        if (decided) { row.decided++; if (doc.status === 'approved') row.approved++; }
+        if (delayDays !== null && delayDays >= 0) { row.delaySum += delayDays; row.delayCount++; }
+      }
+    }
+    const explorer = Object.fromEntries(Object.entries(explorerAcc).map(([dim, rows]) => [dim,
+      Object.values(rows).map(r => ({
+        name: r.name,
+        count: r.count,
+        decided: r.decided,
+        avgDays: r.delayCount ? Math.round((r.delaySum / r.delayCount) * 10) / 10 : null,
+        approvalRate: r.decided ? Math.round((r.approved / r.decided) * 100) : null,
+      })),
+    ]));
+
+    // 8. Totaux
     const totalDocs = await Document.count({ where: { archived: { [Op.ne]: true } } });
     const totalArchived = await Document.count({ where: { archived: true } });
     const totalWorkflows = await Workflow.count();
@@ -318,6 +366,7 @@ router.get('/statistics', protect, async (req, res) => {
         topUploaders,
         workflowStats,
         workflowByMonth,
+        explorer,
       }
     });
   } catch (error) {

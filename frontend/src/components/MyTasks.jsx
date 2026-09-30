@@ -789,10 +789,10 @@ const MyTasks = () => {
   );
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 40px' }} className="animate-pageFade">
+    <div className="stats-page animate-pageFade" style={{ maxWidth: 1100 }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20, paddingTop: 4 }}>
+      <div className="stats-header" style={{ marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>{t('Mes tâches')}</h1>
           <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 3 }}>
@@ -820,7 +820,8 @@ const MyTasks = () => {
       )}
 
       {/* Tabs + filter bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="mt-tabbar" style={{ display: 'flex', alignItems: 'center', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+        <div className="mt-tabs" style={{ display: 'flex' }}>
         {[
           { key: 'pending',  label: t('En attente') },
           { key: 'approved', label: t('Approuvées') },
@@ -832,7 +833,7 @@ const MyTasks = () => {
           const active = filter === tab.key;
           return (
             <button key={tab.key} onClick={() => setFilter(tab.key)} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
+              display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
               padding: '10px 14px',
               background: 'none', border: 'none', borderBottom: `2px solid ${active ? 'var(--brand)' : 'transparent'}`,
               cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 500,
@@ -848,9 +849,10 @@ const MyTasks = () => {
             </button>
           );
         })}
+        </div>
         {/* Spacer + right-aligned filter */}
         <div style={{ flex: 1 }} />
-        <select value={serviceFilter} onChange={e => setServiceFilter(e.target.value)} style={{
+        <select className="mt-service-filter" value={serviceFilter} onChange={e => setServiceFilter(e.target.value)} style={{
           height: 32, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)',
           background: 'var(--surface)', color: 'var(--fg)', fontSize: 12, outline: 'none', marginBottom: 8,
         }}>
@@ -861,7 +863,7 @@ const MyTasks = () => {
 
       {/* Bulk selection info bar */}
       {isInSelectionMode && (
-        <div style={{ padding: '10px 14px', marginBottom: 12, background: 'var(--brand-soft)', borderRadius: 'var(--radius-3)', border: '1px solid var(--brand-soft-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '10px 14px', marginBottom: 12, background: 'var(--brand-soft)', borderRadius: 'var(--radius-3)', border: '1px solid var(--brand-soft-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ fontSize: 13, color: 'var(--brand-fg)', fontWeight: 600 }}>{t('{{count}} / {{max}} sélectionné(s)', { count: selectedTaskIds.length, max: MAX_SELECTION })}</span>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={handleSelectAll} style={btnOutline}>{t('Tout sélectionner')}</button>
@@ -883,7 +885,7 @@ const MyTasks = () => {
         </div>
       ) : (
         <div className="ged-card" style={{ overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="mt-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--surface-2)' }}>
                 {isInSelectionMode && <th style={thStyle}></th>}
@@ -918,12 +920,12 @@ const MyTasks = () => {
                       onMouseLeave={e => { e.currentTarget.style.background = isSelected ? 'var(--brand-soft)' : isOverdue ? 'var(--danger-soft)' : isBypassable ? 'var(--warning-soft)' : 'var(--surface)'; }}
                     >
                       {isInSelectionMode && (
-                        <td style={tdStyle}>
+                        <td className="mt-td-check" style={tdStyle}>
                           <input type="checkbox" checked={isSelected} disabled={isDisabled} onChange={() => handleTaskSelection(task.id)} style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }} />
                         </td>
                       )}
-                      <td style={{ ...tdStyle, maxWidth: 280 }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <td className="mt-td-doc" style={{ ...tdStyle, maxWidth: 280 }}>
+                        <div className="mt-title" style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {task.document?.title || '—'}
                         </div>
                         <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
@@ -940,33 +942,33 @@ const MyTasks = () => {
                           )}
                         </div>
                       </td>
-                      <td style={tdStyle}>
+                      <td className="mt-td-type" style={tdStyle}>
                         {task.document?.category && (
                           <span className="ged-badge ged-badge-neutral" style={{ fontSize: 11 }}>{task.document.category}</span>
                         )}
                       </td>
-                      <td style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)' }}>
+                      <td className="mt-td-by" style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)' }}>
                         {task.document?.uploadedBy?.firstName ? `${task.document.uploadedBy.firstName} ${task.document.uploadedBy.lastName?.[0] || ''}.` : '—'}
                         {task.document?.metadata?.service && (
                           <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{task.document.metadata.service}</div>
                         )}
                       </td>
-                      <td style={tdStyle}>
+                      <td className="mt-td-status" style={tdStyle}>
                         <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11 }}>
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, display: 'inline-block', flexShrink: 0 }} />
                           {st.label}
                         </span>
                       </td>
-                      <td style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                      <td className="mt-td-date" style={{ ...tdStyle, fontSize: 12, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
                         {formatDate(task.createdAt)}
                       </td>
-                      <td style={tdStyle}>
-                        <div style={{ display: 'flex', gap: 4 }}>
+                      <td className="mt-td-actions" style={tdStyle}>
+                        <div className="mt-actions" style={{ display: 'flex', gap: 4 }}>
                           <button onClick={() => setTaskForPreview(task)} style={iconBtn} title={t('Aperçu rapide')}><ZoomIn size={13} /></button>
                           <button onClick={() => setViewingDocument(task.document)} style={iconBtn} title={t('Voir le document')}><Eye size={13} /></button>
                           {(task.status === 'pending' || isBypassable) && (
-                            <button onClick={() => openProcessingModal(task)} style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                            <button className="mt-process-btn" onClick={() => openProcessingModal(task)} style={{
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                               padding: '5px 12px', borderRadius: 'var(--radius-2)',
                               background: needsPieceDeCaisse(task) ? 'var(--warning)' : isBypassable ? 'var(--warning)' : 'var(--brand)',
                               color: '#fff', border: 'none', cursor: 'pointer',
@@ -990,7 +992,7 @@ const MyTasks = () => {
 
       {/* Pagination */}
       {pagination.totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
           <span>{t('Page')} <b style={{ color: 'var(--fg)' }}>{pagination.page}</b> {t('sur')} <b style={{ color: 'var(--fg)' }}>{pagination.totalPages}</b> · {t('{{count}} tâche(s)', { count: pagination.total })}</span>
           <div style={{ display: 'flex', gap: 4 }}>
             <button onClick={() => goToPage(1)} disabled={currentPage === 1} style={pageBtn}>«</button>
@@ -1025,9 +1027,9 @@ const MyTasks = () => {
       {/* Modal de traitement principal */}
       {taskToProcess && !showDemandeBesoins && !showFicheSuivi && !showDBFromFS && !showValidatorsSelection && !showPieceDeCaisseFromOM && ReactDOM.createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 672, display: 'flex', maxHeight: '90vh', overflow: 'hidden' }}>
-            {/* Colonne Gauche (Actions) */}
-            <div style={{ width: '50%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          <div className="mt-process-modal" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 672, display: 'flex', maxHeight: '90vh', overflow: 'hidden' }}>
+            {/* Colonne Gauche (Actions) — sur mobile, colonnes empilées (cf. index.css) */}
+            <div className="mt-process-col" style={{ width: '50%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
               <div style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10, padding: '24px 24px 16px', borderBottom: '1px solid var(--border)' }}>
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', margin: '0 0 4px' }}>{t('Traiter le document')}</h2>
                 <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={taskToProcess.document.title}>
@@ -1354,7 +1356,7 @@ const MyTasks = () => {
             </div>
 
             {/* Colonne Droite (Progression) */}
-            <div style={{ width: '50%', padding: 24, background: 'var(--surface-2)', borderLeft: '1px solid var(--border)', overflowY: 'auto' }}>
+            <div className="mt-process-col mt-process-side" style={{ width: '50%', padding: 24, background: 'var(--surface-2)', borderLeft: '1px solid var(--border)', overflowY: 'auto' }}>
               <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>{t('Suivi de Validation')}</p>
               <WorkflowProgress
                 workflows={taskToProcess.document.workflows}

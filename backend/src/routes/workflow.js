@@ -13,6 +13,7 @@ import {
   relancerValidation,
   getOrdreMissionPreview,
   getPieceDeCaisseChainPreview,
+  getPosteChainPreview,
 } from '../controllers/workflowController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -25,6 +26,7 @@ router.put('/:taskId/validate', protect, validateTask);
 router.get('/document/:documentId', protect, getDocumentWorkflow);
 router.get('/document/:documentId/ordre-mission-preview', protect, getOrdreMissionPreview);
 router.get('/document/:documentId/piece-de-caisse-preview', protect, getPieceDeCaisseChainPreview);
+router.get('/document/:documentId/poste-chain-preview', protect, getPosteChainPreview);
 router.get('/validators', protect, getValidators);
 
 // ✅ NOUVEAU : Route pour validation en masse (directeur et admin uniquement)

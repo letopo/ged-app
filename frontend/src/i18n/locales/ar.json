@@ -2121,5 +2121,13 @@
   "S’affiche dans la fenêtre « Nouveautés » à la prochaine ouverture de l’application.": "يظهر في نافذة «المستجدات» عند فتح التطبيق في المرة القادمة.",
   "S’affiche en bulle à la première ouverture de cet écran, uniquement pour ceux qui l’utilisent.": "يظهر كفقاعة عند أول فتح لهذه الشاشة، فقط لمن يستخدمها.",
   "Chaque utilisateur ne la voit qu’une fois.": "يراه كل مستخدم مرة واحدة فقط.",
-  "Modifier une note déjà publiée ne la ré-affiche pas à ceux qui l’ont vue.": "تعديل ملاحظة منشورة لا يعيد عرضها لمن شاهدها."
+  "Modifier une note déjà publiée ne la ré-affiche pas à ceux qui l’ont vue.": "تعديل ملاحظة منشورة لا يعيد عرضها لمن شاهدها.",
+  "tout": "الكل",
+  "Tout l’historique": "كامل السجل",
+  "Créée le": "أنشئت في",
+  "Traitée le": "عولجت في",
+  "Étape": "المرحلة",
+  "Approuvée": "موافق عليها",
+  "Rejetée": "مرفوضة",
+  "Au": "إلى"
 }

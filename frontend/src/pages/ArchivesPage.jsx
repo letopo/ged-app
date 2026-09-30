@@ -8,7 +8,7 @@ import i18n from '../i18n/config';
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 import {
   Search, Download, RotateCcw, Loader, FolderOpen, AlertTriangle,
-  Bell, FileText, ChevronDown, Share2, Clock, SlidersHorizontal,
+  FileText, ChevronDown, Clock, SlidersHorizontal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../components/ConfirmModal';
@@ -243,9 +243,10 @@ export default function ArchivesPage() {
       const name = d.uploadedBy ? `${d.uploadedBy.firstName||''} ${d.uploadedBy.lastName||''}`.trim() : '';
       rows.push([d.title, t(d.category), name, fmt(d.createdAt), fmtSize(d.fileSize), t('{{count}} ans', { count: RETENTION[d.category]||5 })]);
     });
-    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    // ; + BOM : ouverture directe et accents corrects dans Excel (FR) ; guillemets échappés
+    const csv = '\uFEFF' + rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+    a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
     a.download = 'archives.csv'; a.click();
   };
 
@@ -308,12 +309,6 @@ export default function ArchivesPage() {
           <button onClick={exportCSV} style={{ display:'inline-flex', alignItems:'center', gap:5, height:32, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:12, cursor:'pointer' }}>
             {t('Export CSV')}
           </button>
-          <button style={{ display:'inline-flex', alignItems:'center', gap:5, height:32, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:12, cursor:'pointer' }}>
-            {t('Export ZIP')}
-          </button>
-          <div style={{ width:32, height:32, borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-            <Bell size={15} color="var(--fg-muted)" />
-          </div>
         </div>
       </div>
 
@@ -498,13 +493,6 @@ export default function ArchivesPage() {
                       >
                         <Download size={13} />
                       </a>
-                      <button
-                        style={{ height:30, padding:'0 12px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--fg)', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}
-                        title={t('Partager')}
-                        onClick={() => toast(t('Fonctionnalité de partage bientôt disponible'))}
-                      >
-                        <Share2 size={12} /> {t('Partager')}
-                      </button>
                       <button
                         onClick={() => handleUnarchive(doc)}
                         style={{ height:30, padding:'0 12px', borderRadius:'var(--radius-2)', background:'var(--brand)', color:'#fff', border:'none', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontWeight:500 }}

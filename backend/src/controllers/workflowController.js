@@ -13,6 +13,7 @@ import { getSignatureConfig } from '../config/documentSignatureConfig.js';
 import { emitNewTaskNotification, emitTaskUpdateNotification, isUserConnected } from '../utils/socketManager.js';
 import { buildOrdreMissionChain, resolveOrdreMissionChain } from '../utils/ordreMissionChain.js';
 import { buildPieceDeCaisseChain, resolvePieceDeCaisseChain } from '../utils/pieceDeCaisseChain.js';
+import { hasFixedPosteChain, buildFixedPosteChain, resolveFixedPosteChain } from '../utils/posteChain.js';
 import { getPosteHolders, userHasPoste } from '../utils/posteResolver.js';
 import { sendNewTaskPushNotification } from '../services/pushNotificationService.js';
 import { mergePDFs } from '../utils/pdfMerger.js';
@@ -172,6 +173,14 @@ export const createWorkflow = async (req, res) => {
         return res.status(400).json({ success: false, message: built.error });
       }
       finalValidatorIds = built.validatorIds;
+    } else if (hasFixedPosteChain(document.category)) {
+      // Circuit imposé par poste (ex. Demande d'explication → Directeur Général) :
+      // les validateurs choisis sur la page ou via un modèle sont ignorés.
+      const built = await buildFixedPosteChain(document.category, posteSelections || {});
+      if (built.error) {
+        return res.status(400).json({ success: false, message: built.error });
+      }
+      finalValidatorIds = built.validatorIds;
     } else if (req.body.workflowTemplateId) {
       // Circuit depuis un modèle de workflow (formulaires Form Builder, Facture PHP Sage, etc.)
       let resolved;
@@ -247,6 +256,27 @@ export const getPieceDeCaisseChainPreview = async (req, res) => {
     res.json({ success: true, steps: result.steps });
   } catch (error) {
     console.error('❌ Erreur aperçu circuit Pièce de caisse:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// Aperçu d'un circuit imposé par poste (types déclarés dans utils/posteChain.js)
+export const getPosteChainPreview = async (req, res) => {
+  try {
+    const document = await Document.findByPk(req.params.documentId);
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document introuvable.' });
+    }
+    if (!hasFixedPosteChain(document.category)) {
+      return res.status(400).json({ success: false, message: `Aucun circuit imposé pour « ${document.category} ».` });
+    }
+    const result = await resolveFixedPosteChain(document.category, {});
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+    res.json({ success: true, steps: result.steps });
+  } catch (error) {
+    console.error('❌ Erreur aperçu circuit imposé:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };

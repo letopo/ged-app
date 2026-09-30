@@ -2121,5 +2121,13 @@
   "S’affiche dans la fenêtre « Nouveautés » à la prochaine ouverture de l’application.": "Se muestra en la ventana «Novedades» la próxima vez que se abra la aplicación.",
   "S’affiche en bulle à la première ouverture de cet écran, uniquement pour ceux qui l’utilisent.": "Se muestra como burbuja la primera vez que se abre esta pantalla, solo para quienes la usan.",
   "Chaque utilisateur ne la voit qu’une fois.": "Cada usuario la ve solo una vez.",
-  "Modifier une note déjà publiée ne la ré-affiche pas à ceux qui l’ont vue.": "Editar una nota ya publicada no la vuelve a mostrar a quienes ya la vieron."
+  "Modifier une note déjà publiée ne la ré-affiche pas à ceux qui l’ont vue.": "Editar una nota ya publicada no la vuelve a mostrar a quienes ya la vieron.",
+  "tout": "todo",
+  "Tout l’historique": "Todo el historial",
+  "Créée le": "Creada el",
+  "Traitée le": "Tratada el",
+  "Étape": "Etapa",
+  "Approuvée": "Aprobada",
+  "Rejetée": "Rechazada",
+  "Au": "Hasta"
 }

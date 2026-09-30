@@ -240,12 +240,14 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
               <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>📅 {t('Date de Départ (A)')}</p>
               <p style={{ fontSize: 13, fontWeight: 600, borderBottom: '2px dotted #9ca3af', paddingBottom: 4, minHeight: 24 }}>
                 {formData.date_depart ? new Date(formData.date_depart).toLocaleDateString('fr-FR') : '___/___/_____'}
+                {formData.heure_depart && ` à ${formData.heure_depart}`}
               </p>
             </div>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
               <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>📅 {t('Date de Retour (R)')}</p>
               <p style={{ fontSize: 13, fontWeight: 600, borderBottom: '2px dotted #9ca3af', paddingBottom: 4, minHeight: 24 }}>
                 {formData.date_retour ? new Date(formData.date_retour).toLocaleDateString('fr-FR') : '___/___/_____'}
+                {formData.heure_retour && ` à ${formData.heure_retour}`}
               </p>
             </div>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
@@ -307,8 +309,14 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
                 <td style={{ border: '1px solid #1f2937', padding: 8, textAlign: 'center', verticalAlign: 'top' }}>
                   {formData.date_depart && formData.date_retour ? (
                     <>
-                      <div style={{ fontWeight: 600 }}>{t('A: {{date}}', { date: new Date(formData.date_depart).toLocaleDateString('fr-FR') })}</div>
-                      <div style={{ fontWeight: 600, marginTop: 4 }}>{t('R: {{date}}', { date: new Date(formData.date_retour).toLocaleDateString('fr-FR') })}</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {t('A: {{date}}', { date: new Date(formData.date_depart).toLocaleDateString('fr-FR') })}
+                        {formData.heure_depart && ` ${formData.heure_depart}`}
+                      </div>
+                      <div style={{ fontWeight: 600, marginTop: 4 }}>
+                        {t('R: {{date}}', { date: new Date(formData.date_retour).toLocaleDateString('fr-FR') })}
+                        {formData.heure_retour && ` ${formData.heure_retour}`}
+                      </div>
                     </>
                   ) : <div style={{ color: '#9ca3af' }}>___/___/_____</div>}
                 </td>

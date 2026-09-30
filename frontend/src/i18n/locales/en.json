@@ -2121,5 +2121,13 @@
   "S’affiche dans la fenêtre « Nouveautés » à la prochaine ouverture de l’application.": "Shown in the “What's new” window the next time the app is opened.",
   "S’affiche en bulle à la première ouverture de cet écran, uniquement pour ceux qui l’utilisent.": "Shown as a bubble the first time this screen is opened, only to those who use it.",
   "Chaque utilisateur ne la voit qu’une fois.": "Each user sees it only once.",
-  "Modifier une note déjà publiée ne la ré-affiche pas à ceux qui l’ont vue.": "Editing a published note does not show it again to those who have seen it."
+  "Modifier une note déjà publiée ne la ré-affiche pas à ceux qui l’ont vue.": "Editing a published note does not show it again to those who have seen it.",
+  "tout": "all",
+  "Tout l’historique": "All history",
+  "Créée le": "Created on",
+  "Traitée le": "Processed on",
+  "Étape": "Step",
+  "Approuvée": "Approved",
+  "Rejetée": "Rejected",
+  "Au": "To"
 }

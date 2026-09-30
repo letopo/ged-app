@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Users, Building2, AlertCircle, Loader,
-  Search, Bell, Upload, LayoutGrid, List, GitBranch,
+  Search, Upload, LayoutGrid, List, GitBranch,
   ChevronDown,
 } from 'lucide-react';
 import { servicesAPI } from '../services/api';
@@ -365,9 +365,6 @@ export default function ServicesManagement() {
           <button onClick={() => setShowAddService(true)} style={{ display:'inline-flex', alignItems:'center', gap:6, height:34, padding:'0 14px', borderRadius:'var(--radius-2)', background:'var(--brand)', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>
             <Plus size={14}/> Nouveau service
           </button>
-          <div style={{ width:34, height:34, borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-            <Bell size={15} color="var(--fg-muted)" />
-          </div>
         </div>
       </div>
 

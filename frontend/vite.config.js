@@ -68,10 +68,22 @@ export default defineConfig({
     }
   },
   build: {
+    chunkSizeWarningLimit: 3000,
+    sourcemap: false,
     rollupOptions: {
       input: {
         main: './index.html'
-      }
+      },
+      output: {
+        // Découpage volontairement minimal : seules les grosses librairies
+        // indépendantes ont leur propre fichier (mis en cache séparément du code
+        // de l'application). Pas de fonction manualChunks : une fonction peut
+        // mal ordonner les dépendances entre fichiers et casser le chargement.
+        manualChunks: {
+          'pdf-vendor': ['jspdf', 'html2canvas'],
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
     },
     copyPublicDir: true
   },

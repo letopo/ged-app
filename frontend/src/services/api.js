@@ -305,6 +305,7 @@ export const workflowAPI = {
   // Aperçu du circuit d'un ordre de mission (postes + titulaires + choix requis)
   getOrdreMissionPreview: (documentId) => api.get(`/workflows/document/${documentId}/ordre-mission-preview`),
   getPieceDeCaisseChainPreview: (documentId) => api.get(`/workflows/document/${documentId}/piece-de-caisse-preview`),
+  getPosteChainPreview: (documentId) => api.get(`/workflows/document/${documentId}/poste-chain-preview`),
   
   // ✅ AJOUT IMPORTANT : La fonction qui manquait
   submitForValidation: (documentId, validatorIds) => api.post('/workflows', { documentId, validatorIds }),

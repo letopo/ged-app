@@ -92,18 +92,20 @@ export const SIGNATURE_CONFIGS = {
     layout: 'horizontal'
   },
 
-  // ✅ NOUVEAU : Configuration pour le Planning Opératoire
+  // Configuration de secours pour le Planning Opératoire (utilisée seulement si
+  // document.metadata.signatureZones est absent — normalement les zones sont
+  // calculées dynamiquement depuis le DOM à la création, cf. CreateFromTemplate.jsx).
   'Planning Opératoire': {
-    numberOfSignatures: 3,
+    numberOfSignatures: 2,
     signatureY: 50,        // Position Y pour les signatures (après le tableau)
     stampY: 90,            // Cachets en dessous
     signatureWidth: 195,
     signatureHeight: 77,
     stampWidth: 90,
     stampHeight: 90,
-    blockWidth: 165,        // Largeur augmentée pour 3 signatures
+    blockWidth: 165,
     margin: 45,
-    layout: 'horizontal'    // Distribution horizontale : Chef Service | DSI | DG
+    layout: 'horizontal'    // Distribution horizontale : Médecin Chef | DG
   },
 
   // ✅ CONFIGURATION BON DE COMMANDE
@@ -148,6 +150,23 @@ export const SIGNATURE_CONFIGS = {
     stampHeight: 80,
     blockWidth: 150,
     margin: 390,           // Droite de la page : 595 - 150 - marges ≈ 390pt
+    layout: 'horizontal'
+  },
+
+  // Configuration de secours pour la Demande d'explication (utilisée seulement
+  // si document.metadata.signatureZones est absent — normalement les zones sont
+  // calculées dynamiquement depuis le DOM à la création, cf. CreateFromTemplate.jsx).
+  // 1 seule zone de signature (Le Directeur Général), en bas à droite.
+  "Demande d'explication": {
+    numberOfSignatures: 1,
+    signatureY: 165,
+    stampY: 200,
+    signatureWidth: 140,
+    signatureHeight: 55,
+    stampWidth: 80,
+    stampHeight: 80,
+    blockWidth: 150,
+    margin: 390,
     layout: 'horizontal'
   },
 
