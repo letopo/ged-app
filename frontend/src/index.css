@@ -644,6 +644,26 @@ a.kpi-card:active { transform: scale(0.98); }
   .mt-process-col { width: 100% !important; overflow: visible !important; flex-shrink: 0; }
   .mt-process-side { border-left: none !important; border-top: 1px solid var(--border); padding: 18px !important; }
   .bulk-bar { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Documents : filtres rangés en grille, lignes du tableau en cartes */
+  .dl-filters { display: grid !important; grid-template-columns: 1fr 1fr; }
+  .dl-f-view { grid-column: 1 / -1; justify-self: start; }
+  .dl-f-search { grid-column: 1 / -1; min-width: 0 !important; }
+  .dl-f-half, .dl-f-date { width: 100% !important; min-width: 0; }
+  .dl-f-arrow { display: none; }
+  .dl-filters > button { grid-column: 1 / -1; justify-self: start; }
+  .dl-table thead { display: none; }
+  .dl-table, .dl-table tbody { display: block; }
+  .dl-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 12px; }
+  .dl-table td { display: block; padding: 0 !important; max-width: none !important; }
+  .dl-td-doc { flex: 1 1 0; min-width: 0; }
+  .dl-td-doc .dl-title { white-space: normal !important; overflow-wrap: anywhere; font-size: 14px !important; }
+  .dl-td-meta { order: 2; }
+  .dl-td-date { order: 3; margin-left: auto; }
+  .dl-td-wf { order: 3; }
+  .dl-td-actions { order: 4; flex-basis: 100%; }
+  .dl-table tr.dl-wf-row { display: block; padding: 0; }
+  .dl-table tr.dl-wf-row td { padding: 12px !important; }
 }
 
 /* Documents — liste + sidebar "Nouveau document" empilées sur mobile */
