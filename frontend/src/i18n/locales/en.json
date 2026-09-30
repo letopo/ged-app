@@ -2171,5 +2171,6 @@
   "ce document": "this document",
   "Reçu le {{date}} de {{name}}": "Received on {{date}} from {{name}}",
   "Transmis par {{name}}": "Forwarded by {{name}}",
-  "Retour aux conversations": "Back to conversations"
+  "Retour aux conversations": "Back to conversations",
+  "Votre session a expiré, veuillez vous reconnecter.": "Your session has expired, please sign in again."
 }

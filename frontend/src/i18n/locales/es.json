@@ -2171,5 +2171,6 @@
   "ce document": "este documento",
   "Reçu le {{date}} de {{name}}": "Recibido el {{date}} de {{name}}",
   "Transmis par {{name}}": "Transmitido por {{name}}",
-  "Retour aux conversations": "Volver a las conversaciones"
+  "Retour aux conversations": "Volver a las conversaciones",
+  "Votre session a expiré, veuillez vous reconnecter.": "Su sesión ha caducado, vuelva a iniciar sesión."
 }
