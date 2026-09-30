@@ -2172,5 +2172,15 @@
   "Reçu le {{date}} de {{name}}": "وردت في {{date}} من {{name}}",
   "Transmis par {{name}}": "أحالها {{name}}",
   "Retour aux conversations": "العودة إلى المحادثات",
-  "Votre session a expiré, veuillez vous reconnecter.": "انتهت صلاحية جلستك، يرجى تسجيل الدخول مجددًا."
+  "Votre session a expiré, veuillez vous reconnecter.": "انتهت صلاحية جلستك، يرجى تسجيل الدخول مجددًا.",
+  "La sauvegarde du {{date}} a échoué (étape : {{step}}).": "فشل النسخ الاحتياطي بتاريخ {{date}} (المرحلة: {{step}}).",
+  "Aucune sauvegarde n'a encore été enregistrée.": "لم يتم تسجيل أي نسخة احتياطية بعد.",
+  "Aucune sauvegarde réussie depuis {{hours}} heures : la sauvegarde automatique ne s'exécute plus.": "لا توجد نسخة احتياطية ناجحة منذ {{hours}} ساعة: النسخ الاحتياطي التلقائي لم يعد يعمل.",
+  "Le disque du serveur est plein à {{percent}} % : les prochaines sauvegardes risquent d'échouer.": "قرص الخادم ممتلئ بنسبة {{percent}}٪: قد تفشل النسخ الاحتياطية القادمة.",
+  "L'état de la sauvegarde est illisible.": "تعذرت قراءة حالة النسخ الاحتياطي.",
+  "Les données de la GED ne sont plus sauvegardées correctement.": "لم تعد بيانات نظام إدارة الوثائق تُحفظ احتياطيًا بشكل صحيح.",
+  "La sauvegarde du serveur demande votre attention.": "النسخ الاحتياطي للخادم يتطلب انتباهك.",
+  "Sauvegarde du serveur": "النسخ الاحتياطي للخادم",
+  "{{count}} point(s) de restauration disponibles, le plus ancien du {{date}}.": "{{count}} نقطة استعادة متاحة، أقدمها بتاريخ {{date}}.",
+  "Prévenez l'administrateur du serveur (journal : {{log}}).": "أبلغ مسؤول الخادم (السجل: {{log}})."
 }
