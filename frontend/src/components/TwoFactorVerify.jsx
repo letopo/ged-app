@@ -4,10 +4,13 @@ import toast from 'react-hot-toast';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
-export default function TwoFactorVerify({ tempToken, onSuccess, onBack }) {
+// method : 'totp' (application) ou 'email' (code envoyé à maskedEmail)
+export default function TwoFactorVerify({ tempToken, method = 'totp', maskedEmail, notice, onSuccess, onBack }) {
   const { t } = useTranslation();
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [sentTo, setSentTo] = useState(maskedEmail);
   const refs = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()];
 
   useEffect(() => { refs[0].current?.focus(); }, []);
@@ -61,6 +64,28 @@ export default function TwoFactorVerify({ tempToken, onSuccess, onBack }) {
     }
   };
 
+  // Code par e-mail : en renvoyer un (un envoi par minute au plus)
+  const resend = async () => {
+    setResending(true);
+    try {
+      const res = await fetch(`${API}/auth/2fa/resend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tempToken })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || t('Erreur'));
+      setSentTo(data.maskedEmail || sentTo);
+      toast.success(t('Nouveau code envoyé.'));
+      setCode(['', '', '', '', '', '']);
+      refs[0].current?.focus();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -83,7 +108,10 @@ export default function TwoFactorVerify({ tempToken, onSuccess, onBack }) {
           {t('Double authentification')}
         </h2>
         <p style={{ margin: '0 0 28px', fontSize: 14, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-          {t('Ouvrez')} <strong>Google Authenticator</strong> {t('et entrez le code à 6 chiffres.')}
+          {method === 'email'
+            ? <>{t('Entrez le code à 6 chiffres envoyé par e-mail à')} <strong>{sentTo}</strong>.</>
+            : <>{t('Ouvrez')} <strong>Google Authenticator</strong> {t('et entrez le code à 6 chiffres.')}</>}
+          {method === 'email' && notice && <span style={{ display: 'block', marginTop: 6, fontSize: 13 }}>{t(notice)}</span>}
         </p>
 
         {/* Champs 6 chiffres */}
@@ -124,6 +152,15 @@ export default function TwoFactorVerify({ tempToken, onSuccess, onBack }) {
           {loading ? t('Vérification…') : t('Valider')}
         </button>
 
+        {method === 'email' && (
+          <button
+            onClick={resend}
+            disabled={resending}
+            style={{ display: 'block', margin: '0 auto 14px', background: 'none', border: 'none', color: 'var(--brand)', fontSize: 13, cursor: 'pointer', opacity: resending ? 0.6 : 1 }}
+          >
+            {resending ? t('Envoi…') : t('Je n’ai rien reçu : renvoyer un code')}
+          </button>
+        )}
         <button
           onClick={onBack}
           style={{

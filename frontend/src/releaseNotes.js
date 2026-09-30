@@ -162,6 +162,27 @@ const RELEASE_NOTES = [
     access: isAdmin,
   },
   {
+    id: '2026-10-01-2fa-email',
+    date: '2026-10-01',
+    target: 'app',
+    title: 'Double authentification par e-mail',
+    items: [
+      'Paramètres › Sécurité : en plus de l’application d’authentification, vous pouvez choisir de recevoir votre code de connexion par e-mail.',
+      'Dans l’application d’authentification, la GED apparaît désormais sous le nom de votre organisation.',
+    ],
+  },
+  {
+    id: '2026-10-01-confidentialite',
+    date: '2026-10-01',
+    target: 'app',
+    title: 'Confidentialité des documents',
+    items: [
+      'Paramètres › Confidentialité : réservez un type de document (fiches de paie, contrats, dossiers médicaux…) à certains postes, sans passer par le développeur.',
+      'Utilisateurs › « … » › Désactiver la 2FA : débloquez une personne qui a perdu son téléphone ou l’accès à sa boîte e-mail.',
+    ],
+    access: isAdmin,
+  },
+  {
     id: '2026-10-01-upload-taille',
     date: '2026-10-01',
     target: '/upload',

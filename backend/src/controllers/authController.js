@@ -4,6 +4,7 @@ import { Op } from 'sequelize';
 import User from '../models/User.js';
 import { getUserPosteCodes } from '../utils/posteResolver.js';
 import { getTenantSettings } from '../utils/tenantSettings.js';
+import { sendEmailOtp, EmailOtpError, maskEmail } from '../utils/emailOtp.js';
 
 // Durée de session réglée par tenant (Paramètres › Délais et session, 7 j par défaut)
 const generateToken = async (user) => {
@@ -80,15 +81,33 @@ export const login = async (req, res, next) => {
     }
 
     // ── 2FA : si activée, émettre un token temporaire (5 min) ────────────────
-    if (user.totpEnabled) {
+    if (user.totpEnabled || user.emailOtpEnabled) {
+      let maskedEmail;
+      let notice;
+      if (user.emailOtpEnabled) {
+        // Code envoyé par e-mail. Envoi trop rapproché (nouvelle tentative de
+        // connexion) : le code déjà envoyé reste valable, on le réutilise.
+        const withOtp = await User.unscoped().findByPk(user.id);
+        try {
+          maskedEmail = await sendEmailOtp(withOtp, 'login');
+        } catch (e) {
+          if (!(e instanceof EmailOtpError)) throw e;
+          if (e.status !== 429) return res.status(e.status).json({ success: false, error: e.message });
+          maskedEmail = maskEmail(user.email);
+          notice = 'Un code vous a été envoyé il y a moins d’une minute : utilisez-le.';
+        }
+      }
       const tempToken = jwt.sign(
         { id: user.id, type: '2fa_pending' },
         process.env.JWT_SECRET,
-        { expiresIn: '5m' }
+        { expiresIn: user.emailOtpEnabled ? '10m' : '5m' }
       );
       return res.json({
         success: true,
         requires2FA: true,
+        method: user.emailOtpEnabled ? 'email' : 'totp',
+        maskedEmail,
+        notice,
         tempToken,
         message: 'Code 2FA requis'
       });
@@ -99,6 +118,7 @@ export const login = async (req, res, next) => {
     const userResult = user.toJSON();
     delete userResult.password;
     delete userResult.totpSecret;
+    delete userResult.emailOtpHash;
     userResult.postes = await getUserPosteCodes(user.id);
 
     // Audit login

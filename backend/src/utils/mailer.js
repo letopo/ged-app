@@ -178,7 +178,8 @@ export const sendNotificationEmail = async (to, subject, text, type = 'default',
       console.log(`Sujet: ${subject}`);
       console.log(`Message: ${text}`);
       console.log('──────────────────────────────────────');
-      return { success: true, messageId: 'simulated-' + Date.now() };
+      // simulated : rien n'est parti (utile quand l'envoi doit être réel, ex. code 2FA)
+      return { success: true, simulated: true, messageId: 'simulated-' + Date.now() };
     }
     if (config.mode === 'invalid') throw new Error(config.error);
 

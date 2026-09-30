@@ -53,6 +53,7 @@ import DocumentTransmission from './DocumentTransmission.js'; // ✅ Documents t
 import TenantMailSettings from './TenantMailSettings.js'; // ✅ Messagerie (SMTP) par tenant
 import TenantSettings from './TenantSettings.js'; // ✅ Délais et session par tenant
 import TenantIntegration from './TenantIntegration.js'; // ✅ Intégrations (IA, Sage) par tenant
+import CategoryAccessRule from './CategoryAccessRule.js'; // ✅ Confidentialité par type de document
 import ComptaDoc from './ComptaDoc.js';   // ✅ Module Comptabilité (pièces de caisse)
 
 // Imports TRELLO
@@ -138,6 +139,7 @@ const db = {
   TenantMailSettings,
   TenantSettings,
   TenantIntegration,
+  CategoryAccessRule,
   ComptaDoc,
   TemplatePermission,
   WorkflowComment,
@@ -319,6 +321,7 @@ export {
   TenantMailSettings,
   TenantSettings,
   TenantIntegration,
+  CategoryAccessRule,
   ComptaDoc,
   TemplatePermission,
   MissionMealRate,

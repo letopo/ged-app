@@ -7,7 +7,7 @@ import { authAPI, usersAPI, tenantBrandingAPI, mailSettingsAPI, integrationsAPI 
 import {
   Home, Settings as SettingsIcon, Bell, Users, Sparkles, FileText,
   Zap, Shield, Database, Save, Loader, AlertCircle, CheckCircle,
-  Lock, Eye, EyeOff, Upload, Pen, X, UploadCloud, Stamp, Mail, Timer,
+  Lock, Eye, EyeOff, Upload, Pen, X, UploadCloud, Stamp, Mail, Timer, ShieldCheck,
 } from 'lucide-react';
 import LicenseManager from '../components/LicenseManager';
 import TwoFactorSetup from '../components/TwoFactorSetup';
@@ -17,6 +17,7 @@ import MailSettingsPanel from '../components/MailSettingsPanel';
 import TenantSettingsPanel from '../components/TenantSettingsPanel';
 import AiSettingsPanel from '../components/AiSettingsPanel';
 import SageSettingsPanel from '../components/SageSettingsPanel';
+import ConfidentialityPanel from '../components/ConfidentialityPanel';
 import toast from 'react-hot-toast';
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ const NAV = [
       { id: 'team',      label: 'Équipe',     icon: Users },
       { id: 'branding',  label: 'Branding',   icon: Sparkles },
       { id: 'delays',    label: 'Délais et session', icon: Timer, requires: 'admin' },
+      { id: 'confidentiality', label: 'Confidentialité', icon: ShieldCheck, requires: 'admin' },
       // Visible si le super-administrateur ou une délégation le permet (voir mailAccess)
       { id: 'mail',      label: 'Messagerie', icon: Mail, requires: 'mail' },
       { id: 'templates', label: 'Licence',    icon: FileText },
@@ -282,7 +284,7 @@ export default function Settings() {
 
       {/* ── Right content ───────────────────────────────────────────────── */}
       <main className="settings-main">
-        <div style={{ width:'100%', maxWidth: ['team','notifications'].includes(activeTab) ? 1100 : activeTab === 'integrations' ? 720 : 560 }}>
+        <div style={{ width:'100%', maxWidth: ['team','notifications'].includes(activeTab) ? 1100 : ['integrations','confidentiality'].includes(activeTab) ? 720 : 560 }}>
 
           {/* ── Profil ───────────────────────────────────────────────────── */}
           {activeTab === 'profile' && (
@@ -568,6 +570,9 @@ export default function Settings() {
 
           {/* ── Délais et session ─────────────────────────────────────────── */}
           {activeTab === 'delays' && isOrgAdmin && <TenantSettingsPanel />}
+
+          {/* ── Confidentialité ───────────────────────────────────────────── */}
+          {activeTab === 'confidentiality' && isOrgAdmin && <ConfidentialityPanel />}
 
           {/* ── Licence ───────────────────────────────────────────────────── */}
           {activeTab === 'templates' && (

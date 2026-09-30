@@ -3,7 +3,7 @@
 import { Op } from 'sequelize';
 
 import {
-  getRestrictedCategories,
+  buildCategoryRestrictionWhere,
   buildDocumentAccessWhere,
   hasDocumentReadAccess,
   resolveUploaderServiceId,
@@ -233,10 +233,8 @@ export const getDocuments = async (req, res) => {
     const accessWhere = await buildDocumentAccessWhere(req.user);
     if (accessWhere) andConditions.push(accessWhere);
 
-    const restrictedCats = await getRestrictedCategories(req.user);
-    if (restrictedCats.length > 0) {
-      andConditions.push({ category: { [Op.notIn]: restrictedCats } });
-    }
+    const categoryWhere = await buildCategoryRestrictionWhere(req.user);
+    if (categoryWhere) andConditions.push(categoryWhere);
 
     // Filtres optionnels
     if (search) {
@@ -396,8 +394,8 @@ export const searchDocuments = async (req, res) => {
         ];
         const accessWhere = await buildDocumentAccessWhere(req.user);
         if (accessWhere) andConditions.push(accessWhere);
-        const searchRestricted = await getRestrictedCategories(req.user);
-        if (searchRestricted.length > 0) andConditions.push({ category: { [Op.notIn]: searchRestricted } });
+        const searchCategoryWhere = await buildCategoryRestrictionWhere(req.user);
+        if (searchCategoryWhere) andConditions.push(searchCategoryWhere);
         const documents = await Document.findAll({ where: { [Op.and]: andConditions }, limit: 50, include: [{ model: User, as: 'uploadedBy' }], });
         res.json({ success: true, data: documents });
     } catch (error) {
@@ -537,8 +535,8 @@ export const getRecentDecisions = async (req, res) => {
     const andConditions = [];
     const accessWhere = await buildDocumentAccessWhere(req.user);
     if (accessWhere) andConditions.push(accessWhere);
-    const restricted = await getRestrictedCategories(req.user);
-    if (restricted.length > 0) andConditions.push({ category: { [Op.notIn]: restricted } });
+    const decisionsCategoryWhere = await buildCategoryRestrictionWhere(req.user);
+    if (decisionsCategoryWhere) andConditions.push(decisionsCategoryWhere);
     if (andConditions.length > 0) docWhere[Op.and] = andConditions;
 
     const steps = await Workflow.findAll({
@@ -626,8 +624,8 @@ export const getArchivedDocuments = async (req, res) => {
     if (accessWhere) andConditions.push(accessWhere);
 
     // Exclure les catégories restreintes (RH + Compta) pour les utilisateurs non-autorisés
-    const archiveRestricted = await getRestrictedCategories(req.user);
-    if (archiveRestricted.length > 0) andConditions.push({ category: { [Op.notIn]: archiveRestricted } });
+    const archiveCategoryWhere = await buildCategoryRestrictionWhere(req.user);
+    if (archiveCategoryWhere) andConditions.push(archiveCategoryWhere);
 
     if (andConditions.length > 0) whereClause[Op.and] = andConditions;
 
