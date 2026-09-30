@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { documentsAPI, workflowAPI, calendarAPI } from '../services/api';
+import { documentsAPI, workflowAPI, calendarAPI, systemAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import i18n from '../i18n/config';
 
@@ -10,7 +10,7 @@ const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import {
   Clock, CheckCircle, FileText, TrendingDown, TrendingUp,
   Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader, Hourglass,
-  AlertTriangle, Sparkles,
+  AlertTriangle, Sparkles, DatabaseBackup,
 } from 'lucide-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -209,6 +209,39 @@ function DailySummary({ tasks, own }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Alerte sauvegarde (administrateurs) ─────────────────────────────────────────
+// Même présentation que la Synthèse du jour. N'apparaît qu'en cas de problème
+// sur la sauvegarde nocturne du serveur (voir scripts/backup-nightly.sh).
+
+function BackupAlert({ report }) {
+  const { t } = useTranslation();
+  if (!report?.available || report.level === 'ok') return null;
+  const color = report.level === 'error' ? 'var(--danger)' : 'var(--warning)';
+  const s = report.status || {};
+  const lines = report.problems.map(p => {
+    if (p.code === 'failed') return t('La sauvegarde du {{date}} a échoué (étape : {{step}}).', { date: p.date, step: p.step });
+    if (p.code === 'stale') return p.hours === null
+      ? t('Aucune sauvegarde n\'a encore été enregistrée.')
+      : t('Aucune sauvegarde réussie depuis {{hours}} heures : la sauvegarde automatique ne s\'exécute plus.', { hours: p.hours });
+    if (p.code === 'disk') return t('Le disque du serveur est plein à {{percent}} % : les prochaines sauvegardes risquent d\'échouer.', { percent: p.percent });
+    return t('L\'état de la sauvegarde est illisible.');
+  });
+  const headline = report.level === 'error'
+    ? t('Les données de la GED ne sont plus sauvegardées correctement.')
+    : t('La sauvegarde du serveur demande votre attention.');
+  return (
+    <div className="ged-card dash-summary" style={{ '--summary-color': color }} role="alert">
+      <div className="dash-summary-label"><DatabaseBackup size={14} strokeWidth={2.2} /> {t('Sauvegarde du serveur')}</div>
+      <div className="dash-summary-headline">{headline}</div>
+      {lines.map((l, i) => <p key={i} className="dash-summary-line">{l}</p>)}
+      {s.oldestRestorePoint && (
+        <p className="dash-summary-line">{t('{{count}} point(s) de restauration disponibles, le plus ancien du {{date}}.', { count: s.restorePoints, date: s.oldestRestorePoint })}</p>
+      )}
+      <p className="dash-summary-line">{t('Prévenez l\'administrateur du serveur (journal : {{log}}).', { log: s.log || '/home/ged/backups' })}</p>
     </div>
   );
 }
@@ -620,6 +653,8 @@ const Dashboard = () => {
   const [myTasks, setMyTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
+  const [backupReport, setBackupReport] = useState(null);
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
     if (!user) return;
@@ -628,6 +663,12 @@ const Dashboard = () => {
     if (user.role === 'caissier') { navigate('/caisse', { replace: true }); return; }
     loadData();
   }, [user]);
+
+  // Réservé aux administrateurs ; une erreur de lecture ne doit pas gêner l'Accueil
+  useEffect(() => {
+    if (!isAdmin) return;
+    systemAPI.getBackupStatus().then(res => setBackupReport(res.data)).catch(() => setBackupReport(null));
+  }, [isAdmin]);
 
   const loadData = async () => {
     try {
@@ -741,6 +782,9 @@ const Dashboard = () => {
           {t('Actualiser')}
         </button>
       </div>
+
+      {/* Alerte sauvegarde (administrateurs, seulement en cas de problème) */}
+      {isAdmin && <BackupAlert report={backupReport} />}
 
       {/* Synthèse du jour */}
       {!loading && <DailySummary tasks={myTasks} own={ownWeek} />}

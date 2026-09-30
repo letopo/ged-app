@@ -58,6 +58,8 @@ services:
     volumes:
       - uploads_data:/app/uploads
       - signatures_data:/app/signatures
+      # État de la dernière sauvegarde nocturne (écrit par scripts/backup-nightly.sh)
+      - ./backup-status:/app/backup-status:ro
     ports:
       - "3000:3000"
     networks:

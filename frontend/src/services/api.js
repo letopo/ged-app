@@ -643,4 +643,9 @@ export const postesAPI = {
   removeHolder:        (code, userId)              => api.delete(`/postes/${code}/holders/${userId}`),
 };
 
+// État du serveur (administrateurs)
+export const systemAPI = {
+  getBackupStatus: () => api.get('/system/backup-status'),
+};
+
 export default api;

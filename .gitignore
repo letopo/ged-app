@@ -84,3 +84,6 @@ graphify-out/
 
 # Archive d'images Docker pré-construites (trop volumineuse pour git)
 deploy/base-images.tar.gz
+
+# État de la sauvegarde nocturne (écrit sur le serveur par scripts/backup-nightly.sh)
+backup-status/

@@ -2172,5 +2172,15 @@
   "Reçu le {{date}} de {{name}}": "Recibido el {{date}} de {{name}}",
   "Transmis par {{name}}": "Transmitido por {{name}}",
   "Retour aux conversations": "Volver a las conversaciones",
-  "Votre session a expiré, veuillez vous reconnecter.": "Su sesión ha caducado, vuelva a iniciar sesión."
+  "Votre session a expiré, veuillez vous reconnecter.": "Su sesión ha caducado, vuelva a iniciar sesión.",
+  "La sauvegarde du {{date}} a échoué (étape : {{step}}).": "La copia de seguridad del {{date}} falló (etapa: {{step}}).",
+  "Aucune sauvegarde n'a encore été enregistrée.": "Aún no se ha registrado ninguna copia de seguridad.",
+  "Aucune sauvegarde réussie depuis {{hours}} heures : la sauvegarde automatique ne s'exécute plus.": "Ninguna copia de seguridad correcta desde hace {{hours}} horas: la copia automática ya no se ejecuta.",
+  "Le disque du serveur est plein à {{percent}} % : les prochaines sauvegardes risquent d'échouer.": "El disco del servidor está lleno al {{percent}} %: las próximas copias de seguridad podrían fallar.",
+  "L'état de la sauvegarde est illisible.": "No se puede leer el estado de la copia de seguridad.",
+  "Les données de la GED ne sont plus sauvegardées correctement.": "Los datos del GED ya no se respaldan correctamente.",
+  "La sauvegarde du serveur demande votre attention.": "La copia de seguridad del servidor requiere su atención.",
+  "Sauvegarde du serveur": "Copia de seguridad del servidor",
+  "{{count}} point(s) de restauration disponibles, le plus ancien du {{date}}.": "{{count}} punto(s) de restauración disponibles, el más antiguo del {{date}}.",
+  "Prévenez l'administrateur du serveur (journal : {{log}}).": "Avise al administrador del servidor (registro: {{log}})."
 }

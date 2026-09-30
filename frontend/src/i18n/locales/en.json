@@ -2172,5 +2172,15 @@
   "Reçu le {{date}} de {{name}}": "Received on {{date}} from {{name}}",
   "Transmis par {{name}}": "Forwarded by {{name}}",
   "Retour aux conversations": "Back to conversations",
-  "Votre session a expiré, veuillez vous reconnecter.": "Your session has expired, please sign in again."
+  "Votre session a expiré, veuillez vous reconnecter.": "Your session has expired, please sign in again.",
+  "La sauvegarde du {{date}} a échoué (étape : {{step}}).": "The {{date}} backup failed (step: {{step}}).",
+  "Aucune sauvegarde n'a encore été enregistrée.": "No backup has been recorded yet.",
+  "Aucune sauvegarde réussie depuis {{hours}} heures : la sauvegarde automatique ne s'exécute plus.": "No successful backup for {{hours}} hours: the automatic backup is no longer running.",
+  "Le disque du serveur est plein à {{percent}} % : les prochaines sauvegardes risquent d'échouer.": "The server disk is {{percent}}% full: upcoming backups may fail.",
+  "L'état de la sauvegarde est illisible.": "The backup status cannot be read.",
+  "Les données de la GED ne sont plus sauvegardées correctement.": "The DMS data is no longer being backed up correctly.",
+  "La sauvegarde du serveur demande votre attention.": "The server backup needs your attention.",
+  "Sauvegarde du serveur": "Server backup",
+  "{{count}} point(s) de restauration disponibles, le plus ancien du {{date}}.": "{{count}} restore point(s) available, the oldest from {{date}}.",
+  "Prévenez l'administrateur du serveur (journal : {{log}}).": "Notify the server administrator (log: {{log}})."
 }
