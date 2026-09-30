@@ -3,7 +3,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { documentsAPI, postesAPI, workflowAPI } from '../services/api';
-import { Loader, Send, Save, RotateCcw, X } from 'lucide-react';
+import { Loader, Send, Save, RotateCcw, X, Link2 } from 'lucide-react';
 import useDraftAutoSave from '../hooks/useDraftAutoSave';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -213,6 +213,9 @@ const CreateFromTemplate = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const templateName = location.state?.templateName || "Demande de permission";
+    // « Créer un document lié » depuis la visionneuse : le document d'origine sera
+    // joint en tête du PDF (liasse) et le lien enregistré (chaîne documentaire).
+    const linkedDocument = location.state?.linkedDocument || null;
 
     const template = templates[templateName] || templates["Demande de permission"];
     const [formData, setFormData] = useState(template.initialState);
@@ -410,6 +413,9 @@ const CreateFromTemplate = () => {
         if (metadataToSend.linkedOrdreMissionId) {
              uploadData.append('linkedOrdreMissionId', metadataToSend.linkedOrdreMissionId);
              delete metadataToSend.linkedOrdreMissionId;
+        } else if (linkedDocument?.id) {
+             uploadData.append('linkedDocumentId', linkedDocument.id);
+             uploadData.append('mergeLinked', 'true');
         }
 
         // AJOUTER LES DATES pour les Demandes de Permission (car elles ne sont plus dans la 'view')
@@ -521,6 +527,17 @@ const CreateFromTemplate = () => {
             <p className="mb-4" style={{ color: 'var(--fg-muted)' }}>
                 {t('Remplissez les champs pour générer le document PDF.')}
             </p>
+            {linkedDocument && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16, padding: '10px 14px', background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2, var(--border))', borderRadius: 8, fontSize: 13, color: 'var(--fg)' }}>
+                    <Link2 size={16} color="var(--brand)" style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>
+                        {t('Lié à')} <strong>{linkedDocument.title}</strong>
+                        <span style={{ display: 'block', fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>
+                            {t('Ce document sera joint en tête du PDF comme pièce justificative (liasse).')}
+                        </span>
+                    </span>
+                </div>
+            )}
             {isOrdreMission && formData.type_mission && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 14px', background: 'var(--brand-soft, var(--surface))', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
                     <span style={{ color: 'var(--fg-muted)' }}>{t('Type :')}</span>

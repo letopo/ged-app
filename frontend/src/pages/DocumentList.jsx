@@ -14,7 +14,7 @@ import WorkflowProgress from '../components/WorkflowProgress';
 import { DocumentGridSkeleton, DocumentTableSkeleton } from '../components/SkeletonLoader';
 import { StatusBadge } from '../utils/statusHelpers.jsx';
 import { useConfirm } from '../components/ConfirmModal';
-import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive, Star, Download, Shield, Settings, ChevronDown, GitBranch, Coffee } from 'lucide-react';
+import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive, Star, Download, Shield, Settings, ChevronDown, GitBranch, Coffee, Inbox } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
 import DocumentDiscussion from '../components/DocumentDiscussion';
@@ -44,6 +44,26 @@ const DocumentList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  // « Mes documents » ou « Reçus » (documents transmis par d'autres utilisateurs)
+  const [scope, setScope] = useState(() => (searchParams.get('tab') === 'recus' ? 'received' : 'mine'));
+  const [received, setReceived] = useState({ list: [], unread: 0, loading: false });
+  const loadReceived = async () => {
+    setReceived(r => ({ ...r, loading: true }));
+    try {
+      const res = await documentsAPI.getReceived();
+      setReceived({ list: res.data.transmissions || [], unread: res.data.unread || 0, loading: false });
+    } catch {
+      setReceived(r => ({ ...r, loading: false }));
+    }
+  };
+  useEffect(() => { loadReceived(); }, []);
+  const openReceived = async (tr) => {
+    setViewingDocument(tr.document);
+    if (!tr.readAt) {
+      documentsAPI.markTransmissionRead(tr.id).catch(() => {});
+      setReceived(r => ({ ...r, unread: Math.max(0, r.unread - 1), list: r.list.map(x => x.id === tr.id ? { ...x, readAt: new Date().toISOString() } : x) }));
+    }
+  };
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
   const searchTimer = useRef(null);
@@ -604,7 +624,10 @@ const DocumentList = () => {
     const { key, dir } = sortConfig;
     let aVal = a[key] ?? '';
     let bVal = b[key] ?? '';
-    if (key === 'createdAt') { aVal = new Date(aVal); bVal = new Date(bVal); }
+    // Date : la plus récente entre création et réception (document transmis
+    // aujourd'hui = en tête, sa date d'origine restant affichée)
+    const lastActivity = (d) => Math.max(new Date(d.createdAt).getTime() || 0, d.receivedAt ? new Date(d.receivedAt).getTime() : 0);
+    if (key === 'createdAt') { aVal = lastActivity(a); bVal = lastActivity(b); }
     else { aVal = String(aVal).toLowerCase(); bVal = String(bVal).toLowerCase(); }
     if (aVal < bVal) return dir === 'asc' ? -1 : 1;
     if (aVal > bVal) return dir === 'asc' ? 1 : -1;
@@ -665,8 +688,50 @@ const DocumentList = () => {
         </div>
       </div>
 
+      {/* Mes documents / Reçus */}
+      <div style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', padding: 3, gap: 2, marginBottom: 14, width: 'fit-content' }}>
+        <button onClick={() => setScope('mine')} style={scope === 'mine' ? segActive : segIdle}>
+          <FileText size={13} /> {t('Mes documents')}
+        </button>
+        <button onClick={() => { setScope('received'); loadReceived(); }} style={scope === 'received' ? segActive : segIdle}>
+          <Inbox size={13} /> {t('Reçus')}
+          {received.unread > 0 && <span style={{ marginLeft: 2, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: 'var(--warning)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{received.unread}</span>}
+        </button>
+      </div>
+
+      {/* Documents reçus */}
+      {scope === 'received' && (
+        received.loading && received.list.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Loader className="animate-spin" size={20} color="var(--brand)" /></div>
+        ) : received.list.length === 0 ? (
+          <div className="ged-card" style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <Inbox size={32} color="var(--fg-subtle)" style={{ marginBottom: 12 }} />
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>{t('Aucun document reçu')}</p>
+            <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>{t('Les documents validés que d’autres personnes vous transmettent apparaîtront ici.')}</p>
+          </div>
+        ) : (
+          <div className="ged-card" style={{ overflow: 'hidden', marginBottom: 20 }}>
+            {received.list.map((tr, i) => (
+              <button key={tr.id} type="button" onClick={() => openReceived(tr)} className="rcv-row"
+                style={{ borderBottom: i < received.list.length - 1 ? '1px solid var(--surface-3)' : 'none', background: tr.readAt ? 'var(--surface)' : 'var(--brand-soft)' }}>
+                <span className="rcv-dot" style={{ background: tr.readAt ? 'transparent' : 'var(--brand)' }} />
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: tr.readAt ? 500 : 700, color: 'var(--fg)', overflowWrap: 'anywhere' }}>{tr.document?.title}</span>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>
+                    {t('De {{name}}', { name: tr.from || '—' })} · {formatDate(tr.sentAt)}
+                    {tr.document?.category ? ` · ${t(tr.document.category)}` : ''}
+                  </span>
+                  {tr.message && <span style={{ display: 'block', fontSize: 13, color: 'var(--fg)', marginTop: 6, fontStyle: 'italic' }}>« {tr.message} »</span>}
+                </span>
+                <Eye size={15} color="var(--fg-muted)" style={{ flexShrink: 0 }} />
+              </button>
+            ))}
+          </div>
+        )
+      )}
+
       {/* Barre de filtres (une seule ligne) */}
-      <div className="dl-filters" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className={`dl-filters${scope === 'received' ? ' is-hidden' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {/* Segmented view switcher : Table / Grille */}
         <div className="dl-f-view" style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 'var(--radius-2)', padding: 3, gap: 2 }}>
           <button onClick={() => setViewMode('list')} style={viewMode === 'list' ? segActive : segIdle}>
@@ -717,7 +782,7 @@ const DocumentList = () => {
       </div>
 
       {/* Layout 2 colonnes : main (3/4) + sidebar templates (1/4) */}
-      <div className="doclist-2col">
+      <div className={`doclist-2col${scope === 'received' ? ' is-hidden' : ''}`}>
         <div>
 
           {/* Bulk action bar */}
@@ -780,6 +845,11 @@ const DocumentList = () => {
                               </button>
                               <div style={{ minWidth: 0 }}>
                                 <div className="dl-title" style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
+                                {doc.receivedAt && (
+                                  <div className="dl-received" title={t('Transmis par {{name}}', { name: doc.receivedFrom || '—' })}>
+                                    <Inbox size={10} /> {t('Reçu le {{date}} de {{name}}', { date: formatDate(doc.receivedAt), name: doc.receivedFrom || '—' })}
+                                  </div>
+                                )}
                                 {doc.fileSize ? <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{formatSize(doc.fileSize)}</div> : null}
                               </div>
                             </div>
@@ -885,6 +955,11 @@ const DocumentList = () => {
                       <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 8 }}>
                         {doc.category ? `${t(doc.category)} · ` : ''}{formatDate(doc.createdAt)}
                       </div>
+                      {doc.receivedAt && (
+                        <div className="dl-received" style={{ marginBottom: 8 }}>
+                          <Inbox size={10} /> {t('Reçu le {{date}} de {{name}}', { date: formatDate(doc.receivedAt), name: doc.receivedFrom || '—' })}
+                        </div>
+                      )}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                           <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}>

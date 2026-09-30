@@ -3,13 +3,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import i18n from '../i18n/config';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import {
   X, Check, AlertTriangle, MessageSquare, FilePlus,
-  ArrowUp, ArrowDown, Loader, Download, Printer,
+  ArrowUp, ArrowDown, Loader, Download, Printer, Share2, Link2,
   ChevronRight, CheckCircle, Clock, XCircle,
   FileText, Tag, Calendar, User, Hash, Scan, Settings2, UserCheck,
 } from 'lucide-react';
@@ -17,6 +18,8 @@ import { documentsAPI, getFileBaseUrl } from '../services/api';
 import toast from 'react-hot-toast';
 import OnlyOfficeEditor, { isOfficeFile } from './OnlyOfficeEditor';
 import FormResponseViewer from './FormBuilder/Renderer/FormResponseViewer';
+import TransmitDocumentModal from './TransmitDocumentModal';
+import LinkedDocumentModal from './LinkedDocumentModal';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -58,6 +61,50 @@ const STATUS_CFG = {
   rejected:           { label: 'Rejeté',         dot: 'var(--danger)',     cls: 'ged-badge-danger'   },
   archived:           { label: 'Archivé',        dot: 'var(--fg-subtle)',  cls: 'ged-badge-neutral'  },
 };
+
+// ── Chaîne documentaire (document d'origine → documents liés) ─────────────────
+function DocumentChain({ docId, onOpen }) {
+  const { t } = useTranslation();
+  const [chain, setChain] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    setChain([]);
+    documentsAPI.getChain(docId)
+      .then(res => { if (!cancelled) setChain(res.data.chain || []); })
+      .catch(() => { if (!cancelled) setChain([]); });
+    return () => { cancelled = true; };
+  }, [docId]);
+  if (chain.length < 2) return null;   // document seul : rien à afficher
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10 }}>
+        {t('Chaîne documentaire')}
+      </div>
+      <div className="dc-chain">
+        {chain.map(node => {
+          const st = STATUS_CFG[node.status] || STATUS_CFG.draft;
+          const clickable = node.accessible && !node.isCurrent;
+          return (
+            <button key={node.id} type="button" disabled={!clickable} onClick={() => clickable && onOpen(node.id)}
+              className={`dc-node${node.isCurrent ? ' is-current' : ''}${clickable ? ' is-link' : ''}`}
+              style={{ paddingLeft: 10 + node.depth * 16 }}
+              title={clickable ? t('Ouvrir ce document') : undefined}>
+              {node.depth > 0 && <span className="dc-branch">↳</span>}
+              <span className="dc-dot" style={{ background: st.dot }} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span className="dc-title">{node.accessible ? node.title : t('Document non accessible')}</span>
+                <span className="dc-sub">
+                  {node.category ? `${t(node.category)} · ` : ''}{t(st.label)}
+                  {node.isCurrent && <strong> · {t('ce document')}</strong>}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const AVATAR_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316'];
 const strColor = (s) => AVATAR_COLORS[(s || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
@@ -177,7 +224,20 @@ const DocumentViewer = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = ['admin', 'superadmin'].includes(user?.role);
+  // Ouvrir un maillon de la chaîne : dans la visionneuse si le parent le permet,
+  // sinon via la page Documents (/documents/:id ouvre la visionneuse)
+  const openChainDocument = async (id) => {
+    if (onSelectDocument) {
+      try {
+        const res = await documentsAPI.getById(id);
+        onSelectDocument(res.data?.data || res.data);
+        return;
+      } catch { /* repli sur la navigation */ }
+    }
+    navigate(`/documents/${id}`);
+  };
   const [comment, setComment]                 = useState('');
   const [rejectComment, setRejectComment]     = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
@@ -190,6 +250,8 @@ const DocumentViewer = ({
   const [viewerKey, setViewerKey]             = useState(0);
   const [blobUrl, setBlobUrl]                 = useState(null);
   const [docListTab, setDocListTab]           = useState('pending');
+  const [showTransmit, setShowTransmit]       = useState(false);
+  const [showLinked, setShowLinked]           = useState(false);
 
   const iframeRef    = useRef(null);
   const fileInputRef = useRef(null);
@@ -333,6 +395,17 @@ const DocumentViewer = ({
               </button>
             </>
           )}
+          {/* Document validé : le transmettre (ex. à l'acheteur pour le bon de commande) */}
+          {doc.status === 'approved' && (
+            <button onClick={() => setShowLinked(true)} title={t('Créer un document lié (bon de commande, proforma…)')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <Link2 size={13} /> <span className="dv-btn-label">{t('Créer un document lié')}</span>
+            </button>
+          )}
+          {doc.status === 'approved' && (
+            <button onClick={() => setShowTransmit(true)} title={t('Transmettre à un utilisateur')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <Share2 size={13} /> <span className="dv-btn-label">{t('Transmettre')}</span>
+            </button>
+          )}
           {showActions && (
             <button onClick={handleValidate} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 16px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--success)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               <Check size={13} /> {t('Approuver')}
@@ -458,6 +531,9 @@ const DocumentViewer = ({
               </div>
             )}
 
+            {/* Chaîne documentaire (affichée seulement si le document a des liens) */}
+            <DocumentChain docId={doc.id} onOpen={openChainDocument} />
+
             {/* Métadonnées */}
             <div style={{ marginBottom: 20 }}>
               <div style={secTitle}>{t('Métadonnées')}</div>
@@ -540,6 +616,8 @@ const DocumentViewer = ({
           </div>
         </div>
       )}
+      {showTransmit && <TransmitDocumentModal document={doc} onClose={() => setShowTransmit(false)} />}
+      {showLinked && <LinkedDocumentModal document={doc} onClose={() => setShowLinked(false)} />}
     </div>,
     document.body
   );

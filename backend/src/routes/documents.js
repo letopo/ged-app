@@ -18,7 +18,15 @@ import {
   getArchivedDocuments,
   getPieceDeCaisseHistory,
   getRecentDecisions,
+  getDocumentChain,
 } from '../controllers/documentController.js';
+import {
+  listRecipients,
+  transmitDocument,
+  listReceived,
+  markTransmissionRead,
+  listDocumentTransmissions,
+} from '../controllers/documentTransmissionController.js';
 import { Document, User, Workflow, Service } from '../models/index.js';
 import { Op } from 'sequelize'; // ✅ AJOUT IMPORTANT
 
@@ -187,6 +195,15 @@ router.get('/piece-de-caisse-history', protect, getPieceDeCaisseHistory);
 // @desc    Dates réelles d'approbation finale / de rejet (circuit) des documents visibles
 // @access  Private
 router.get('/recent-decisions', protect, getRecentDecisions);
+
+// Transmission d'un document validé à d'autres utilisateurs (avant les routes /:id)
+router.get('/transmission-recipients', protect, listRecipients);
+router.get('/transmissions/received', protect, listReceived);
+router.post('/transmissions/:tid/read', protect, markTransmissionRead);
+router.post('/:id/transmit', protect, transmitDocument);
+router.get('/:id/transmissions', protect, listDocumentTransmissions);
+// Chaîne documentaire (document d'origine → documents liés)
+router.get('/:id/chain', protect, getDocumentChain);
 
 // @route   GET /api/documents/categories
 // @desc    Retourne la liste distincte des catégories (léger, sans charger tous les docs)

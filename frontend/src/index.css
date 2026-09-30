@@ -425,6 +425,48 @@
 .gmao-root { height: calc(100vh - 4rem); }
 .gmao-modules-toggle { display: none; }
 
+/* Transmission de documents : fenêtre de choix des destinataires + liste « Reçus » */
+.is-hidden { display: none !important; }
+.tr-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tr-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 12px; font-weight: 600; }
+.tr-chip button { display: inline-flex; padding: 2px; border: none; background: none; color: inherit; cursor: pointer; border-radius: 50%; }
+.tr-results { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-2); }
+.tr-result { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: none; border-bottom: 1px solid var(--surface-3); background: var(--surface); cursor: pointer; font-family: inherit; }
+.tr-result:last-child { border-bottom: none; }
+.tr-result:hover { background: var(--surface-2); }
+.tr-result.is-on { background: var(--brand-soft); }
+.tr-check { width: 18px; height: 18px; flex-shrink: 0; border-radius: 5px; border: 1.5px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; color: #fff; }
+.tr-result.is-on .tr-check { background: var(--brand); border-color: var(--brand); }
+.dl-received { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; padding: 1px 7px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 10.5px; font-weight: 600; }
+.rcv-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; border: none; cursor: pointer; font-family: inherit; }
+.rcv-row:hover { filter: brightness(0.98); }
+.rcv-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+
+/* Créer un document lié (visionneuse) */
+.ld-tabs { display: flex; gap: 4px; padding: 3px; margin-bottom: 14px; border-radius: var(--radius-2); background: var(--surface-2); }
+.ld-tabs button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; border: none; border-radius: var(--radius-2); background: transparent; color: var(--fg-muted); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+.ld-tabs button.is-active { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: var(--shadow-1, 0 1px 2px rgba(15,27,45,.08)); }
+.ld-templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.ld-template { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--surface); color: var(--fg); font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; font-family: inherit; }
+.ld-template:hover { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.ld-drop { display: flex; align-items: center; gap: 8px; padding: 12px; border: 1.5px dashed var(--border-strong); border-radius: var(--radius-2); background: var(--surface-2); color: var(--fg-muted); font-size: 13px; cursor: pointer; overflow-wrap: anywhere; }
+.ld-drop:hover { border-color: var(--brand); color: var(--brand); }
+
+/* Chaîne documentaire (visionneuse) */
+.dc-chain { display: flex; flex-direction: column; gap: 2px; border-left: 2px solid var(--border); margin-left: 4px; }
+.dc-node { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 7px 10px; border: none; border-radius: var(--radius-2); background: transparent; text-align: left; font-family: inherit; cursor: default; color: var(--fg); }
+.dc-node.is-link { cursor: pointer; }
+.dc-node.is-link:hover { background: var(--surface-2); }
+.dc-node.is-current { background: var(--brand-soft); }
+.dc-branch { color: var(--fg-subtle); font-size: 12px; line-height: 18px; }
+.dc-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.dc-title { display: block; font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; }
+.dc-node.is-link .dc-title { color: var(--brand); }
+.dc-sub { display: block; font-size: 11px; color: var(--fg-muted); margin-top: 1px; }
+
+/* Discussion : bouton retour réservé au mobile */
+.chat-back { display: none; }
+
 /* Barre de validation en masse (Mes tâches) */
 .bulk-bar { bottom: 24px; max-width: calc(100vw - 24px); }
 
@@ -668,6 +710,19 @@ a.kpi-card:active { transform: scale(0.98); }
   .dl-td-actions { order: 4; flex-basis: 100%; }
   .dl-table tr.dl-wf-row { display: block; padding: 0; }
   .dl-table tr.dl-wf-row td { padding: 12px !important; }
+  .dv-btn-label { display: none; }
+
+  /* Discussion : liste OU conversation en plein écran, membres par-dessus les messages */
+  .chat-list { width: 100% !important; border-right: none !important; }
+  .chat-root.has-selection .chat-list { display: none !important; }
+  .chat-root:not(.has-selection) .chat-thread { display: none !important; }
+  .chat-back { display: inline-flex; }
+  .chat-body { position: relative; }
+  .chat-members { position: absolute; inset: 0; z-index: 5; width: auto !important; border-left: none !important; }
+  .chat-new-modal { padding: 18px !important; max-height: calc(100dvh - 32px) !important; }
+  /* Discussion d'un document (bulle sur la visionneuse) : panneau pleine largeur */
+  .doc-disc-btn { right: 16px !important; bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important; }
+  .doc-disc-panel { left: 8px !important; right: 8px !important; width: auto !important; bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important; height: min(480px, calc(100dvh - 150px)) !important; }
 
   /* GMAO : une colonne — modules repliables, contenu pleine largeur, panneau droit dessous */
   .gmao-root { height: auto; min-height: calc(100dvh - 4rem); }

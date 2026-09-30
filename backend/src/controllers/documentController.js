@@ -46,9 +46,28 @@ export const uploadDocument = async (req, res) => {
     console.log('📦 Metadata reçu et parsé:', parsedMetadata);
 
     // ==================================================================================
-    // 1. LOGIQUE GÉNÉRALISÉE : Fusion pour toute Pièce de Caisse avec document lié
+    // 0. DOCUMENT LIÉ : il faut pouvoir le lire pour s'y rattacher (et le joindre)
     // ==================================================================================
-    if (category === 'Pièce de caisse' && linkedDocId && mimetype === 'application/pdf') {
+    if (linkedDocId) {
+      const linkedForAccess = await Document.findByPk(linkedDocId);
+      if (!linkedForAccess || !(await hasDocumentReadAccess(linkedForAccess, req.user))) {
+        await fs.unlink(path.resolve(process.cwd(), finalFilePath)).catch(() => {});
+        return res.status(403).json({ success: false, message: 'Document lié introuvable ou non autorisé.' });
+      }
+      // Référence toujours conservée, fusion ou non (affichage de la chaîne documentaire)
+      parsedMetadata.linkedDocumentId = linkedDocId;
+      parsedMetadata.linkedDocumentTitle = linkedForAccess.title;
+      parsedMetadata.linkedDocumentCategory = linkedForAccess.category;
+    }
+
+    // ==================================================================================
+    // 1. LIASSE : le document lié est placé en tête du nouveau PDF (pièce justificative).
+    //    Toujours pour une Pièce de caisse ; pour les autres types si mergeLinked=true
+    //    (« Créer un document lié » depuis la visionneuse). Le nouveau document reste
+    //    en dernières pages : c'est là que les signatures du circuit sont apposées.
+    // ==================================================================================
+    const shouldMergeLinked = category === 'Pièce de caisse' || req.body.mergeLinked === 'true';
+    if (shouldMergeLinked && linkedDocId && mimetype === 'application/pdf') {
       try {
         console.log('🔗 Pièce de Caisse liée à un document détectée');
         console.log('   Document lié ID:', linkedDocId);
@@ -84,7 +103,8 @@ export const uploadDocument = async (req, res) => {
         const mergedPdfBytes = await mergePDFs(linkedDocPath, pcPath);
 
         // Sauvegarder le PDF fusionné
-        const mergedFileName = `PC_${linkedDocument.category.replace(/\s/g, '_')}_fusionné_${Date.now()}.pdf`;
+        const prefix = category === 'Pièce de caisse' ? 'PC' : 'LIASSE';
+        const mergedFileName = `${prefix}_${(linkedDocument.category || 'document').replace(/\s/g, '_')}_fusionné_${Date.now()}.pdf`;
         const mergedFilePath = path.resolve(process.cwd(), `uploads/${mergedFileName}`);
         await fs.writeFile(mergedFilePath, mergedPdfBytes);
 
@@ -245,9 +265,25 @@ export const getDocuments = async (req, res) => {
       whereClause.createdAt = { ...(whereClause.createdAt || {}), [Op.lte]: endDate };
     }
 
+    // Documents transmis à l'utilisateur : date de réception (dernier transfert vers
+    // lui) et expéditeur. Le tri se fait sur la date la plus récente entre création
+    // et réception : un document reçu aujourd'hui remonte en tête, même s'il a été
+    // créé et signé il y a longtemps (sa date d'origine reste intacte pour l'archive).
+    const me = Document.sequelize.escape(req.user.id);
+    const receivedAtSql = `(SELECT MAX(dt.updated_at) FROM document_transmissions dt WHERE dt.document_id = "Document"."id" AND dt.to_user_id = ${me})`;
+    const receivedFromSql = `(SELECT TRIM(CONCAT(u.first_name, ' ', u.last_name)) FROM document_transmissions dt JOIN users u ON u.id = dt.from_user_id WHERE dt.document_id = "Document"."id" AND dt.to_user_id = ${me} ORDER BY dt.updated_at DESC LIMIT 1)`;
+    const lastActivitySql = `GREATEST("Document"."created_at", COALESCE(${receivedAtSql}, "Document"."created_at"))`;
+
     // Pagination (optionnelle — si pas de page/limit, retourne tout)
     const queryOptions = {
       where: whereClause,
+      attributes: {
+        include: [
+          [Document.sequelize.literal(receivedAtSql), 'receivedAt'],
+          [Document.sequelize.literal(receivedFromSql), 'receivedFrom'],
+          [Document.sequelize.literal(lastActivitySql), 'lastActivityAt'],
+        ],
+      },
       // distinct: indispensable, sinon findAndCountAll compte les lignes jointes
       // par l'include hasMany 'workflows' (1 par workflow) → total surévalué.
       distinct: true,
@@ -259,7 +295,8 @@ export const getDocuments = async (req, res) => {
           include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'signaturePath', 'stampPath'] }]
         }
       ],
-      order: [['createdAt', 'DESC']],
+      // Tri sur l'alias (valable dans la sous-requête de pagination comme au-dessus)
+      order: [[Document.sequelize.literal('"lastActivityAt"'), 'DESC'], ['createdAt', 'DESC']],
     };
 
     if (page && limit) {
@@ -529,6 +566,53 @@ export const getRecentDecisions = async (req, res) => {
     res.json({ success: true, days, decisions: [...byDoc.values()] });
   } catch (error) {
     console.error('Erreur dates de décision:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// @desc   Chaîne documentaire d'un document : on remonte au document d'origine
+//         (linkedDocumentId), puis on redescend vers tous les documents qui en
+//         découlent (demande d'achat → bon de commande → proformas…). Chaque maillon
+//         indique type et statut ; son titre n'est donné que si l'utilisateur peut le lire.
+export const getDocumentChain = async (req, res) => {
+  try {
+    const attrs = ['id', 'title', 'category', 'status', 'createdAt', 'linkedDocumentId', 'userId', 'visibility', 'serviceId'];
+    const current = await Document.findByPk(req.params.id, { attributes: attrs });
+    if (!current) return res.status(404).json({ success: false, message: 'Document introuvable.' });
+    if (!(await hasDocumentReadAccess(current, req.user))) {
+      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
+    }
+
+    const MAX_NODES = 100;
+    // 1. Remonter jusqu'à l'origine (garde contre les boucles)
+    let root = current;
+    const upSeen = new Set([current.id]);
+    while (root.linkedDocumentId && !upSeen.has(root.linkedDocumentId) && upSeen.size < MAX_NODES) {
+      const parent = await Document.findByPk(root.linkedDocumentId, { attributes: attrs });
+      if (!parent) break;
+      upSeen.add(parent.id);
+      root = parent;
+    }
+
+    // 2. Redescendre en profondeur (ordre naturel d'une arborescence)
+    const nodes = [];
+    const seen = new Set();
+    const walk = async (doc, depth) => {
+      if (seen.has(doc.id) || nodes.length >= MAX_NODES) return;
+      seen.add(doc.id);
+      const accessible = await hasDocumentReadAccess(doc, req.user);
+      nodes.push({
+        id: doc.id, depth, category: doc.category, status: doc.status, createdAt: doc.createdAt,
+        title: accessible ? doc.title : null, accessible, isCurrent: doc.id === current.id,
+      });
+      const children = await Document.findAll({ where: { linkedDocumentId: doc.id }, attributes: attrs, order: [['createdAt', 'ASC']] });
+      for (const child of children) await walk(child, depth + 1);
+    };
+    await walk(root, 0);
+
+    res.json({ success: true, chain: nodes });
+  } catch (error) {
+    console.error('Erreur chaîne documentaire:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
