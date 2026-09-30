@@ -28,6 +28,7 @@ import calendarRoutes from './routes/calendar.js';
 import healthRouter from './routes/health.js';
 import systemRouter from './routes/system.js'; // État des sauvegardes (administrateurs)
 import mailSettingsRouter from './routes/mailSettings.js'; // Paramètres › Messagerie (SMTP par tenant)
+import tenantSettingsRouter from './routes/tenantSettings.js'; // Paramètres › Délais et session
 import listsRoutes from './routes/lists.js';
 import holidaysRoutes from './routes/holidays.js';
 import employeeRoutes from './routes/employees.js';
@@ -211,6 +212,7 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api', healthRouter);
 app.use('/api', systemRouter);
 app.use('/api', mailSettingsRouter);
+app.use('/api', tenantSettingsRouter);
 app.use('/api/lists', listsRoutes);
 app.use('/api/holidays', holidaysRoutes);
 app.use('/api/employees', employeeRoutes);

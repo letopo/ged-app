@@ -90,6 +90,7 @@ export async function createWorkflowForDocument(document, validatorIds, tenantId
   }
 
   const now = new Date();
+  const firstDeadline = await computeDeadline(now, tenantId);
   const workflows = await Promise.all(
     validatorIds.map((validatorId, index) =>
       Workflow.create({
@@ -99,7 +100,7 @@ export async function createWorkflowForDocument(document, validatorIds, tenantId
         step: index + 1,
         status: index === 0 ? 'pending' : 'queued',
         assignedAt: index === 0 ? now : null,
-        deadlineAt: index === 0 ? computeDeadline(now) : null,
+        deadlineAt: index === 0 ? firstDeadline : null,
       })
     )
   );

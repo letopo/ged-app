@@ -651,6 +651,12 @@ export const mailSettingsAPI = {
   test: (data, tenantId) => api.post(`${mailSettingsUrl(tenantId)}/test`, data),
 };
 
+// Paramètres › Délais et session (lecture : tout utilisateur connecté)
+export const tenantSettingsAPI = {
+  get:  ()     => api.get('/tenant-settings'),
+  save: (data) => api.put('/tenant-settings', data),
+};
+
 // État du serveur (administrateurs)
 export const systemAPI = {
   getBackupStatus: () => api.get('/system/backup-status'),

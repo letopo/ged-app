@@ -51,6 +51,7 @@ import SageFactureImport from './SageFactureImport.js'; // ✅ Import auto factu
 import ReleaseNote from './ReleaseNote.js'; // ✅ Nouveautés rédigées depuis l'application
 import DocumentTransmission from './DocumentTransmission.js'; // ✅ Documents transmis à un utilisateur
 import TenantMailSettings from './TenantMailSettings.js'; // ✅ Messagerie (SMTP) par tenant
+import TenantSettings from './TenantSettings.js'; // ✅ Délais et session par tenant
 import ComptaDoc from './ComptaDoc.js';   // ✅ Module Comptabilité (pièces de caisse)
 
 // Imports TRELLO
@@ -134,6 +135,7 @@ const db = {
   ReleaseNote,
   DocumentTransmission,
   TenantMailSettings,
+  TenantSettings,
   ComptaDoc,
   TemplatePermission,
   WorkflowComment,
@@ -313,6 +315,7 @@ export {
   ReleaseNote,
   DocumentTransmission,
   TenantMailSettings,
+  TenantSettings,
   ComptaDoc,
   TemplatePermission,
   MissionMealRate,

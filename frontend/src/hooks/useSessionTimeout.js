@@ -1,10 +1,13 @@
 // frontend/src/hooks/useSessionTimeout.js
 import { useState, useEffect, useRef, useCallback } from 'react';
+import useTenantSettings from './useTenantSettings';
 
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const WARNING_BEFORE = 2 * 60 * 1000;   // Avertissement 2 min avant
 
 export default function useSessionTimeout(isAuthenticated, logout) {
+  // Déconnexion après inactivité : réglée par organisation (30 min par défaut)
+  const { sessionIdleMinutes } = useTenantSettings({ enabled: isAuthenticated });
+  const SESSION_TIMEOUT = sessionIdleMinutes * 60 * 1000;
   const [showWarning, setShowWarning] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const timeoutRef = useRef(null);
@@ -45,7 +48,7 @@ export default function useSessionTimeout(isAuthenticated, logout) {
 
     // Logout timer
     timeoutRef.current = setTimeout(handleLogout, SESSION_TIMEOUT);
-  }, [isAuthenticated, clearTimers, handleLogout]);
+  }, [isAuthenticated, clearTimers, handleLogout, SESSION_TIMEOUT]);
 
   const extendSession = useCallback(() => {
     resetTimer();

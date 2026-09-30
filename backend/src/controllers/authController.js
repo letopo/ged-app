@@ -3,12 +3,15 @@ import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
 import User from '../models/User.js';
 import { getUserPosteCodes } from '../utils/posteResolver.js';
+import { getTenantSettings } from '../utils/tenantSettings.js';
 
-const generateToken = (user) => {
+// Durée de session réglée par tenant (Paramètres › Délais et session, 7 j par défaut)
+const generateToken = async (user) => {
+  const { sessionMaxDays } = await getTenantSettings(user.tenantId);
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    { expiresIn: `${sessionMaxDays}d` }
   );
 };
 
@@ -39,7 +42,7 @@ export const register = async (req, res, next) => {
       email, password, firstName, lastName, username, role: 'user'
     });
     
-    const token = generateToken(user);
+    const token = await generateToken(user);
     const userResult = user.toJSON();
     delete userResult.password;
 
@@ -92,7 +95,7 @@ export const login = async (req, res, next) => {
     }
 
     await user.update({ lastLogin: new Date() });
-    const token = generateToken(user);
+    const token = await generateToken(user);
     const userResult = user.toJSON();
     delete userResult.password;
     delete userResult.totpSecret;

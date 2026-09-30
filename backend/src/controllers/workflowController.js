@@ -450,7 +450,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         status: 'pending',
         comment: `${reason}. Document joint automatiquement. Reprise du processus.`,
         assignedAt: new Date(),
-        deadlineAt: computeDeadline(),
+        deadlineAt: await computeDeadline(),
       }, { transaction });
       
       await workRequest.update({ status: 'in_progress' }, { transaction });
@@ -820,7 +820,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
           
           if (nextTask) {
             // ACTIVATION TÂCHE SUIVANTE
-            await nextTask.update({ status: 'pending', assignedAt: new Date(), deadlineAt: computeDeadline() }, { transaction: t });
+            await nextTask.update({ status: 'pending', assignedAt: new Date(), deadlineAt: await computeDeadline() }, { transaction: t });
             await document.update({ status: 'in_progress' }, { transaction: t });
 
             const nextValidator = await User.findByPk(nextTask.validatorId, { transaction: t });
@@ -1139,7 +1139,7 @@ export const bulkValidateTask = async (req, res) => {
             await nextTask.update({
               status: 'pending',
               assignedAt: new Date(),
-              deadlineAt: computeDeadline(),
+              deadlineAt: await computeDeadline(),
             }, { transaction: t });
             await document.update({ status: 'in_progress' }, { transaction: t });
             
@@ -1523,7 +1523,7 @@ export const relancerValidation = async (req, res) => {
         comment: null,
         validatedAt: null,
         assignedAt: new Date(),
-        deadlineAt: computeDeadline(),
+        deadlineAt: await computeDeadline(),
       }, { transaction: t });
 
       // Les étapes après le rejet repassent en queued

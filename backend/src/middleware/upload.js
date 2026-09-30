@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { getTenantSettings, UPLOAD_CEILING_MB } from '../utils/tenantSettings.js';
 
 // Déterminer le chemin du dossier racine du projet backend
 const __filename = fileURLToPath(import.meta.url);
@@ -46,7 +47,9 @@ const fileFilter = (req, file, cb) => {
 // Création de l'instance multer à exporter et utiliser dans les routes
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // Limite de 10MB
+  // Plafond technique ; la limite réelle du tenant (Paramètres › Délais et
+  // session) est vérifiée ensuite par fixUploadEncoding.
+  limits: { fileSize: UPLOAD_CEILING_MB * 1024 * 1024 },
   fileFilter: fileFilter,
 });
 
@@ -56,16 +59,27 @@ const upload = multer({
 // corrompu ("RÃ©union mÃ©dicale.pdf") dans `file.originalname`. On le
 // redécode correctement juste après multer, avant que le contrôleur ne s'en
 // serve (ex: documents.original_name). Voir memory encoding-mojibake-fix.
-export const fixUploadEncoding = (req, res, next) => {
-  const fixName = (f) => {
-    if (f?.originalname) {
-      f.originalname = Buffer.from(f.originalname, 'latin1').toString('utf8');
+//
+// Vérifie aussi la taille maximale réglée pour le tenant : un fichier trop gros
+// est supprimé du disque et l'envoi refusé (413) avant d'atteindre le contrôleur.
+export const fixUploadEncoding = async (req, res, next) => {
+  const files = req.file ? [req.file]
+    : Array.isArray(req.files) ? req.files
+    : req.files && typeof req.files === 'object' ? Object.values(req.files).flat()
+    : [];
+  for (const f of files) {
+    if (f?.originalname) f.originalname = Buffer.from(f.originalname, 'latin1').toString('utf8');
+  }
+  if (files.length) {
+    const { maxUploadMb } = await getTenantSettings(req.tenantId);
+    const tooBig = files.find(f => f.size > maxUploadMb * 1024 * 1024);
+    if (tooBig) {
+      files.forEach(f => { if (f.path) fs.promises.unlink(f.path).catch(() => {}); });
+      return res.status(413).json({
+        success: false,
+        message: `Le fichier « ${tooBig.originalname} » dépasse la taille maximale autorisée (${maxUploadMb} Mo).`,
+      });
     }
-  };
-  if (req.file) fixName(req.file);
-  if (Array.isArray(req.files)) req.files.forEach(fixName);
-  else if (req.files && typeof req.files === 'object') {
-    Object.values(req.files).flat().forEach(fixName);
   }
   next();
 };
