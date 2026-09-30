@@ -643,6 +643,14 @@ export const postesAPI = {
   removeHolder:        (code, userId)              => api.delete(`/postes/${code}/holders/${userId}`),
 };
 
+// Paramètres › Messagerie : tenant courant, ou un tenant précis pour le superadmin
+const mailSettingsUrl = (tenantId) => (tenantId ? `/super-admin/tenants/${tenantId}/mail-settings` : '/mail-settings');
+export const mailSettingsAPI = {
+  get:  (tenantId)       => api.get(mailSettingsUrl(tenantId)),
+  save: (data, tenantId) => api.put(mailSettingsUrl(tenantId), data),
+  test: (data, tenantId) => api.post(`${mailSettingsUrl(tenantId)}/test`, data),
+};
+
 // État du serveur (administrateurs)
 export const systemAPI = {
   getBackupStatus: () => api.get('/system/backup-status'),

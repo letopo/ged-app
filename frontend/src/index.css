@@ -757,3 +757,10 @@ a.kpi-card:active { transform: scale(0.98); }
   .docviewer-center { flex: none !important; min-height: 50vh; width: 100%; }
   .docviewer-side   { width: 100%; border-left: none !important; border-top: 1px solid var(--border); }
 }
+
+/* Paramètres › Messagerie : serveur | port | sécurité, puis 2 colonnes */
+.mail-grid { display: grid; grid-template-columns: 2fr 0.8fr 1.4fr; gap: 0 12px; }
+.mail-grid.mail-grid-2 { grid-template-columns: 1fr 1fr; }
+@media (max-width: 860px) {
+  .mail-grid, .mail-grid.mail-grid-2 { grid-template-columns: 1fr; }
+}

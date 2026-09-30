@@ -97,7 +97,9 @@ Votre espace GED est prêt ! Voici vos informations de connexion :<br/><br/>
       `Bienvenue sur votre GED — ${name}`,
       welcomeText,
       'default',
-      loginUrl
+      loginUrl,
+      // E-mail de la plateforme : messagerie du serveur, pas celle du nouveau tenant
+      { useServerConfig: true }
     );
 
     res.status(201).json({

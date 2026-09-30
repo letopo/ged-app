@@ -3,16 +3,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { authAPI, usersAPI, tenantBrandingAPI } from '../services/api';
+import { authAPI, usersAPI, tenantBrandingAPI, mailSettingsAPI } from '../services/api';
 import {
   Home, Settings as SettingsIcon, Bell, Users, Sparkles, FileText,
   Zap, Shield, Database, Save, Loader, AlertCircle, CheckCircle,
-  Lock, Eye, EyeOff, Upload, Pen, X, UploadCloud, Stamp,
+  Lock, Eye, EyeOff, Upload, Pen, X, UploadCloud, Stamp, Mail,
 } from 'lucide-react';
 import LicenseManager from '../components/LicenseManager';
 import TwoFactorSetup from '../components/TwoFactorSetup';
 import NotificationSettings from './NotificationSettings';
 import UserManagement from './UserManagement';
+import MailSettingsPanel from '../components/MailSettingsPanel';
 import toast from 'react-hot-toast';
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
@@ -30,6 +31,8 @@ const NAV = [
     items: [
       { id: 'team',      label: 'Équipe',     icon: Users },
       { id: 'branding',  label: 'Branding',   icon: Sparkles },
+      // Visible si le super-administrateur ou une délégation le permet (voir mailAccess)
+      { id: 'mail',      label: 'Messagerie', icon: Mail, requires: 'mail' },
       { id: 'templates', label: 'Licence',    icon: FileText },
     ],
   },
@@ -92,6 +95,13 @@ export default function Settings() {
   const { user, updateUser } = useAuth();
   const { setLang } = useLanguage();
   const [activeTab, setActiveTab] = useState('profile');
+  // Messagerie : super-administrateur, ou administrateur autorisé par lui
+  const [mailAccess, setMailAccess] = useState(user?.role === 'superadmin');
+  useEffect(() => {
+    if (user?.role !== 'admin') return;
+    mailSettingsAPI.get().then(res => setMailAccess(Boolean(res.data.canManage))).catch(() => setMailAccess(false));
+  }, [user?.role]);
+  const nav = NAV.map(g => ({ ...g, items: g.items.filter(i => i.requires !== 'mail' || mailAccess) }));
   const [loading, setLoading]     = useState(false);
 
   const [profileData, setProfileData] = useState({
@@ -213,7 +223,7 @@ export default function Settings() {
     }
   };
 
-  const activeLabel = NAV.flatMap(g => g.items).find(i => i.id === activeTab)?.label || '';
+  const activeLabel = nav.flatMap(g => g.items).find(i => i.id === activeTab)?.label || '';
 
   return (
     <div className="settings-shell animate-pageFade">
@@ -222,7 +232,7 @@ export default function Settings() {
       <aside className="settings-sidebar">
         <div style={{ fontSize:18, fontWeight:700, color:'var(--fg)', padding:'0 20px', marginBottom:24 }}>{t('Paramètres')}</div>
 
-        {NAV.map(group => (
+        {nav.map(group => (
           <div key={group.group} style={{ marginBottom:8 }}>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.8px', padding:'8px 20px 6px' }}>
               {t(group.group)}
@@ -537,6 +547,9 @@ export default function Settings() {
               )
               : <Placeholder title={t('Branding')} />
           )}
+
+          {/* ── Messagerie ────────────────────────────────────────────────── */}
+          {activeTab === 'mail' && mailAccess && <MailSettingsPanel />}
 
           {/* ── Licence ───────────────────────────────────────────────────── */}
           {activeTab === 'templates' && (
