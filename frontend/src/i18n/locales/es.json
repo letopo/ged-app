@@ -2168,5 +2168,8 @@
   "Chaîne documentaire": "Cadena documental",
   "Ouvrir ce document": "Abrir este documento",
   "Document non accessible": "Documento no accesible",
-  "ce document": "este documento"
+  "ce document": "este documento",
+  "Reçu le {{date}} de {{name}}": "Recibido el {{date}} de {{name}}",
+  "Transmis par {{name}}": "Transmitido por {{name}}",
+  "Retour aux conversations": "Volver a las conversaciones"
 }

@@ -437,6 +437,7 @@
 .tr-result.is-on { background: var(--brand-soft); }
 .tr-check { width: 18px; height: 18px; flex-shrink: 0; border-radius: 5px; border: 1.5px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; color: #fff; }
 .tr-result.is-on .tr-check { background: var(--brand); border-color: var(--brand); }
+.dl-received { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; padding: 1px 7px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 10.5px; font-weight: 600; }
 .rcv-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; border: none; cursor: pointer; font-family: inherit; }
 .rcv-row:hover { filter: brightness(0.98); }
 .rcv-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
@@ -462,6 +463,9 @@
 .dc-title { display: block; font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; }
 .dc-node.is-link .dc-title { color: var(--brand); }
 .dc-sub { display: block; font-size: 11px; color: var(--fg-muted); margin-top: 1px; }
+
+/* Discussion : bouton retour réservé au mobile */
+.chat-back { display: none; }
 
 /* Barre de validation en masse (Mes tâches) */
 .bulk-bar { bottom: 24px; max-width: calc(100vw - 24px); }
@@ -707,6 +711,18 @@ a.kpi-card:active { transform: scale(0.98); }
   .dl-table tr.dl-wf-row { display: block; padding: 0; }
   .dl-table tr.dl-wf-row td { padding: 12px !important; }
   .dv-btn-label { display: none; }
+
+  /* Discussion : liste OU conversation en plein écran, membres par-dessus les messages */
+  .chat-list { width: 100% !important; border-right: none !important; }
+  .chat-root.has-selection .chat-list { display: none !important; }
+  .chat-root:not(.has-selection) .chat-thread { display: none !important; }
+  .chat-back { display: inline-flex; }
+  .chat-body { position: relative; }
+  .chat-members { position: absolute; inset: 0; z-index: 5; width: auto !important; border-left: none !important; }
+  .chat-new-modal { padding: 18px !important; max-height: calc(100dvh - 32px) !important; }
+  /* Discussion d'un document (bulle sur la visionneuse) : panneau pleine largeur */
+  .doc-disc-btn { right: 16px !important; bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important; }
+  .doc-disc-panel { left: 8px !important; right: 8px !important; width: auto !important; bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important; height: min(480px, calc(100dvh - 150px)) !important; }
 
   /* GMAO : une colonne — modules repliables, contenu pleine largeur, panneau droit dessous */
   .gmao-root { height: auto; min-height: calc(100dvh - 4rem); }

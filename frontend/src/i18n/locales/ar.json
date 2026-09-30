@@ -2168,5 +2168,8 @@
   "Chaîne documentaire": "سلسلة الوثائق",
   "Ouvrir ce document": "فتح هذه الوثيقة",
   "Document non accessible": "وثيقة غير متاحة",
-  "ce document": "هذه الوثيقة"
+  "ce document": "هذه الوثيقة",
+  "Reçu le {{date}} de {{name}}": "وردت في {{date}} من {{name}}",
+  "Transmis par {{name}}": "أحالها {{name}}",
+  "Retour aux conversations": "العودة إلى المحادثات"
 }

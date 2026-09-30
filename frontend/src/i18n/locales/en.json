@@ -2168,5 +2168,8 @@
   "Chaîne documentaire": "Document chain",
   "Ouvrir ce document": "Open this document",
   "Document non accessible": "Document not accessible",
-  "ce document": "this document"
+  "ce document": "this document",
+  "Reçu le {{date}} de {{name}}": "Received on {{date}} from {{name}}",
+  "Transmis par {{name}}": "Forwarded by {{name}}",
+  "Retour aux conversations": "Back to conversations"
 }

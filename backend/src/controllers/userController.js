@@ -12,9 +12,24 @@ import { emitRightsChanged } from '../utils/socketManager.js';
 // @access  Private
 export const getUsers = async (req, res, next) => {
   try {
-    const users = await User.findAll({
-      order: [['firstName', 'ASC'], ['lastName', 'ASC']]
-    });
+    // ?search=… (+ ?limit=…) : recherche de personnes (ex. Discussion › Nouvelle
+    // conversation) — comptes actifs dont prénom, nom, identifiant ou e-mail
+    // contient le texte. Sans search : liste complète, comme avant.
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    const options = { order: [['firstName', 'ASC'], ['lastName', 'ASC']] };
+    if (search) {
+      const words = search.split(/\s+/).filter(Boolean).slice(0, 5);
+      options.where = {
+        isActive: true,
+        // chaque mot doit apparaître dans au moins un des champs (« jean dupont »)
+        [Op.and]: words.map(w => ({
+          [Op.or]: ['firstName', 'lastName', 'username', 'email'].map(f => ({ [f]: { [Op.iLike]: `%${w}%` } })),
+        })),
+      };
+    }
+    const limit = parseInt(req.query.limit, 10);
+    if (limit > 0) options.limit = Math.min(limit, 100);
+    const users = await User.findAll(options);
     res.json({ success: true, count: users.length, users });
   } catch (error) {
     next(error);
