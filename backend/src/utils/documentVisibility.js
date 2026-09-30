@@ -3,36 +3,23 @@
 // auparavant dans getDocuments / getDocument / searchDocuments / getArchivedDocuments).
 
 import { Op } from 'sequelize';
-import { getPosteHolders, userHasPoste } from './posteResolver.js';
+import { getPosteHolders } from './posteResolver.js';
 import { ServiceMember, Workflow, DocumentTransmission } from '../models/index.js';
+import { canReadDocumentCategory } from './categoryAccess.js';
 
 // Documents générés par le RH : visibles uniquement par l'admin
 export const canViewHRDocuments = (user) => ['admin', 'superadmin'].includes(user.role);
 
-// Catégories réservées RH : visibles uniquement par les titulaires du poste RH + admins
-export const HR_ONLY_CATEGORIES = ['Attestation de départ en congé annuel'];
-export const canViewHRCategory = async (user) =>
-  ['admin', 'superadmin'].includes(user.role) || await userHasPoste(user.id, 'rh');
-
-// Retourne les userId des titulaires du poste RH (documents restreints)
+// Retourne les userId des titulaires du poste RH (documents générés par les RH,
+// masqués aux directeurs — voir buildDocumentAccessWhere)
 export const getHRUserIds = async () => (await getPosteHolders('rh')).map(u => u.id);
-
-// Catégories réservées comptabilité : visibles uniquement par admin et titulaire du poste comptable
-export const COMPTA_ONLY_CATEGORIES = ['Pièce comptable'];
-export const canViewComptaCategory = async (user) =>
-  ['admin', 'superadmin'].includes(user.role) || await userHasPoste(user.id, 'comptable');
 
 export const isAdminOrDirector = (user) =>
   ['admin', 'superadmin'].includes(user.role) || user.role === 'director';
 
-// Catégories bloquées pour cet utilisateur (RH et/ou Compta), toujours appliquées
-// en plus de tout autre droit d'accès — c'est un plafond, pas une alternative.
-export async function getRestrictedCategories(user) {
-  const restricted = [];
-  if (!(await canViewHRCategory(user))) restricted.push(...HR_ONLY_CATEGORIES);
-  if (!(await canViewComptaCategory(user))) restricted.push(...COMPTA_ONLY_CATEGORIES);
-  return restricted;
-}
+// Confidentialité par catégorie (plafond appliqué en plus des autres droits) :
+// règles réglées par tenant dans Paramètres › Confidentialité (utils/categoryAccess.js).
+export { buildCategoryRestrictionWhere } from './categoryAccess.js';
 
 // Fragment Sequelize (à combiner via Op.and avec le reste du where, jamais un 2e Op.or
 // directement sur le même objet) qui filtre les documents qu'un utilisateur peut lister.
@@ -107,8 +94,7 @@ export async function hasDocumentReadAccess(document, user) {
     if (!hasAccess) return false;
   }
 
-  const restrictedCats = await getRestrictedCategories(user);
-  return !restrictedCats.includes(document.category);
+  return canReadDocumentCategory(document, user);
 }
 
 // Résout à quel service rattacher un nouveau document "service" au moment de l'upload :

@@ -6,7 +6,7 @@ import i18n from '../i18n/config';
 import { usersAPI, servicesAPI } from '../services/api';
 import {
   Users, Edit, KeyRound, Trash2, PlusCircle, CheckCircle, XCircle,
-  Loader, UploadCloud, Stamp, X, ChevronDown, MoreHorizontal,
+  Loader, UploadCloud, Stamp, X, ChevronDown, MoreHorizontal, ShieldOff,
   Search, Filter,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -130,7 +130,7 @@ function FilterDropdown({ label, value, options, onChange }) {
 }
 
 // ── ActionMenu ────────────────────────────────────────────────────────────────
-function ActionMenu({ u, onEdit, onReset, onDelete, onUploadSig, onUploadStamp }) {
+function ActionMenu({ u, onEdit, onReset, onReset2FA, onDelete, onUploadSig, onUploadStamp }) {
   const { t } = useTranslation();
   const [open, setOpen]     = useState(false);
   const [pos, setPos]       = useState({ top: 0, left: 0 });
@@ -156,6 +156,10 @@ function ActionMenu({ u, onEdit, onReset, onDelete, onUploadSig, onUploadStamp }
   const items = [
     { label: t('Modifier'),           icon: <Edit size={13}/>,        action: onEdit },
     { label: t('Réinitialiser MDP'),  icon: <KeyRound size={13}/>,    action: onReset },
+    // Débloquer un utilisateur qui n'a plus accès à son application / sa boîte e-mail
+    ...(u.totpEnabled || u.emailOtpEnabled
+      ? [{ label: t('Désactiver la 2FA'), icon: <ShieldOff size={13}/>, action: onReset2FA }]
+      : []),
     { label: t('Uploader signature'), icon: <UploadCloud size={13}/>, action: onUploadSig },
     { label: t('Uploader cachet'),    icon: <Stamp size={13}/>,       action: onUploadStamp },
     { label: t('Supprimer'),          icon: <Trash2 size={13}/>,      action: onDelete, danger: true },
@@ -301,6 +305,17 @@ const UserManagement = () => {
       setNewPassword({ username: userToReset.username, password: res.data.newPassword });
       setResetOpen(false); setUserToReset(null);
     } catch { toast.error(t('Erreur lors de la réinitialisation.')); setResetOpen(false); }
+  };
+
+  const handleReset2FA = async u => {
+    const ok = await confirm({
+      title: t('Désactiver la double authentification'),
+      message: t('{{username}} pourra se connecter avec son seul mot de passe, puis réactiver la 2FA depuis Paramètres › Sécurité. À n’utiliser que si cette personne a perdu son téléphone ou l’accès à sa boîte e-mail.', { username: u.username }),
+      confirmLabel: t('Désactiver'), variant: 'danger',
+    });
+    if (!ok) return;
+    try { const res = await usersAPI.reset2FA(u.id); toast.success(res.data.message); loadAll(); }
+    catch (err) { toast.error(err.response?.data?.error || t('Erreur')); }
   };
 
   const handleDelete = async u => {
@@ -507,6 +522,7 @@ const UserManagement = () => {
                       u={u}
                       onEdit={() => handleEdit(u)}
                       onReset={() => handleResetPassword(u)}
+                      onReset2FA={() => handleReset2FA(u)}
                       onDelete={() => handleDelete(u)}
                       onUploadSig={() => { setUserToUpload(u); setUploadType('signature'); setSelectedFile(null); setUploadOpen(true); }}
                       onUploadStamp={() => { setUserToUpload(u); setUploadType('stamp'); setSelectedFile(null); setUploadOpen(true); }}

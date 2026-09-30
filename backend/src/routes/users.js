@@ -16,6 +16,7 @@ import {
   getValidators,
   getUsersWithPostes,
 } from '../controllers/userController.js';
+import { adminReset2FA } from '../controllers/twoFactorController.js';
 import { toggleAbsence } from '../controllers/workflowController.js';
 
 const router = express.Router();
@@ -46,6 +47,8 @@ router.route('/:id')
   .delete(authorize('admin'), deleteUser);
   
 router.post('/:id/reset-password', authorize('admin'), resetUserPassword);
+// Débloquer un utilisateur : désactive sa double authentification
+router.post('/:id/reset-2fa', authorize('admin'), adminReset2FA);
 
 // Statut présence/absence — soi-même ou un admin (vérifié dans le contrôleur).
 router.put('/:id/absence', toggleAbsence);

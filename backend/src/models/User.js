@@ -78,6 +78,12 @@ const User = sequelize.define('User', {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   },
+  // Double authentification par e-mail (controllers/twoFactorController.js)
+  emailOtpEnabled:   { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'email_otp_enabled' },
+  emailOtpHash:      { type: DataTypes.STRING(128), allowNull: true, field: 'email_otp_hash' },
+  emailOtpExpiresAt: { type: DataTypes.DATE, allowNull: true, field: 'email_otp_expires_at' },
+  emailOtpAttempts:  { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'email_otp_attempts' },
+  emailOtpSentAt:    { type: DataTypes.DATE, allowNull: true, field: 'email_otp_sent_at' },
   // Statut présence — quand true, ses tâches de validation en cours/à venir
   // sont automatiquement redirigées vers substituteId (voir Workflow.isSubstituted).
   isAbsent: {
@@ -108,8 +114,10 @@ const User = sequelize.define('User', {
   tableName: 'users',
   timestamps: true,
   underscored: true,
+  // Secrets jamais renvoyés par défaut (liste des utilisateurs accessible à
+  // tout utilisateur connecté) : lire avec User.unscoped() quand il le faut.
   defaultScope: {
-    attributes: { exclude: ['password'] }
+    attributes: { exclude: ['password', 'totpSecret', 'emailOtpHash'] }
   },
   scopes: {
     withPassword: {

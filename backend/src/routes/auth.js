@@ -7,7 +7,11 @@ import {
   enable2FA,
   disable2FA,
   verifyLogin2FA,
-  get2FAStatus
+  get2FAStatus,
+  sendEmail2FACode,
+  enableEmail2FA,
+  disableEmail2FA,
+  resendLogin2FACode,
 } from '../controllers/twoFactorController.js';
 import { loginLimiter, twoFALimiter } from '../middleware/rateLimiter.js';
 
@@ -26,5 +30,10 @@ router.get( '/2fa/status',  protect, get2FAStatus);
 router.post('/2fa/setup',   protect, setup2FA);
 router.post('/2fa/enable',  protect, enable2FA);
 router.post('/2fa/disable', protect, disable2FA);
+// 2FA par e-mail (code à 6 chiffres)
+router.post('/2fa/email/send',    protect, twoFALimiter, sendEmail2FACode);
+router.post('/2fa/email/enable',  protect, twoFALimiter, enableEmail2FA);
+router.post('/2fa/email/disable', protect, twoFALimiter, disableEmail2FA);
+router.post('/2fa/resend', twoFALimiter, resendLogin2FACode);   // étape 2 du login (sans protect)
 
 export default router;

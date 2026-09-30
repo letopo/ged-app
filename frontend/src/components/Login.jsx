@@ -15,6 +15,7 @@ export default function Login({ onLogin }) {
   const [error, setError] = useState('');
   const [show2FA, setShow2FA] = useState(false);
   const [tempToken, setTempToken] = useState('');
+  const [twoFA, setTwoFA] = useState({ method: 'totp' }); // méthode, adresse masquée, remarque
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -37,6 +38,7 @@ export default function Login({ onLogin }) {
 
       if (data.requires2FA) {
         setTempToken(data.tempToken);
+        setTwoFA({ method: data.method || 'totp', maskedEmail: data.maskedEmail, notice: data.notice });
         setShow2FA(true);
         return;
       }
@@ -59,6 +61,9 @@ export default function Login({ onLogin }) {
     return (
       <TwoFactorVerify
         tempToken={tempToken}
+        method={twoFA.method}
+        maskedEmail={twoFA.maskedEmail}
+        notice={twoFA.notice}
         onSuccess={handle2FASuccess}
         onBack={() => { setShow2FA(false); setTempToken(''); }}
       />

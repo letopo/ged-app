@@ -303,6 +303,7 @@ export const usersAPI = {
   update: (userId, data) => api.put(`/users/${userId}`, data),
   delete: (userId) => api.delete(`/users/${userId}`),
   resetPassword: (userId, newPassword) => api.post(`/users/${userId}/reset-password`, { newPassword }),
+  reset2FA: (userId) => api.post(`/users/${userId}/reset-2fa`),
   uploadSignature: (userId, formData) => api.post(`/users/${userId}/signature`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
@@ -660,6 +661,12 @@ export const integrationsAPI = {
   test:    (kind, data, tenantId) => api.post(`${integrationUrl(kind, tenantId)}/test`, data),
   preview: (data, tenantId)       => api.post(`${integrationUrl('sage', tenantId)}/preview`, data),
   sync:    (tenantId)             => api.post(`${integrationUrl('sage', tenantId)}/sync`),
+};
+
+// Paramètres › Confidentialité (administrateurs)
+export const categoryAccessAPI = {
+  get:  ()      => api.get('/category-access-rules'),
+  save: (rules) => api.put('/category-access-rules', { rules }),
 };
 
 // Paramètres › Délais et session (lecture : tout utilisateur connecté)
