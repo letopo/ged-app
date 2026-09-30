@@ -3,6 +3,15 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 import MailSettingsPanel from '../components/MailSettingsPanel';
+import AiSettingsPanel from '../components/AiSettingsPanel';
+import SageSettingsPanel from '../components/SageSettingsPanel';
+
+// Réglages d'un client ouverts depuis la liste (fenêtre à onglets)
+const SETTINGS_TABS = [
+  { id: 'mail', label: 'Messagerie' },
+  { id: 'ai', label: 'IA · OCR' },
+  { id: 'sage', label: 'Sage' },
+];
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -43,7 +52,8 @@ export default function SuperAdminPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [mailTenant, setMailTenant] = useState(null); // client dont on règle la messagerie
+  const [settingsTenant, setSettingsTenant] = useState(null); // client dont on ouvre les réglages
+  const [settingsTab, setSettingsTab] = useState('mail');
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: '', subdomain: '', contactName: '', contactPhone: '',
@@ -300,10 +310,10 @@ export default function SuperAdminPage() {
                   <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                       <button
-                        onClick={() => setMailTenant(t)}
+                        onClick={() => { setSettingsTab('mail'); setSettingsTenant(t); }}
                         style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--brand)', color: 'var(--brand)', background: 'transparent', cursor: 'pointer' }}
                       >
-                        Messagerie
+                        Réglages
                       </button>
                       {t.slug !== 'hsjm' && (
                         <>
@@ -351,15 +361,23 @@ export default function SuperAdminPage() {
         )}
       </div>
 
-      {mailTenant && (
-        <div role="dialog" aria-modal="true" onClick={e => { if (e.target === e.currentTarget) setMailTenant(null); }}
+      {settingsTenant && (
+        <div role="dialog" aria-modal="true" onClick={e => { if (e.target === e.currentTarget) setSettingsTenant(null); }}
           style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}>
-          <div style={{ width: '100%', maxWidth: 640, background: 'var(--surface)', borderRadius: 14, boxShadow: 'var(--shadow-3, 0 20px 50px rgba(0,0,0,.25))', padding: '24px 24px 20px', position: 'relative' }}>
-            <button onClick={() => setMailTenant(null)} aria-label="Fermer"
+          <div style={{ width: '100%', maxWidth: settingsTab === 'sage' ? 760 : 640, background: 'var(--surface)', borderRadius: 14, boxShadow: 'var(--shadow-3, 0 20px 50px rgba(0,0,0,.25))', padding: '24px 24px 20px', position: 'relative' }}>
+            <button onClick={() => setSettingsTenant(null)} aria-label="Fermer"
               style={{ position: 'absolute', top: 14, right: 14, border: 'none', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', padding: 4 }}>
               <X size={18} />
             </button>
-            <MailSettingsPanel tenantId={mailTenant.id} />
+            <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 10 }}>Réglages de <b style={{ color: 'var(--fg)' }}>{settingsTenant.name}</b></div>
+            <div className="ld-tabs" style={{ marginBottom: 18 }}>
+              {SETTINGS_TABS.map(tab => (
+                <button key={tab.id} type="button" className={settingsTab === tab.id ? 'is-active' : ''} onClick={() => setSettingsTab(tab.id)}>{tab.label}</button>
+              ))}
+            </div>
+            {settingsTab === 'mail' && <MailSettingsPanel tenantId={settingsTenant.id} />}
+            {settingsTab === 'ai' && <AiSettingsPanel tenantId={settingsTenant.id} />}
+            {settingsTab === 'sage' && <SageSettingsPanel tenantId={settingsTenant.id} />}
           </div>
         </div>
       )}

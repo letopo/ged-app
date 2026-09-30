@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { authAPI, usersAPI, tenantBrandingAPI, mailSettingsAPI } from '../services/api';
+import { authAPI, usersAPI, tenantBrandingAPI, mailSettingsAPI, integrationsAPI } from '../services/api';
 import {
   Home, Settings as SettingsIcon, Bell, Users, Sparkles, FileText,
   Zap, Shield, Database, Save, Loader, AlertCircle, CheckCircle,
@@ -15,6 +15,8 @@ import NotificationSettings from './NotificationSettings';
 import UserManagement from './UserManagement';
 import MailSettingsPanel from '../components/MailSettingsPanel';
 import TenantSettingsPanel from '../components/TenantSettingsPanel';
+import AiSettingsPanel from '../components/AiSettingsPanel';
+import SageSettingsPanel from '../components/SageSettingsPanel';
 import toast from 'react-hot-toast';
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
@@ -41,8 +43,8 @@ const NAV = [
   {
     group: 'Avancé',
     items: [
-      { id: 'ia',           label: 'IA · OCR',      icon: Zap },
-      { id: 'integrations', label: 'Intégrations',  icon: Shield },
+      { id: 'ia',           label: 'IA · OCR',      icon: Zap,    requires: 'ai' },
+      { id: 'integrations', label: 'Intégrations',  icon: Shield, requires: 'sage' },
       { id: 'api',          label: 'API · Webhooks', icon: Database },
     ],
   },
@@ -99,13 +101,22 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('profile');
   // Messagerie : super-administrateur, ou administrateur autorisé par lui
   const [mailAccess, setMailAccess] = useState(user?.role === 'superadmin');
+  // IA · OCR et Intégrations (Sage) : même règle que la messagerie
+  const [integrationAccess, setIntegrationAccess] = useState(
+    user?.role === 'superadmin' ? { ai: true, sage: true } : { ai: false, sage: false });
   useEffect(() => {
     if (user?.role !== 'admin') return;
     mailSettingsAPI.get().then(res => setMailAccess(Boolean(res.data.canManage))).catch(() => setMailAccess(false));
+    for (const kind of ['ai', 'sage']) {
+      integrationsAPI.get(kind)
+        .then(res => setIntegrationAccess(a => ({ ...a, [kind]: Boolean(res.data.canManage) })))
+        .catch(() => {});
+    }
   }, [user?.role]);
   const isOrgAdmin = ['admin', 'superadmin'].includes(user?.role);
   const nav = NAV.map(g => ({ ...g, items: g.items.filter(i =>
-    (i.requires !== 'mail' || mailAccess) && (i.requires !== 'admin' || isOrgAdmin)) }));
+    (i.requires !== 'mail' || mailAccess) && (i.requires !== 'admin' || isOrgAdmin)
+    && (!['ai', 'sage'].includes(i.requires) || integrationAccess[i.requires])) }));
   const [loading, setLoading]     = useState(false);
 
   const [profileData, setProfileData] = useState({
@@ -271,7 +282,7 @@ export default function Settings() {
 
       {/* ── Right content ───────────────────────────────────────────────── */}
       <main className="settings-main">
-        <div style={{ width:'100%', maxWidth: ['team','notifications'].includes(activeTab) ? 1100 : 560 }}>
+        <div style={{ width:'100%', maxWidth: ['team','notifications'].includes(activeTab) ? 1100 : activeTab === 'integrations' ? 720 : 560 }}>
 
           {/* ── Profil ───────────────────────────────────────────────────── */}
           {activeTab === 'profile' && (
@@ -570,10 +581,10 @@ export default function Settings() {
           )}
 
           {/* ── IA · OCR ──────────────────────────────────────────────────── */}
-          {activeTab === 'ia' && <Placeholder title={t('IA · OCR')} />}
+          {activeTab === 'ia' && integrationAccess.ai && <AiSettingsPanel />}
 
           {/* ── Intégrations ──────────────────────────────────────────────── */}
-          {activeTab === 'integrations' && <Placeholder title={t('Intégrations')} />}
+          {activeTab === 'integrations' && integrationAccess.sage && <SageSettingsPanel />}
 
           {/* ── API · Webhooks ─────────────────────────────────────────────── */}
           {activeTab === 'api' && <Placeholder title={t('API · Webhooks')} />}

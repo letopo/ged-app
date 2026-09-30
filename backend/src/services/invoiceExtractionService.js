@@ -9,12 +9,10 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { ANTHROPIC_API_URL, ANTHROPIC_VERSION, requireAiConfig } from '../utils/integrations.js';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_VERSION = '2023-06-01';
-// Modèle surchargeable ; Sonnet est un bon compromis fiabilité/coût pour lire
-// montants et dates sur des documents scannés.
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
+// Modèle : réglé par organisation (Paramètres › IA · OCR) ; Sonnet est un bon
+// compromis fiabilité/coût pour lire montants et dates sur des documents scannés.
 
 const MIME_IMAGE = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
 
@@ -101,12 +99,8 @@ function normalizeMontant(value) {
  * @returns {Promise<{fournisseur, dateFacture, numeroFacture, montant, devise, confiance, _raw}>}
  */
 export const extractInvoiceFields = async (filePath, mimeType) => {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    const err = new Error("Clé API Anthropic absente : définissez ANTHROPIC_API_KEY dans l'environnement du backend.");
-    err.code = 'NO_API_KEY';
-    throw err;
-  }
+  // Clé et modèle de l'organisation (Paramètres › IA · OCR), sinon ceux du serveur
+  const { apiKey, model: MODEL } = await requireAiConfig();
 
   const sourceBlock = await buildSourceBlock(filePath, mimeType);
 
