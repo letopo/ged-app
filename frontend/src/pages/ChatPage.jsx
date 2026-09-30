@@ -633,7 +633,8 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
         gap: 10, borderBottom: '1px solid var(--border)', flexShrink: 0,
         background: 'var(--surface)',
       }}>
-        <button onClick={onBack} style={{ display: 'none', padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--fg-muted)' }}>
+        {/* Retour à la liste : visible sur mobile seulement (cf. index.css .chat-back) */}
+        <button onClick={onBack} className="chat-back" aria-label={t('Retour aux conversations')} style={{ padding: '4px 6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--fg)', fontSize: 20, lineHeight: 1 }}>
           ←
         </button>
         <div style={{ width: 28, height: 28, borderRadius: 6, background: 'var(--brand-soft, color-mix(in srgb, var(--brand) 12%, transparent))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
@@ -662,7 +663,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
         </button>
       </div>
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className="chat-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Messages */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div
@@ -729,7 +730,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
 
         {/* Panel membres */}
         {showMembers && (
-          <div style={{
+          <div className="chat-members" style={{
             width: 220, borderLeft: '1px solid var(--border)', background: 'var(--surface)',
             overflow: 'hidden auto', padding: '12px 0', flexShrink: 0,
           }}>
@@ -890,11 +891,11 @@ const NewConvModal = ({ onClose, onCreate, currentUser, onlineUsers = new Set() 
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16,
     }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{
+      <div className="chat-new-modal" style={{
         background: 'var(--surface)', borderRadius: 12, padding: 24,
-        width: 440, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+        width: '100%', maxWidth: 440, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -1115,9 +1116,9 @@ const ChatPage = () => {
   });
 
   return (
-    <div style={{ display: 'flex', height: '100%', background: 'var(--surface)', overflow: 'hidden' }}>
-      {/* ── Panneau gauche ── */}
-      <div style={{
+    <div className={`chat-root${selectedConv ? ' has-selection' : ''}`} style={{ display: 'flex', height: '100%', background: 'var(--surface)', overflow: 'hidden' }}>
+      {/* ── Panneau gauche ── (mobile : liste OU conversation, cf. index.css .chat-*) */}
+      <div className="chat-list" style={{
         width: 280, borderRight: '1px solid var(--border)',
         display: 'flex', flexDirection: 'column', flexShrink: 0,
         background: 'var(--surface)',
@@ -1218,7 +1219,7 @@ const ChatPage = () => {
       </div>
 
       {/* ── Panneau droit ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="chat-thread" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {selectedConv ? (
           <MessageThread
             key={selectedConv.id}

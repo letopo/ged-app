@@ -111,8 +111,10 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
       <button
         onClick={() => setOpen(v => !v)}
         title={open ? t('Fermer la discussion') : t('Discussion du document')}
+        className="doc-disc-btn"
         style={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
+          // Au-dessus de la visionneuse de document (9000), sous ses fenêtres (9500+)
+          position: 'fixed', bottom: 24, right: 24, zIndex: 9100,
           width: 48, height: 48, borderRadius: '50%', border: 'none',
           background: open ? 'var(--fg)' : 'var(--brand)', color: '#fff',
           boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
@@ -134,8 +136,8 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
 
       {/* Panneau de discussion */}
       {open && (
-        <div style={{
-          position: 'fixed', bottom: 84, right: 24, zIndex: 1000,
+        <div className="doc-disc-panel" style={{
+          position: 'fixed', bottom: 84, right: 24, zIndex: 9100,
           width: 360, height: 480, borderRadius: 12,
           boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
           background: 'var(--surface)', border: '1px solid var(--border)',
