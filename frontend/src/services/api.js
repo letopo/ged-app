@@ -234,6 +234,12 @@ export const documentsAPI = {
   getNextNumero: (category) => api.get(`/documents/next-numero?category=${encodeURIComponent(category)}`),
   getArchives: () => api.get('/documents/archives'),
   getRecentDecisions: (days = 7) => api.get('/documents/recent-decisions', { params: { days } }),
+  // Transmission d'un document validé à d'autres utilisateurs
+  getTransmissionRecipients: (q = '') => api.get('/documents/transmission-recipients', { params: { q } }),
+  transmit: (id, data) => api.post(`/documents/${id}/transmit`, data),
+  getReceived: () => api.get('/documents/transmissions/received'),
+  markTransmissionRead: (tid) => api.post(`/documents/transmissions/${tid}/read`),
+  getTransmissions: (id) => api.get(`/documents/${id}/transmissions`),
   archive: (id) => api.patch(`/documents/${id}/archive`),
   unarchive: (id) => api.patch(`/documents/${id}/unarchive`),
   // OnlyOffice

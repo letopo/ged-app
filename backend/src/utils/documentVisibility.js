@@ -4,7 +4,7 @@
 
 import { Op } from 'sequelize';
 import { getPosteHolders, userHasPoste } from './posteResolver.js';
-import { ServiceMember, Workflow } from '../models/index.js';
+import { ServiceMember, Workflow, DocumentTransmission } from '../models/index.js';
 
 // Documents générés par le RH : visibles uniquement par l'admin
 export const canViewHRDocuments = (user) => ['admin', 'superadmin'].includes(user.role);
@@ -57,12 +57,22 @@ export async function buildDocumentAccessWhere(user) {
   });
   const myValidatorDocIds = validatorRows.map(w => w.documentId);
 
+  // Documents qu'on m'a transmis (cf. documentTransmissionController)
+  const receivedRows = await DocumentTransmission.findAll({
+    where: { toUserId: user.id },
+    attributes: ['documentId'],
+  });
+  const myReceivedDocIds = receivedRows.map(r => r.documentId);
+
   const orConditions = [{ userId: user.id }];
   if (myServiceIds.length) {
     orConditions.push({ visibility: 'service', serviceId: { [Op.in]: myServiceIds } });
   }
   if (myValidatorDocIds.length) {
     orConditions.push({ id: { [Op.in]: myValidatorDocIds } });
+  }
+  if (myReceivedDocIds.length) {
+    orConditions.push({ id: { [Op.in]: myReceivedDocIds } });
   }
   return { [Op.or]: orConditions };
 }
@@ -87,6 +97,12 @@ export async function hasDocumentReadAccess(document, user) {
         where: { documentId: document.id, validatorId: user.id },
       });
       hasAccess = !!validatorRow;
+    }
+    if (!hasAccess) {
+      const received = await DocumentTransmission.findOne({
+        where: { documentId: document.id, toUserId: user.id },
+      });
+      hasAccess = !!received;
     }
     if (!hasAccess) return false;
   }

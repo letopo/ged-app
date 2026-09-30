@@ -425,6 +425,22 @@
 .gmao-root { height: calc(100vh - 4rem); }
 .gmao-modules-toggle { display: none; }
 
+/* Transmission de documents : fenêtre de choix des destinataires + liste « Reçus » */
+.is-hidden { display: none !important; }
+.tr-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tr-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 12px; font-weight: 600; }
+.tr-chip button { display: inline-flex; padding: 2px; border: none; background: none; color: inherit; cursor: pointer; border-radius: 50%; }
+.tr-results { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-2); }
+.tr-result { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: none; border-bottom: 1px solid var(--surface-3); background: var(--surface); cursor: pointer; font-family: inherit; }
+.tr-result:last-child { border-bottom: none; }
+.tr-result:hover { background: var(--surface-2); }
+.tr-result.is-on { background: var(--brand-soft); }
+.tr-check { width: 18px; height: 18px; flex-shrink: 0; border-radius: 5px; border: 1.5px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; color: #fff; }
+.tr-result.is-on .tr-check { background: var(--brand); border-color: var(--brand); }
+.rcv-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; border: none; cursor: pointer; font-family: inherit; }
+.rcv-row:hover { filter: brightness(0.98); }
+.rcv-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+
 /* Barre de validation en masse (Mes tâches) */
 .bulk-bar { bottom: 24px; max-width: calc(100vw - 24px); }
 
@@ -668,6 +684,7 @@ a.kpi-card:active { transform: scale(0.98); }
   .dl-td-actions { order: 4; flex-basis: 100%; }
   .dl-table tr.dl-wf-row { display: block; padding: 0; }
   .dl-table tr.dl-wf-row td { padding: 12px !important; }
+  .dv-btn-label { display: none; }
 
   /* GMAO : une colonne — modules repliables, contenu pleine largeur, panneau droit dessous */
   .gmao-root { height: auto; min-height: calc(100dvh - 4rem); }

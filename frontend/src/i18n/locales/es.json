@@ -2129,5 +2129,22 @@
   "Étape": "Etapa",
   "Approuvée": "Aprobada",
   "Rejetée": "Rechazada",
-  "Au": "Hasta"
+  "Au": "Hasta",
+  "Transmettre": "Transmitir",
+  "Transmettre à un utilisateur": "Transmitir a un usuario",
+  "Transmettre le document": "Transmitir el documento",
+  "Les destinataires pourront le consulter et créer un document à partir de lui (ex. bon de commande). Ils le retrouveront dans Documents › Reçus.": "Los destinatarios podrán consultarlo y crear un documento a partir de él (p. ej. orden de compra). Lo encontrarán en Documentos › Recibidos.",
+  "Destinataire(s)": "Destinatario(s)",
+  "Nom ou e-mail…": "Nombre o correo…",
+  "— facultatif": "— opcional",
+  "Ex. : Merci de préparer le bon de commande pour ce matériel.": "Ej.: Por favor prepare la orden de compra para este material.",
+  "Transmettre à {{count}} personnes": "Transmitir a {{count}} personas",
+  "Choisissez au moins un destinataire.": "Elija al menos un destinatario.",
+  "Document transmis": "Documento transmitido",
+  "Erreur lors de la transmission": "Error al transmitir",
+  "Retirer": "Quitar",
+  "Reçus": "Recibidos",
+  "Aucun document reçu": "Ningún documento recibido",
+  "Les documents validés que d’autres personnes vous transmettent apparaîtront ici.": "Los documentos validados que otras personas le transmitan aparecerán aquí.",
+  "De {{name}}": "De {{name}}"
 }

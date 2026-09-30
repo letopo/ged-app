@@ -2129,5 +2129,22 @@
   "Étape": "المرحلة",
   "Approuvée": "موافق عليها",
   "Rejetée": "مرفوضة",
-  "Au": "إلى"
+  "Au": "إلى",
+  "Transmettre": "إحالة",
+  "Transmettre à un utilisateur": "إحالة إلى مستخدم",
+  "Transmettre le document": "إحالة الوثيقة",
+  "Les destinataires pourront le consulter et créer un document à partir de lui (ex. bon de commande). Ils le retrouveront dans Documents › Reçus.": "سيتمكن المستلمون من الاطلاع عليها وإنشاء وثيقة انطلاقاً منها (مثل أمر الشراء). سيجدونها في الوثائق › الواردة.",
+  "Destinataire(s)": "المستلم(ون)",
+  "Nom ou e-mail…": "الاسم أو البريد…",
+  "— facultatif": "— اختياري",
+  "Ex. : Merci de préparer le bon de commande pour ce matériel.": "مثال: يرجى إعداد أمر الشراء لهذه المعدات.",
+  "Transmettre à {{count}} personnes": "إحالة إلى {{count}} أشخاص",
+  "Choisissez au moins un destinataire.": "اختر مستلماً واحداً على الأقل.",
+  "Document transmis": "تمت إحالة الوثيقة",
+  "Erreur lors de la transmission": "خطأ أثناء الإحالة",
+  "Retirer": "إزالة",
+  "Reçus": "الواردة",
+  "Aucun document reçu": "لا توجد وثائق واردة",
+  "Les documents validés que d’autres personnes vous transmettent apparaîtront ici.": "ستظهر هنا الوثائق المعتمدة التي يحيلها إليك الآخرون.",
+  "De {{name}}": "من {{name}}"
 }

@@ -9,7 +9,7 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import {
   X, Check, AlertTriangle, MessageSquare, FilePlus,
-  ArrowUp, ArrowDown, Loader, Download, Printer,
+  ArrowUp, ArrowDown, Loader, Download, Printer, Share2,
   ChevronRight, CheckCircle, Clock, XCircle,
   FileText, Tag, Calendar, User, Hash, Scan, Settings2, UserCheck,
 } from 'lucide-react';
@@ -17,6 +17,7 @@ import { documentsAPI, getFileBaseUrl } from '../services/api';
 import toast from 'react-hot-toast';
 import OnlyOfficeEditor, { isOfficeFile } from './OnlyOfficeEditor';
 import FormResponseViewer from './FormBuilder/Renderer/FormResponseViewer';
+import TransmitDocumentModal from './TransmitDocumentModal';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -190,6 +191,7 @@ const DocumentViewer = ({
   const [viewerKey, setViewerKey]             = useState(0);
   const [blobUrl, setBlobUrl]                 = useState(null);
   const [docListTab, setDocListTab]           = useState('pending');
+  const [showTransmit, setShowTransmit]       = useState(false);
 
   const iframeRef    = useRef(null);
   const fileInputRef = useRef(null);
@@ -332,6 +334,12 @@ const DocumentViewer = ({
                 <FilePlus size={14} />
               </button>
             </>
+          )}
+          {/* Document validé : le transmettre (ex. à l'acheteur pour le bon de commande) */}
+          {doc.status === 'approved' && (
+            <button onClick={() => setShowTransmit(true)} title={t('Transmettre à un utilisateur')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <Share2 size={13} /> <span className="dv-btn-label">{t('Transmettre')}</span>
+            </button>
           )}
           {showActions && (
             <button onClick={handleValidate} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 16px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--success)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
@@ -540,6 +548,7 @@ const DocumentViewer = ({
           </div>
         </div>
       )}
+      {showTransmit && <TransmitDocumentModal document={doc} onClose={() => setShowTransmit(false)} />}
     </div>,
     document.body
   );
