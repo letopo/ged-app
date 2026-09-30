@@ -143,11 +143,23 @@ const RELEASE_NOTES = [
     id: '2026-10-01-clients-messagerie',
     date: '2026-10-01',
     target: '/super-admin',
-    title: 'Messagerie des clients',
+    title: 'Réglages des clients',
     items: [
-      'Bouton « Messagerie » sur chaque client : réglez son compte d’envoi des e-mails et autorisez, si vous le souhaitez, ses administrateurs à le gérer eux-mêmes.',
+      'Bouton « Réglages » sur chaque client : sa Messagerie, son IA · OCR et son intégration Sage, avec pour chacun la possibilité d’en confier la gestion à ses administrateurs.',
     ],
     access: (user) => user?.role === 'superadmin',
+  },
+  {
+    id: '2026-10-01-integrations',
+    date: '2026-10-01',
+    target: 'app',
+    title: 'IA et Sage dans les Paramètres',
+    items: [
+      'Paramètres › IA · OCR : la clé et le modèle d’intelligence artificielle qui lisent automatiquement factures PHP et pièces comptables se règlent et se testent depuis l’application.',
+      'Paramètres › Intégrations : l’import automatique des factures PHP depuis Sage se configure à l’écran ; le bouton « Aperçu » montre les factures qui seraient importées avant d’activer quoi que ce soit.',
+      'Ces réglages sont réservés au super-administrateur, qui peut les confier aux administrateurs de chaque organisation.',
+    ],
+    access: isAdmin,
   },
   {
     id: '2026-10-01-upload-taille',

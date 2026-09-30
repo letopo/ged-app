@@ -10,7 +10,8 @@ const SageFactureImport = sequelize.define('SageFactureImport', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  sageDocPiece:   { type: DataTypes.STRING(64), allowNull: false, unique: true, field: 'sage_doc_piece' },
+  // Unique par tenant (index sage_facture_imports_tenant_piece)
+  sageDocPiece:   { type: DataTypes.STRING(64), allowNull: false, field: 'sage_doc_piece' },
   sageClientNum:  { type: DataTypes.STRING(64), allowNull: true, field: 'sage_client_num' },
   patientNom:     { type: DataTypes.STRING(255), allowNull: true, field: 'patient_nom' },
   encounterKey:   { type: DataTypes.STRING(128), allowNull: true, field: 'encounter_key' },

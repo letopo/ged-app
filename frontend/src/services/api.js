@@ -651,6 +651,17 @@ export const mailSettingsAPI = {
   test: (data, tenantId) => api.post(`${mailSettingsUrl(tenantId)}/test`, data),
 };
 
+// Paramètres › IA · OCR ('ai') et › Intégrations ('sage') : tenant courant,
+// ou un tenant précis pour le superadmin
+const integrationUrl = (kind, tenantId) => (tenantId ? `/super-admin/tenants/${tenantId}/integrations/${kind}` : `/integrations/${kind}`);
+export const integrationsAPI = {
+  get:     (kind, tenantId)       => api.get(integrationUrl(kind, tenantId)),
+  save:    (kind, data, tenantId) => api.put(integrationUrl(kind, tenantId), data),
+  test:    (kind, data, tenantId) => api.post(`${integrationUrl(kind, tenantId)}/test`, data),
+  preview: (data, tenantId)       => api.post(`${integrationUrl('sage', tenantId)}/preview`, data),
+  sync:    (tenantId)             => api.post(`${integrationUrl('sage', tenantId)}/sync`),
+};
+
 // Paramètres › Délais et session (lecture : tout utilisateur connecté)
 export const tenantSettingsAPI = {
   get:  ()     => api.get('/tenant-settings'),

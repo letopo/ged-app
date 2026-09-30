@@ -4,10 +4,8 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { ANTHROPIC_API_URL, ANTHROPIC_VERSION, requireAiConfig } from '../utils/integrations.js';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_VERSION = '2023-06-01';
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 
 const MIME_IMAGE = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
 
@@ -86,12 +84,8 @@ function normalizeMontant(value) {
 }
 
 export const extractComptaFields = async (filePath, mimeType) => {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    const err = new Error("Clé API Anthropic absente : définissez ANTHROPIC_API_KEY dans l'environnement du backend.");
-    err.code = 'NO_API_KEY';
-    throw err;
-  }
+  // Clé et modèle de l'organisation (Paramètres › IA · OCR), sinon ceux du serveur
+  const { apiKey, model: MODEL } = await requireAiConfig();
 
   const sourceBlock = await buildSourceBlock(filePath, mimeType);
   const body = {

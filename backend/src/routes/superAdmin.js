@@ -10,6 +10,9 @@ import {
   getStats
 } from '../controllers/superAdminController.js';
 import { superGetMailSettings, superUpdateMailSettings, superTestMailSettings } from '../controllers/mailSettingsController.js';
+import {
+  superGetIntegration, superUpdateIntegration, superTestIntegration, superPreviewSage, superSyncSage,
+} from '../controllers/integrationController.js';
 
 const router = express.Router();
 
@@ -25,6 +28,12 @@ router.put('/tenants/:id',     updateTenant);
 router.get('/tenants/:id/mail-settings',       superGetMailSettings);
 router.put('/tenants/:id/mail-settings',       superUpdateMailSettings);
 router.post('/tenants/:id/mail-settings/test', superTestMailSettings);
+// Intégrations (IA, Sage) d'un tenant
+router.post('/tenants/:id/integrations/sage/preview', superPreviewSage);
+router.post('/tenants/:id/integrations/sage/sync',    superSyncSage);
+router.get('/tenants/:id/integrations/:kind',         superGetIntegration);
+router.put('/tenants/:id/integrations/:kind',         superUpdateIntegration);
+router.post('/tenants/:id/integrations/:kind/test',   superTestIntegration);
 router.patch('/tenants/:id/status', setTenantStatus);
 router.delete('/tenants/:id',  deleteTenant);
 
