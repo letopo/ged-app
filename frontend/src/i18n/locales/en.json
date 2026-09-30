@@ -2164,5 +2164,9 @@
   "Document créé en brouillon. Cliquez sur « Soumettre » pour lancer sa validation.": "Document created as draft. Click “Submit” to start its approval.",
   "Erreur lors de l'envoi du fichier": "Error while uploading the file",
   "Lié à": "Linked to",
-  "Ce document sera joint en tête du PDF comme pièce justificative (liasse).": "This document will be attached at the front of the PDF as supporting document (bundle)."
+  "Ce document sera joint en tête du PDF comme pièce justificative (liasse).": "This document will be attached at the front of the PDF as supporting document (bundle).",
+  "Chaîne documentaire": "Document chain",
+  "Ouvrir ce document": "Open this document",
+  "Document non accessible": "Document not accessible",
+  "ce document": "this document"
 }

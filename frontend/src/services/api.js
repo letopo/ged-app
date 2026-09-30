@@ -240,6 +240,7 @@ export const documentsAPI = {
   getReceived: () => api.get('/documents/transmissions/received'),
   markTransmissionRead: (tid) => api.post(`/documents/transmissions/${tid}/read`),
   getTransmissions: (id) => api.get(`/documents/${id}/transmissions`),
+  getChain: (id) => api.get(`/documents/${id}/chain`),
   archive: (id) => api.patch(`/documents/${id}/archive`),
   unarchive: (id) => api.patch(`/documents/${id}/unarchive`),
   // OnlyOffice

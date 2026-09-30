@@ -18,6 +18,7 @@ import {
   getArchivedDocuments,
   getPieceDeCaisseHistory,
   getRecentDecisions,
+  getDocumentChain,
 } from '../controllers/documentController.js';
 import {
   listRecipients,
@@ -201,6 +202,8 @@ router.get('/transmissions/received', protect, listReceived);
 router.post('/transmissions/:tid/read', protect, markTransmissionRead);
 router.post('/:id/transmit', protect, transmitDocument);
 router.get('/:id/transmissions', protect, listDocumentTransmissions);
+// Chaîne documentaire (document d'origine → documents liés)
+router.get('/:id/chain', protect, getDocumentChain);
 
 // @route   GET /api/documents/categories
 // @desc    Retourne la liste distincte des catégories (léger, sans charger tous les docs)

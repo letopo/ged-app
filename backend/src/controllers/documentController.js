@@ -553,6 +553,53 @@ export const getRecentDecisions = async (req, res) => {
   }
 };
 
+// @desc   Chaîne documentaire d'un document : on remonte au document d'origine
+//         (linkedDocumentId), puis on redescend vers tous les documents qui en
+//         découlent (demande d'achat → bon de commande → proformas…). Chaque maillon
+//         indique type et statut ; son titre n'est donné que si l'utilisateur peut le lire.
+export const getDocumentChain = async (req, res) => {
+  try {
+    const attrs = ['id', 'title', 'category', 'status', 'createdAt', 'linkedDocumentId', 'userId', 'visibility', 'serviceId'];
+    const current = await Document.findByPk(req.params.id, { attributes: attrs });
+    if (!current) return res.status(404).json({ success: false, message: 'Document introuvable.' });
+    if (!(await hasDocumentReadAccess(current, req.user))) {
+      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
+    }
+
+    const MAX_NODES = 100;
+    // 1. Remonter jusqu'à l'origine (garde contre les boucles)
+    let root = current;
+    const upSeen = new Set([current.id]);
+    while (root.linkedDocumentId && !upSeen.has(root.linkedDocumentId) && upSeen.size < MAX_NODES) {
+      const parent = await Document.findByPk(root.linkedDocumentId, { attributes: attrs });
+      if (!parent) break;
+      upSeen.add(parent.id);
+      root = parent;
+    }
+
+    // 2. Redescendre en profondeur (ordre naturel d'une arborescence)
+    const nodes = [];
+    const seen = new Set();
+    const walk = async (doc, depth) => {
+      if (seen.has(doc.id) || nodes.length >= MAX_NODES) return;
+      seen.add(doc.id);
+      const accessible = await hasDocumentReadAccess(doc, req.user);
+      nodes.push({
+        id: doc.id, depth, category: doc.category, status: doc.status, createdAt: doc.createdAt,
+        title: accessible ? doc.title : null, accessible, isCurrent: doc.id === current.id,
+      });
+      const children = await Document.findAll({ where: { linkedDocumentId: doc.id }, attributes: attrs, order: [['createdAt', 'ASC']] });
+      for (const child of children) await walk(child, depth + 1);
+    };
+    await walk(root, 0);
+
+    res.json({ success: true, chain: nodes });
+  } catch (error) {
+    console.error('Erreur chaîne documentaire:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
 export const getArchivedDocuments = async (req, res) => {
   try {
     const whereClause = { archived: true };

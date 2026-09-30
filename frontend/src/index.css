@@ -451,6 +451,18 @@
 .ld-drop { display: flex; align-items: center; gap: 8px; padding: 12px; border: 1.5px dashed var(--border-strong); border-radius: var(--radius-2); background: var(--surface-2); color: var(--fg-muted); font-size: 13px; cursor: pointer; overflow-wrap: anywhere; }
 .ld-drop:hover { border-color: var(--brand); color: var(--brand); }
 
+/* Chaîne documentaire (visionneuse) */
+.dc-chain { display: flex; flex-direction: column; gap: 2px; border-left: 2px solid var(--border); margin-left: 4px; }
+.dc-node { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 7px 10px; border: none; border-radius: var(--radius-2); background: transparent; text-align: left; font-family: inherit; cursor: default; color: var(--fg); }
+.dc-node.is-link { cursor: pointer; }
+.dc-node.is-link:hover { background: var(--surface-2); }
+.dc-node.is-current { background: var(--brand-soft); }
+.dc-branch { color: var(--fg-subtle); font-size: 12px; line-height: 18px; }
+.dc-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.dc-title { display: block; font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; }
+.dc-node.is-link .dc-title { color: var(--brand); }
+.dc-sub { display: block; font-size: 11px; color: var(--fg-muted); margin-top: 1px; }
+
 /* Barre de validation en masse (Mes tâches) */
 .bulk-bar { bottom: 24px; max-width: calc(100vw - 24px); }
 

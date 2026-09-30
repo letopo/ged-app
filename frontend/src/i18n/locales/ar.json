@@ -2164,5 +2164,9 @@
   "Document créé en brouillon. Cliquez sur « Soumettre » pour lancer sa validation.": "أُنشئت الوثيقة كمسودة. انقر على «إرسال» لبدء اعتمادها.",
   "Erreur lors de l'envoi du fichier": "خطأ أثناء إرسال الملف",
   "Lié à": "مرتبط بـ",
-  "Ce document sera joint en tête du PDF comme pièce justificative (liasse).": "ستُرفق هذه الوثيقة في بداية ملف PDF كمستند داعم (ملف مجمّع)."
+  "Ce document sera joint en tête du PDF comme pièce justificative (liasse).": "ستُرفق هذه الوثيقة في بداية ملف PDF كمستند داعم (ملف مجمّع).",
+  "Chaîne documentaire": "سلسلة الوثائق",
+  "Ouvrir ce document": "فتح هذه الوثيقة",
+  "Document non accessible": "وثيقة غير متاحة",
+  "ce document": "هذه الوثيقة"
 }

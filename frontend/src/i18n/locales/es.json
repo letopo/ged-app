@@ -2164,5 +2164,9 @@
   "Document créé en brouillon. Cliquez sur « Soumettre » pour lancer sa validation.": "Documento creado como borrador. Haga clic en «Enviar» para iniciar su validación.",
   "Erreur lors de l'envoi du fichier": "Error al enviar el archivo",
   "Lié à": "Vinculado a",
-  "Ce document sera joint en tête du PDF comme pièce justificative (liasse).": "Este documento se adjuntará al inicio del PDF como justificante (legajo)."
+  "Ce document sera joint en tête du PDF comme pièce justificative (liasse).": "Este documento se adjuntará al inicio del PDF como justificante (legajo).",
+  "Chaîne documentaire": "Cadena documental",
+  "Ouvrir ce document": "Abrir este documento",
+  "Document non accessible": "Documento no accesible",
+  "ce document": "este documento"
 }

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import i18n from '../i18n/config';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
@@ -60,6 +61,50 @@ const STATUS_CFG = {
   rejected:           { label: 'Rejeté',         dot: 'var(--danger)',     cls: 'ged-badge-danger'   },
   archived:           { label: 'Archivé',        dot: 'var(--fg-subtle)',  cls: 'ged-badge-neutral'  },
 };
+
+// ── Chaîne documentaire (document d'origine → documents liés) ─────────────────
+function DocumentChain({ docId, onOpen }) {
+  const { t } = useTranslation();
+  const [chain, setChain] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    setChain([]);
+    documentsAPI.getChain(docId)
+      .then(res => { if (!cancelled) setChain(res.data.chain || []); })
+      .catch(() => { if (!cancelled) setChain([]); });
+    return () => { cancelled = true; };
+  }, [docId]);
+  if (chain.length < 2) return null;   // document seul : rien à afficher
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10 }}>
+        {t('Chaîne documentaire')}
+      </div>
+      <div className="dc-chain">
+        {chain.map(node => {
+          const st = STATUS_CFG[node.status] || STATUS_CFG.draft;
+          const clickable = node.accessible && !node.isCurrent;
+          return (
+            <button key={node.id} type="button" disabled={!clickable} onClick={() => clickable && onOpen(node.id)}
+              className={`dc-node${node.isCurrent ? ' is-current' : ''}${clickable ? ' is-link' : ''}`}
+              style={{ paddingLeft: 10 + node.depth * 16 }}
+              title={clickable ? t('Ouvrir ce document') : undefined}>
+              {node.depth > 0 && <span className="dc-branch">↳</span>}
+              <span className="dc-dot" style={{ background: st.dot }} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span className="dc-title">{node.accessible ? node.title : t('Document non accessible')}</span>
+                <span className="dc-sub">
+                  {node.category ? `${t(node.category)} · ` : ''}{t(st.label)}
+                  {node.isCurrent && <strong> · {t('ce document')}</strong>}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const AVATAR_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316'];
 const strColor = (s) => AVATAR_COLORS[(s || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
@@ -179,7 +224,20 @@ const DocumentViewer = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = ['admin', 'superadmin'].includes(user?.role);
+  // Ouvrir un maillon de la chaîne : dans la visionneuse si le parent le permet,
+  // sinon via la page Documents (/documents/:id ouvre la visionneuse)
+  const openChainDocument = async (id) => {
+    if (onSelectDocument) {
+      try {
+        const res = await documentsAPI.getById(id);
+        onSelectDocument(res.data?.data || res.data);
+        return;
+      } catch { /* repli sur la navigation */ }
+    }
+    navigate(`/documents/${id}`);
+  };
   const [comment, setComment]                 = useState('');
   const [rejectComment, setRejectComment]     = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
@@ -472,6 +530,9 @@ const DocumentViewer = ({
                 })}
               </div>
             )}
+
+            {/* Chaîne documentaire (affichée seulement si le document a des liens) */}
+            <DocumentChain docId={doc.id} onOpen={openChainDocument} />
 
             {/* Métadonnées */}
             <div style={{ marginBottom: 20 }}>
