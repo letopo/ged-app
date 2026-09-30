@@ -98,7 +98,10 @@ export async function expireOverdueWorkflows() {
             `Bonjour ${creator.firstName},\n\n` +
             `La validation de votre document "${doc.title}" a expiré car ${validatorName} n'a pas traité la demande dans le délai de ${WORKFLOW_DEADLINE_DAYS} jours.\n\n` +
             `Votre document a été remis en brouillon. Vous pouvez le soumettre à nouveau en choisissant un nouveau validateur.\n\n` +
-            `— Système GED HSJM`
+            `— Système GED`,
+            'default', null,
+            // Tâche de fond (hors requête) : messagerie du tenant du document
+            { tenantId: doc.tenantId }
           ).catch(err => console.warn('[WorkflowExpire] ⚠️ Email créateur:', err.message));
         }
       });

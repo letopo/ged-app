@@ -50,6 +50,7 @@ import PhpFacture from './PhpFacture.js'; // ✅ Module factures PHP (secrétair
 import SageFactureImport from './SageFactureImport.js'; // ✅ Import auto factures patient PHP depuis Sage
 import ReleaseNote from './ReleaseNote.js'; // ✅ Nouveautés rédigées depuis l'application
 import DocumentTransmission from './DocumentTransmission.js'; // ✅ Documents transmis à un utilisateur
+import TenantMailSettings from './TenantMailSettings.js'; // ✅ Messagerie (SMTP) par tenant
 import ComptaDoc from './ComptaDoc.js';   // ✅ Module Comptabilité (pièces de caisse)
 
 // Imports TRELLO
@@ -132,6 +133,7 @@ const db = {
   SageFactureImport,
   ReleaseNote,
   DocumentTransmission,
+  TenantMailSettings,
   ComptaDoc,
   TemplatePermission,
   WorkflowComment,
@@ -310,6 +312,7 @@ export {
   SageFactureImport,
   ReleaseNote,
   DocumentTransmission,
+  TenantMailSettings,
   ComptaDoc,
   TemplatePermission,
   MissionMealRate,

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { X } from 'lucide-react';
+import MailSettingsPanel from '../components/MailSettingsPanel';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -41,6 +43,7 @@ export default function SuperAdminPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [mailTenant, setMailTenant] = useState(null); // client dont on règle la messagerie
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: '', subdomain: '', contactName: '', contactPhone: '',
@@ -296,6 +299,12 @@ export default function SuperAdminPage() {
                   </td>
                   <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => setMailTenant(t)}
+                        style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--brand)', color: 'var(--brand)', background: 'transparent', cursor: 'pointer' }}
+                      >
+                        Messagerie
+                      </button>
                       {t.slug !== 'hsjm' && (
                         <>
                           {t.status !== 'active' && (
@@ -341,6 +350,19 @@ export default function SuperAdminPage() {
           </table>
         )}
       </div>
+
+      {mailTenant && (
+        <div role="dialog" aria-modal="true" onClick={e => { if (e.target === e.currentTarget) setMailTenant(null); }}
+          style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}>
+          <div style={{ width: '100%', maxWidth: 640, background: 'var(--surface)', borderRadius: 14, boxShadow: 'var(--shadow-3, 0 20px 50px rgba(0,0,0,.25))', padding: '24px 24px 20px', position: 'relative' }}>
+            <button onClick={() => setMailTenant(null)} aria-label="Fermer"
+              style={{ position: 'absolute', top: 14, right: 14, border: 'none', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', padding: 4 }}>
+              <X size={18} />
+            </button>
+            <MailSettingsPanel tenantId={mailTenant.id} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
