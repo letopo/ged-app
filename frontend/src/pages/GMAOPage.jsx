@@ -5477,6 +5477,9 @@ export default function GMAOPage() {
   const [rapportLoading, setRapportLoading] = useState(false);
   const [pendingInterventions, setPendingInterventions] = useState([]);
   const [pendingLoading, setPendingLoading] = useState(false);
+  // Mobile : menu des modules replié derrière un bouton (cf. index.css .gmao-*)
+  const [mobileModulesOpen, setMobileModulesOpen] = useState(false);
+  const selectSection = (id) => { setActiveSection(id); setMobileModulesOpen(false); };
 
   // Services
   useEffect(() => {
@@ -5650,10 +5653,10 @@ export default function GMAOPage() {
   };
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)', background: '#0f172a' }}>
+    <div className="flex flex-col gmao-root" style={{ background: '#0f172a' }}>
 
       {/* ── BARRE SUPÉRIEURE ──────────────────────────────────────────────── */}
-      <div className="px-4 py-2 flex items-center justify-between flex-shrink-0 gap-4" style={{ background: '#1e293b', borderBottom: '1px solid #334155' }}>
+      <div className="px-4 py-2 flex items-center justify-between flex-shrink-0 gap-4 gmao-topbar" style={{ background: '#1e293b', borderBottom: '1px solid #334155' }}>
 
         {/* Logo + titre */}
         <div className="flex items-center gap-2.5 flex-shrink-0">
@@ -5667,10 +5670,10 @@ export default function GMAOPage() {
         </div>
 
         {/* Séparateur */}
-        <div className="h-8 w-px flex-shrink-0" style={{ background: '#334155' }} />
+        <div className="h-8 w-px flex-shrink-0 gmao-sep" style={{ background: '#334155' }} />
 
         {/* Outils d'analyse */}
-        <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
+        <div className="flex items-center gap-1.5 flex-1 overflow-x-auto gmao-tools">
           <span className="text-[9px] uppercase tracking-widest font-semibold flex-shrink-0 mr-1" style={{ color: '#475569' }}>
             Outils d'analyse
           </span>
@@ -5683,7 +5686,7 @@ export default function GMAOPage() {
             return (
               <button
                 key={tool.id}
-                onClick={() => !tool.wip && setActiveSection(tool.id)}
+                onClick={() => !tool.wip && selectSection(tool.id)}
                 title={tool.label}
                 className="flex-shrink-0 px-3 py-1.5 rounded text-[11px] font-semibold transition-all whitespace-nowrap"
                 style={tbStyle}
@@ -5708,6 +5711,11 @@ export default function GMAOPage() {
 
       {/* ── BREADCRUMB ────────────────────────────────────────────────────── */}
       <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0" style={{ background: 'rgba(30,41,59,0.6)', borderBottom: '1px solid rgba(51,65,85,0.5)' }}>
+        {/* Mobile : ouvre / ferme le menu des modules */}
+        <button type="button" className="gmao-modules-toggle" onClick={() => setMobileModulesOpen(o => !o)} aria-expanded={mobileModulesOpen}
+          style={{ alignItems: 'center', gap: 6, padding: '6px 10px', margin: '2px 6px 2px 0', borderRadius: 6, border: '1px solid #334155', background: mobileModulesOpen ? 'var(--accent-teal)' : '#334155', color: '#fff', fontSize: 12, fontWeight: 600 }}>
+          {mobileModulesOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />} Modules
+        </button>
         <span className="text-[10px]" style={{ color: '#475569' }}>GMAO</span>
         <ChevronRight className="w-3 h-3" style={{ color: '#1e3a5f' }} />
         <span className="text-[10px] truncate" style={{ color: '#64748b' }}>{bcModule}</span>
@@ -5725,16 +5733,16 @@ export default function GMAOPage() {
       </div>
 
       {/* ── LAYOUT PRINCIPAL 3 COLONNES ───────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden gmao-body">
 
-        {/* SIDEBAR GAUCHE */}
-        <div className="w-60 overflow-y-auto flex-shrink-0" style={{ background: '#1e293b', borderRight: '1px solid #334155' }}>
+        {/* SIDEBAR GAUCHE — sur mobile : panneau repliable pleine largeur */}
+        <div className={`w-60 overflow-y-auto flex-shrink-0 gmao-side${mobileModulesOpen ? ' is-open' : ''}`} style={{ background: '#1e293b', borderRight: '1px solid #334155' }}>
           {GMAO_MODULES.map(mod => (
             <SidebarModule
               key={mod.id}
               module={mod}
               activeSection={activeSection}
-              onSelect={setActiveSection}
+              onSelect={selectSection}
               expanded={expandedModules.has(mod.id)}
               onToggle={() => toggleModule(mod.id)}
             />
@@ -5742,12 +5750,12 @@ export default function GMAOPage() {
         </div>
 
         {/* CONTENU PRINCIPAL */}
-        <div className="flex-1 overflow-y-auto" style={{ background: 'var(--surface)' }}>
+        <div className="flex-1 overflow-y-auto gmao-main" style={{ background: 'var(--surface)' }}>
           {renderContent()}
         </div>
 
         {/* PANNEAU DROIT */}
-        <div className="w-60 flex-shrink-0 flex flex-col overflow-hidden" style={{ background: '#1e293b', borderLeft: '1px solid #334155' }}>
+        <div className="w-60 flex-shrink-0 flex flex-col overflow-hidden gmao-right" style={{ background: '#1e293b', borderLeft: '1px solid #334155' }}>
 
           {/* Mini Calendrier */}
           <div className="p-3 flex-shrink-0" style={{ borderBottom: '1px solid #334155' }}>
@@ -5799,7 +5807,7 @@ export default function GMAOPage() {
                   return (
                     <div
                       key={iv.id || i}
-                      onClick={() => setActiveSection('maint_intervention')}
+                      onClick={() => selectSection('maint_intervention')}
                       className="grid grid-cols-3 gap-1 py-1 cursor-pointer transition-colors"
                       style={{ borderBottom: '1px solid rgba(51,65,85,0.4)' }}
                     >
