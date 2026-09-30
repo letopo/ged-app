@@ -441,6 +441,16 @@
 .rcv-row:hover { filter: brightness(0.98); }
 .rcv-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
 
+/* Créer un document lié (visionneuse) */
+.ld-tabs { display: flex; gap: 4px; padding: 3px; margin-bottom: 14px; border-radius: var(--radius-2); background: var(--surface-2); }
+.ld-tabs button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; border: none; border-radius: var(--radius-2); background: transparent; color: var(--fg-muted); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+.ld-tabs button.is-active { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: var(--shadow-1, 0 1px 2px rgba(15,27,45,.08)); }
+.ld-templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.ld-template { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--surface); color: var(--fg); font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; font-family: inherit; }
+.ld-template:hover { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.ld-drop { display: flex; align-items: center; gap: 8px; padding: 12px; border: 1.5px dashed var(--border-strong); border-radius: var(--radius-2); background: var(--surface-2); color: var(--fg-muted); font-size: 13px; cursor: pointer; overflow-wrap: anywhere; }
+.ld-drop:hover { border-color: var(--brand); color: var(--brand); }
+
 /* Barre de validation en masse (Mes tâches) */
 .bulk-bar { bottom: 24px; max-width: calc(100vw - 24px); }
 

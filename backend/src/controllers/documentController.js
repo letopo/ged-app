@@ -46,9 +46,28 @@ export const uploadDocument = async (req, res) => {
     console.log('📦 Metadata reçu et parsé:', parsedMetadata);
 
     // ==================================================================================
-    // 1. LOGIQUE GÉNÉRALISÉE : Fusion pour toute Pièce de Caisse avec document lié
+    // 0. DOCUMENT LIÉ : il faut pouvoir le lire pour s'y rattacher (et le joindre)
     // ==================================================================================
-    if (category === 'Pièce de caisse' && linkedDocId && mimetype === 'application/pdf') {
+    if (linkedDocId) {
+      const linkedForAccess = await Document.findByPk(linkedDocId);
+      if (!linkedForAccess || !(await hasDocumentReadAccess(linkedForAccess, req.user))) {
+        await fs.unlink(path.resolve(process.cwd(), finalFilePath)).catch(() => {});
+        return res.status(403).json({ success: false, message: 'Document lié introuvable ou non autorisé.' });
+      }
+      // Référence toujours conservée, fusion ou non (affichage de la chaîne documentaire)
+      parsedMetadata.linkedDocumentId = linkedDocId;
+      parsedMetadata.linkedDocumentTitle = linkedForAccess.title;
+      parsedMetadata.linkedDocumentCategory = linkedForAccess.category;
+    }
+
+    // ==================================================================================
+    // 1. LIASSE : le document lié est placé en tête du nouveau PDF (pièce justificative).
+    //    Toujours pour une Pièce de caisse ; pour les autres types si mergeLinked=true
+    //    (« Créer un document lié » depuis la visionneuse). Le nouveau document reste
+    //    en dernières pages : c'est là que les signatures du circuit sont apposées.
+    // ==================================================================================
+    const shouldMergeLinked = category === 'Pièce de caisse' || req.body.mergeLinked === 'true';
+    if (shouldMergeLinked && linkedDocId && mimetype === 'application/pdf') {
       try {
         console.log('🔗 Pièce de Caisse liée à un document détectée');
         console.log('   Document lié ID:', linkedDocId);
@@ -84,7 +103,8 @@ export const uploadDocument = async (req, res) => {
         const mergedPdfBytes = await mergePDFs(linkedDocPath, pcPath);
 
         // Sauvegarder le PDF fusionné
-        const mergedFileName = `PC_${linkedDocument.category.replace(/\s/g, '_')}_fusionné_${Date.now()}.pdf`;
+        const prefix = category === 'Pièce de caisse' ? 'PC' : 'LIASSE';
+        const mergedFileName = `${prefix}_${(linkedDocument.category || 'document').replace(/\s/g, '_')}_fusionné_${Date.now()}.pdf`;
         const mergedFilePath = path.resolve(process.cwd(), `uploads/${mergedFileName}`);
         await fs.writeFile(mergedFilePath, mergedPdfBytes);
 

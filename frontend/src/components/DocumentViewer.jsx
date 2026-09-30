@@ -9,7 +9,7 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import {
   X, Check, AlertTriangle, MessageSquare, FilePlus,
-  ArrowUp, ArrowDown, Loader, Download, Printer, Share2,
+  ArrowUp, ArrowDown, Loader, Download, Printer, Share2, Link2,
   ChevronRight, CheckCircle, Clock, XCircle,
   FileText, Tag, Calendar, User, Hash, Scan, Settings2, UserCheck,
 } from 'lucide-react';
@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import OnlyOfficeEditor, { isOfficeFile } from './OnlyOfficeEditor';
 import FormResponseViewer from './FormBuilder/Renderer/FormResponseViewer';
 import TransmitDocumentModal from './TransmitDocumentModal';
+import LinkedDocumentModal from './LinkedDocumentModal';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -192,6 +193,7 @@ const DocumentViewer = ({
   const [blobUrl, setBlobUrl]                 = useState(null);
   const [docListTab, setDocListTab]           = useState('pending');
   const [showTransmit, setShowTransmit]       = useState(false);
+  const [showLinked, setShowLinked]           = useState(false);
 
   const iframeRef    = useRef(null);
   const fileInputRef = useRef(null);
@@ -336,6 +338,11 @@ const DocumentViewer = ({
             </>
           )}
           {/* Document validé : le transmettre (ex. à l'acheteur pour le bon de commande) */}
+          {doc.status === 'approved' && (
+            <button onClick={() => setShowLinked(true)} title={t('Créer un document lié (bon de commande, proforma…)')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <Link2 size={13} /> <span className="dv-btn-label">{t('Créer un document lié')}</span>
+            </button>
+          )}
           {doc.status === 'approved' && (
             <button onClick={() => setShowTransmit(true)} title={t('Transmettre à un utilisateur')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               <Share2 size={13} /> <span className="dv-btn-label">{t('Transmettre')}</span>
@@ -549,6 +556,7 @@ const DocumentViewer = ({
         </div>
       )}
       {showTransmit && <TransmitDocumentModal document={doc} onClose={() => setShowTransmit(false)} />}
+      {showLinked && <LinkedDocumentModal document={doc} onClose={() => setShowLinked(false)} />}
     </div>,
     document.body
   );
