@@ -624,7 +624,10 @@ const DocumentList = () => {
     const { key, dir } = sortConfig;
     let aVal = a[key] ?? '';
     let bVal = b[key] ?? '';
-    if (key === 'createdAt') { aVal = new Date(aVal); bVal = new Date(bVal); }
+    // Date : la plus récente entre création et réception (document transmis
+    // aujourd'hui = en tête, sa date d'origine restant affichée)
+    const lastActivity = (d) => Math.max(new Date(d.createdAt).getTime() || 0, d.receivedAt ? new Date(d.receivedAt).getTime() : 0);
+    if (key === 'createdAt') { aVal = lastActivity(a); bVal = lastActivity(b); }
     else { aVal = String(aVal).toLowerCase(); bVal = String(bVal).toLowerCase(); }
     if (aVal < bVal) return dir === 'asc' ? -1 : 1;
     if (aVal > bVal) return dir === 'asc' ? 1 : -1;
@@ -842,6 +845,11 @@ const DocumentList = () => {
                               </button>
                               <div style={{ minWidth: 0 }}>
                                 <div className="dl-title" style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
+                                {doc.receivedAt && (
+                                  <div className="dl-received" title={t('Transmis par {{name}}', { name: doc.receivedFrom || '—' })}>
+                                    <Inbox size={10} /> {t('Reçu le {{date}} de {{name}}', { date: formatDate(doc.receivedAt), name: doc.receivedFrom || '—' })}
+                                  </div>
+                                )}
                                 {doc.fileSize ? <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{formatSize(doc.fileSize)}</div> : null}
                               </div>
                             </div>
@@ -947,6 +955,11 @@ const DocumentList = () => {
                       <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 8 }}>
                         {doc.category ? `${t(doc.category)} · ` : ''}{formatDate(doc.createdAt)}
                       </div>
+                      {doc.receivedAt && (
+                        <div className="dl-received" style={{ marginBottom: 8 }}>
+                          <Inbox size={10} /> {t('Reçu le {{date}} de {{name}}', { date: formatDate(doc.receivedAt), name: doc.receivedFrom || '—' })}
+                        </div>
+                      )}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                           <span className={`ged-badge ${st.cls}`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}>

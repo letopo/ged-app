@@ -265,9 +265,25 @@ export const getDocuments = async (req, res) => {
       whereClause.createdAt = { ...(whereClause.createdAt || {}), [Op.lte]: endDate };
     }
 
+    // Documents transmis à l'utilisateur : date de réception (dernier transfert vers
+    // lui) et expéditeur. Le tri se fait sur la date la plus récente entre création
+    // et réception : un document reçu aujourd'hui remonte en tête, même s'il a été
+    // créé et signé il y a longtemps (sa date d'origine reste intacte pour l'archive).
+    const me = Document.sequelize.escape(req.user.id);
+    const receivedAtSql = `(SELECT MAX(dt.updated_at) FROM document_transmissions dt WHERE dt.document_id = "Document"."id" AND dt.to_user_id = ${me})`;
+    const receivedFromSql = `(SELECT TRIM(CONCAT(u.first_name, ' ', u.last_name)) FROM document_transmissions dt JOIN users u ON u.id = dt.from_user_id WHERE dt.document_id = "Document"."id" AND dt.to_user_id = ${me} ORDER BY dt.updated_at DESC LIMIT 1)`;
+    const lastActivitySql = `GREATEST("Document"."created_at", COALESCE(${receivedAtSql}, "Document"."created_at"))`;
+
     // Pagination (optionnelle — si pas de page/limit, retourne tout)
     const queryOptions = {
       where: whereClause,
+      attributes: {
+        include: [
+          [Document.sequelize.literal(receivedAtSql), 'receivedAt'],
+          [Document.sequelize.literal(receivedFromSql), 'receivedFrom'],
+          [Document.sequelize.literal(lastActivitySql), 'lastActivityAt'],
+        ],
+      },
       // distinct: indispensable, sinon findAndCountAll compte les lignes jointes
       // par l'include hasMany 'workflows' (1 par workflow) → total surévalué.
       distinct: true,
@@ -279,7 +295,8 @@ export const getDocuments = async (req, res) => {
           include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'signaturePath', 'stampPath'] }]
         }
       ],
-      order: [['createdAt', 'DESC']],
+      // Tri sur l'alias (valable dans la sous-requête de pagination comme au-dessus)
+      order: [[Document.sequelize.literal('"lastActivityAt"'), 'DESC'], ['createdAt', 'DESC']],
     };
 
     if (page && limit) {
