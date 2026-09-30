@@ -1,6 +1,7 @@
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import jwt from 'jsonwebtoken';
+import { getTenantSettings } from '../utils/tenantSettings.js';
 import User from '../models/User.js';
 
 const APP_NAME = 'GED SaaS';
@@ -130,10 +131,11 @@ export const verifyLogin2FA = async (req, res, next) => {
     }
 
     // Émettre le vrai JWT
+    const { sessionMaxDays } = await getTenantSettings(user.tenantId);
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+      { expiresIn: `${sessionMaxDays}d` }
     );
 
     await user.update({ lastLogin: new Date() });

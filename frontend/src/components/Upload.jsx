@@ -9,6 +9,7 @@ import {
   ArrowRight, ArrowLeft, FileText, Loader,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import useTenantSettings from '../hooks/useTenantSettings';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const DOC_CATEGORIES = [
@@ -107,6 +108,7 @@ function PdfBadge({ ext }) {
 // ── Main component ────────────────────────────────────────────────────────────
 const Upload = () => {
   const { t } = useTranslation();
+  const { maxUploadMb } = useTenantSettings(); // réglé par l'organisation
   const navigate  = useNavigate();
   const { user }  = useAuth();
   const fileInputRef = useRef();
@@ -154,7 +156,7 @@ const Upload = () => {
   // ── File accept ─────────────────────────────────────────────────────────────
   const acceptFile = f => {
     if (!f) return;
-    if (f.size > 10*1024*1024) { toast.error(t('Le fichier dépasse 10 MB.')); return; }
+    if (f.size > maxUploadMb * 1024 * 1024) { toast.error(t('Le fichier dépasse la taille maximale autorisée ({{max}} Mo).', { max: maxUploadMb })); return; }
     setFile(f);
     setAnalyzing(true);
     setAnalysis(null);
@@ -277,7 +279,7 @@ const Upload = () => {
                     {FILE_TYPES.map(t => (
                       <span key={t} style={{ padding: '3px 10px', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: 11, color: 'var(--fg-muted)', fontWeight: 500 }}>{t}</span>
                     ))}
-                    <span style={{ padding: '3px 10px', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: 11, color: 'var(--fg-muted)' }}>10 MB max</span>
+                    <span style={{ padding: '3px 10px', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: 11, color: 'var(--fg-muted)' }}>{t('{{max}} Mo max', { max: maxUploadMb })}</span>
                   </div>
                 </div>
               ) : (

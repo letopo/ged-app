@@ -13,14 +13,15 @@
 import { Op } from 'sequelize';
 import { sequelize, Workflow, Document, User } from '../models/index.js';
 import { sendNotificationEmail } from './mailer.js';
+import { getTenantSettings } from './tenantSettings.js';
 
-// ─── Délai par défaut en jours ────────────────────────────────────────────────
-export const WORKFLOW_DEADLINE_DAYS = 7;
-
-// ─── Calcul de la deadline à partir de maintenant ────────────────────────────
-export function computeDeadline(fromDate = new Date()) {
+// ─── Échéance d'une étape de validation ──────────────────────────────────────
+// Délai réglé par tenant (Paramètres › Délais et session, 7 jours par défaut).
+// Tenant : celui passé, sinon celui de la requête en cours.
+export async function computeDeadline(fromDate = new Date(), tenantId = undefined) {
+  const { workflowDeadlineDays } = await getTenantSettings(tenantId);
   const d = new Date(fromDate);
-  d.setDate(d.getDate() + WORKFLOW_DEADLINE_DAYS);
+  d.setDate(d.getDate() + workflowDeadlineDays);
   return d;
 }
 
@@ -96,7 +97,7 @@ export async function expireOverdueWorkflows() {
             creator.email,
             `⏰ Validation expirée — "${doc.title}"`,
             `Bonjour ${creator.firstName},\n\n` +
-            `La validation de votre document "${doc.title}" a expiré car ${validatorName} n'a pas traité la demande dans le délai de ${WORKFLOW_DEADLINE_DAYS} jours.\n\n` +
+            `La validation de votre document "${doc.title}" a expiré car ${validatorName} n'a pas traité la demande dans le délai de ${(await getTenantSettings(doc.tenantId)).workflowDeadlineDays} jours.\n\n` +
             `Votre document a été remis en brouillon. Vous pouvez le soumettre à nouveau en choisissant un nouveau validateur.\n\n` +
             `— Système GED`,
             'default', null,

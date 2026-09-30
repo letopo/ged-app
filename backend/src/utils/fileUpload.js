@@ -2,6 +2,7 @@
 
 import multer from 'multer';
 import path from 'path';
+import { UPLOAD_CEILING_MB } from './tenantSettings.js';
 import fs from 'fs';
 
 // Assurer que le dossier d'upload existe
@@ -37,7 +38,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024 // Limite à 50MB
+    fileSize: UPLOAD_CEILING_MB * 1024 * 1024 // plafond ; limite du tenant vérifiée par fixUploadEncoding
   },
   fileFilter: fileFilter
 });

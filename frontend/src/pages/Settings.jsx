@@ -7,13 +7,14 @@ import { authAPI, usersAPI, tenantBrandingAPI, mailSettingsAPI } from '../servic
 import {
   Home, Settings as SettingsIcon, Bell, Users, Sparkles, FileText,
   Zap, Shield, Database, Save, Loader, AlertCircle, CheckCircle,
-  Lock, Eye, EyeOff, Upload, Pen, X, UploadCloud, Stamp, Mail,
+  Lock, Eye, EyeOff, Upload, Pen, X, UploadCloud, Stamp, Mail, Timer,
 } from 'lucide-react';
 import LicenseManager from '../components/LicenseManager';
 import TwoFactorSetup from '../components/TwoFactorSetup';
 import NotificationSettings from './NotificationSettings';
 import UserManagement from './UserManagement';
 import MailSettingsPanel from '../components/MailSettingsPanel';
+import TenantSettingsPanel from '../components/TenantSettingsPanel';
 import toast from 'react-hot-toast';
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ const NAV = [
     items: [
       { id: 'team',      label: 'Équipe',     icon: Users },
       { id: 'branding',  label: 'Branding',   icon: Sparkles },
+      { id: 'delays',    label: 'Délais et session', icon: Timer, requires: 'admin' },
       // Visible si le super-administrateur ou une délégation le permet (voir mailAccess)
       { id: 'mail',      label: 'Messagerie', icon: Mail, requires: 'mail' },
       { id: 'templates', label: 'Licence',    icon: FileText },
@@ -101,7 +103,9 @@ export default function Settings() {
     if (user?.role !== 'admin') return;
     mailSettingsAPI.get().then(res => setMailAccess(Boolean(res.data.canManage))).catch(() => setMailAccess(false));
   }, [user?.role]);
-  const nav = NAV.map(g => ({ ...g, items: g.items.filter(i => i.requires !== 'mail' || mailAccess) }));
+  const isOrgAdmin = ['admin', 'superadmin'].includes(user?.role);
+  const nav = NAV.map(g => ({ ...g, items: g.items.filter(i =>
+    (i.requires !== 'mail' || mailAccess) && (i.requires !== 'admin' || isOrgAdmin)) }));
   const [loading, setLoading]     = useState(false);
 
   const [profileData, setProfileData] = useState({
@@ -550,6 +554,9 @@ export default function Settings() {
 
           {/* ── Messagerie ────────────────────────────────────────────────── */}
           {activeTab === 'mail' && mailAccess && <MailSettingsPanel />}
+
+          {/* ── Délais et session ─────────────────────────────────────────── */}
+          {activeTab === 'delays' && isOrgAdmin && <TenantSettingsPanel />}
 
           {/* ── Licence ───────────────────────────────────────────────────── */}
           {activeTab === 'templates' && (

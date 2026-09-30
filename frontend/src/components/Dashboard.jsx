@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { documentsAPI, workflowAPI, calendarAPI, systemAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import useTenantSettings from '../hooks/useTenantSettings';
 import i18n from '../i18n/config';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
@@ -161,13 +162,13 @@ function HeroCard({ task, onApprove }) {
 // quoi faire, quelques phrases de contexte, une action. Calculée uniquement sur
 // les tâches et documents déjà chargés pour l'utilisateur.
 
-const LATE_DAYS = 2;
 const daysSince = (v) => Math.floor((Date.now() - new Date(v)) / 86400000);
 
-function DailySummary({ tasks, own }) {
+// lateDays : seuil « en retard » réglé par l'organisation (Paramètres › Délais et session)
+function DailySummary({ tasks, own, lateDays }) {
   const { t } = useTranslation();
   const ages = tasks.map(tk => daysSince(tk.createdAt || tk.document?.createdAt));
-  const late = ages.filter(d => d >= LATE_DAYS).length;
+  const late = ages.filter(d => d >= lateDays).length;
   const oldestIdx = ages.length ? ages.indexOf(Math.max(...ages)) : -1;
   const oldest = oldestIdx >= 0 ? { days: ages[oldestIdx], title: tasks[oldestIdx].document?.title } : null;
 
@@ -180,7 +181,7 @@ function DailySummary({ tasks, own }) {
   const { color, icon: Icon, label } = TONES[tone];
 
   const headline = tone === 'late'
-    ? t('{{count}} document(s) attendent votre validation, dont {{late}} depuis plus de {{days}} jours.', { count: tasks.length, late, days: LATE_DAYS })
+    ? t('{{count}} document(s) attendent votre validation, dont {{late}} depuis plus de {{days}} jours.', { count: tasks.length, late, days: lateDays })
     : tone === 'todo'
       ? t('{{count}} document(s) attendent votre validation.', { count: tasks.length })
       : t('Rien à valider pour le moment.');
@@ -645,6 +646,7 @@ const Dashboard = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { lateDays } = useTenantSettings();
 
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, urgent: 0 });
   const [series, setSeries] = useState(null);
@@ -662,7 +664,7 @@ const Dashboard = () => {
     if (['agent_accueil_php','agent_accueil_normal'].includes(user.role)) { navigate('/accueil', { replace: true }); return; }
     if (user.role === 'caissier') { navigate('/caisse', { replace: true }); return; }
     loadData();
-  }, [user]);
+  }, [user, lateDays]); // lateDays : l’indicateur « urgent » en dépend
 
   // Réservé aux administrateurs ; une erreur de lecture ne doit pas gêner l'Accueil
   useEffect(() => {
@@ -681,7 +683,7 @@ const Dashboard = () => {
         approved: docs.filter(d => d.status === 'approved').length,
         rejected: docs.filter(d => d.status === 'rejected').length,
         pending:  pending.length,
-        urgent:   pending.filter(d => Math.floor((Date.now() - new Date(d.createdAt)) / 86400000) >= 2).length,
+        urgent:   pending.filter(d => Math.floor((Date.now() - new Date(d.createdAt)) / 86400000) >= lateDays).length,
       });
       // 7 derniers jours : créations, arrivées encore en validation, approbations
       // (date d'approbation = date réelle de la dernière validation du circuit)
@@ -750,7 +752,7 @@ const Dashboard = () => {
 
   const heroTask = myTasks.find(t => {
     const daysOld = Math.floor((Date.now() - new Date(t.createdAt || t.document?.createdAt)) / 86400000);
-    return daysOld >= 2;
+    return daysOld >= lateDays;
   }) || myTasks[0] || null;
 
   const dateLabel = new Date().toLocaleDateString(currentLocale(), { weekday: 'long', day: 'numeric', month: 'long' });
@@ -787,7 +789,7 @@ const Dashboard = () => {
       {isAdmin && <BackupAlert report={backupReport} />}
 
       {/* Synthèse du jour */}
-      {!loading && <DailySummary tasks={myTasks} own={ownWeek} />}
+      {!loading && <DailySummary tasks={myTasks} own={ownWeek} lateDays={lateDays} />}
 
       {/* Hero */}
       <HeroCard task={heroTask} onApprove={handleApprove} />
