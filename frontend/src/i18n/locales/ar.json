@@ -2171,5 +2171,6 @@
   "ce document": "هذه الوثيقة",
   "Reçu le {{date}} de {{name}}": "وردت في {{date}} من {{name}}",
   "Transmis par {{name}}": "أحالها {{name}}",
-  "Retour aux conversations": "العودة إلى المحادثات"
+  "Retour aux conversations": "العودة إلى المحادثات",
+  "Votre session a expiré, veuillez vous reconnecter.": "انتهت صلاحية جلستك، يرجى تسجيل الدخول مجددًا."
 }

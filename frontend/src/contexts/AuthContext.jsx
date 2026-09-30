@@ -1,5 +1,11 @@
 ﻿// frontend/src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
+import i18n from '../i18n/config';
+import { isTokenExpired, getTokenExpiry, SESSION_EXPIRED_EVENT, resetSessionExpiredNotice } from '../utils/authSession';
+
+// Plafond de setTimeout (~24,8 jours) : au-delà, le minuteur se déclencherait aussitôt.
+const MAX_TIMER_MS = 2 ** 31 - 1;
 
 const AuthContext = createContext(null);
 
@@ -27,8 +33,15 @@ export const AuthProvider = ({ children }) => {
       const storedUser = localStorage.getItem('user');
 
       if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        if (isTokenExpired(storedToken)) {
+          // Session d'une visite précédente, périmée : on repart de la page de
+          // connexion au lieu d'appeler l'API avec un jeton refusé (401 en série).
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        } else {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+        }
       }
     } catch (err) {
       console.error('Session locale corrompue, réinitialisation:', err);
@@ -43,6 +56,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (err) { console.error('Erreur écriture localStorage:', err); }
+    resetSessionExpiredNotice();
     setToken(newToken);
     setUser(userData);
   };
@@ -52,6 +66,23 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
   };
+
+  // Session expirée : signalée par l'API (401), ou atteinte de l'échéance du
+  // jeton pendant que l'appli reste ouverte.
+  useEffect(() => {
+    if (!token) return undefined;
+    const expire = () => {
+      logout();
+      toast.error(i18n.t('Votre session a expiré, veuillez vous reconnecter.'), { id: 'session-expired', duration: 6000 });
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, expire);
+    const remaining = (getTokenExpiry(token) ?? Infinity) - Date.now();
+    const timer = remaining <= MAX_TIMER_MS ? setTimeout(expire, Math.max(remaining, 0)) : null;
+    return () => {
+      window.removeEventListener(SESSION_EXPIRED_EVENT, expire);
+      if (timer) clearTimeout(timer);
+    };
+  }, [token]);
 
   const updateUser = (userData) => {
     try { localStorage.setItem('user', JSON.stringify(userData)); } catch (err) { console.error('Erreur écriture localStorage:', err); }

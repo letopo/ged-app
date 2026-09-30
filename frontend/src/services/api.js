@@ -2,6 +2,7 @@
 
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import { handleUnauthorized } from '../utils/authSession';
 
 // Détection Electron : utiliser l'URL configurée par l'utilisateur
 const getApiBaseUrl = () => {
@@ -37,6 +38,15 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Session expirée ou jeton invalide : AuthContext déconnecte et renvoie au login.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) handleUnauthorized(error);
     return Promise.reject(error);
   }
 );
