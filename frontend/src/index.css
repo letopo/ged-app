@@ -421,6 +421,9 @@
   .stats-header h1 { font-size: 28px !important; letter-spacing: -0.6px !important; line-height: 1.15 !important; }
 }
 
+/* Barre de validation en masse (Mes tâches) */
+.bulk-bar { bottom: 24px; max-width: calc(100vw - 24px); }
+
 /* Menu « Plus » mobile — grille de modules colorés par métier (façon catégories Santé) */
 .more-sheet-overlay { position: fixed; inset: 0; z-index: 130; display: flex; align-items: flex-end; background: var(--overlay, rgba(15,27,45,0.4)); animation: fadeIn 200ms ease; }
 .more-sheet {
@@ -618,6 +621,29 @@ a.kpi-card:active { transform: scale(0.98); }
   .rn-editor-head { padding: 16px 18px 4px; }
   .rn-field-row { flex-direction: column; gap: 0; }
   .rn-editor .rn-modal-foot > * { flex: 1; }
+
+  /* Mes tâches : onglets qui défilent, filtre dessous, lignes en cartes */
+  .mt-tabbar { flex-wrap: wrap; }
+  .mt-tabs { overflow-x: auto; flex: 1 1 100%; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .mt-tabs::-webkit-scrollbar { display: none; }
+  .mt-service-filter { width: 100%; margin: 8px 0 !important; height: 36px !important; }
+  .mt-table thead { display: none; }
+  .mt-table, .mt-table tbody { display: block; }
+  .mt-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 12px; }
+  .mt-table td { display: block; padding: 0 !important; max-width: none !important; }
+  .mt-td-doc { flex: 1 1 0; min-width: 0; }
+  .mt-td-doc .mt-title { white-space: normal !important; overflow-wrap: anywhere; font-size: 14px !important; }
+  .mt-table tr > .mt-td-doc:first-child { flex-basis: 100%; }
+  .mt-td-type, .mt-td-status, .mt-td-by { order: 2; }
+  .mt-td-date { order: 3; margin-left: auto; }
+  .mt-td-actions { order: 4; flex-basis: 100%; }
+  .mt-actions { justify-content: flex-end; }
+  .mt-process-btn { flex: 1; padding: 9px 12px !important; font-size: 13px !important; }
+  /* Fenêtre « Traiter le document » : colonnes empilées, défilement d'un bloc */
+  .mt-process-modal { flex-direction: column; overflow-y: auto !important; max-height: calc(100dvh - 32px) !important; }
+  .mt-process-col { width: 100% !important; overflow: visible !important; flex-shrink: 0; }
+  .mt-process-side { border-left: none !important; border-top: 1px solid var(--border); padding: 18px !important; }
+  .bulk-bar { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* Documents — liste + sidebar "Nouveau document" empilées sur mobile */

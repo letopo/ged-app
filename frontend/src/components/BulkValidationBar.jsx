@@ -8,8 +8,8 @@ export default function BulkValidationBar({ selectedCount, maxSelection, onAppro
   const isMaxReached = selectedCount >= maxSelection;
 
   return (
-    <div style={{
-      position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+    <div className="bulk-bar" style={{
+      position: 'fixed', left: '50%', transform: 'translateX(-50%)',
       zIndex: 9000,
       background: 'var(--brand)', borderRadius: 'var(--radius-4)',
       boxShadow: 'var(--shadow-3)',
