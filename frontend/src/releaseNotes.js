@@ -68,6 +68,96 @@ const RELEASE_NOTES = [
       'Les cadres de signature suivent désormais l’ordre du circuit : Visa Directeur, Comptabilité, puis Visa Bénéficiaire.',
     ],
   },
+
+  // ── 30 septembre ──────────────────────────────────────────────────────────
+  {
+    id: '2026-09-30-general',
+    date: '2026-09-30',
+    target: 'app',
+    title: 'Nouveautés du 30 septembre',
+    items: [
+      'Transmettez un document validé à un collègue (ex. une demande d’achat signée à l’acheteur) : il le retrouve en tête de sa liste, dans Documents › Reçus.',
+      'Depuis un document validé, « Créer un document lié » prépare un bon de commande, une proforma… : le document d’origine est joint en tête du PDF pour les signataires.',
+      'Sur téléphone : une barre d’onglets en bas de l’écran, tous les modules dans « Plus », et Mes tâches, Documents, GMAO et Discussion s’affichent correctement.',
+      'Discussion : la recherche d’un utilisateur filtre enfin selon ce que vous tapez.',
+      'Choisissez la langue de la GED (français, anglais, espagnol, arabe) dans Paramètres › Profil.',
+      'Quand votre session a expiré, la GED vous ramène directement à la page de connexion.',
+      'Les accents mal affichés dans les anciens documents (services, lieux, titres…) ont été corrigés.',
+    ],
+  },
+  {
+    id: '2026-09-30-accueil',
+    date: '2026-09-30',
+    target: '/dashboard',
+    title: 'Accueil',
+    items: [
+      'La « Synthèse du jour » résume ce qui vous attend : documents à valider, les plus anciens, vos documents approuvés ou rejetés dans la semaine.',
+      'Chaque indicateur montre l’évolution des 7 derniers jours ; les approbations sont comptées à leur date réelle de validation.',
+    ],
+  },
+  {
+    id: '2026-09-30-documents',
+    date: '2026-09-30',
+    target: '/documents',
+    title: 'Documents',
+    items: [
+      'Onglet « Reçus » : les documents qu’on vous a transmis, avec la date et l’expéditeur (« Reçu le … de … »).',
+      'Dans la visionneuse d’un document validé : boutons « Transmettre » et « Créer un document lié », et la chaîne des documents liés entre eux.',
+    ],
+  },
+  {
+    id: '2026-09-30-statistiques',
+    date: '2026-09-30',
+    target: '/statistiques',
+    title: 'Statistiques',
+    items: [
+      'L’Explorateur affiche les vrais chiffres de la GED, et le graphique en camembert est lisible sur téléphone.',
+    ],
+    access: isAdmin,
+  },
+  {
+    id: '2026-09-30-sauvegardes',
+    date: '2026-09-30',
+    target: '/dashboard',
+    title: 'Sauvegarde du serveur',
+    items: [
+      'Les données sont sauvegardées et vérifiées chaque nuit, avec un historique de 6 mois.',
+      'En cas de problème (sauvegarde échouée, absente ou disque presque plein), une alerte rouge apparaît ici, sur l’Accueil — uniquement pour les administrateurs.',
+    ],
+    access: isAdmin,
+  },
+
+  // ── 1er octobre ───────────────────────────────────────────────────────────
+  {
+    id: '2026-10-01-reglages',
+    date: '2026-10-01',
+    target: 'app',
+    title: 'Nouveaux réglages',
+    items: [
+      'Paramètres › Délais et session : délai pour valider un document, seuil « en retard », déconnexion après inactivité, durée de session et taille maximale des fichiers se règlent désormais pour votre organisation.',
+      'Paramètres › Messagerie : le compte d’envoi des e-mails de notification (ex. Gmail) se configure et se teste depuis l’application, pour le super-administrateur ou les administrateurs qu’il autorise.',
+    ],
+    access: isAdmin,
+  },
+  {
+    id: '2026-10-01-clients-messagerie',
+    date: '2026-10-01',
+    target: '/super-admin',
+    title: 'Messagerie des clients',
+    items: [
+      'Bouton « Messagerie » sur chaque client : réglez son compte d’envoi des e-mails et autorisez, si vous le souhaitez, ses administrateurs à le gérer eux-mêmes.',
+    ],
+    access: (user) => user?.role === 'superadmin',
+  },
+  {
+    id: '2026-10-01-upload-taille',
+    date: '2026-10-01',
+    target: '/upload',
+    title: 'Upload',
+    items: [
+      'La taille maximale d’un fichier est affichée à côté de la zone d’envoi et fixée par votre organisation (50 Mo par défaut, au lieu de 10).',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
