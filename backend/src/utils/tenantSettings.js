@@ -14,6 +14,8 @@ export const TENANT_SETTINGS = {
   sessionIdleMinutes:   { default: 30, min: 5, max: 480 },
   sessionMaxDays:       { default: 7,  min: 1, max: 30 },
   maxUploadMb:          { default: 50, min: 1, max: 200 },
+  // Cachet apposé à sa taille réelle (mm) ; false = ancien calcul (ajusté au cadre)
+  stampRealSize:        { default: true, boolean: true },
 };
 export const UPLOAD_CEILING_MB = TENANT_SETTINGS.maxUploadMb.max;
 

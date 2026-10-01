@@ -58,6 +58,20 @@ const User = sequelize.define('User', {
     allowNull: true,
     comment: 'Chemin vers l\'image du cachet de l\'utilisateur'
   },
+  // Dimensions physiques du tampon (mm) : le cachet est apposé à cette largeur
+  // exacte, la hauteur suit le ratio de l'image (utils/stampSize.js)
+  stampWidthMm: {
+    type: DataTypes.DECIMAL(5, 1),
+    allowNull: false,
+    defaultValue: 58,
+    get() { const v = this.getDataValue('stampWidthMm'); return v == null ? null : Number(v); },
+  },
+  stampHeightMm: {
+    type: DataTypes.DECIMAL(5, 1),
+    allowNull: false,
+    defaultValue: 22,
+    get() { const v = this.getDataValue('stampHeightMm'); return v == null ? null : Number(v); },
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

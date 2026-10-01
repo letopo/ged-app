@@ -38,7 +38,7 @@ const fileFilter = (req, file, cb) => {
 // Création de l'instance Multer avec la configuration
 const uploadSignatureMiddleware = multer({
   storage: storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // Limite la taille des fichiers à 2MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 Mo : cachets PNG haute résolution (~2000 px, fond transparent)
   fileFilter: fileFilter
 });
 

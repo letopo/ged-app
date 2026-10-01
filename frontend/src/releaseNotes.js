@@ -303,6 +303,28 @@ const RELEASE_NOTES = [
       'La fiche d’une carte s’ouvre en plein écran, les commentaires en dessous de la description.',
     ],
   },
+  {
+    id: '2026-10-02-cachet-taille-reelle',
+    date: '2026-10-02',
+    target: 'app',
+    title: 'Cachets à leur taille réelle',
+    items: [
+      'À la validation, chaque cachet est désormais apposé à la taille réelle de son tampon (58 × 22 mm par défaut), centré sur le cadre de signature et par-dessus la signature, comme sur papier.',
+      'Ordre de mission à 4 signataires : les cadres de signature sont disposés sur 2 lignes de 2.',
+      'Les documents déjà validés ou signés ne sont pas modifiés.',
+    ],
+  },
+  {
+    id: '2026-10-02-cachet-taille-reelle-admin',
+    date: '2026-10-02',
+    target: '/user-management',
+    title: 'Dimensions des cachets',
+    items: [
+      'Utilisateurs › … › Uploader cachet : indiquez la largeur et la hauteur du tampon (mm) ; un aperçu à l’échelle montre le rendu sur la page. Les dimensions se modifient aussi sans changer l’image.',
+      'Paramètres › Délais et session › Signatures : l’interrupteur « Apposer les cachets à leur taille réelle » permet de revenir à l’ancien calcul si besoin.',
+    ],
+    access: isAdmin,
+  },
 ];
 
 export default RELEASE_NOTES;

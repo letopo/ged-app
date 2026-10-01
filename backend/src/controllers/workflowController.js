@@ -22,6 +22,8 @@ import { computeDeadline } from '../utils/workflowAutoExpire.js';
 import { generateVerificationHash, generateQRCodeBuffer, buildVerificationUrl } from '../utils/qrVerification.js';
 import { notifyValidator, createWorkflowForDocument, resolveValidatorIdsFromTemplate, currentCycleSteps } from '../utils/workflowEngine.js';
 import { applySignerLabels, getSignerTitleOptions, FIXED_LABEL_CATEGORIES } from '../utils/signatureLabels.js';
+import { centeredStampRect } from '../utils/stampSize.js';
+import { getTenantSettings } from '../utils/tenantSettings.js';
 
 // Helper : embarquer une image dans un PDF (tente JPG puis PNG)
 async function embedImage(pdfDoc, imageBytes) {
@@ -779,13 +781,23 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
               ? baseY - 10
               : signatureConfig.stampY;
 
+          // Rectangle du cachet. Taille réelle (réglage de l'organisation, actif par
+          // défaut) : largeur physique du tampon, centré sur le cadre — il recouvre
+          // la signature, comme sur papier. Sinon : ancien calcul (ajusté au cadre).
+          let stampRect = stampImage && {
+            x: baseX + (signatureConfig.blockWidth / 2) - (stampDims.width / 2),
+            y: stampYAdjusted,
+            width: stampDims.width,
+            height: stampDims.height,
+          };
+          if (stampImage && (await getTenantSettings()).stampRealSize) {
+            const centerX = activeZone ? activeZone.x + activeZone.width / 2 : baseX + signatureConfig.blockWidth / 2;
+            const centerY = activeZone ? activeZone.y + activeZone.height / 2 : stampRect.y + stampRect.height / 2;
+            stampRect = centeredStampRect(stampImage, validator.stampWidthMm, centerX, centerY);
+          }
+
           if (stampImage) {
-            targetPage.drawImage(stampImage, {
-              x: baseX + (signatureConfig.blockWidth / 2) - (stampDims.width / 2),
-              y: stampYAdjusted,
-              width: stampDims.width,
-              height: stampDims.height
-            });
+            targetPage.drawImage(stampImage, stampRect);
           } else {
             // Fallback texte cachet
             const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -805,7 +817,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
             const poX = activeZone ? activeZone.x + 4 : (baseX + 4);
             targetPage.drawText(
               `P.O. ${poOriginalUser.firstName || ''} ${poOriginalUser.lastName || ''}`.trim(),
-              { x: poX, y: stampYAdjusted - 8, size: 7, font: poFont, color: rgb(0.7, 0.2, 0.1) }
+              { x: poX, y: (stampRect ? stampRect.y : stampYAdjusted) - 8, size: 7, font: poFont, color: rgb(0.7, 0.2, 0.1) }
             );
           }
         }

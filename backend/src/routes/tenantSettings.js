@@ -18,8 +18,13 @@ router.put('/tenant-settings', protect, authorize('admin'), async (req, res) => 
     const body = req.body || {};
     const values = {};
     const errors = [];
-    for (const [key, { min, max }] of Object.entries(TENANT_SETTINGS)) {
+    for (const [key, { min, max, boolean }] of Object.entries(TENANT_SETTINGS)) {
       if (body[key] === undefined || body[key] === '') continue;
+      if (boolean) {
+        if (typeof body[key] !== 'boolean') errors.push({ key });
+        else values[key] = body[key];
+        continue;
+      }
       const n = Number(body[key]);
       if (!Number.isInteger(n) || n < min || n > max) errors.push({ key, min, max });
       else values[key] = n;

@@ -102,6 +102,9 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
   const [chauffeursServiceId, setChauffeursServiceId] = useState(null);
 
   const zones = VALIDATION_ZONES[formData.type_mission] || VALIDATION_ZONES.paramedical;
+  // 4 signataires : cadres sur 2 lignes de 2 (cachets à taille réelle) et mise
+  // en page resserrée pour que l'OM tienne toujours sur une page A4
+  const compact = zones.length === 4;
 
   useEffect(() => {
     if (formData.numero_ordre) return;
@@ -256,9 +259,9 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
       </div>
 
       {/* Prévisualisation PDF */}
-      <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 32, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', width: '210mm', minHeight: '297mm' }}>
+      <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: compact ? '24px 32px' : 32, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', width: '210mm', minHeight: '297mm' }}>
         {/* En-tête */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, paddingBottom: 16, borderBottom: '2px solid #1f2937' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: compact ? 16 : 24, paddingBottom: compact ? 12 : 16, borderBottom: '2px solid #1f2937' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <img src="/logo-hopital.png" alt="Logo" style={{ width: 64, height: 64, objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
             <div>
@@ -275,7 +278,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
         </div>
 
         {/* Grille principale */}
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: compact ? 16 : 24 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
               <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>📅 {t('Date de Départ (A)')}</p>
@@ -333,7 +336,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
         </div>
 
         {/* Tableau récapitulatif */}
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: compact ? 12 : 24 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid #1f2937', fontSize: 10 }}>
             <thead>
               <tr style={{ background: '#f3f4f6' }}>
@@ -381,9 +384,14 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
             du soumetteur ; les autres zones (dont "Chef de pôle RO SAU" pour le
             type RO SAU) restent vides et sont signées via le vrai circuit de
             validation (Mes tâches), même si le titulaire est la même personne. */}
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${zones.length}, 1fr)`, gap: 16, marginTop: 32 }}>
+        {/* 4 signataires (paramédical) : 2 lignes de 2 — un cachet à taille réelle
+            (58 mm) déborderait d'un cadre au quart de la largeur de la page.
+            Ordre des cadres (= ordre de signature) : de gauche à droite, puis ligne suivante. */}
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${compact ? 2 : zones.length}, 1fr)`, gap: compact ? '10px 48px' : 16, marginTop: compact ? 12 : 32 }}>
           {zones.map((label, i) => (
             <SignatureFrame fixedLabel
+              height={compact ? '88px' : undefined}
+              showFooter={!compact}
               key={label}
               label={t(label)}
               signatureUrl={label === 'Service Demandeur' ? getImageUrl(user?.signaturePath) : null}

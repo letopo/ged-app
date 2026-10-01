@@ -2380,5 +2380,22 @@
   "E-mail": "Email",
   "Destinataire": "Recipient",
   "Réussi": "Successful",
-  "Champs modifiés": "Changed fields"
+  "Champs modifiés": "Changed fields",
+  "Signatures": "Signatures",
+  "Apposer les cachets à leur taille réelle": "Apply stamps at their actual size",
+  "Chaque cachet est posé à la largeur de son tampon (58 mm par défaut, réglable par utilisateur dans Utilisateurs › Uploader cachet), centré sur le cadre de signature. Désactivé : ancien calcul, cachet réduit au cadre.": "Each stamp is applied at the width of its rubber stamp (58 mm by default, adjustable per user in Users › Upload stamp), centred on the signature box. Off: previous behaviour, stamp shrunk to fit the box.",
+  "S’applique aux validations suivantes ; les documents déjà signés ne changent pas.": "Applies to subsequent validations; documents already signed do not change.",
+  "Par défaut : {{value}}.": "Default: {{value}}.",
+  "activé": "on",
+  "désactivé": "off",
+  "Aperçu à l’échelle (bas de page A4)": "Scale preview (bottom of an A4 page)",
+  "Posé à {{w}} × {{h}} mm (hauteur selon les proportions de l’image).": "Applied at {{w}} × {{h}} mm (height from the image proportions).",
+  "L’image n’a pas les proportions du tampon ({{w}} × {{h}} mm) : recadrez-la sans marges pour un rendu exact.": "The image does not have the stamp’s proportions ({{w}} × {{h}} mm): crop it without margins for an exact result.",
+  "Dimensions du cachet enregistrées.": "Stamp dimensions saved.",
+  "Enregistrer les dimensions": "Save dimensions",
+  "PNG à fond transparent recommandé (le JPEG n’a pas de transparence). Haute résolution acceptée (jusqu’à 5 Mo).": "PNG with a transparent background recommended (JPEG has no transparency). High resolution accepted (up to 5 MB).",
+  "Largeur du tampon": "Stamp width",
+  "Hauteur du tampon": "Stamp height",
+  "Format standard : 58 × 22 mm. Le cachet est apposé à cette largeur exacte ; la hauteur suit les proportions de l’image.": "Standard size: 58 × 22 mm. The stamp is applied at exactly this width; the height follows the image proportions.",
+  "Cachet modifié": "Stamp changed"
 }
