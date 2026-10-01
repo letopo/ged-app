@@ -821,6 +821,20 @@ a.kpi-card:active { transform: scale(0.98); }
 @media (max-width: 600px) {
   .emp-form-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   /* Fenêtres : feuille en bas de l'écran, au-dessus de la barre d'onglets */
-  .emp-modal-backdrop { align-items: flex-end !important; padding: 0 !important; }
-  .emp-modal { max-width: none !important; max-height: 90vh !important; border-radius: var(--radius-3) var(--radius-3) 0 0 !important; padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important; }
+  .emp-modal-backdrop, .da-modal-backdrop { align-items: flex-end !important; padding: 0 !important; }
+  .emp-modal, .da-modal { max-width: none !important; max-height: 90vh !important; border-radius: var(--radius-3) var(--radius-3) 0 0 !important; padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important; }
+}
+
+/* Demandes d'achat — liste | demande ouverte ; sur téléphone, l'une OU l'autre en plein écran */
+@media (max-width: 860px) {
+  .da-layout { height: auto !important; min-height: calc(100vh - 60px); }
+  .da-layout .da-sidebar { width: 100% !important; border-right: none !important; }
+  .da-layout .da-main { overflow: visible !important; }
+  .da-layout[data-view="list"] .da-main { display: none; }
+  .da-layout:not([data-view="list"]) .da-sidebar { display: none !important; }
+  .da-main > div { height: auto !important; }
+  .da-content { padding: 16px 16px 32px !important; }
+}
+@media (max-width: 600px) {
+  .da-grid { grid-template-columns: minmax(0, 1fr) !important; }
 }

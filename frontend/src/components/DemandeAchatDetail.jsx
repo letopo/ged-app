@@ -125,13 +125,13 @@ export default function DemandeAchatDetail({ demande, onClose, onEdit, onUpdate 
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--surface)' }}>
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 24px 40px' }}>
+      <div className="da-content" style={{ maxWidth: 860, margin: '0 auto', padding: '24px 24px 40px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)' }}>{demande.daNumber}</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
+          <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', whiteSpace: 'nowrap' }}>{demande.daNumber}</div>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
                 padding: '3px 10px', borderRadius: 999,
@@ -153,7 +153,7 @@ export default function DemandeAchatDetail({ demande, onClose, onEdit, onUpdate 
                 <Trash2 size={14} /> Supprimer
               </button>
             )}
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 6, borderRadius: 'var(--radius-2)' }}>
+            <button onClick={onClose} data-da-back aria-label="Fermer" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 6, borderRadius: 'var(--radius-2)' }}>
               <X size={18} />
             </button>
           </div>
@@ -206,7 +206,7 @@ export default function DemandeAchatDetail({ demande, onClose, onEdit, onUpdate 
         {/* Informations générales */}
         <div style={sectionStyle}>
           <div style={sectionTitleStyle}>Informations générales</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
+          <div className="da-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
             <InfoRow icon={Calendar} label="Date de la DA"             value={new Date(demande.daDate).toLocaleDateString()} />
             <InfoRow icon={Calendar} label="Date de livraison"         value={demande.deliveryDate ? new Date(demande.deliveryDate).toLocaleDateString() : 'Non définie'} />
             <InfoRow icon={Package}  label="Type d'achat"              value={demande.purchaseType} />
@@ -222,12 +222,12 @@ export default function DemandeAchatDetail({ demande, onClose, onEdit, onUpdate 
         {/* Bénéficiaire */}
         <div style={sectionStyle}>
           <div style={sectionTitleStyle}>Informations bénéficiaire</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 24px', marginBottom: 12 }}>
+          <div className="da-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 24px', marginBottom: 12 }}>
             <InfoRow icon={User}  label="Nom"       value={demande.beneficiaryName} />
             <InfoRow icon={Mail}  label="Email"     value={demande.beneficiaryEmail} />
             <InfoRow icon={Phone} label="Téléphone" value={demande.beneficiaryPhone} />
           </div>
-          <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
+          <div className="da-grid" style={{ paddingTop: 12, borderTop: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
             <InfoRow icon={Package} label="Sortie Magasin" value={demande.isMagasinOutput ? 'Oui' : 'Non'} />
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <FileText size={16} color="var(--fg-subtle)" style={{ marginTop: 2 }} />
@@ -296,7 +296,7 @@ export default function DemandeAchatDetail({ demande, onClose, onEdit, onUpdate 
         {demande.attachedDocuments && demande.attachedDocuments.length > 0 && (
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Pièces jointes ({demande.attachedDocuments.length})</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div className="da-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {demande.attachedDocuments.map((file, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -342,8 +342,8 @@ export default function DemandeAchatDetail({ demande, onClose, onEdit, onUpdate 
 
       {/* Delete confirm modal */}
       {showDeleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 420, padding: 24 }}>
+        <div className="da-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
+          <div className="da-modal" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 420, padding: 24 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', marginBottom: 10 }}>Confirmer la suppression</div>
             <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 20 }}>
               Êtes-vous sûr de vouloir supprimer cette demande d'achat ? Cette action est irréversible.
@@ -362,8 +362,8 @@ export default function DemandeAchatDetail({ demande, onClose, onEdit, onUpdate 
 
       {/* DT Modal */}
       {showDTModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
-          <div className="animate-fadeIn" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 680, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div className="da-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
+          <div className="animate-fadeIn da-modal" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 680, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FolderOpen size={18} color="var(--brand)" />
@@ -392,7 +392,7 @@ export default function DemandeAchatDetail({ demande, onClose, onEdit, onUpdate 
                       </span>
                     )}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                  <div className="da-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
                     {[
                       { label: 'Service', value: dtDetails.metadata?.service || dtDetails.service || demande.domain || '—' },
                       { label: 'Date de création', value: dtDetails.createdAt ? new Date(dtDetails.createdAt).toLocaleDateString() : '—' },
