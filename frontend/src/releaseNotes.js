@@ -202,6 +202,25 @@ const RELEASE_NOTES = [
       'Les circuits imposés (Pièce de caisse, Ordre de mission, Demande d’explication) et le cadre du demandeur gardent leur libellé.',
     ],
   },
+  {
+    id: '2026-10-01-signataires-permission',
+    date: '2026-10-01',
+    target: 'app',
+    title: 'Demande de permission',
+    items: [
+      'La demande de permission affiche elle aussi, au-dessus de chaque signature, le titre et le nom du validateur choisi (Chef de pôle, Ressources humaines, Directeur Général…), et chaque signature tombe dans son cadre.',
+    ],
+  },
+  {
+    id: '2026-10-01-comptable-pc-om',
+    date: '2026-10-01',
+    target: '/my-tasks',
+    title: 'Ordres de mission avec frais',
+    items: [
+      'Quand un ordre de mission avec frais arrive à votre niveau, le bouton « Pièce caisse » vous propose de créer la pièce de caisse de chaque bénéficiaire, pré-remplie avec les éléments de l’OM ; finalisez l’OM une fois toutes les pièces créées.',
+    ],
+    access: (user) => (user?.postes || []).includes('comptable'),
+  },
 ];
 
 export default RELEASE_NOTES;

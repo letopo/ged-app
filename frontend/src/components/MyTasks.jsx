@@ -25,8 +25,6 @@ import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
 
 const MAX_SELECTION = 20;
-const COMPTABLE_EMAIL = 'raoulwouapi2017@yahoo.com';
-const DG_EMAIL = 'hopitalcameroun@ordredemaltefrance.org'; 
 
 const MyTasks = () => {
   const { user } = useAuth();
@@ -272,8 +270,10 @@ const MyTasks = () => {
   const isWorkRequest = (task) => task.document?.category === 'Demande de travaux';
   const isMG = () => user?.email === 'hsjm.moyengeneraux@gmail.com';
   const isBiomedical = () => user?.email === 'hsjm.cellulebiomedicale@gmail.com';
-  const isComptable = () => user?.email === COMPTABLE_EMAIL;
-  const isDG = () => user?.email === DG_EMAIL;
+  // Reconnus par leur poste (et non par une adresse e-mail écrite en dur) : un
+  // nouveau titulaire du poste est pris en compte sans modifier le code.
+  const hasPoste = (code) => (user?.postes || []).includes(code);
+  const isComptable = () => hasPoste('comptable');
   const isCaissier = () => user?.role === 'caissier';
   const needsPayerAction = (task) =>
     task.status === 'pending' && isCaissier() && task.document?.category === 'Pièce de caisse';
