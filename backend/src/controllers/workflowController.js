@@ -607,6 +607,22 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         return res.json({ success: true, message: 'Tâche mise en pause.' });
       }
 
+      // Signature ou cachet enregistrés mais fichier introuvable sur le serveur :
+      // message clair plutôt qu'une erreur 500 (rien n'est validé)
+      if (['approve_sign_stamp', 'signature', 'stamp'].includes(validationType) && document.fileType === 'application/pdf') {
+        const missing = [];
+        for (const [label, rel] of [['signature', ['approve_sign_stamp', 'signature'].includes(validationType) && validator.signaturePath], ['cachet', ['approve_sign_stamp', 'stamp'].includes(validationType) && validator.stampPath]]) {
+          if (rel && !(await fs.access(path.resolve(process.cwd(), rel)).then(() => true, () => false))) missing.push(label);
+        }
+        if (missing.length) {
+          await t.rollback();
+          return res.status(400).json({
+            success: false,
+            message: `Votre ${missing.join(' et votre ')} enregistré(e) est introuvable sur le serveur : réimportez-le (Utilisateurs › … › Uploader ${missing[0]}) puis recommencez. Rien n'a été validé.`,
+          });
+        }
+      }
+
       // --- APPLICATION SIGNATURE / CACHET SUR LE PDF ---
       if (['approve_sign_stamp', 'signature', 'stamp', 'dater'].includes(validationType) && document.fileType === 'application/pdf') {
         const pdfPath = path.resolve(process.cwd(), document.filePath);
