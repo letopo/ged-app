@@ -348,9 +348,12 @@
 }
 
 /* Tableau de bord — colonne calendrier + raccourcis empilée sur mobile */
-.dashboard-2col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+/* minmax(0, …) + min-width: 0 : un contenu large (nom long, ligne sans retour)
+   ne doit jamais élargir la colonne au-delà de l'écran */
+.dashboard-2col { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; }
+.dashboard-2col > * { min-width: 0; }
 @media (max-width: 860px) {
-  .dashboard-2col { grid-template-columns: 1fr; }
+  .dashboard-2col { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Statistiques + tableau de bord Workflow — en-tête, KPI, grilles et Explorer adaptés au mobile */
