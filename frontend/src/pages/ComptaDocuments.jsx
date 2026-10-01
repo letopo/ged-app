@@ -344,8 +344,8 @@ export default function ComptaDocuments() {
               <div className="text-xs font-semibold mb-2 flex items-center gap-2" style={{ color: 'var(--brand)' }}>
                 <Link2 size={13} /> {draft.lignes.length} ligne{draft.lignes.length > 1 ? 's' : ''} — chaque ligne sera une entrée séparée dans le registre
               </div>
-              <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-                <table className="w-full text-sm">
+              <div className="rounded-lg overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
+                <table className="w-full text-sm" style={{ minWidth: 520 }}>
                   <thead>
                     <tr style={{ background: 'var(--surface-2)' }}>
                       <th className="px-3 py-2 text-left text-xs font-semibold" style={{ color: 'var(--fg-muted)', width: 30 }}>#</th>
@@ -492,31 +492,31 @@ export default function ComptaDocuments() {
         </div>
 
         {/* Encarts totaux */}
-        <div className="flex gap-2">
-          <div className="px-4 py-3 rounded-xl min-w-[160px]"
+        <div className="grid grid-cols-3 gap-2 lg:flex">
+          <div className="px-3 py-3 lg:px-4 rounded-xl min-w-0 lg:min-w-[160px]"
             style={{ background: 'var(--success-soft)', border: '1px solid var(--success)' }}>
             <div className="flex items-center gap-1 text-xs font-semibold mb-1" style={{ color: 'var(--success)' }}>
               <TrendingUp size={13} /> Entrées
             </div>
-            <div className="text-xl font-bold" style={{ color: 'var(--fg)' }}>
+            <div className="text-base sm:text-xl font-bold break-words" style={{ color: 'var(--fg)' }}>
               {fmtMontant(totalEntrees) || '0'} <span className="text-xs font-medium" style={{ color: 'var(--fg-muted)' }}>FCFA</span>
             </div>
           </div>
-          <div className="px-4 py-3 rounded-xl min-w-[160px]"
+          <div className="px-3 py-3 lg:px-4 rounded-xl min-w-0 lg:min-w-[160px]"
             style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)' }}>
             <div className="flex items-center gap-1 text-xs font-semibold mb-1" style={{ color: 'var(--danger)' }}>
               <TrendingDown size={13} /> Sorties
             </div>
-            <div className="text-xl font-bold" style={{ color: 'var(--fg)' }}>
+            <div className="text-base sm:text-xl font-bold break-words" style={{ color: 'var(--fg)' }}>
               {fmtMontant(totalSorties) || '0'} <span className="text-xs font-medium" style={{ color: 'var(--fg-muted)' }}>FCFA</span>
             </div>
           </div>
-          <div className="px-4 py-3 rounded-xl min-w-[160px]"
+          <div className="px-3 py-3 lg:px-4 rounded-xl min-w-0 lg:min-w-[160px]"
             style={{ background: 'var(--brand-soft)', border: '1px solid var(--brand)' }}>
             <div className="flex items-center gap-1 text-xs font-semibold mb-1" style={{ color: 'var(--brand)' }}>
               <Sigma size={13} /> Solde
             </div>
-            <div className="text-xl font-bold" style={{ color: totalEntrees - totalSorties >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+            <div className="text-base sm:text-xl font-bold break-words" style={{ color: totalEntrees - totalSorties >= 0 ? 'var(--success)' : 'var(--danger)' }}>
               {fmtMontant(totalEntrees - totalSorties) || '0'} <span className="text-xs font-medium" style={{ color: 'var(--fg-muted)' }}>FCFA</span>
             </div>
           </div>
@@ -524,7 +524,74 @@ export default function ComptaDocuments() {
       </div>
 
       {/* Tableau */}
-      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {/* Téléphone / tablette : une carte par pièce */}
+      <div className="lg:hidden rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        {loading ? (
+          <div className="px-3 py-8 text-center" style={{ color: 'var(--fg-muted)' }}>
+            <Loader2 size={18} className="animate-spin inline mr-2" /> Chargement…
+          </div>
+        ) : docs.length === 0 ? (
+          <div className="px-3 py-10 text-center text-sm" style={{ color: 'var(--fg-muted)' }}>
+            Aucune pièce. Cliquez « Importer une pièce » pour commencer.
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="px-3 py-10 text-center text-sm" style={{ color: 'var(--fg-muted)' }}>
+            Aucun résultat. <button onClick={resetFilters} className="underline" style={{ color: 'var(--brand)' }}>Réinitialiser les filtres</button>
+          </div>
+        ) : (
+          <>
+            {filtered.map(d => {
+              const color = groupColor(d.groupId);
+              const type = TYPE_COLORS[d.typeMouvement];
+              return (
+                <div key={d.id} data-compta-card className="flex items-start gap-3 px-3 py-3"
+                  style={{ borderBottom: '1px solid var(--border)', borderLeft: `4px solid ${d.groupId ? color : 'transparent'}` }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold truncate" style={{ color: 'var(--fg)' }}>{d.libelle || '—'}</div>
+                    <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--fg-muted)' }}>
+                      N° {d.numeroOrdre}{d.datePiece ? ` · ${d.datePiece}` : ''}{d.numeroPiece ? ` · ${d.numeroPiece}` : ''}
+                    </div>
+                    {d.numeroComptable && (
+                      <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}>{d.numeroComptable}</div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <div className="text-sm font-bold whitespace-nowrap" style={{ color: 'var(--fg)' }}>
+                      {fmtMontant(d.montant)} {d.devise !== 'XAF' ? d.devise : ''}
+                    </div>
+                    {d.typeMouvement !== 'inconnu' && type && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ color: type.color, background: type.bg }}>
+                        {TYPE_LABELS[d.typeMouvement]}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-1">
+                      {d.documentId && (
+                        <Link to={`/documents/${d.documentId}`} target="_blank" title="Voir la pièce"
+                          className="p-1.5 rounded-md" style={{ color: 'var(--fg-muted)' }}>
+                          <ExternalLink size={16} />
+                        </Link>
+                      )}
+                      <button onClick={() => removeDoc(d.id)} title="Supprimer" className="p-1.5 rounded-md" style={{ color: 'var(--danger)' }}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="px-3 py-2 text-xs font-semibold flex flex-wrap justify-between gap-2" style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
+              <span>{hasFilters ? 'Totaux filtrés' : 'Totaux globaux'} ({filtered.length} ligne{filtered.length > 1 ? 's' : ''})</span>
+              <span>
+                <span style={{ color: 'var(--success)' }}>+{fmtMontant(totalEntrees)}</span>{' / '}
+                <span style={{ color: 'var(--danger)' }}>−{fmtMontant(totalSorties)}</span> FCFA
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Ordinateur : tableau */}
+      <div className="hidden lg:block rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -580,15 +647,17 @@ export default function ComptaDocuments() {
                         <span style={{ paddingLeft: 8, color: 'var(--fg)' }}>{d.numeroOrdre}</span>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--fg-muted)' }}>{d.dateReception}</td>
-                      <td className="px-3 py-2 max-w-[220px] font-medium" title={d.libelle} style={{ color: 'var(--fg)' }}>
+                      <td className="px-3 py-2 font-medium" title={d.libelle} style={{ color: 'var(--fg)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', maxWidth: 280, minWidth: 0 }}>
                         {d.groupId && (
                           <span className="inline-flex items-center gap-1 mr-1.5 px-1.5 py-0.5 rounded text-xs font-bold"
-                            style={{ background: `${color}22`, color, verticalAlign: 'middle' }}>
+                            style={{ background: `${color}22`, color, verticalAlign: 'middle', flexShrink: 0, whiteSpace: 'nowrap' }}>
                             <Link2 size={10} />
                             {isFirst ? `${groupSize} lignes` : `└ ${posInGroup + 1}/${groupSize}`}
                           </span>
                         )}
-                        <span className="truncate">{d.libelle}</span>
+                        <span className="truncate" style={{ minWidth: 0 }}>{d.libelle}</span>
+                        </div>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--fg-muted)' }}>
                         {isFirst || !d.groupId ? d.datePiece : ''}
