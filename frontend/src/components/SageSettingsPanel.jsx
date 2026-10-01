@@ -123,7 +123,9 @@ export default function SageSettingsPanel({ tenantId = null }) {
       {/* Connexion */}
       <SectionTitle>{t('Connexion au serveur Sage (SQL Server)')}</SectionTitle>
       <div className="mail-grid">
-        <Field label={t('Serveur')}><input style={inputStyle} value={cfg.host || ''} onChange={set('host')} placeholder="192.168.1.20 ou SRV-SAGE" /></Field>
+        <Field label={t('Serveur')} hint={t('Instance nommée : adresse\\INSTANCE (ex. 192.168.1.70\\SAGE100), le port est alors trouvé automatiquement.')}>
+          <input style={inputStyle} value={cfg.host || ''} onChange={set('host')} placeholder="192.168.1.70\SAGE100" />
+        </Field>
         <Field label={t('Port')}><input style={inputStyle} value={cfg.port ?? ''} onChange={set('port')} inputMode="numeric" placeholder="1433" /></Field>
         <Field label={t('Base de données')}><input style={inputStyle} value={cfg.database || ''} onChange={set('database')} placeholder="HSJM" /></Field>
       </div>

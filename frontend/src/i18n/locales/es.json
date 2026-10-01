@@ -2340,5 +2340,6 @@
   "Indiquez le type de document de chaque règle.": "Indique el tipo de documento de cada regla.",
   "Désactiver la double authentification": "Desactivar la autenticación en dos pasos",
   "{{username}} pourra se connecter avec son seul mot de passe, puis réactiver la 2FA depuis Paramètres › Sécurité. À n’utiliser que si cette personne a perdu son téléphone ou l’accès à sa boîte e-mail.": "{{username}} podrá iniciar sesión solo con su contraseña y luego reactivar la 2FA en Ajustes › Seguridad. Úselo solo si la persona perdió su teléfono o el acceso a su correo.",
-  "Un code vous a été envoyé il y a moins d’une minute : utilisez-le.": "Se le envió un código hace menos de un minuto: úselo."
+  "Un code vous a été envoyé il y a moins d’une minute : utilisez-le.": "Se le envió un código hace menos de un minuto: úselo.",
+  "Instance nommée : adresse\\INSTANCE (ex. 192.168.1.70\\SAGE100), le port est alors trouvé automatiquement.": "Instancia con nombre: dirección\\INSTANCIA (p. ej. 192.168.1.70\\SAGE100); el puerto se encuentra automáticamente."
 }
