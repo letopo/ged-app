@@ -196,17 +196,17 @@ const TrelloBoard = () => {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--surface-2)', overflow: 'hidden' }}>
 
       {/* Header */}
-      <div style={{
+      <div className="kb-header" style={{
         background: 'var(--surface)', borderBottom: '1px solid var(--border)',
         padding: '10px 16px', flexShrink: 0, zIndex: 10,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px 12px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, maxWidth: '100%' }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', display: 'none' }}>Suivi Technique</span>
 
           {/* Service tabs */}
-          <div style={{
-            display: 'flex', gap: 2, padding: 3,
+          <div className="kb-tabs" style={{
+            display: 'flex', gap: 2, padding: 3, minWidth: 0, overflowX: 'auto',
             background: 'var(--surface-2)', borderRadius: 'var(--radius-2)',
           }}>
             {SERVICES.map(s => {
@@ -238,7 +238,7 @@ const TrelloBoard = () => {
 
       {/* Kanban board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', background: 'var(--brand-soft)' }}>
+        <div className="kb-board" style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', background: 'var(--brand-soft)' }}>
           <div style={{ display: 'flex', height: '100%', alignItems: 'flex-start', padding: '12px', gap: 10, minWidth: 'max-content' }}>
             {displayLists?.map(list => (
               <TrelloList

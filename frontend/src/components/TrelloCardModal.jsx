@@ -513,14 +513,16 @@ const TrelloCardModal = ({ card, serviceType, onClose, onUpdate }) => {
 
   return (
     <div
+      className="kb-modal-backdrop"
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflowY: 'auto', paddingTop: 60 }}
       onClick={onClose}
     >
       <div
+        className="kb-modal"
         style={{ position: 'relative', background: 'var(--surface)', width: '100%', maxWidth: 900, borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', display: 'flex', flexDirection: 'column', maxHeight: '85vh', margin: '0 16px' }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div className="kb-modal-body" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
           {/* ── Left column ── */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 20px 20px' }}>
@@ -692,7 +694,7 @@ const TrelloCardModal = ({ card, serviceType, onClose, onUpdate }) => {
 
           {/* ── Right sidebar ── */}
           {showCommentSidebar && (
-            <div style={{ width: 340, flexShrink: 0, borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            <div className="kb-modal-side" style={{ width: 340, flexShrink: 0, borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
               <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>

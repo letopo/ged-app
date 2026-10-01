@@ -293,6 +293,16 @@ const RELEASE_NOTES = [
       'Sur ordinateur, un libellé long est coupé proprement au lieu de déborder sur la colonne « Date pièce ».',
     ],
   },
+  {
+    id: '2026-10-01-suivi-technique-mobile',
+    date: '2026-10-01',
+    target: '/kanban',
+    title: 'Suivi technique sur téléphone',
+    items: [
+      'Sur téléphone, chaque colonne (À faire, En cours…) occupe la largeur de l’écran : glissez pour passer à la suivante. Le bouton « Toutes / Mes tâches » est de nouveau visible.',
+      'La fiche d’une carte s’ouvre en plein écran, les commentaires en dessous de la description.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

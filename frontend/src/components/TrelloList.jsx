@@ -82,7 +82,7 @@ export default function TrelloList({ list, cards, onCardClick, onAddCard }) {
 
   // ── Full ──
   return (
-    <div style={{
+    <div className="kb-list" style={{
       display: 'flex', flexDirection: 'column', width: 272, flexShrink: 0,
       maxHeight: '100%', background: 'var(--surface-2)',
       border: '1px solid var(--border)', borderRadius: 'var(--radius-3)',
