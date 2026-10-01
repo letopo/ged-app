@@ -242,6 +242,15 @@ const RELEASE_NOTES = [
     ],
     access: (user) => (user?.postes || []).includes('comptable'),
   },
+  {
+    id: '2026-10-01-accueil-calendrier-mobile',
+    date: '2026-10-01',
+    target: '/dashboard',
+    title: 'Accueil sur téléphone',
+    items: [
+      'L’accueil s’adapte de nouveau à la taille de l’écran : un titre de document très long n’élargit plus la page, et le calendrier des permissions reste compact sur ordinateur comme sur téléphone.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

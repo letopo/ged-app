@@ -418,7 +418,7 @@ function MiniCalendar({ tasksByDay }) {
           const hasMarks = dayPerms.length > 0 || count > 0;
           return (
             <div key={day} title={tooltip} style={{
-              aspectRatio: '1 / 1',
+              height: 46, minWidth: 0,   // hauteur fixe : la case suit la largeur de l'écran sans devenir géante
               border: `1px solid ${isToday ? 'var(--brand)' : 'var(--border)'}`,
               borderRadius: 5,
               padding: '3px 2px 2px',
