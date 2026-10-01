@@ -27,6 +27,8 @@ import MissionMealRatesModal from '../components/MissionMealRatesModal';
 // Demande d'explication : cf. backend utils/posteChain.js.
 const SERVER_CHAIN_CATEGORIES = ['Ordre de mission', 'Pièce de caisse', "Demande d'explication"];
 const isServerChainCategory = (category) => SERVER_CHAIN_CATEGORIES.includes(category);
+// Circuits imposés : les cadres de signature gardent leurs libellés de rôle
+const FIXED_LABEL_CATEGORIES = ['Pièce de caisse', 'Ordre de mission', "Demande d'explication", 'Demande de permutation'];
 
 const DocumentList = () => {
   const { t } = useTranslation();
@@ -75,6 +77,9 @@ const DocumentList = () => {
   const [documentToSubmit, setDocumentToSubmit] = useState(null);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedValidators, setSelectedValidators] = useState([]);
+  // Titres inscrits sous les signatures : options par validateur et choix
+  const [titleOptions, setTitleOptions] = useState({});   // { [userId]: { name, options } }
+  const [signerTitles, setSignerTitles] = useState({});   // { [userId]: titre choisi }
   // Ordre de mission : circuit auto + choix du titulaire pour les postes multi-titulaires
   const [omPreview, setOmPreview] = useState(null); // { steps: [...] } | null
   const [omSelections, setOmSelections] = useState({}); // { posteCode: userId }
@@ -421,6 +426,25 @@ const DocumentList = () => {
   const handleCloseSubmitModal = () => {
     setShowSubmitModal(false);
     setDocumentToSubmit(null);
+    setSignerTitles({});
+  };
+
+  // Cadres de signature du document à soumettre (formulaires) et titres des validateurs
+  const submitZones = Array.isArray(documentToSubmit?.metadata?.signatureZones) ? documentToSubmit.metadata.signatureZones.length : 0;
+  const showsSignerTitles = submitZones > 0 && !FIXED_LABEL_CATEGORIES.includes(documentToSubmit?.category);
+  useEffect(() => {
+    if (!showSubmitModal || !showsSignerTitles) return;
+    const missing = selectedValidators.filter(id => !titleOptions[id]);
+    if (!missing.length) return;
+    workflowAPI.getSignerTitles(missing)
+      .then(res => setTitleOptions(o => ({ ...o, ...res.data.titles })))
+      .catch(() => {});
+  }, [showSubmitModal, showsSignerTitles, selectedValidators]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Cadre signé par le validateur en position i (même règle que le serveur :
+  // les N derniers validateurs signent les cadres 1..N), sinon null (visa sans cadre)
+  const zoneOfValidator = (i) => {
+    const p = i + 1 - (selectedValidators.length - submitZones);
+    return p >= 1 && p <= submitZones ? p : null;
   };
 
   const addValidator = (userId) => {
@@ -466,6 +490,7 @@ const DocumentList = () => {
         documentId: documentToSubmit.id,
         validatorIds: selectedValidators,
         comment: submitComment,
+        ...(showsSignerTitles ? { signerTitles } : {}),
       };
     }
 
@@ -1252,7 +1277,26 @@ const DocumentList = () => {
                       <div key={userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, background: 'var(--brand-soft)', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fg)' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontWeight: 700, fontSize: 13 }}>{index + 1}</span>
-                          <div style={{ fontWeight: 500, fontSize: 13 }}>{getUserNameById(userId)}</div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 500, fontSize: 13 }}>{getUserNameById(userId)}</div>
+                            {showsSignerTitles && (() => {
+                              const zone = zoneOfValidator(index);
+                              const opts = titleOptions[userId]?.options || [];
+                              return (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 3, fontSize: 11, color: 'var(--fg-muted)' }}>
+                                  <span>{zone ? t('Signe le cadre {{n}}', { n: zone }) : t('Visa, sans cadre de signature')}</span>
+                                  {zone && opts.length > 1 && (
+                                    <select value={signerTitles[userId] || opts[0]} onChange={e => setSignerTitles(st => ({ ...st, [userId]: e.target.value }))}
+                                      onClick={e => e.stopPropagation()}
+                                      style={{ fontSize: 11, padding: '1px 4px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--surface)', color: 'var(--fg)', maxWidth: 220 }}>
+                                      {opts.map(o => <option key={o} value={o}>{o}</option>)}
+                                    </select>
+                                  )}
+                                  {zone && opts.length === 1 && <span>· <b style={{ color: 'var(--fg)' }}>{opts[0]}</b></span>}
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </div>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button onClick={() => moveValidator(index, 'up')} disabled={index === 0} style={{ padding: '2px 6px', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-2)', opacity: index === 0 ? 0.3 : 1 }}>↑</button>

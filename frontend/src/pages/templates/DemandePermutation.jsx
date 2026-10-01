@@ -201,9 +201,9 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
 
             {/* Signatures administratives */}
             <div style={{ position: 'absolute', bottom: 64, left: 48, right: 48, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
-                <SignatureFrame label={t('Signature du Major')} signatureUrl={null} stampUrl={null} zoneIndex={1} />
-                <SignatureFrame label={t('Chef de service')} signatureUrl={null} stampUrl={null} zoneIndex={2} />
-                <SignatureFrame label={t('La Directrice Des Soins')} signatureUrl={null} stampUrl={null} zoneIndex={3} />
+                <SignatureFrame fixedLabel label={t('Signature du Major')} signatureUrl={null} stampUrl={null} zoneIndex={1} />
+                <SignatureFrame fixedLabel label={t('Chef de service')} signatureUrl={null} stampUrl={null} zoneIndex={2} />
+                <SignatureFrame fixedLabel label={t('La Directrice Des Soins')} signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>
         </div>
     );

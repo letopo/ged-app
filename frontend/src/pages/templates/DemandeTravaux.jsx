@@ -62,7 +62,7 @@ const DemandeTravaux = ({ formData, setFormData, pdfContainerRef }) => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32, marginTop: 64 }}>
-                <SignatureFrame label={t('Demandeur')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+                <SignatureFrame fixedLabel label={t('Demandeur')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
                 <SignatureFrame label={t('Technicien')} signatureUrl={null} stampUrl={null} zoneIndex={2} />
                 <SignatureFrame label={t('Validation Finale')} signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>

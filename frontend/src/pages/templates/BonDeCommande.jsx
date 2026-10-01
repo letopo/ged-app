@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import logo from '../../assets/logo-ordre-malte.png';
 import { useAuth } from '../../contexts/AuthContext';
-import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
+import SignatureFrame from '../../components/SignatureFrame';
 
 const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
   const { user } = useAuth();
@@ -218,8 +218,9 @@ const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
           <span className="print-only">{formData.livraison?.datePrevue ? new Date(formData.livraison.datePrevue).toLocaleDateString('fr-FR') : '__________________'}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
-          <SignatureFrame label={t('VALIDATION SERVICE ACHAT / DG')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
-          <SignatureFrame label={t('ACCEPTATION FOURNISSEUR')} signatureUrl={null} stampUrl={null} zoneIndex={2} />
+          {/* Titres des signataires inscrits à la soumission (acheteur, DG… dans l'ordre choisi) */}
+          <SignatureFrame label={t('Signataire')} signatureUrl={null} stampUrl={null} zoneIndex={1} />
+          <SignatureFrame label={t('Signataire')} signatureUrl={null} stampUrl={null} zoneIndex={2} />
         </div>
       </div>
 

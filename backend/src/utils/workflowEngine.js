@@ -122,3 +122,17 @@ export async function createWorkflowFromTemplate(document, workflowTemplateId, t
   }
   return createWorkflowForDocument(document, validatorIds, tenantId);
 }
+
+// Étapes du cycle de validation EN COURS d'un document. Une nouvelle soumission
+// (après expiration ou rejet) crée de nouvelles étapes 1..n sans effacer les
+// anciennes : les numéros se répètent. Le cycle en cours = les étapes créées en
+// même temps que la dernière « étape 1 » (à quelques secondes près), triées.
+export function currentCycleSteps(steps) {
+  if (!steps?.length) return [];
+  const firsts = steps.filter(s => s.step === 1);
+  if (!firsts.length) return [...steps].sort((a, b) => a.step - b.step);
+  const latestStart = Math.max(...firsts.map(s => new Date(s.createdAt).getTime()));
+  return steps
+    .filter(s => new Date(s.createdAt).getTime() >= latestStart - 5000)
+    .sort((a, b) => a.step - b.step);
+}

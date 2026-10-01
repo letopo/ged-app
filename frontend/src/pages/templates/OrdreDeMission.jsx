@@ -342,7 +342,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
             validation (Mes tâches), même si le titulaire est la même personne. */}
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${zones.length}, 1fr)`, gap: 16, marginTop: 32 }}>
           {zones.map((label, i) => (
-            <SignatureFrame
+            <SignatureFrame fixedLabel
               key={label}
               label={t(label)}
               signatureUrl={label === 'Service Demandeur' ? getImageUrl(user?.signaturePath) : null}

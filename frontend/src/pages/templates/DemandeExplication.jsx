@@ -212,7 +212,7 @@ const DemandeExplication = ({ formData, setFormData, pdfContainerRef }) => {
           </div>
           <div style={{ textAlign: 'right', width: 220 }}>
             <p style={{ fontSize: 13, marginBottom: 12 }}>{t('Le Directeur Général')}</p>
-            <SignatureFrame label="" signatureUrl={null} stampUrl={null} zoneIndex={1} height="96px" />
+            <SignatureFrame fixedLabel label="" signatureUrl={null} stampUrl={null} zoneIndex={1} height="96px" />
           </div>
         </div>
 

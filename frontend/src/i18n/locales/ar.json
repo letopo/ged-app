@@ -2340,5 +2340,9 @@
   "Indiquez le type de document de chaque règle.": "حدد نوع الوثيقة لكل قاعدة.",
   "Désactiver la double authentification": "تعطيل المصادقة الثنائية",
   "{{username}} pourra se connecter avec son seul mot de passe, puis réactiver la 2FA depuis Paramètres › Sécurité. À n’utiliser que si cette personne a perdu son téléphone ou l’accès à sa boîte e-mail.": "سيتمكن {{username}} من الدخول بكلمة المرور فقط ثم إعادة تفعيل المصادقة الثنائية من الإعدادات › الأمان. استخدمه فقط إذا فقد الشخص هاتفه أو الوصول إلى بريده.",
-  "Un code vous a été envoyé il y a moins d’une minute : utilisez-le.": "أُرسل إليك رمز قبل أقل من دقيقة: استخدمه."
+  "Un code vous a été envoyé il y a moins d’une minute : utilisez-le.": "أُرسل إليك رمز قبل أقل من دقيقة: استخدمه.",
+  "Signataire {{n}} — titre ajouté à la soumission": "الموقّع {{n}} — يُضاف المسمى عند الإرسال",
+  "Signe le cadre {{n}}": "يوقّع الإطار {{n}}",
+  "Visa, sans cadre de signature": "تأشيرة دون إطار توقيع",
+  "Signataire": "الموقّع"
 }

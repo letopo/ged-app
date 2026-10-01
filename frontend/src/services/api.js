@@ -319,6 +319,8 @@ export const usersAPI = {
 // ============================================
 export const workflowAPI = {
   create: (workflowData) => api.post('/workflows', workflowData),
+  // Titres possibles des signataires (postes, sinon fonctions) : { [userId]: { name, options } }
+  getSignerTitles: (userIds) => api.get('/workflows/signer-titles', { params: { ids: userIds.join(',') } }),
   submitWorkflow: (workflowData) => api.post('/workflows', workflowData),
   // Aperçu du circuit d'un ordre de mission (postes + titulaires + choix requis)
   getOrdreMissionPreview: (documentId) => api.get(`/workflows/document/${documentId}/ordre-mission-preview`),
