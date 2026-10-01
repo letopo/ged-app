@@ -248,7 +248,7 @@ const RELEASE_NOTES = [
     target: '/dashboard',
     title: 'Accueil sur téléphone',
     items: [
-      'Le calendrier des permissions de l’accueil s’adapte de nouveau à la largeur du téléphone.',
+      'L’accueil s’adapte de nouveau à la taille de l’écran : un titre de document très long n’élargit plus la page, et le calendrier des permissions reste compact sur ordinateur comme sur téléphone.',
     ],
   },
 ];
