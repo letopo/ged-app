@@ -838,3 +838,16 @@ a.kpi-card:active { transform: scale(0.98); }
 @media (max-width: 600px) {
   .da-grid { grid-template-columns: minmax(0, 1fr) !important; }
 }
+
+/* Suivi technique (Kanban) — téléphone : une colonne par écran, défilement aimanté ; fiche d'une carte en plein écran */
+.kb-tabs { scrollbar-width: none; }
+.kb-tabs::-webkit-scrollbar { display: none; }
+@media (max-width: 860px) {
+  .kb-header { padding: 8px 12px !important; }
+  .kb-board { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+  .kb-board .kb-list { width: min(320px, calc(100vw - 56px)) !important; scroll-snap-align: start; scroll-margin-left: 12px; }
+  .kb-modal-backdrop { padding-top: 0 !important; align-items: stretch !important; }
+  .kb-modal { margin: 0 !important; max-width: none !important; max-height: none !important; min-height: 100%; border-radius: 0 !important; }
+  .kb-modal-body { flex-direction: column; overflow: visible !important; }
+  .kb-modal-side { width: 100% !important; border-left: none !important; border-top: 1px solid var(--border); min-height: 320px; }
+}
