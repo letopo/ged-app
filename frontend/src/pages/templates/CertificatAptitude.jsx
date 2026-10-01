@@ -125,7 +125,7 @@ const CertificatAptitude = ({ formData, setFormData, pdfContainerRef }) => {
             {/* SIGNATURE */}
             <div style={{ marginTop: 64, display: 'flex', justifyContent: 'flex-end', marginRight: 40 }}>
                 <div style={{ minWidth: 200 }}>
-                    <SignatureFrame label={t('Le Médecin')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+                    <SignatureFrame fixedLabel label={t('Le Médecin')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
                 </div>
             </div>
 

@@ -129,7 +129,7 @@ const BonDeSortie = ({ formData, setFormData, pdfContainerRef }) => {
 
       {/* Signatures */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 48 }}>
-        <SignatureFrame label={t('Visa du demandeur')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+        <SignatureFrame fixedLabel label={t('Visa du demandeur')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
         <SignatureFrame label={t('Visa MG (si besoin)')} signatureUrl={null} stampUrl={null} zoneIndex={2} />
         <SignatureFrame label={t('Visa Responsable')} signatureUrl={null} stampUrl={null} zoneIndex={3} />
       </div>

@@ -2,6 +2,7 @@
 import express from 'express';
 import {
   createWorkflow,
+  getSignerTitles,
   getMyTasks,
   validateTask,
   getDocumentWorkflow,
@@ -21,6 +22,8 @@ const router = express.Router();
 
 // Routes pour les workflows
 router.post('/', protect, createWorkflow);
+// Titres possibles des signataires (fenêtre « Soumettre »)
+router.get('/signer-titles', protect, getSignerTitles);
 router.get('/my-tasks', protect, getMyTasks);
 router.put('/:taskId/validate', protect, validateTask);
 router.get('/document/:documentId', protect, getDocumentWorkflow);

@@ -313,6 +313,19 @@ const CreateFromTemplate = () => {
                 const leftPx = rect.left - containerRect.left;
                 const wPx    = el.offsetWidth;
                 const hPx    = el.offsetHeight;
+                // Emplacement du titre du signataire (rempli par le serveur à la soumission)
+                const labelEl = container.querySelector(`[data-sig-label="${el.dataset.sigZone}"]`);
+                let label = null;
+                if (labelEl) {
+                    const lr = labelEl.getBoundingClientRect();
+                    const lTop = lr.top - containerRect.top;
+                    label = {
+                        x:      (lr.left - containerRect.left) * scaleX,
+                        y:      841.89 - (lTop + labelEl.offsetHeight) * scaleY,
+                        width:  labelEl.offsetWidth * scaleX,
+                        height: labelEl.offsetHeight * scaleY,
+                    };
+                }
                 return {
                     index:  parseInt(el.dataset.sigZone),
                     x:      leftPx * scaleX,
@@ -320,6 +333,7 @@ const CreateFromTemplate = () => {
                     y:      841.89 - (topPx + hPx) * scaleY,
                     width:  wPx * scaleX,
                     height: hPx * scaleY,
+                    ...(label ? { label } : {}),
                 };
             }).sort((a, b) => a.index - b.index);
 
@@ -343,6 +357,8 @@ const CreateFromTemplate = () => {
                 windowWidth: isLandscape ? 1697 : 1200,
                 windowHeight: isLandscape ? 1200 : 1697,
                 imageTimeout: 0,
+                // Le titre du signataire n'est pas écrit dans le PDF : seule la place est réservée
+                onclone: (doc) => doc.querySelectorAll('[data-sig-label-hint]').forEach(el => { el.style.visibility = 'hidden'; }),
             });
 
             notPrintable?.forEach(el => el.style.display = 'block');

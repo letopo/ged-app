@@ -191,6 +191,17 @@ const RELEASE_NOTES = [
       'La taille maximale d’un fichier est affichée à côté de la zone d’envoi et fixée par votre organisation (50 Mo par défaut, au lieu de 10).',
     ],
   },
+  {
+    id: '2026-10-01-signataires',
+    date: '2026-10-01',
+    target: 'app',
+    title: 'Titres des signataires',
+    items: [
+      'Sous chaque signature, le document indique désormais le titre et le nom de la personne qui valide (ex. « Directeur Général — Michel VAUTROT »), selon les validateurs choisis à la soumission et dans leur ordre.',
+      'Dans la fenêtre « Soumettre », chaque validateur indique le cadre qu’il signera ; si une personne occupe plusieurs postes, vous choisissez le titre à afficher.',
+      'Les circuits imposés (Pièce de caisse, Ordre de mission, Demande d’explication) et le cadre du demandeur gardent leur libellé.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

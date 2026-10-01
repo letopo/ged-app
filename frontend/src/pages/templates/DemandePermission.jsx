@@ -245,7 +245,7 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
 
             {/* SIGNATURES */}
             <div style={{ position: 'absolute', bottom: 96, left: 48, right: 48, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32, paddingTop: 32, borderTop: '1px solid #d1d5db' }}>
-                <SignatureFrame label={t('Le Demandeur')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
+                <SignatureFrame fixedLabel label={t('Le Demandeur')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
                 <SignatureFrame label={t('Chef de Service / RH')} signatureUrl={null} stampUrl={null} zoneIndex={2} />
                 <SignatureFrame label={t('Le Directeur Général')} signatureUrl={null} stampUrl={null} zoneIndex={3} />
             </div>

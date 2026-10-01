@@ -20,7 +20,8 @@ import { mergePDFs } from '../utils/pdfMerger.js';
 import { PDFExtract } from 'pdf.js-extract';
 import { computeDeadline } from '../utils/workflowAutoExpire.js';
 import { generateVerificationHash, generateQRCodeBuffer, buildVerificationUrl } from '../utils/qrVerification.js';
-import { notifyValidator, createWorkflowForDocument, resolveValidatorIdsFromTemplate } from '../utils/workflowEngine.js';
+import { notifyValidator, createWorkflowForDocument, resolveValidatorIdsFromTemplate, currentCycleSteps } from '../utils/workflowEngine.js';
+import { applySignerLabels, getSignerTitleOptions, FIXED_LABEL_CATEGORIES } from '../utils/signatureLabels.js';
 
 // Helper : embarquer une image dans un PDF (tente JPG puis PNG)
 async function embedImage(pdfDoc, imageBytes) {
@@ -202,6 +203,14 @@ export const createWorkflow = async (req, res) => {
     }
     
     await createWorkflowForDocument(document, finalValidatorIds, req.tenantId);
+
+    // Titres des signataires au-dessus des cadres (poste/fonction choisis à la
+    // soumission). Ne bloque jamais la soumission.
+    try {
+      await applySignerLabels(document, req.body.signerTitles || {});
+    } catch (labelErr) {
+      console.error('⚠️ Titres des signataires non inscrits :', labelErr.message);
+    }
 
     const workflowsWithValidators = await Workflow.findAll({
       where: { documentId },
@@ -553,7 +562,8 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       // ----------------------------------------------------------------
       // GESTION DES SIGNATURES
       // ----------------------------------------------------------------
-      const allWorkflows = await Workflow.findAll({ where: { documentId: document.id }, include: [{ model: User, as: 'validator', attributes: ['id', 'email'] }], order: [['step', 'ASC']], transaction: t });
+      // Cycle en cours seulement (une nouvelle soumission n'efface pas les anciennes étapes)
+      const allWorkflows = currentCycleSteps(await Workflow.findAll({ where: { documentId: document.id }, include: [{ model: User, as: 'validator', attributes: ['id', 'email'] }], order: [['step', 'ASC']], transaction: t }));
       const totalSteps = allWorkflows.length;
       const lastWorkflow = allWorkflows[allWorkflows.length - 1];
       // Le dernier validateur est-il le comptable ? (résolu par poste, plus par email)
@@ -595,6 +605,22 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         await document.update({ status: 'en_attente_dependance' }, { transaction: t });
         await t.commit();
         return res.json({ success: true, message: 'Tâche mise en pause.' });
+      }
+
+      // Signature ou cachet enregistrés mais fichier introuvable sur le serveur :
+      // message clair plutôt qu'une erreur 500 (rien n'est validé)
+      if (['approve_sign_stamp', 'signature', 'stamp'].includes(validationType) && document.fileType === 'application/pdf') {
+        const missing = [];
+        for (const [label, rel] of [['signature', ['approve_sign_stamp', 'signature'].includes(validationType) && validator.signaturePath], ['cachet', ['approve_sign_stamp', 'stamp'].includes(validationType) && validator.stampPath]]) {
+          if (rel && !(await fs.access(path.resolve(process.cwd(), rel)).then(() => true, () => false))) missing.push(label);
+        }
+        if (missing.length) {
+          await t.rollback();
+          return res.status(400).json({
+            success: false,
+            message: `Votre ${missing.join(' et votre ')} enregistré(e) est introuvable sur le serveur : réimportez-le (Utilisateurs › … › Uploader ${missing[0]}) puis recommencez. Rien n'a été validé.`,
+          });
+        }
       }
 
       // --- APPLICATION SIGNATURE / CACHET SUR LE PDF ---
@@ -1061,10 +1087,12 @@ export const bulkValidateTask = async (req, res) => {
             const lastPage = pages[pages.length - 1];
             const { width } = lastPage.getSize();
             
-            const totalSteps = await Workflow.count({ 
-              where: { documentId: document.id }, 
-              transaction: t 
-            });
+            // Cycle en cours seulement (anciennes étapes expirées/rejetées ignorées)
+            const totalSteps = currentCycleSteps(await Workflow.findAll({
+              where: { documentId: document.id },
+              attributes: ['id', 'step', 'createdAt'],
+              transaction: t
+            })).length;
             
             const documentsNeeding4Signatures = ['Ordre de mission'];
             const numberOfSignatures = documentsNeeding4Signatures.includes(document.category) ? 4 : 3;
@@ -1514,7 +1542,7 @@ export const relancerValidation = async (req, res) => {
 
     await sequelize.transaction(async (t) => {
       // Remettre l'étape rejetée en pending, les suivantes en queued
-      const allSteps = await Workflow.findAll({ where: { documentId }, order: [['step', 'ASC']], transaction: t });
+      const allSteps = currentCycleSteps(await Workflow.findAll({ where: { documentId }, order: [['step', 'ASC']], transaction: t }));
       const rejectedStep = allSteps.find(s => s.status === 'rejected');
       if (!rejectedStep) throw new Error('Aucune étape rejetée trouvée.');
 
@@ -1574,4 +1602,15 @@ export default {
   getWorkflowComments,
   addWorkflowComment,
   relancerValidation,
+};
+// GET /api/workflows/signer-titles?ids=a,b — titres possibles de chaque validateur
+// (postes, sinon fonctions) pour la fenêtre « Soumettre ».
+export const getSignerTitles = async (req, res) => {
+  try {
+    const ids = String(req.query.ids || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 30);
+    res.json({ success: true, titles: ids.length ? await getSignerTitleOptions(ids) : {}, fixedCategories: FIXED_LABEL_CATEGORIES });
+  } catch (error) {
+    console.error('Titres des signataires :', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
 };
