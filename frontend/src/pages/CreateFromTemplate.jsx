@@ -24,7 +24,7 @@ import AttestationConge from './templates/AttestationConge';
 import DemandeBesoin from './templates/DemandeBesoin';
 import DemandeExplication from './templates/DemandeExplication';
 
-import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf';
+import { PermissionPdfDocument, PERMISSION_SIGNATURE_ZONES } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
 
 // Définir les modèles disponibles (SYSTÈME HYBRIDE)
@@ -273,6 +273,9 @@ const CreateFromTemplate = () => {
             setGenStep(t('Génération PDF…'));
             const doc = <PermissionPdfDocument formData={formData} />;
             pdfBlob = await pdf(doc).toBlob();
+            // Positions exactes des cadres (le PDF natif est dessiné en points) :
+            // le serveur y inscrit les titres des validateurs et y pose les signatures
+            signatureZones = PERMISSION_SIGNATURE_ZONES;
 
             finalTitle = `Demande de permission - ${formData.noms_prenoms || t('Inconnu')}`;
             console.log('✅ Document généré en PDF NATIF');

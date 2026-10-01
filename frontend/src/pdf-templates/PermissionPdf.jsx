@@ -14,11 +14,28 @@ Font.register({
   ],
 });
 
+// ── Cadres de signature (3) : géométrie partagée entre le dessin du PDF et les
+// zones transmises au serveur (metadata.signatureZones), en points PDF (A4).
+// Au-dessus de chaque cadre, un emplacement vide reçoit à la soumission le titre
+// et le nom du validateur (backend utils/signatureLabels.js).
+const A4_W = 595.28;
+const SIG = { left: 40, right: 40, bottom: 60, labelH: 28, gap: 4, boxH: 110, widthPct: 0.3, count: 3 };
+const SIG_W = (A4_W - SIG.left - SIG.right) * SIG.widthPct;
+const SIG_SPACE = (A4_W - SIG.left - SIG.right - SIG.count * SIG_W) / (SIG.count - 1);
+export const PERMISSION_SIGNATURE_ZONES = Array.from({ length: SIG.count }, (_, i) => {
+  const x = SIG.left + i * (SIG_W + SIG_SPACE);
+  return {
+    index: i + 1,
+    x, y: SIG.bottom, width: SIG_W, height: SIG.boxH,
+    label: { x, y: SIG.bottom + SIG.boxH + SIG.gap, width: SIG_W, height: SIG.labelH },
+  };
+});
+
 const styles = StyleSheet.create({
   page: {
     padding: 40,
     // AJOUT IMPORTANT : padding en bas pour éviter que le texte ne passe sous la signature
-    paddingBottom: 80, 
+    paddingBottom: SIG.bottom + SIG.boxH + SIG.gap + SIG.labelH + 12, // place des cadres de signature
     fontFamily: 'CustomRoboto',
     fontSize: 11,
     lineHeight: 1.5,
@@ -90,20 +107,29 @@ const styles = StyleSheet.create({
 
   // MODIFICATION ICI : Le style pour ancrer les signatures en bas
   signatureSection: {
-    position: 'absolute', // Sort du flux normal
-    bottom: 90,           // Collé en bas (ajustez selon votre marge d'impression)
-    left: 40,             // Alignement marge gauche
-    right: 40,            // Alignement marge droite
+    position: 'absolute',
+    bottom: SIG.bottom,
+    left: SIG.left,
+    right: SIG.right,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    // J'ai retiré le borderTop pour coller à l'image 1, remettez-le si besoin
   },
 
   signatureBlock: {
-    width: '30%',
-    textAlign: 'center',
-    fontSize: 10,
-    fontWeight: 'bold' // Ajouté pour correspondre au visuel
+    width: SIG_W,
+  },
+
+  // Emplacement du titre du signataire (rempli à la soumission)
+  signatureLabel: {
+    height: SIG.labelH,
+    marginBottom: SIG.gap,
+  },
+
+  // Cadre : cachet (moitié haute) + signature (moitié basse), posés à la validation
+  signatureBox: {
+    height: SIG.boxH,
+    border: '0.5pt dashed #c7cbe0',
+    borderRadius: 3,
   },
 
   footerBox: {
@@ -148,7 +174,7 @@ export const PermissionPdfDocument = ({ formData }) => (
 
         <View style={{ width: '35%' }}>
           <Text style={{ textAlign: 'right', marginBottom: 5 }}>
-             Njombé le {formData.date_lieu || formatDate(new Date())}
+             {formData.date_lieu || `Njombé le ${formatDate(new Date())}`}
           </Text>
           <Text style={{ marginTop: 15, textAlign: 'right', fontWeight: 'bold' }}>
             A Monsieur le Directeur Général
@@ -212,22 +238,14 @@ export const PermissionPdfDocument = ({ formData }) => (
         Dans l'attente d'une suite favorable, veuillez agréer Monsieur l'expression de mon plus profond respect.
       </Text>
 
-      {/* SIGNATURES (MODIFIÉ : Position Absolue + Nouveaux Noms) */}
+      {/* SIGNATURES : titres et noms des validateurs inscrits à la soumission */}
       <View style={styles.signatureSection}>
-        {/* Alignement Gauche */}
-        <View style={[styles.signatureBlock, { textAlign: 'left' }]}>
-          <Text style={styles.bold}>Chef de Pôle</Text>
-        </View>
-        
-        {/* Alignement Centre */}
-        <View style={styles.signatureBlock}>
-          <Text style={styles.bold}>Signature du RH</Text>
-        </View>
-        
-        {/* Alignement Droite */}
-        <View style={[styles.signatureBlock, { textAlign: 'right' }]}>
-          <Text style={styles.bold}>Le Directeur Général</Text>
-        </View>
+        {PERMISSION_SIGNATURE_ZONES.map(z => (
+          <View key={z.index} style={styles.signatureBlock}>
+            <View style={styles.signatureLabel} />
+            <View style={styles.signatureBox} />
+          </View>
+        ))}
       </View>
 
     </Page>

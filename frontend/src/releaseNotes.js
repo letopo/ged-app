@@ -202,6 +202,15 @@ const RELEASE_NOTES = [
       'Les circuits imposés (Pièce de caisse, Ordre de mission, Demande d’explication) et le cadre du demandeur gardent leur libellé.',
     ],
   },
+  {
+    id: '2026-10-01-signataires-permission',
+    date: '2026-10-01',
+    target: 'app',
+    title: 'Demande de permission',
+    items: [
+      'La demande de permission affiche elle aussi, au-dessus de chaque signature, le titre et le nom du validateur choisi (Chef de pôle, Ressources humaines, Directeur Général…), et chaque signature tombe dans son cadre.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
