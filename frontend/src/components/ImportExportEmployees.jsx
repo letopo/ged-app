@@ -76,7 +76,7 @@ export default function ImportExportEmployees({ onImportComplete }) {
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <button
           onClick={handleExport}
           disabled={loading}
@@ -94,14 +94,14 @@ export default function ImportExportEmployees({ onImportComplete }) {
       </div>
 
       {importModalOpen && (
-        <div style={{
+        <div className="emp-modal-backdrop" style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16,
         }}>
-          <div className="animate-fadeIn" style={{
+          <div className="animate-fadeIn emp-modal" style={{
             background: 'var(--surface)', border: '1px solid var(--border)',
             borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)',
-            width: '100%', maxWidth: 560, overflow: 'hidden',
+            width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box',
           }}>
 
             {/* Header */}

@@ -111,8 +111,8 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
   const labelStyle = { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 6 };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
-      <div style={{ background: 'var(--surface)', padding: 24, borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 672, maxHeight: '90vh', overflowY: 'auto' }}>
+    <div className="emp-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
+      <div className="emp-modal" style={{ background: 'var(--surface)', padding: 24, borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 672, maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>
             {isEditing ? 'Modifier l\'employé' : 'Ajouter un employé'}
@@ -131,7 +131,7 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
         )}
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+          <div className="emp-form-grid" style={{ marginBottom: 24 }}>
             {/* Colonne gauche */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {[
