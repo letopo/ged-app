@@ -70,11 +70,14 @@ if [ -n "${VM_PASS:-}" ]; then
 else
   SSH=(ssh "${SSH_OPTS[@]}" -o BatchMode=yes "$VM_HOST")
 fi
-vm() { "${SSH[@]}" "$@"; }
+# Les commandes à distance ne lisent pas l'entrée standard (sinon elles « avalent »
+# la réponse aux confirmations) ; vm_pipe sert à l'envoi des images.
+vm()      { "${SSH[@]}" "$@" < /dev/null; }
+vm_pipe() { "${SSH[@]}" "$@"; }
 
 confirm() {
   $ASSUME_YES && return 0
-  read -r -p "$1 [o/N] " answer
+  read -r -p "$1 [o/N] " answer || answer=""
   [[ "$answer" =~ ^[oOyY]$ ]] || fail "Abandon, rien n'a été modifié sur la VM."
 }
 
@@ -189,7 +192,7 @@ fi
 
 # ── 5. Envoi ─────────────────────────────────────────────────────────────────
 step "5. Envoi des images sur la VM"
-docker save "ged-app-backend:$SHORT" "ged-app-frontend:$SHORT" | gzip -1 | vm "gunzip | docker load" >/dev/null \
+docker save "ged-app-backend:$SHORT" "ged-app-frontend:$SHORT" | gzip -1 | vm_pipe "gunzip | docker load" >/dev/null \
   || fail "Envoi des images échoué (rien n'a été modifié sur la VM)."
 ok "Images chargées sur la VM"
 
