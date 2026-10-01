@@ -574,7 +574,7 @@ export const getRecentDecisions = async (req, res) => {
 //         indique type et statut ; son titre n'est donné que si l'utilisateur peut le lire.
 export const getDocumentChain = async (req, res) => {
   try {
-    const attrs = ['id', 'title', 'category', 'status', 'createdAt', 'linkedDocumentId', 'userId', 'visibility', 'serviceId'];
+    const attrs = ['id', 'title', 'category', 'status', 'createdAt', 'linkedDocumentId', 'userId', 'visibility', 'serviceId', 'metadata'];
     const current = await Document.findByPk(req.params.id, { attributes: attrs });
     if (!current) return res.status(404).json({ success: false, message: 'Document introuvable.' });
     if (!(await hasDocumentReadAccess(current, req.user))) {
@@ -602,6 +602,8 @@ export const getDocumentChain = async (req, res) => {
       nodes.push({
         id: doc.id, depth, category: doc.category, status: doc.status, createdAt: doc.createdAt,
         title: accessible ? doc.title : null, accessible, isCurrent: doc.id === current.id,
+        // Pièce de caisse : bénéficiaire (sert à la comptable pour savoir qui a déjà la sienne sur un OM)
+        beneficiaire: accessible && doc.category === 'Pièce de caisse' ? (doc.metadata?.nom || null) : undefined,
       });
       const children = await Document.findAll({ where: { linkedDocumentId: doc.id }, attributes: attrs, order: [['createdAt', 'ASC']] });
       for (const child of children) await walk(child, depth + 1);

@@ -2,6 +2,7 @@
 // Barème des indemnités de repas de mission + seuils horaires — réglable par
 // la comptable, l'admin et le DG. Utilisé pour calculer les frais de mission
 // (missionnaire + conducteur) affichés en référence pour la pièce de caisse.
+import { Op, fn, col, where as sqlWhere } from 'sequelize';
 import { MissionMealRate, MissionMealThreshold, Employee } from '../models/index.js';
 import { userHasPoste } from '../utils/posteResolver.js';
 import { calculerIndemnite } from '../utils/missionIndemniteCalculator.js';
@@ -112,10 +113,36 @@ export const calculateMissionMeals = async (req, res, next) => {
       return { categorie, ...calculerIndemnite({ rate, thresholds, heureDepart, heureRetour, dateDepart, dateRetour }) };
     };
 
-    const [missionnaire, conducteur] = await Promise.all([
-      buildResult(missionnaireId, missionnaireSource),
-      buildResult(conducteurId, conducteurSource),
-    ]);
+    // Personne saisie au clavier (sans sélection dans la liste, ex. anciens OM
+    // « NOM A, NOM B ») : on la retrouve parmi le personnel par son nom complet.
+    const resolveByName = async (nom) => {
+      const n = String(nom || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (!n) return null;
+      const matches = await Employee.findAll({
+        where: {
+          isActive: true,
+          [Op.or]: [
+            sqlWhere(fn('lower', fn('concat', col('first_name'), ' ', col('last_name'))), n),
+            sqlWhere(fn('lower', fn('concat', col('last_name'), ' ', col('first_name'))), n),
+          ],
+        },
+        attributes: ['id'],
+        limit: 2,
+      });
+      return matches.length === 1 ? matches[0].id : null;   // homonymes : pas de devinette
+    };
+
+    // OM à plusieurs missionnaires : un calcul par personne
+    const missionnairesIn = Array.isArray(req.body.missionnaires) && req.body.missionnaires.length
+      ? req.body.missionnaires
+      : [{ id: missionnaireId, source: missionnaireSource }];
+    const missionnaires = await Promise.all(missionnairesIn.map(async (m) => {
+      let { id, source } = m || {};
+      if (!id && m?.nom) { id = await resolveByName(m.nom); source = id ? 'employee' : null; }
+      return { nom: m?.nom || null, id: id || null, source: source || null, ...(await buildResult(id, source)) };
+    }));
+    const missionnaire = missionnaires[0];
+    const conducteur = await buildResult(conducteurId, conducteurSource);
 
     // Péage chauffeur : montant fixe, indépendant de la catégorie, ajouté
     // automatiquement dès qu'un conducteur est désigné sur l'ordre de mission.
@@ -126,7 +153,8 @@ export const calculateMissionMeals = async (req, res, next) => {
       conducteur.total = Number(conducteur.total || 0) + montantPeage;
     }
 
-    res.json({ success: true, data: { missionnaire, conducteur, total: missionnaire.total + conducteur.total } });
+    const totalMissionnaires = missionnaires.reduce((sum, m) => sum + Number(m.total || 0), 0);
+    res.json({ success: true, data: { missionnaire, missionnaires, conducteur, total: totalMissionnaires + Number(conducteur.total || 0) } });
   } catch (error) {
     next(error);
   }

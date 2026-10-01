@@ -4,6 +4,8 @@ import { documentsAPI, postesAPI, servicesAPI, missionMealAPI } from '../../serv
 import { useAuth } from '../../contexts/AuthContext';
 import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 import PersonAutocomplete from '../../components/PersonAutocomplete';
+import { getMissionnaires } from '../../utils/omMissionnaires';
+import { useFeatureNote } from '../../components/ReleaseNotes';
 
 // Aperçu (lecture seule) des indemnités de repas calculées pour le missionnaire et
 // le conducteur — sert de référence à la comptable pour la pièce de caisse.
@@ -11,21 +13,23 @@ function MissionMealsPreview({ formData }) {
   const { t } = useTranslation();
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const missionnaires = getMissionnaires(formData).map(({ nom, id, source }) => ({ nom, id, source }));
+  const missionnairesKey = JSON.stringify(missionnaires);
 
   useEffect(() => {
-    const ready = formData.heure_depart && formData.heure_retour && (formData.missionnaire_id || formData.conducteur_id);
+    const ready = formData.heure_depart && formData.heure_retour && (missionnaires.length || formData.conducteur_id);
     if (!ready) { setResult(null); return undefined; }
     setLoading(true);
     const timer = setTimeout(() => {
       missionMealAPI.calculate({
-        missionnaireId: formData.missionnaire_id, missionnaireSource: formData.missionnaire_source,
+        missionnaires,
         conducteurId: formData.conducteur_id, conducteurSource: formData.conducteur_source,
         heureDepart: formData.heure_depart, heureRetour: formData.heure_retour,
         dateDepart: formData.date_depart, dateRetour: formData.date_retour,
       }).then(r => setResult(r.data.data)).catch(() => setResult(null)).finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(timer);
-  }, [formData.missionnaire_id, formData.conducteur_id, formData.heure_depart, formData.heure_retour, formData.date_depart, formData.date_retour]);
+  }, [missionnairesKey, formData.conducteur_id, formData.heure_depart, formData.heure_retour, formData.date_depart, formData.date_retour]);
 
   if (!formData.heure_depart || !formData.heure_retour) return null;
 
@@ -55,7 +59,9 @@ function MissionMealsPreview({ formData }) {
         <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{t('Sélectionnez le missionnaire et/ou le conducteur pour voir le calcul.')}</div>
       ) : (
         <>
-          <Row label={t('Missionnaire')} data={result.missionnaire} />
+          {(result.missionnaires || [result.missionnaire]).map((m, i) => (
+            <Row key={i} label={m?.nom ? t('Missionnaire — {{nom}}', { nom: m.nom }) : t('Missionnaire')} data={m} />
+          ))}
           <Row label={t('Conducteur')} data={result.conducteur} />
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>
             <span>{t('Total')}</span><span>{Number(result.total).toLocaleString('fr-FR')} FCFA</span>
@@ -91,6 +97,7 @@ const VALIDATION_ZONES = {
 const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
+  useFeatureNote('ordre-de-mission');
   const [missionServiceId, setMissionServiceId] = useState(null);
   const [chauffeursServiceId, setChauffeursServiceId] = useState(null);
 
@@ -130,6 +137,22 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
   useEffect(() => {
     setFormData(prev => prev.nbSignataires === zones.length ? prev : { ...prev, nbSignataires: zones.length });
   }, [formData.type_mission]);
+
+  // Missionnaires saisis (au moins une ligne). nom_missionnaire / missionnaire_id
+  // restent renseignés (liste des noms, 1er missionnaire) pour le titre et le PDF.
+  const missionnaireRows = (() => {
+    if (Array.isArray(formData.missionnaires) && formData.missionnaires.length) return formData.missionnaires;
+    const list = getMissionnaires(formData);
+    return list.length ? list : [{ nom: '', id: null, source: null }];
+  })();
+  const setMissionnaires = (rows) => setFormData(prev => ({
+    ...prev,
+    missionnaires: rows,
+    nom_missionnaire: rows.map(r => (r.nom || '').trim()).filter(Boolean).join(', '),
+    missionnaire_id: rows[0]?.id || null,
+    missionnaire_source: rows[0]?.source || null,
+  }));
+  const nbMissionnaires = missionnaireRows.filter(r => (r.nom || '').trim()).length;
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -176,17 +199,35 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
             <label style={labelStyle}>📝 {t('Objet de la Mission')} *</label>
             <textarea name="objet_mission" value={formData.objet_mission || ''} onChange={handleChange} placeholder={t("Décrivez l'objet de la mission...")} rows={3} style={{ ...inputStyle, resize: 'vertical' }} required />
           </div>
-          <div>
-            <label style={labelStyle}>👤 {t('Nom du Missionnaire')} *</label>
-            <PersonAutocomplete
-              value={formData.nom_missionnaire || ''}
-              serviceId={missionServiceId}
-              placeholder={t('Rechercher un nom...')}
-              required
-              onSelect={(c) => setFormData(prev => ({
-                ...prev, nom_missionnaire: c.label, missionnaire_id: c.id, missionnaire_source: c.source,
-              }))}
-            />
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={labelStyle}>👤 {t('Missionnaire(s)')} *</label>
+            {missionnaireRows.map((m, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                <div style={{ flex: 1 }}>
+                  <PersonAutocomplete
+                    value={m.nom || ''}
+                    serviceId={missionServiceId}
+                    placeholder={t('Rechercher un nom...')}
+                    required={i === 0}
+                    onSelect={(c) => setMissionnaires(missionnaireRows.map((x, j) => (j === i ? { nom: c.label, id: c.id, source: c.source } : x)))}
+                  />
+                </div>
+                {missionnaireRows.length > 1 && (
+                  <button type="button" onClick={() => setMissionnaires(missionnaireRows.filter((_, j) => j !== i))}
+                    title={t('Retirer ce missionnaire')}
+                    style={{ padding: '0 10px', borderRadius: 'var(--radius-2)', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg-muted)', cursor: 'pointer' }}>
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+            <button type="button" onClick={() => setMissionnaires([...missionnaireRows, { nom: '', id: null, source: null }])}
+              style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent, #2563eb)', background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer' }}>
+              + {t('Ajouter un missionnaire')}
+            </button>
+            <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 2 }}>
+              {t('Une personne par ligne : la comptable fera une pièce de caisse pour chacune.')}
+            </div>
           </div>
           <div>
             <label style={labelStyle}>🚗 {t('Nom du Conducteur')} *</label>
@@ -257,7 +298,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
               </p>
             </div>
             <div style={{ border: '2px solid #1f2937', padding: 12 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>👤 {t('Nom du Missionnaire')}</p>
+              <p style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }}>👤 {nbMissionnaires > 1 ? t('Noms des Missionnaires') : t('Nom du Missionnaire')}</p>
               <p style={{ fontSize: 13, fontWeight: 600, borderBottom: '2px dotted #9ca3af', paddingBottom: 4, minHeight: 24 }}>
                 {formData.nom_missionnaire || '_____________________'}
               </p>

@@ -2345,5 +2345,11 @@
   "Signataire {{n}} — titre ajouté à la soumission": "الموقّع {{n}} — يُضاف المسمى عند الإرسال",
   "Signe le cadre {{n}}": "يوقّع الإطار {{n}}",
   "Visa, sans cadre de signature": "تأشيرة دون إطار توقيع",
-  "Signataire": "الموقّع"
+  "Signataire": "الموقّع",
+  "Missionnaire(s)": "المكلّف(ون) بالمهمة",
+  "Ajouter un missionnaire": "إضافة مكلّف بالمهمة",
+  "Retirer ce missionnaire": "إزالة هذا المكلّف",
+  "Une personne par ligne : la comptable fera une pièce de caisse pour chacune.": "شخص واحد في كل سطر: ستُعدّ المحاسبة سند صندوق لكل منهم.",
+  "Noms des Missionnaires": "أسماء المكلّفين بالمهمة",
+  "Missionnaire — {{nom}}": "المكلّف بالمهمة — {{nom}}"
 }
