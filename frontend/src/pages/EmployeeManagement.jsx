@@ -158,15 +158,15 @@ const EmployeeManagement = () => {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Users style={{ width: 32, height: 32, color: 'var(--brand)' }} />
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>
+    <div className="emp-page">
+      <div className="emp-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+          <Users style={{ width: 32, height: 32, color: 'var(--brand)', flexShrink: 0 }} />
+          <h1 className="emp-title">
             Gestion des Employés
           </h1>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="emp-actions">
           <ImportExportEmployees onImportComplete={loadEmployees} />
           <button
             onClick={handleCreate}
@@ -192,7 +192,7 @@ const EmployeeManagement = () => {
               />
             </div>
           </div>
-          <div style={{ width: 256 }}>
+          <div className="emp-service-filter">
             <select
               value={filters.serviceId}
               onChange={(e) => handleFilterChange('serviceId', e.target.value)}
@@ -216,7 +216,9 @@ const EmployeeManagement = () => {
       )}
 
       {/* Tableau des employés */}
-      <div className="overflow-x-auto" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-2)', boxShadow: 'var(--shadow-1)', border: '1px solid var(--border)' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-2)', boxShadow: 'var(--shadow-1)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+        {/* Ordinateur : tableau */}
+        <div className="emp-table overflow-x-auto">
         <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -314,6 +316,32 @@ const EmployeeManagement = () => {
             ))}
           </tbody>
         </table>
+        </div>
+
+        {/* Téléphone : une carte par employé */}
+        <div className="emp-cards">
+          {sortedEmployees.map(employee => (
+            <div key={employee.id} data-emp-row className="emp-card">
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {employee.lastName} {employee.firstName}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{employee.matricule}</span>
+                  {employee.service?.name ? ` · ${employee.service.name}` : ''}
+                </div>
+                {employee.categorie && (
+                  <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{employee.categorie}</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                <button onClick={() => handleView(employee)} title="Voir détails" className="emp-icon-btn" style={{ color: 'var(--brand)' }}><Eye size={18} /></button>
+                <button onClick={() => handleEdit(employee)} title="Modifier" className="emp-icon-btn" style={{ color: 'var(--brand)' }}><Edit size={18} /></button>
+                <button onClick={() => handleDelete(employee)} title="Désactiver" className="emp-icon-btn" style={{ color: 'var(--danger)' }}><Trash2 size={18} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
 
         {employees.length === 0 && !loading && (
           <div style={{ textAlign: 'center', padding: '48px 0' }}>
@@ -332,7 +360,7 @@ const EmployeeManagement = () => {
 
       {/* Pagination */}
       {pagination.totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
           <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
             Affichage de {((pagination.page - 1) * pagination.limit) + 1} à{' '}
             {Math.min(pagination.page * pagination.limit, pagination.total)} sur{' '}
@@ -388,8 +416,8 @@ const EmployeeViewModal = ({ employee, onClose }) => {
   const valueStyle = { fontSize: 16, color: 'var(--fg)', margin: 0 };
 
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
-      <div style={{ background: 'var(--surface)', padding: 24, borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }}>
+    <div className="emp-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
+      <div className="emp-modal" style={{ background: 'var(--surface)', padding: 24, borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>
             Détails de l'employé
@@ -402,7 +430,7 @@ const EmployeeViewModal = ({ employee, onClose }) => {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div className="emp-form-grid">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={labelStyle}>Matricule</label>

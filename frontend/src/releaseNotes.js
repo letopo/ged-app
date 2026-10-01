@@ -263,6 +263,16 @@ const RELEASE_NOTES = [
     ],
     access: isAdmin,
   },
+  {
+    id: '2026-10-01-employes-mobile',
+    date: '2026-10-01',
+    target: '/employees',
+    title: 'Gestion des employés sur téléphone',
+    items: [
+      'Sur téléphone, chaque employé s’affiche en carte avec ses boutons Voir, Modifier et Désactiver ; le bouton « Ajouter un employé » est de nouveau accessible.',
+      'Les fenêtres Détails, Ajouter/Modifier et Importer CSV s’ouvrent en bas de l’écran, champs sur une seule colonne.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

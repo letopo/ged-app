@@ -795,3 +795,32 @@ a.kpi-card:active { transform: scale(0.98); }
   .audit-dl    { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .audit-dl dd { margin-bottom: 8px; }
 }
+
+/* Gestion des employés — tableau sur ordinateur, cartes sur téléphone ; fenêtres en 1 colonne */
+.emp-page    { max-width: 1280px; margin: 0 auto; padding: 24px; }
+.emp-header  { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 32px; }
+.emp-title   { font-size: 28px; font-weight: 700; color: var(--fg); margin: 0; }
+.emp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.emp-service-filter { width: 256px; }
+.emp-cards   { display: none; }
+.emp-card    { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.emp-card:last-child { border-bottom: none; }
+.emp-icon-btn { display: flex; padding: 8px; background: none; border: none; cursor: pointer; border-radius: var(--radius-2); }
+.emp-icon-btn:active { background: var(--surface-2); }
+.emp-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.emp-form-grid input, .emp-form-grid select { max-width: 100%; box-sizing: border-box; }
+@media (max-width: 860px) {
+  .emp-page    { padding: 16px; }
+  .emp-header  { margin-bottom: 20px; }
+  .emp-title   { font-size: 22px; }
+  .emp-actions { width: 100%; }
+  .emp-service-filter { width: 100%; }
+  .emp-table   { display: none; }
+  .emp-cards   { display: block; }
+}
+@media (max-width: 600px) {
+  .emp-form-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  /* Fenêtres : feuille en bas de l'écran, au-dessus de la barre d'onglets */
+  .emp-modal-backdrop { align-items: flex-end !important; padding: 0 !important; }
+  .emp-modal { max-width: none !important; max-height: 90vh !important; border-radius: var(--radius-3) var(--radius-3) 0 0 !important; padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important; }
+}
