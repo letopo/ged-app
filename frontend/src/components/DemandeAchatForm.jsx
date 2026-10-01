@@ -189,7 +189,7 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--surface)', position: 'relative' }}>
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 24px 40px' }}>
+      <div className="da-content" style={{ maxWidth: 860, margin: '0 auto', padding: '24px 24px 40px' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -197,7 +197,7 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
             <FileText size={20} color="var(--brand)" />
             {demande ? t("Modifier la Demande d'Achat") : t("Nouvelle Demande d'Achat")}
           </div>
-          <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 6 }}>
+          <button onClick={onCancel} data-da-back aria-label={t('Fermer')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 6 }}>
             <X size={18} />
           </button>
         </div>
@@ -208,7 +208,7 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
         {/* Informations générales */}
         <div style={sectionStyle}>
           <div style={sectionTitleStyle}>{t('Informations générales')}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
+          <div className="da-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
             <div>
               <label style={labelStyle}>{t('Domaine ou Direction')} *</label>
               <select name="domain" value={formData.domain} onChange={handleChange} style={inputStyle} required disabled={!canEdit}>
@@ -245,7 +245,7 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
         {/* Bénéficiaire */}
         <div style={sectionStyle}>
           <div style={sectionTitleStyle}><User size={15} /> {t('Informations bénéficiaire')}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 20px', marginBottom: 16 }}>
+          <div className="da-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 20px', marginBottom: 16 }}>
             <div><label style={labelStyle}>{t('Nom')}</label><input type="text" name="beneficiaryName" value={formData.beneficiaryName} onChange={handleChange} style={inputStyle} disabled={!canEdit} /></div>
             <div><label style={labelStyle}>{t('Email')} *</label><input type="email" name="beneficiaryEmail" value={formData.beneficiaryEmail} onChange={handleChange} style={inputStyle} required disabled={!canEdit} /></div>
             <div><label style={labelStyle}>{t('Téléphone')} *</label><input type="tel" name="beneficiaryPhone" value={formData.beneficiaryPhone} onChange={handleChange} style={inputStyle} required disabled={!canEdit} /></div>
@@ -381,7 +381,7 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
 
         {/* Actions */}
         {canEdit && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
             <button onClick={onCancel} style={{ height: 36, padding: '0 16px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
               {t('Annuler')}
             </button>
@@ -401,8 +401,8 @@ export default function DemandeAchatForm({ demande, onCancel, onSuccess }) {
 
         {/* DT selection modal */}
         {showDTModal && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
-            <div className="animate-fadeIn" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 680, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div className="da-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
+            <div className="animate-fadeIn da-modal" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', width: '100%', maxWidth: 680, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{t('Sélectionner une DT')}</div>
                 <button onClick={() => setShowDTModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex' }}><X size={16} /></button>

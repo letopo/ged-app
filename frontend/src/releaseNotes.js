@@ -273,6 +273,16 @@ const RELEASE_NOTES = [
       'Les fenêtres Détails, Ajouter/Modifier et Importer CSV s’ouvrent en bas de l’écran, champs sur une seule colonne.',
     ],
   },
+  {
+    id: '2026-10-01-demandes-achat-mobile',
+    date: '2026-10-01',
+    target: '/demandes-achat',
+    title: 'Demandes d’achat sur téléphone',
+    items: [
+      'Sur téléphone, la liste des demandes prend tout l’écran ; une demande ouverte (ou le formulaire) s’affiche en plein écran, la croix ramène à la liste.',
+      'Les champs du formulaire et les informations de la demande passent sur une seule colonne.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

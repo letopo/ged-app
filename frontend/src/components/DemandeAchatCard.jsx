@@ -13,6 +13,7 @@ export default function DemandeAchatCard({ demande, onClick, selected, getStatus
   return (
     <div
       onClick={onClick}
+      data-da-card
       style={{
         padding: '12px 14px', borderRadius: 'var(--radius-3)', cursor: 'pointer',
         transition: 'box-shadow .15s',

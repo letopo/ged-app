@@ -89,9 +89,10 @@ const DemandeAchatDashboard = () => {
   });
 
   return (
-    <div className="flex h-screen" style={{ background: 'var(--surface-2)' }}>
+    // Sur téléphone (≤ 860 px) : la liste OU la demande ouverte, en plein écran (cf. index.css .da-layout)
+    <div className="flex h-screen da-layout" data-view={view} style={{ background: 'var(--surface-2)' }}>
       {/* SIDEBAR GAUCHE */}
-      <div className="w-80 flex flex-col" style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}>
+      <div className="w-80 flex flex-col da-sidebar" style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}>
         {/* Header Sidebar */}
         <div className="p-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <button
@@ -160,7 +161,7 @@ const DemandeAchatDashboard = () => {
       </div>
 
       {/* ZONE PRINCIPALE DROITE */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden da-main">
         {error && (
           <div className="m-4 p-4 rounded-lg" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
             {error}
