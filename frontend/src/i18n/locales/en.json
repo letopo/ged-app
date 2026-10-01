@@ -2345,5 +2345,11 @@
   "Signataire {{n}} — titre ajouté à la soumission": "Signer {{n}} — title added on submission",
   "Signe le cadre {{n}}": "Signs box {{n}}",
   "Visa, sans cadre de signature": "Approval only, no signature box",
-  "Signataire": "Signer"
+  "Signataire": "Signer",
+  "Missionnaire(s)": "Mission staff",
+  "Ajouter un missionnaire": "Add mission staff",
+  "Retirer ce missionnaire": "Remove this person",
+  "Une personne par ligne : la comptable fera une pièce de caisse pour chacune.": "One person per line: the accountant will issue a cash voucher for each.",
+  "Noms des Missionnaires": "Mission staff names",
+  "Missionnaire — {{nom}}": "Mission staff — {{nom}}"
 }

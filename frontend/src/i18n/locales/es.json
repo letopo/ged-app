@@ -2345,5 +2345,11 @@
   "Signataire {{n}} — titre ajouté à la soumission": "Firmante {{n}} — título añadido al enviar",
   "Signe le cadre {{n}}": "Firma el recuadro {{n}}",
   "Visa, sans cadre de signature": "Visto bueno, sin recuadro de firma",
-  "Signataire": "Firmante"
+  "Signataire": "Firmante",
+  "Missionnaire(s)": "Comisionado(s)",
+  "Ajouter un missionnaire": "Añadir un comisionado",
+  "Retirer ce missionnaire": "Quitar este comisionado",
+  "Une personne par ligne : la comptable fera une pièce de caisse pour chacune.": "Una persona por línea: la contable hará un comprobante de caja para cada una.",
+  "Noms des Missionnaires": "Nombres de los comisionados",
+  "Missionnaire — {{nom}}": "Comisionado — {{nom}}"
 }

@@ -221,6 +221,27 @@ const RELEASE_NOTES = [
     ],
     access: (user) => (user?.postes || []).includes('comptable'),
   },
+  {
+    id: '2026-10-01-om-plusieurs-missionnaires',
+    date: '2026-10-01',
+    target: 'form:ordre-de-mission',
+    title: 'Plusieurs missionnaires sur un même OM',
+    items: [
+      '« + Ajouter un missionnaire » : saisissez chaque personne sur sa propre ligne quand un ordre de mission concerne plusieurs missionnaires (en plus du conducteur).',
+      'Les indemnités estimées sont calculées pour chacun, et la comptable fera une pièce de caisse par personne.',
+    ],
+  },
+  {
+    id: '2026-10-01-comptable-pc-om-plusieurs',
+    date: '2026-10-01',
+    target: '/my-tasks',
+    title: 'OM à plusieurs missionnaires',
+    items: [
+      'Sur un ordre de mission avec frais, chaque missionnaire a désormais son propre bouton « Créer Pièce de caisse », en plus du conducteur — y compris sur les OM où plusieurs noms ont été saisis dans le même champ.',
+      'Les pièces déjà créées restent cochées si vous rouvrez l’OM plus tard.',
+    ],
+    access: (user) => (user?.postes || []).includes('comptable'),
+  },
 ];
 
 export default RELEASE_NOTES;

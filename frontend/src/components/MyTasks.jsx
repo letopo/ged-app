@@ -23,6 +23,7 @@ import jsPDF from 'jspdf';
 import { pdf } from '@react-pdf/renderer';
 import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
+import { getMissionnaires, normNom } from '../utils/omMissionnaires';
 
 const MAX_SELECTION = 20;
 
@@ -85,8 +86,8 @@ const MyTasks = () => {
   // et suivi de quel(s) bénéficiaire(s) ont déjà eu leur pièce de caisse créée cette session
   // (une pièce de caisse par bénéficiaire — l'OM n'est validé qu'une fois qu'elle le décide).
   const [pcMealCalc, setPcMealCalc] = useState(null);
-  const [pcCreatedFor, setPcCreatedFor] = useState(new Set());
-  const [pcTargetRole, setPcTargetRole] = useState(null); // 'missionnaire' | 'conducteur'
+  const [pcCreatedFor, setPcCreatedFor] = useState(new Map()); // nom normalisé → nom affiché
+  const [pcTarget, setPcTarget] = useState(null); // bénéficiaire de la pièce en cours ({ key, role, label, … })
   
   const [showDBFromFS, setShowDBFromFS] = useState(false);
   const [showValidatorsSelection, setShowValidatorsSelection] = useState(false);
@@ -356,11 +357,19 @@ const MyTasks = () => {
     }
     
     if (needsPieceDeCaisse(task)) {
-      setPcCreatedFor(new Set());
-      setPcTargetRole(null);
+      setPcCreatedFor(new Map());
+      setPcTarget(null);
       setPcMealCalc(null);
+      // Pièces de caisse déjà créées pour cet OM (session précédente) : leurs bénéficiaires sont marqués faits
+      documentsAPI.getChain(task.document.id).then(res => {
+        const done = new Map();
+        (res.data?.chain || []).forEach(n => {
+          if (n.category === 'Pièce de caisse' && n.beneficiaire && n.status !== 'rejected') done.set(normNom(n.beneficiaire), n.beneficiaire);
+        });
+        setPcCreatedFor(done);
+      }).catch(() => {});
       missionMealAPI.calculate({
-        missionnaireId: metadata.missionnaire_id, missionnaireSource: metadata.missionnaire_source,
+        missionnaires: getMissionnaires(metadata).map(({ nom, id, source }) => ({ nom, id, source })),
         conducteurId: metadata.conducteur_id, conducteurSource: metadata.conducteur_source,
         heureDepart: metadata.heure_depart, heureRetour: metadata.heure_retour,
         dateDepart: metadata.date_depart, dateRetour: metadata.date_retour,
@@ -476,19 +485,27 @@ const MyTasks = () => {
   const handleInitiateDB = () => setShowDemandeBesoins(true);
   const handleInitiateFicheSuivi = () => setShowFicheSuivi(true);
   
-  // role = 'missionnaire' | 'conducteur' — pré-remplit la PC pour ce bénéficiaire précis
-  // de l'OM en cours de traitement (une pièce de caisse par bénéficiaire).
-  const handleCreatePieceDeCaisseFromOM = (role) => {
+  // Bénéficiaires d'un OM : chaque missionnaire, puis le conducteur — une pièce de caisse chacun.
+  const omBeneficiaries = (meta = {}) => [
+    ...getMissionnaires(meta).map((m, index) => ({ key: normNom(m.nom), role: 'missionnaire', index, label: m.nom, id: m.id, source: m.source })),
+    ...(meta.nom_conducteur ? [{ key: normNom(meta.nom_conducteur), role: 'conducteur', label: meta.nom_conducteur, id: meta.conducteur_id, source: meta.conducteur_source }] : []),
+  ];
+
+  // Pré-remplit la PC pour ce bénéficiaire précis de l'OM en cours de traitement.
+  const handleCreatePieceDeCaisseFromOM = (b) => {
     const metadata = taskToProcess?.document?.metadata || {};
     const docTitle = taskToProcess.document.title || t('Document');
-    const nom = role === 'conducteur' ? metadata.nom_conducteur : metadata.nom_missionnaire;
-    const calc = role === 'conducteur' ? pcMealCalc?.conducteur : pcMealCalc?.missionnaire;
+    const calc = b.role === 'conducteur'
+      ? pcMealCalc?.conducteur
+      : (pcMealCalc?.missionnaires?.[b.index] || (b.index === 0 ? pcMealCalc?.missionnaire : null));
     const objet = metadata.objet_mission ? ` — ${metadata.objet_mission}` : '';
     const dates = metadata.date_depart && metadata.date_retour ? ` (${metadata.date_depart} → ${metadata.date_retour})` : '';
-    const beneficiaireId = role === 'conducteur' ? metadata.conducteur_id : metadata.missionnaire_id;
-    const beneficiaireSource = role === 'conducteur' ? metadata.conducteur_source : metadata.missionnaire_source;
+    // Missionnaire saisi au clavier : le serveur l'a retrouvé par son nom (calc.id)
+    const beneficiaireId = b.id || calc?.id || null;
+    const beneficiaireSource = b.id ? b.source : (calc?.source || null);
+    const nom = b.label;
 
-    setPcTargetRole(role);
+    setPcTarget(b);
     setPieceDeCaisseData({
       nom: nom || '',
       date: new Date().toLocaleDateString('fr-FR'),
@@ -519,7 +536,7 @@ const MyTasks = () => {
       const pdfBlob = pdf.output('blob');
 
       const uploadData = new FormData();
-      const fileName = `Piece_Caisse_${taskToProcess.document.category.replace(/\s/g, '_')}_${pcTargetRole || 'beneficiaire'}_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
+      const fileName = `Piece_Caisse_${taskToProcess.document.category.replace(/\s/g, '_')}_${pcTarget?.role || 'beneficiaire'}_${taskToProcess.document.id.slice(0, 8)}_${Date.now()}.pdf`;
       uploadData.append('file', pdfBlob, fileName);
       uploadData.append('title', t('Pièce de caisse - {{concerne}}', { concerne: pieceDeCaisseData.concerne }));
       uploadData.append('category', 'Pièce de caisse');
@@ -529,7 +546,7 @@ const MyTasks = () => {
       uploadData.append('metadata', JSON.stringify({
         nom: pieceDeCaisseData.nom,
         concerne: pieceDeCaisseData.concerne,
-        beneficiaireRole: pcTargetRole,
+        beneficiaireRole: pcTarget?.role,
         beneficiaire_id: pieceDeCaisseData.beneficiaire_id,
         beneficiaire_source: pieceDeCaisseData.beneficiaire_source,
         lines: pieceDeCaisseData.lines,
@@ -544,7 +561,7 @@ const MyTasks = () => {
         toast(t('⚠️ Pièce de caisse créée mais circuit non démarré : {{message}}. Utilisez "Soumettre" depuis Documents.', { message: wfErr.response?.data?.message || t('erreur inconnue') }));
       }
 
-      setPcCreatedFor(prev => new Set(prev).add(pcTargetRole));
+      setPcCreatedFor(prev => new Map(prev).set(pcTarget.key, pcTarget.label));
 
       toast(uploadResponse.data.data.metadata?.fusionné
           ? t('✅ Pièce de caisse créée et fusionnée avec {{category}}!', { category: taskToProcess.document.category })
@@ -567,7 +584,7 @@ const MyTasks = () => {
     try {
       await workflowAPI.validateTask(taskToProcess.id, {
         status: 'approved',
-        comment: t('Pièce(s) de caisse créée(s) pour : {{list}}. Processus complété.', { list: [...pcCreatedFor].join(', ') }),
+        comment: t('Pièce(s) de caisse créée(s) pour : {{list}}. Processus complété.', { list: [...pcCreatedFor.values()].join(', ') }),
         validationType: 'simple_approve',
       });
       toast(t('✅ Ordre de mission finalisé.'));
@@ -1261,18 +1278,15 @@ const MyTasks = () => {
 
                 {needsPieceDeCaisse(taskToProcess) && (() => {
                   const meta = taskToProcess.document.metadata || {};
-                  const beneficiaries = [
-                    meta.nom_missionnaire ? { role: 'missionnaire', label: meta.nom_missionnaire } : null,
-                    meta.nom_conducteur ? { role: 'conducteur', label: meta.nom_conducteur } : null,
-                  ].filter(Boolean);
+                  const beneficiaries = omBeneficiaries(meta);
                   return (
                     <>
                       {beneficiaries.map(b => {
-                        const done = pcCreatedFor.has(b.role);
+                        const done = pcCreatedFor.has(b.key);
                         return (
                           <button
-                            key={b.role}
-                            onClick={() => handleCreatePieceDeCaisseFromOM(b.role)}
+                            key={`${b.role}-${b.index ?? 0}`}
+                            onClick={() => handleCreatePieceDeCaisseFromOM(b)}
                             disabled={done}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: 16, marginBottom: 8, background: done ? 'var(--success-soft)' : 'rgba(234,179,8,0.08)', border: `2px solid ${done ? 'var(--success)' : 'rgba(234,179,8,0.5)'}`, borderRadius: 'var(--radius-3)', cursor: done ? 'default' : 'pointer', textAlign: 'left' }}
                             onMouseEnter={e => { if (!done) e.currentTarget.style.background = 'rgba(234,179,8,0.15)'; }}
