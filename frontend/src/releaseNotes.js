@@ -283,6 +283,16 @@ const RELEASE_NOTES = [
       'Les champs du formulaire et les informations de la demande passent sur une seule colonne.',
     ],
   },
+  {
+    id: '2026-10-01-comptabilite-mobile',
+    date: '2026-10-01',
+    target: '/compta',
+    title: 'Comptabilité sur téléphone',
+    items: [
+      'Sur téléphone et tablette, chaque pièce s’affiche en carte (libellé, n° d’ordre, date, référence, montant, type) et les encarts Entrées / Sorties / Solde tiennent dans l’écran.',
+      'Sur ordinateur, un libellé long est coupé proprement au lieu de déborder sur la colonne « Date pièce ».',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

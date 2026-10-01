@@ -408,6 +408,7 @@ const ROUTE_CRUMBS = {
   '/accueil':             ['Applications', 'Accueil'],
   '/caisse':              ['Applications', 'Caisse'],
   '/demandes-achat':      ['Applications', "Demandes d'achat"],
+  '/compta':              ['Finances', 'Comptabilité'],
   '/kanban':              ['Outils', 'Suivi technique'],
   '/gmao':                ['Outils', 'GMAO'],
   '/php':                 ['Module PHP'],
