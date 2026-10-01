@@ -68,12 +68,17 @@ export const SAGE_DEFAULTS = {
 };
 export const SAGE_FILTER_MODES = ['none', 'client_name', 'cat_tarif', 'client_nums'];
 
+// Serveur « adresse\INSTANCE » (instance nommée, ex. 192.168.1.70\SAGE100) : le
+// port est demandé au service SQL Browser (UDP 1434) à chaque connexion — il est
+// souvent dynamique et change au redémarrage de SQL Server. Sinon : port saisi.
 export function sageConnectionConfig(config, password) {
+  const [server, instanceName] = String(config.host || '').split('\\').map(s => s.trim());
+  const options = { encrypt: false, trustServerCertificate: true, connectTimeout: 8000, requestTimeout: 20000 };
   const base = {
-    server: config.host,
-    port: Number(config.port) || 1433,
+    server,
     database: config.database,
-    options: { encrypt: false, trustServerCertificate: true, connectTimeout: 8000, requestTimeout: 20000 },
+    options: instanceName ? { ...options, instanceName } : options,
+    ...(instanceName ? {} : { port: Number(config.port) || 1433 }),
   };
   if (config.authType === 'sql') return { ...base, user: config.username, password };
   return { ...base, authentication: { type: 'ntlm', options: { domain: config.domain || '', userName: config.username, password } } };
@@ -135,8 +140,9 @@ export function describeSageError(err) {
   if (/Login failed|ELOGIN/i.test(msg) || err?.code === 'ELOGIN') return 'Identifiant ou mot de passe refusé par le serveur Sage (vérifiez aussi le domaine et le type de connexion).';
   if (/getaddrinfo|ENOTFOUND/i.test(msg)) return 'Serveur Sage introuvable : vérifiez son adresse.';
   if (['ETIMEOUT', 'ESOCKET', 'ECONNCLOSED'].includes(err?.code) || /timeout|ECONNREFUSED|ECONNRESET|socket hang up|Connection lost/i.test(msg)) {
-    return 'Serveur Sage injoignable (réseau de l’hôpital, port 1433 ou pare-feu).';
+    return 'Serveur Sage injoignable sur ce port. Pour une instance nommée, écrivez le serveur sous la forme « adresse\\INSTANCE » (ex. 192.168.1.70\\SAGE100).';
   }
+  if (/Port for .* not found|Failed to get response from SQL Server Browser/i.test(msg)) return 'Instance SQL Server introuvable : vérifiez le nom après « \\ » (ex. SAGE100) et que le service SQL Browser est démarré.';
   if (/Cannot open database|database .* does not exist/i.test(msg)) return `Base de données introuvable sur le serveur Sage : ${msg}`;
   if (/Invalid object name/i.test(msg)) return 'Connexion réussie, mais les tables Sage (F_DOCENTETE, F_COMPTET) sont absentes de cette base.';
   return msg;
