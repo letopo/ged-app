@@ -2341,6 +2341,7 @@
   "Désactiver la double authentification": "Disable two-factor authentication",
   "{{username}} pourra se connecter avec son seul mot de passe, puis réactiver la 2FA depuis Paramètres › Sécurité. À n’utiliser que si cette personne a perdu son téléphone ou l’accès à sa boîte e-mail.": "{{username}} will be able to sign in with just their password, then re-enable 2FA in Settings › Security. Only use this if the person lost their phone or access to their mailbox.",
   "Un code vous a été envoyé il y a moins d’une minute : utilisez-le.": "A code was sent to you less than a minute ago: use it.",
+  "Instance nommée : adresse\\INSTANCE (ex. 192.168.1.70\\SAGE100), le port est alors trouvé automatiquement.": "Named instance: address\\INSTANCE (e.g. 192.168.1.70\\SAGE100); the port is then found automatically.",
   "Signataire {{n}} — titre ajouté à la soumission": "Signer {{n}} — title added on submission",
   "Signe le cadre {{n}}": "Signs box {{n}}",
   "Visa, sans cadre de signature": "Approval only, no signature box",

@@ -155,7 +155,17 @@ async function test(req, kind, tenantId, row) {
       message = `Clé valide : le modèle ${config.model} répond.`;
     } else {
       if (!config.host || !config.database) return { status: 400, body: { success: false, message: 'Renseignez le serveur et la base.' } };
-      const pool = await openSagePool(config, secret);
+      let pool;
+      try {
+        pool = await openSagePool(config, secret);
+      } catch (err) {
+        // Base introuvable : on liste celles du serveur pour aider à choisir
+        if (/Base de données introuvable|Cannot open database/i.test(err.message + (err.raw || ''))) {
+          const names = await listSageDatabases(config, secret).catch(() => null);
+          if (names?.length) err.message = `La base « ${config.database} » n'existe pas sur ce serveur. Bases disponibles : ${names.join(', ')}.`;
+        }
+        throw err;
+      }
       try {
         const r = await pool.request().query('SELECT COUNT(*) AS n FROM F_DOCENTETE WHERE DO_Type = 7 AND DO_Domaine = 0');
         message = `Connexion réussie : ${r.recordset[0].n} facture(s) de vente dans la base ${config.database}.`;
@@ -203,6 +213,15 @@ async function syncNow(req, tenantId, row) {
   const result = await runSageSyncNow(row);
   await audit(req, tenantId, 'INTEGRATION_SYNC', { kind: 'sage', ok: result.ok, imported: result.imported || 0 });
   return { status: result.ok ? 200 : 400, body: { success: result.ok, message: result.message, imported: result.imported || 0 } };
+}
+
+// Bases de l'instance (connexion à master), hors bases système
+async function listSageDatabases(config, secret) {
+  const pool = await openSagePool({ ...config, database: 'master' }, secret);
+  try {
+    const r = await pool.request().query("SELECT name FROM sys.databases WHERE name NOT IN ('master','tempdb','model','msdb') ORDER BY name");
+    return r.recordset.map(x => x.name);
+  } finally { await pool.close().catch(() => {}); }
 }
 
 const handle = (fn) => async (req, res) => {
