@@ -251,6 +251,18 @@ const RELEASE_NOTES = [
       'L’accueil s’adapte de nouveau à la taille de l’écran : un titre de document très long n’élargit plus la page, et le calendrier des permissions reste compact sur ordinateur comme sur téléphone.',
     ],
   },
+  {
+    id: '2026-10-01-journal-audit',
+    date: '2026-10-01',
+    target: '/audit-log',
+    title: 'Journal d’audit',
+    items: [
+      'Sur téléphone, les événements s’affichent en cartes lisibles au lieu d’un tableau à faire défiler.',
+      'Cliquez sur un événement pour voir tout son détail (utilisateur, ressource, adresse IP, navigateur, commentaire…).',
+      'Toutes les actions ont désormais un nom clair (absence déclarée, poste attribué, messagerie modifiée…) et les connexions indiquent l’e-mail utilisé.',
+    ],
+    access: isAdmin,
+  },
 ];
 
 export default RELEASE_NOTES;

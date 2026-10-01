@@ -767,3 +767,31 @@ a.kpi-card:active { transform: scale(0.98); }
 @media (max-width: 860px) {
   .mail-grid, .mail-grid.mail-grid-2 { grid-template-columns: 1fr; }
 }
+
+/* Journal d'audit — tableau sur ordinateur, cartes sur téléphone, fenêtre de détail */
+.audit-page    { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+.audit-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.audit-dates   { display: flex; align-items: center; gap: 8px; }
+.audit-table   { overflow-x: auto; }
+.audit-cards   { display: none; }
+.audit-card    { display: block; width: 100%; text-align: left; padding: 12px 16px; background: transparent; border: none; border-bottom: 1px solid var(--border); cursor: pointer; font: inherit; color: inherit; min-width: 0; }
+.audit-card:last-child { border-bottom: none; }
+.audit-card:active { background: var(--surface-2); }
+.audit-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.audit-modal   { width: 100%; max-width: 560px; max-height: calc(100vh - 32px); overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-3); box-shadow: var(--shadow-2); padding: 20px; box-sizing: border-box; }
+.audit-dl      { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0; font-size: 13px; }
+.audit-dl dt   { color: var(--fg-muted); font-weight: 500; }
+.audit-dl dd   { margin: 0; color: var(--fg); overflow-wrap: anywhere; }
+.audit-dl-section { grid-column: 1 / -1; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+@media (max-width: 860px) {
+  .audit-page  { padding: 16px; }
+  .audit-table { display: none; }
+  .audit-cards { display: block; }
+  .audit-dates { width: 100%; }
+  .audit-dates input { flex: 1; min-width: 0; }
+  /* Fenêtre de détail : feuille en bas de l'écran, au-dessus de la barre d'onglets */
+  .audit-modal-backdrop { align-items: flex-end; padding: 0; }
+  .audit-modal { max-width: none; max-height: 85vh; border-radius: var(--radius-3) var(--radius-3) 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+  .audit-dl    { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .audit-dl dd { margin-bottom: 8px; }
+}
