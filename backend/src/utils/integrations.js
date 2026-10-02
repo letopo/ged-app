@@ -63,11 +63,18 @@ export const SAGE_DEFAULTS = {
   host: '', port: 1433, database: '', authType: 'ntlm', domain: '', username: '',
   filterMode: 'none', filterValue: '',          // voir buildSageFilter
   importFromDate: '',                           // AAAA-MM-JJ : factures datées de ce jour ou après (pas l'historique)
+  invoiceStatus: 'all',                         // 'all' : comptabilisées + non comptabilisées ; 'posted' : comptabilisées
   syncIntervalMinutes: 15,
   documentCategory: 'Facture PHP Sage',
   workflowTemplateName: 'Circuit Facture PHP',
 };
 export const SAGE_FILTER_MODES = ['none', 'compte_collectif', 'client_name', 'cat_tarif', 'client_nums'];
+
+// Sage 100 Gestion commerciale, factures de vente (DO_Domaine 0) :
+// DO_Type 6 = facture non comptabilisée (mois en cours), 7 = facture comptabilisée.
+// En comptabilisant, Sage passe la facture de 6 à 7 en gardant son numéro de pièce.
+export const SAGE_INVOICE_STATUSES = { all: [6, 7], posted: [7] };
+export const sageInvoiceTypes = (config) => SAGE_INVOICE_STATUSES[config?.invoiceStatus] || SAGE_INVOICE_STATUSES.all;
 
 // Patients PHP dans Sage : reconnus par le compte collectif de leur fiche client
 // (F_COMPTET.CG_NumPrinc), indépendant du nom et du compte tiers.
@@ -93,12 +100,12 @@ export function sageConnectionConfig(config, password) {
   return { ...base, authentication: { type: 'ntlm', options: { domain: config.domain || '', userName: config.username, password } } };
 }
 
-// Critère « facture PHP » : factures de vente (DO_Type 7, domaine 0) + choix
+// Critère « facture PHP » : factures de vente (DO_Type 6/7, domaine 0) + choix
 // guidé sur le client. Valeurs toujours passées en paramètres SQL.
 // Sans critère client, rien n'est importé (mieux vaut ne rien importer que
 // d'importer les mauvaises factures).
 export function buildSageFilter(config, request) {
-  const where = ['E.DO_Type = 7', 'E.DO_Domaine = 0'];
+  const where = [`E.DO_Type IN (${sageInvoiceTypes(config).join(', ')})`, 'E.DO_Domaine = 0'];
   const value = String(config.filterValue || '').trim();
   switch (config.filterMode) {
     case 'compte_collectif': {
@@ -146,7 +153,7 @@ export async function fetchSageFactures(pool, config, limit = 200) {
   request.input('limit', sql.Int, limit);
   const result = await request.query(`
     SELECT TOP (@limit)
-      E.DO_Piece, E.DO_Date, E.DO_Tiers, C.CT_Intitule, C.CG_NumPrinc, E.DO_TotalHT, E.DO_TotalTTC
+      E.DO_Piece, E.DO_Type, E.DO_Date, E.DO_Tiers, C.CT_Intitule, C.CG_NumPrinc, E.DO_TotalHT, E.DO_TotalTTC
     FROM F_DOCENTETE E
     LEFT JOIN F_COMPTET C ON C.CT_Num = E.DO_Tiers
     WHERE ${filter}

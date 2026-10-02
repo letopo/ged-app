@@ -82,7 +82,7 @@ export default function SageSettingsPanel({ tenantId = null }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)', textAlign: 'left' }}>
-                <th style={{ padding: '6px 8px' }}>{t('Pièce')}</th><th style={{ padding: '6px 8px' }}>{t('Date')}</th>
+                <th style={{ padding: '6px 8px' }}>{t('Pièce')}</th><th style={{ padding: '6px 8px' }}>{t('Date')}</th><th style={{ padding: '6px 8px' }}>{t('État')}</th>
                 <th style={{ padding: '6px 8px' }}>{t('Client')}</th><th style={{ padding: '6px 8px' }}>{t('Compte collectif')}</th><th style={{ padding: '6px 8px', textAlign: 'right' }}>{t('Total TTC')}</th>
               </tr>
             </thead>
@@ -91,6 +91,7 @@ export default function SageSettingsPanel({ tenantId = null }) {
                 <tr key={r.piece} style={{ borderTop: '1px solid var(--border)' }}>
                   <td style={{ padding: '6px 8px', fontFamily: 'var(--font-mono)' }}>{r.piece}</td>
                   <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{r.date ? new Date(r.date).toLocaleDateString() : ''}</td>
+                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', color: r.comptabilisee ? 'var(--fg-muted)' : 'var(--warning)' }}>{r.comptabilisee ? t('Comptabilisée') : t('Non comptabilisée')}</td>
                   <td style={{ padding: '6px 8px' }}>{r.client} <span style={{ color: 'var(--fg-subtle)' }}>({r.clientNum})</span></td>
                   <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                     {r.compteCollectif || '—'}{r.type && <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 999, fontSize: 11, background: r.type === 'Employé PHP' ? 'var(--brand-soft)' : 'var(--success-soft)', color: r.type === 'Employé PHP' ? 'var(--brand)' : 'var(--success)' }}>{t(r.type)}</span>}
@@ -193,6 +194,14 @@ export default function SageSettingsPanel({ tenantId = null }) {
             : <input style={inputStyle} value={cfg.filterValue || ''} onChange={set('filterValue')} inputMode={cfg.filterMode === 'cat_tarif' ? 'numeric' : undefined} />}
         </Field>
       )}
+      <Field label={t('Factures à importer')} hint={cfg.invoiceStatus === 'posted'
+        ? t('Seules les factures déjà comptabilisées dans Sage sont importées (elles arrivent après la clôture comptable).')
+        : t('Une facture non comptabilisée peut encore être modifiée dans Sage : la GED garde la version du moment de l’import. Une fois comptabilisée, elle n’est pas importée une seconde fois.')}>
+        <select style={inputStyle} value={cfg.invoiceStatus || 'all'} onChange={set('invoiceStatus')}>
+          <option value="all">{t('Comptabilisées et non comptabilisées (recommandé)')}</option>
+          <option value="posted">{t('Comptabilisées seulement')}</option>
+        </select>
+      </Field>
       {(!cfg.filterMode || cfg.filterMode === 'none') && (
         <Notice tone="info" icon={Info}>{t('Sans critère, aucune facture n’est importée : mieux vaut ne rien importer que d’importer les mauvaises factures.')}</Notice>
       )}
