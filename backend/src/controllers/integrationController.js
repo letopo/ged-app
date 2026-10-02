@@ -10,6 +10,7 @@ import { INTEGRATION_KINDS } from '../models/TenantIntegration.js';
 import { encryptSecret, decryptSecret } from '../utils/secretBox.js';
 import {
   DEFAULT_AI_MODEL, testAiConfig, SAGE_DEFAULTS, SAGE_FILTER_MODES, fetchSageFactures,
+  parseComptesCollectifs, phpBeneficiaryType,
 } from '../utils/integrations.js';
 import { openSagePool, runSageSyncNow } from '../utils/sageFactureSync.js';
 
@@ -78,6 +79,9 @@ function validate(kind, body, current, enabled, hasSecret) {
     if (!Number.isInteger(cfg.port) || cfg.port < 1 || cfg.port > 65535) errors.push('Port invalide (1 à 65535).');
     if (!Number.isInteger(cfg.syncIntervalMinutes) || cfg.syncIntervalMinutes < 5 || cfg.syncIntervalMinutes > 1440) errors.push('Fréquence invalide (5 à 1440 minutes).');
     if (cfg.filterMode === 'cat_tarif' && cfg.filterValue && !/^\d+$/.test(cfg.filterValue)) errors.push('La catégorie tarifaire doit être un nombre.');
+    if (cfg.filterMode === 'compte_collectif' && parseComptesCollectifs(cfg.filterValue).some(c => !/^\d{3,13}$/.test(c))) {
+      errors.push('Les comptes collectifs sont des numéros (ex. 4127000, 4122000).');
+    }
     if (enabled) {
       if (!cfg.host || !cfg.database) errors.push('Serveur et base de données sont obligatoires pour activer Sage.');
       if (!cfg.username || !hasSecret) errors.push('Compte et mot de passe Sage sont obligatoires pour activer Sage.');
@@ -199,7 +203,7 @@ async function preview(req, tenantId, row) {
         body: {
           success: true,
           message: rows.length ? `${rows.length} facture(s) correspondent (les 20 plus récentes).` : 'Aucune facture ne correspond à ce critère.',
-          rows: rows.map(r => ({ piece: r.DO_Piece, date: r.DO_Date, client: r.CT_Intitule, clientNum: r.DO_Tiers, totalTTC: r.DO_TotalTTC })),
+          rows: rows.map(r => ({ piece: r.DO_Piece, date: r.DO_Date, client: r.CT_Intitule, clientNum: r.DO_Tiers, compteCollectif: r.CG_NumPrinc || null, type: phpBeneficiaryType(r.CG_NumPrinc), totalTTC: r.DO_TotalTTC })),
         },
       };
     } finally { await pool.close().catch(() => {}); }

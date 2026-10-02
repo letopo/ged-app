@@ -336,6 +336,17 @@ const RELEASE_NOTES = [
       'Les indicateurs, les goulots d’étranglement et les valideurs les plus sollicités utilisent les mêmes données ; l’export donne un document par ligne avec son issue.',
     ],
   },
+  {
+    id: '2026-10-02-sage-compte-collectif',
+    date: '2026-10-02',
+    target: 'app',
+    title: 'Factures PHP Sage : employés et familles',
+    items: [
+      'Paramètres › Intégrations › Sage : nouveau critère « Compte collectif du client » — 4127000 pour les employés PHP, 4122000 pour leurs familles. C’est la méthode recommandée pour reconnaître les patients PHP.',
+      'L’aperçu affiche le compte collectif de chaque facture ; les factures importées indiquent « Employé PHP » ou « Famille PHP » (titre et PDF).',
+    ],
+    access: isAdmin,
+  },
 ];
 
 export default RELEASE_NOTES;

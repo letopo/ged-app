@@ -36,7 +36,7 @@ function fmtMontant(n) {
  * @returns {Promise<{buffer: Buffer, signatureZones: Array<{index:number,label:string,x:number,y:number,width:number,height:number}>}>}
  */
 export async function buildFacturePhpPdf(facture) {
-  const { docPiece, patientNom, dateFacture, lignes = [], totalHT, totalTTC } = facture;
+  const { docPiece, patientNom, beneficiaireType, dateFacture, lignes = [], totalHT, totalTTC } = facture;
 
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -64,6 +64,8 @@ export async function buildFacturePhpPdf(facture) {
   drawText(`Date : ${dateFacture || ''}`, PAGE_WIDTH - MARGIN - 150, y, { size: 10 });
   y -= 16;
   drawText(`Patient : ${patientNom || ''}`, MARGIN, y, { size: 10, bold: true });
+  // Employé PHP ou famille d'employé (compte collectif Sage 4127000 / 4122000)
+  if (beneficiaireType) drawText(beneficiaireType, PAGE_WIDTH - MARGIN - 150, y, { size: 10, bold: true });
   y -= 30;
 
   // ── Tableau des lignes ───────────────────────────────────────────────────
