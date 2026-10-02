@@ -664,6 +664,7 @@ export const integrationsAPI = {
   save:    (kind, data, tenantId) => api.put(integrationUrl(kind, tenantId), data),
   test:    (kind, data, tenantId) => api.post(`${integrationUrl(kind, tenantId)}/test`, data),
   preview: (data, tenantId)       => api.post(`${integrationUrl('sage', tenantId)}/preview`, data),
+  facturePdf: (data)              => api.post('/integrations/sage/facture-pdf', data, { responseType: 'blob' }),
   sync:    (tenantId)             => api.post(`${integrationUrl('sage', tenantId)}/sync`),
 };
 

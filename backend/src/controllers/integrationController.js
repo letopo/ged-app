@@ -5,14 +5,16 @@
 // décide, par intégration, si les administrateurs du tenant peuvent la gérer
 // (adminCanManage) ; un administrateur ne voit que son tenant.
 // Secrets (clé d'API, mot de passe Sage) chiffrés, jamais renvoyés.
-import { Tenant, TenantIntegration, AuditLog } from '../models/index.js';
+import { Tenant, TenantIntegration, AuditLog, WorkflowTemplate } from '../models/index.js';
 import { INTEGRATION_KINDS } from '../models/TenantIntegration.js';
 import { encryptSecret, decryptSecret } from '../utils/secretBox.js';
 import {
   DEFAULT_AI_MODEL, testAiConfig, SAGE_DEFAULTS, SAGE_FILTER_MODES, fetchSageFactures,
   parseComptesCollectifs, phpBeneficiaryType, isIsoDate, countSageFactures,
 } from '../utils/integrations.js';
-import { openSagePool, runSageSyncNow } from '../utils/sageFactureSync.js';
+import { openSagePool, runSageSyncNow, signatureLabelsFor } from '../utils/sageFactureSync.js';
+import { loadSageFacture } from '../utils/sageFactureData.js';
+import { buildFacturePhpPdf } from '../utils/facturePhpPdfBuilder.js';
 
 const TEST_LIMIT = 5;
 const TEST_WINDOW_MS = 60_000;
@@ -277,6 +279,29 @@ export const previewSage = handle(async (req, res) => {
   if (!canManage) return forbidden(res);
   reply(res, await preview(req, req.tenantId, row));
 });
+// Aperçu de la liasse PDF d'une facture Sage (rien n'est importé) — pour vérifier
+// la mise en page et les cadres avant d'activer l'import
+export const previewSageFacturePdf = handle(async (req, res) => {
+  const { row, canManage } = await tenantAccess(req, 'sage');
+  if (!canManage) return forbidden(res);
+  if (rateLimited(req)) return res.status(429).json({ success: false, message: 'Trop d’essais : patientez une minute.' });
+  const piece = String(req.body?.piece || '').trim().toUpperCase();
+  if (!/^[A-Z0-9-]{3,20}$/.test(piece)) return res.status(400).json({ success: false, message: 'Numéro de facture invalide (ex. FA00000317014).' });
+  const { errors, config, secret } = formConfig(req, 'sage', row);
+  if (errors.length) return res.status(400).json({ success: false, message: errors.join(' ') });
+  if (!secret) return res.status(400).json({ success: false, message: 'Saisissez le mot de passe Sage.' });
+  const pool = await openSagePool(config, secret).catch(e => { e.status = 502; throw e; });
+  try {
+    const facture = await loadSageFacture(pool, piece);
+    if (!facture) return res.status(404).json({ success: false, message: `Facture ${piece} introuvable dans Sage (factures de vente uniquement).` });
+    const template = await WorkflowTemplate.findOne({ where: { name: config.workflowTemplateName, tenantId: req.tenantId } });
+    const { buffer } = await buildFacturePhpPdf(facture, { signatureLabels: signatureLabelsFor(template, config) });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="apercu-${piece}.pdf"`);
+    res.send(buffer);
+  } finally { await pool.close().catch(() => {}); }
+});
+
 export const syncSage = handle(async (req, res) => {
   const { row, canManage } = await tenantAccess(req, 'sage');
   if (!canManage) return forbidden(res);

@@ -2504,5 +2504,9 @@
   "{{n}} facture(s) sur {{total}} ({{p}} %) regroupent des BL espacés de plus de 3 jours, alors qu’un BPC ne couvre que 3 jours.": "{{n}} فاتورة من {{total}} ({{p}}٪) تجمع سندات متباعدة لأكثر من 3 أيام، بينما لا يغطي السند إلا 3 أيام.",
   "{{n}} patients": "{{n}} مريض",
   "À facturer": "للفوترة",
-  "Écart": "الفارق"
+  "Écart": "الفارق",
+  "Aperçu de la liasse PDF d’une facture": "معاينة ملف PDF للفاتورة",
+  "Génère le PDF tel qu’il sera importé (facture, contrôle du BPC, cadres de signature, BL en annexe) sans rien importer.": "ينشئ ملف PDF كما سيُستورد (الفاتورة، مراقبة السند، إطارات التوقيع، سندات التسليم مرفقة) دون استيراد أي شيء.",
+  "Aperçu PDF": "معاينة PDF",
+  "Aperçu impossible.": "تعذّرت المعاينة."
 }
