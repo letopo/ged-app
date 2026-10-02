@@ -1,14 +1,15 @@
-// frontend/src/pages/WorkflowDashboard.jsx — Redesign analytics
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+// frontend/src/pages/WorkflowDashboard.jsx — Workflow : flux de validation et indicateurs
+// Données calculées par le serveur sur les vrais circuits (GET /api/workflows/flow-stats),
+// périmètre selon le rôle : toute l'organisation pour l'administration et la direction,
+// sinon les documents accessibles à l'utilisateur.
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../contexts/AuthContext';
 import { workflowAPI } from '../services/api';
-import DocumentViewer from '../components/DocumentViewer';
+import ValidationFlowChart, { formatHours } from '../components/ValidationFlowChart';
 import {
   AlertCircle, Loader, Download,
   ChevronDown, ArrowUpRight, ArrowDownRight, Minus, Check, X as XIcon,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 // ── Dropdown component ────────────────────────────────────────────────────────
 function FilterDropdown({ label, options, value, onChange }) {
@@ -78,89 +79,8 @@ function FilterDropdown({ label, options, value, onChange }) {
   );
 }
 
-// ── Sankey Flow Diagram ───────────────────────────────────────────────────────
-function SankeyFlow({ total, approved, pending, rejected }) {
-  const { t } = useTranslation();
-  // ViewBox: wide enough to include right-side labels
-  const VW = 920;   // total viewBox width
-  const H  = 230;
-  const barW = 10;
-  const LABEL_LEFT = 130;       // left edge of diagram (space for "Soumissions")
-  const BAR_RIGHT  = 720;       // x of outcome bars
-  const LABEL_RIGHT = BAR_RIGHT + barW + 14;  // x of outcome text labels
-
-  const colX = [LABEL_LEFT, LABEL_LEFT + 220, LABEL_LEFT + 440];
-
-  const safeTotal  = Math.max(total, 1);
-  const totalH     = H - 30;   // usable height
-  const approvedH  = Math.max(4, (approved / safeTotal) * totalH);
-  const pendingH   = Math.max(pending  > 0 ? 4 : 0, (pending  / safeTotal) * totalH);
-  const rejectedH  = Math.max(rejected > 0 ? 4 : 0, (rejected / safeTotal) * totalH);
-  const n2H        = approvedH + pendingH + (pendingH > 0 ? 4 : 0);
-  const n1H        = Math.min(totalH, n2H + rejectedH * 0.5);
-  const subH       = totalH;
-
-  const approvedY  = 20;
-  const pendingY   = approvedY + approvedH + 5;
-  const rejectedY  = pendingY  + pendingH  + 5;
-
-  function band(x1, y1Top, h1, x2, y2Top, h2, fill) {
-    if (h1 <= 0 || h2 <= 0) return null;
-    const mx = (x1 + x2) / 2;
-    return (
-      <path
-        d={`M ${x1} ${y1Top} C ${mx} ${y1Top}, ${mx} ${y2Top}, ${x2} ${y2Top}
-            L ${x2} ${y2Top+h2} C ${mx} ${y2Top+h2}, ${mx} ${y1Top+h1}, ${x1} ${y1Top+h1} Z`}
-        fill={fill}
-      />
-    );
-  }
-
-  return (
-    <svg width="100%" viewBox={`0 0 ${VW} ${H}`} style={{ display: 'block' }}>
-
-      {/* ── Bands ─────────────────────────────── */}
-      {/* Sub → N1 (blue) */}
-      {band(colX[0]+barW, 20, subH, colX[1], 20, n1H, 'rgba(59,130,246,0.22)')}
-
-      {/* N1 → N2 (blue, approved+pending portion) */}
-      {band(colX[1]+barW, 20, n2H, colX[2], 20, n2H, 'rgba(59,130,246,0.18)')}
-
-      {/* N1 → Rejected (drops out from N1 bottom) */}
-      {band(colX[1]+barW, n2H+20+4, rejectedH*0.5, BAR_RIGHT, rejectedY, rejectedH, 'rgba(185,28,28,0.45)')}
-
-      {/* N2 → Approved (green) */}
-      {band(colX[2]+barW, 20, approvedH, BAR_RIGHT, approvedY, approvedH, 'rgba(21,128,61,0.55)')}
-
-      {/* N2 → Pending (amber) */}
-      {band(colX[2]+barW, approvedH+24, pendingH, BAR_RIGHT, pendingY, pendingH, 'rgba(161,98,7,0.55)')}
-
-      {/* ── Vertical bars ─────────────────────── */}
-      <rect x={colX[0]}   y={20} width={barW} height={subH}    rx={2} fill="rgba(148,163,184,0.65)" />
-      <rect x={colX[1]}   y={20} width={barW} height={n1H}     rx={2} fill="rgba(96,165,250,0.9)" />
-      <rect x={colX[2]}   y={20} width={barW} height={n2H}     rx={2} fill="rgba(96,165,250,0.9)" />
-      <rect x={BAR_RIGHT} y={approvedY} width={barW} height={approvedH}  rx={2} fill="rgba(34,197,94,0.9)" />
-      {pendingH  > 0 && <rect x={BAR_RIGHT} y={pendingY}  width={barW} height={pendingH}   rx={2} fill="rgba(234,179,8,0.9)" />}
-      {rejectedH > 0 && <rect x={BAR_RIGHT} y={rejectedY} width={barW} height={rejectedH}  rx={2} fill="rgba(239,68,68,0.9)" />}
-
-      {/* ── Left labels (Soumissions) ────────── */}
-      <text x={colX[0]-6} y={20 + subH/2 - 8}  textAnchor="end" fill="var(--fg)" fontSize={13} fontWeight="600" dominantBaseline="middle">{t('Soumissions')}</text>
-      <text x={colX[0]-6} y={20 + subH/2 + 10} textAnchor="end" fill="var(--fg-muted)" fontSize={11} dominantBaseline="middle">{t('{{count}} documents', { count: total })}</text>
-
-      {/* ── Column headers ───────────────────── */}
-      <text x={colX[1]+barW/2} y={10} textAnchor="middle" fill="var(--fg-muted)" fontSize={12} fontWeight="600">{t('Validation N1')}</text>
-      <text x={colX[2]+barW/2} y={10} textAnchor="middle" fill="var(--fg-muted)" fontSize={12} fontWeight="600">{t('Validation N2')}</text>
-
-      {/* ── Right outcome labels ─────────────── */}
-      <text x={LABEL_RIGHT} y={approvedY + approvedH/2} fill="rgb(74,222,128)"  fontSize={12} fontWeight="600" dominantBaseline="middle">{t('✓ Approuvés ({{count}})', { count: approved })}</text>
-      {pendingH  > 0 && <text x={LABEL_RIGHT} y={pendingY  + pendingH /2} fill="rgb(253,224,71)"  fontSize={12} fontWeight="600" dominantBaseline="middle">{t('◎ En attente ({{count}})', { count: pending })}</text>}
-      {rejectedH > 0 && <text x={LABEL_RIGHT} y={rejectedY + rejectedH/2} fill="rgb(252,165,165)" fontSize={12} fontWeight="600" dominantBaseline="middle">{t('✕ Rejetés ({{count}})', { count: rejected })}</text>}
-    </svg>
-  );
-}
-
 // ── Stat card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, sublabel, value, delta, deltaLabel, urgent }) {
+function StatCard({ label, sublabel, value, delta, deltaLabel, urgent, urgentColor = 'var(--warning)' }) {
   const isUp   = delta > 0;
   const isDown = delta < 0;
   const DeltaIcon = isUp ? ArrowUpRight : isDown ? ArrowDownRight : Minus;
@@ -182,26 +102,31 @@ function StatCard({ label, sublabel, value, delta, deltaLabel, urgent }) {
           </span>
         )}
         {urgent && (
-          <span style={{ fontSize: 11, color: 'var(--warning)', fontWeight: 500 }}>{urgent}</span>
+          <span style={{ fontSize: 11, color: urgentColor, fontWeight: 500 }}>{urgent}</span>
         )}
       </div>
     </div>
   );
 }
 
-// ── Bottleneck bar ────────────────────────────────────────────────────────────
-function BottleneckBar({ label, value, maxValue }) {
+// ── Goulot : temps moyen de traitement d'une étape, par type de document ─────
+function BottleneckBar({ label, hours, maxHours, documents, rejected }) {
   const { t } = useTranslation();
-  const pct   = Math.min(100, (value / (maxValue || 1)) * 100);
-  const color = value >= 5 ? 'var(--danger)' : value >= 3 ? 'var(--warning)' : 'var(--success)';
+  const pct   = Math.min(100, (hours / (maxHours || 1)) * 100);
+  const color = hours >= 72 ? 'var(--danger)' : hours >= 24 ? 'var(--warning)' : 'var(--success)';
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-        <span style={{ fontSize: 13, color: 'var(--fg)' }}>{label}</span>
-        <span style={{ fontSize: 12, color: 'var(--fg-muted)', fontWeight: 500 }}>{t('{{days}} j moyen', { days: value.toFixed(1) })}</span>
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 5 }}>
+        <span style={{ fontSize: 13, color: 'var(--fg)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+        <span style={{ fontSize: 12, color: 'var(--fg-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+          {t('{{d}} / étape', { d: formatHours(hours, t) })}
+        </span>
       </div>
       <div style={{ height: 6, background: 'var(--surface-3)', borderRadius: 4, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width .6s ease' }} />
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 3 }}>
+        {t('{{count}} document(s)', { count: documents })}{rejected ? ` · ${t('{{count}} rejeté(s)', { count: rejected })}` : ''}
       </div>
     </div>
   );
@@ -221,174 +146,77 @@ function Avatar({ name, size = 34 }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function WorkflowDashboard() {
-  const { user } = useAuth();
   const { t } = useTranslation();
-  const [allTasks, setAllTasks]         = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState(null);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [period, setPeriod]             = useState('30');
+  const [data, setData]                   = useState(null);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState(null);
+  const [period, setPeriod]               = useState('30');
   const [filterService, setFilterService] = useState('all');
   const [filterType, setFilterType]       = useState('all');
 
-  const loadAllTasks = async () => {
+  const load = async () => {
     try {
       setLoading(true); setError(null);
-      const response = await workflowAPI.getMyTasks('all');
-      const data = response.data?.data || response.data?.tasks || (Array.isArray(response.data) ? response.data : []);
-      setAllTasks(data);
+      const params = { period };
+      if (filterType !== 'all') params.category = filterType;
+      if (filterService !== 'all') params.serviceId = filterService;
+      const res = await workflowAPI.getFlowStats(params);
+      setData(res.data);
     } catch (err) {
-      setError(err.message || t('Erreur lors du chargement'));
+      setError(err.response?.data?.message || err.message || t('Erreur lors du chargement'));
     } finally {
       setLoading(false);
     }
   };
+  useEffect(() => { load(); }, [period, filterService, filterType]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadAllTasks(); }, []);
+  const periodLabel = period === 'all' ? t('tout l’historique') : t('{{count}} derniers jours', { count: period });
+  const hasActiveFilter = filterService !== 'all' || filterType !== 'all';
+  const serviceOptions = (data?.filters?.services || []).map(s => ({ value: s.id, label: s.name }));
+  const typeOptions = (data?.filters?.categories || []).map(c => ({ value: c, label: c }));
+  const totals = data?.totals;
 
-  // ── Derived options for dropdowns ──────────────────────────────────────────
-  const { serviceOptions, typeOptions } = useMemo(() => {
-    const services = new Set();
-    const types    = new Set();
-    allTasks.forEach(task => {
-      const svc  = task.document?.service   || task.document?.department;
-      const type = task.document?.category  || task.document?.type;
-      if (svc)  services.add(svc);
-      if (type) types.add(type);
-    });
-    return {
-      serviceOptions: [...services].sort().map(s => ({ value: s, label: s })),
-      typeOptions:    [...types].sort().map(ty => ({ value: ty, label: ty })),
-    };
-  }, [allTasks]);
-
-  // ── Filtered task set (for Sankey + stats) ─────────────────────────────────
-  const filteredTasks = useMemo(() => {
-    return allTasks.filter(task => {
-      const svc  = task.document?.service || task.document?.department;
-      const type = task.document?.category || task.document?.type;
-      if (filterService !== 'all' && svc  !== filterService) return false;
-      if (filterType    !== 'all' && type !== filterType)    return false;
-      // Période : tâches créées dans les N derniers jours ('all' = tout l'historique)
-      if (period !== 'all') {
-        const created = new Date(task.createdAt || task.document?.createdAt);
-        if (isNaN(created) || Date.now() - created.getTime() > Number(period) * 86400000) return false;
-      }
-      return true;
-    });
-  }, [allTasks, filterService, filterType, period]);
-
-  const periodLabel = period === 'all' ? t('tout') : `${period}j`;
-
-  // Export CSV des tâches affichées (mêmes filtres : période, service, type)
+  // Export CSV : un document par ligne, avec son issue (mêmes filtres que l'écran)
   const exportCSV = () => {
-    const STATUS = { pending: t('En attente'), approved: t('Approuvée'), rejected: t('Rejetée') };
-    const fmt = (v) => v ? new Date(v).toLocaleDateString('fr-FR') : '';
-    const rows = [[t('Document'), t('Type'), t('Service'), t('Validateur'), t('Étape'), t('Statut'), t('Créée le'), t('Traitée le')]];
-    filteredTasks.forEach(task => {
-      const v = task.validator || task.assignedTo;
-      rows.push([
-        task.document?.title || '',
-        task.document?.category || '',
-        task.document?.service?.name || task.document?.service || task.document?.department || '',
-        v ? `${v.firstName || ''} ${v.lastName || ''}`.trim() || v.email : '',
-        task.step ?? '',
-        STATUS[task.status] || task.status || '',
-        fmt(task.createdAt),
-        task.status !== 'pending' ? fmt(task.validatedAt || task.updatedAt) : '',
-      ]);
-    });
-    // ; + BOM : ouverture directe et accents corrects dans Excel (FR)
-    const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const OUT = { approved: t('Validé'), rejected: t('Rejeté'), expired: t('Expiré'), in_progress: t('En cours') };
+    const fmt = (v) => (v ? new Date(v).toLocaleDateString('fr-FR') : '');
+    const rows = [[t('Document'), t('Type'), t('Service'), t('Issue'), t('Étape'), t('Nombre d’étapes'), t('Soumis le'), t('Clôturé le')]];
+    (data?.documents || []).forEach(d => rows.push([d.title || '', d.category || '', d.service || '', OUT[d.outcome] || d.outcome, d.atStep, d.totalSteps, fmt(d.startedAt), fmt(d.closedAt)]));
+    const csv = '﻿' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = `workflow-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `flux-validation-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
 
-  // ── Stats derived from filtered tasks ──────────────────────────────────────
-  const stats = useMemo(() => {
-    const pending  = filteredTasks.filter(task => task.status === 'pending').length;
-    const approved = filteredTasks.filter(task => task.status === 'approved').length;
-    const rejected = filteredTasks.filter(task => task.status === 'rejected').length;
-    const total    = filteredTasks.length;
-
-    // Top validators
-    const valMap = {};
-    filteredTasks.forEach(task => {
-      const v = task.validator || task.assignedTo;
-      if (!v) return;
-      const key = v.id || v._id || v.email;
-      if (!valMap[key]) valMap[key] = { name: `${v.firstName||''} ${v.lastName||''}`.trim() || v.email, role: v.role || t('Validateur'), count: 0 };
-      valMap[key].count++;
-    });
-    const topValidators = Object.values(valMap).sort((a,b) => b.count - a.count).slice(0,4);
-
-    // Bottlenecks
-    const svcMap = {};
-    filteredTasks.forEach(task => {
-      const svc = task.document?.service || task.document?.category || t('Autre');
-      if (!svcMap[svc]) svcMap[svc] = { total: 0, daysSum: 0 };
-      svcMap[svc].total++;
-      const c = task.createdAt ? new Date(task.createdAt) : null;
-      const u = task.updatedAt ? new Date(task.updatedAt) : null;
-      if (c && u) svcMap[svc].daysSum += (u - c) / 86400000;
-    });
-    const bottlenecks = Object.entries(svcMap)
-      .map(([k, v]) => ({ label: k, avg: v.total > 0 ? v.daysSum / v.total : 0 }))
-      .sort((a,b) => b.avg - a.avg).slice(0, 5);
-
-    // Avg days
-    let dSum = 0, dCnt = 0;
-    filteredTasks.forEach(task => {
-      if (task.createdAt && task.updatedAt) { dSum += (new Date(task.updatedAt) - new Date(task.createdAt)) / 86400000; dCnt++; }
-    });
-    const avgDays = dCnt > 0 ? (dSum / dCnt).toFixed(1) : '—';
-
-    return { pending, approved, rejected, total, topValidators, bottlenecks, avgDays };
-  }, [filteredTasks, t]);
-
-  const handleValidate = async ({ comment, realisePar }) => {
-    if (!selectedTask) return;
-    try {
-      await workflowAPI.validateTask(selectedTask.id, { status: 'approved', comment, realisePar });
-      setSelectedTask(null); loadAllTasks(); toast.success(t('Document approuvé !'));
-    } catch (err) { toast.error(err.response?.data?.message || t('Erreur lors de la validation')); }
-  };
-
-  const handleReject = async ({ comment }) => {
-    if (!comment?.trim()) { toast(t('Commentaire obligatoire pour rejeter')); return; }
-    if (!selectedTask) return;
-    try {
-      await workflowAPI.validateTask(selectedTask.id, { status: 'rejected', comment });
-      setSelectedTask(null); loadAllTasks(); toast(t('Document rejeté'));
-    } catch (err) { toast.error(err.response?.data?.message || t('Erreur lors du rejet')); }
-  };
-
-  if (loading) return (
+  if (loading && !data) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh' }}>
       <Loader size={24} color="var(--fg-muted)" className="animate-spin" />
     </div>
   );
-  if (error) return (
+  if (error && !data) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh', gap:8, color:'var(--danger)' }}>
       <AlertCircle size={18} /> {error}
-      <button onClick={loadAllTasks} style={{ marginLeft:8, padding:'4px 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--danger)', background:'transparent', color:'var(--danger)', fontSize:12, cursor:'pointer' }}>{t('Réessayer')}</button>
+      <button onClick={load} style={{ marginLeft:8, padding:'4px 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--danger)', background:'transparent', color:'var(--danger)', fontSize:12, cursor:'pointer' }}>{t('Réessayer')}</button>
     </div>
   );
 
-  const urgentCount = allTasks.filter(t => t.status === 'pending' && t.priority === 'urgent').length;
-  const hasActiveFilter = filterService !== 'all' || filterType !== 'all';
+  const blocked = (totals?.rejected || 0) + (totals?.expired || 0);
+  const maxBottleneck = Math.max(1, ...(data?.bottlenecks || []).map(b => b.avgStepHours || 0));
 
   return (
     <div className="stats-page animate-pageFade">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ── En-tête ───────────────────────────────────────────────────────── */}
       <div className="stats-header">
         <div>
           <h1 style={{ fontSize:22, fontWeight:700, color:'var(--fg)', margin:'0 0 4px', letterSpacing:'-0.3px' }}>{t('Workflow')}</h1>
-          <div style={{ fontSize:13, color:'var(--fg-muted)' }}>{t("Vue d'ensemble du flux de validation et goulots d'étranglement")}</div>
+          <div style={{ fontSize:13, color:'var(--fg-muted)' }}>
+            {data?.scope === 'organisation'
+              ? t('Circuits de validation de toute l’organisation')
+              : t('Circuits de validation des documents auxquels vous avez accès')}
+          </div>
         </div>
         <div className="stats-actions">
           <div style={{ position:'relative' }}>
@@ -399,133 +227,93 @@ export default function WorkflowDashboard() {
             </select>
             <ChevronDown size={14} color="var(--fg-muted)" style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
           </div>
-          <button onClick={exportCSV} disabled={filteredTasks.length === 0}
-            style={{ display:'inline-flex', alignItems:'center', gap:6, height:34, padding:'0 14px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor: filteredTasks.length ? 'pointer' : 'not-allowed', opacity: filteredTasks.length ? 1 : 0.5 }}>
+          <button onClick={exportCSV} disabled={!data?.documents?.length}
+            style={{ display:'inline-flex', alignItems:'center', gap:6, height:34, padding:'0 14px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg)', fontSize:13, cursor: data?.documents?.length ? 'pointer' : 'not-allowed', opacity: data?.documents?.length ? 1 : 0.5 }}>
             <Download size={14} /> {t('Exporter')}
           </button>
         </div>
       </div>
 
-      {/* ── KPI cards ──────────────────────────────────────────────────────── */}
+      {/* ── Indicateurs ───────────────────────────────────────────────────── */}
       <div className="stats-kpis">
-        <StatCard label={t('Entrées')} sublabel={periodLabel}  value={stats.total}    delta={null} deltaLabel={null} />
-        <StatCard label={t('En attente')}                        value={stats.pending}  delta={null} deltaLabel={null} urgent={urgentCount > 0 ? t('{{count}} urgente(s)', { count: urgentCount }) : null} />
-        <StatCard label={t('Approuvées')}                        value={stats.approved} delta={null} deltaLabel={null} />
-        <StatCard label={t('Délai moyen')}                       value={stats.avgDays !== '—' ? `${stats.avgDays}j` : '—'} delta={null} deltaLabel={null} />
+        <StatCard label={t('Documents soumis')} sublabel={periodLabel} value={totals?.documents ?? 0} delta={null} deltaLabel={null} />
+        <StatCard label={t('Validés')} value={totals?.approved ?? 0} delta={null} deltaLabel={null}
+          urgent={totals?.approvalRate != null ? t('{{p}} % des documents', { p: Math.round(totals.approvalRate) }) : null} urgentColor="var(--success)" />
+        <StatCard label={t('En cours')} value={totals?.in_progress ?? 0} delta={null} deltaLabel={null}
+          urgent={blocked ? t('{{count}} rejeté(s) ou expiré(s)', { count: blocked }) : null} />
+        <StatCard label={t('Durée moyenne d’un circuit')} value={formatHours(totals?.avgCycleHours, t)} delta={null} deltaLabel={null}
+          urgent={t('de la soumission à la validation')} urgentColor="var(--fg-subtle)" />
       </div>
 
-      {/* ── Sankey card ────────────────────────────────────────────────────── */}
-      <div className="ged-card stats-insight" style={{ marginBottom:20 }}>
-        <div className="stats-header" style={{ marginBottom:16, paddingTop:0 }}>
+      {/* ── Flux de validation ────────────────────────────────────────────── */}
+      <div className="ged-card stats-insight" style={{ marginBottom:20, opacity: loading ? 0.6 : 1, transition: 'opacity .2s' }}>
+        <div className="stats-header" style={{ marginBottom:18, paddingTop:0 }}>
           <div>
             <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)', marginBottom:2 }}>{t('Flux de validation')}</div>
-            <div style={{ fontSize:12, color:'var(--fg-muted)' }}>{t('Entrées → étapes → sorties')}</div>
+            <div style={{ fontSize:12, color:'var(--fg-muted)' }}>
+              {t('Parcours des documents à travers les étapes de leur circuit, jusqu’à leur issue')}
+            </div>
           </div>
           <div className="stats-actions">
             {hasActiveFilter && (
               <button
                 onClick={() => { setFilterService('all'); setFilterType('all'); }}
-                style={{ display:'inline-flex', alignItems:'center', gap:4, height:30, padding:'0 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--danger)', background:'var(--danger-soft)', color:'var(--danger)', fontSize:12, cursor:'pointer' }}
+                style={{ display:'inline-flex', alignItems:'center', gap:4, height:30, padding:'0 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface)', color:'var(--fg-muted)', fontSize:12, cursor:'pointer' }}
               >
                 <XIcon size={12} /> {t('Réinitialiser')}
               </button>
             )}
-            <FilterDropdown
-              label={t('Tous services')}
-              options={serviceOptions}
-              value={filterService}
-              onChange={setFilterService}
-            />
-            <FilterDropdown
-              label={t('Tous types')}
-              options={typeOptions}
-              value={filterType}
-              onChange={setFilterType}
-            />
+            {serviceOptions.length > 0 && (
+              <FilterDropdown label={t('Tous services')} options={serviceOptions} value={filterService} onChange={setFilterService} />
+            )}
+            <FilterDropdown label={t('Tous types')} options={typeOptions} value={filterType} onChange={setFilterType} />
           </div>
         </div>
 
-        {/* Active filter chips */}
-        {hasActiveFilter && (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
-            {filterService !== 'all' && (
-              <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:'var(--radius-full)', background:'var(--brand-soft)', color:'var(--brand)', fontSize:11, fontWeight:500 }}>
-                {t('Service')} : {filterService}
-                <XIcon size={10} style={{ cursor:'pointer' }} onClick={() => setFilterService('all')} />
-              </span>
-            )}
-            {filterType !== 'all' && (
-              <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:'var(--radius-full)', background:'var(--brand-soft)', color:'var(--brand)', fontSize:11, fontWeight:500 }}>
-                {t('Type')} : {filterType}
-                <XIcon size={10} style={{ cursor:'pointer' }} onClick={() => setFilterType('all')} />
-              </span>
-            )}
-          </div>
-        )}
-
-        <div style={{ overflowX:'auto' }}>
-          <div style={{ minWidth: 700 }}>
-            <SankeyFlow
-              total={stats.total}
-              approved={stats.approved}
-              pending={stats.pending}
-              rejected={stats.rejected}
-            />
-          </div>
-        </div>
+        <ValidationFlowChart stages={data?.stages || []} totals={totals} />
       </div>
 
-      {/* ── Bottom row ─────────────────────────────────────────────────────── */}
+      {/* ── Bas de page ───────────────────────────────────────────────────── */}
       <div className="stats-2col" style={{ marginBottom:0 }}>
 
         {/* Goulots d'étranglement */}
         <div className="ged-card stats-insight">
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
+          <div style={{ marginBottom:16 }}>
             <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>{t("Goulots d'étranglement")}</div>
+            <div style={{ fontSize:12, color:'var(--fg-muted)', marginTop:2 }}>{t('Temps moyen de traitement d’une étape, par type de document')}</div>
           </div>
-          {stats.bottlenecks.length > 0 ? (
-            stats.bottlenecks.map((b,i) => (
-              <BottleneckBar key={i} label={b.label} value={b.avg} maxValue={Math.max(...stats.bottlenecks.map(x=>x.avg), 1)} />
+          {data?.bottlenecks?.length ? (
+            data.bottlenecks.map(b => (
+              <BottleneckBar key={b.category} label={b.category} hours={b.avgStepHours} maxHours={maxBottleneck} documents={b.documents} rejected={b.rejected} />
             ))
           ) : (
             <div style={{ textAlign:'center', color:'var(--fg-muted)', fontSize:13, padding:'24px 0' }}>{t('Aucune donnée sur la période')}</div>
           )}
         </div>
 
-        {/* Top valideurs */}
+        {/* Valideurs les plus sollicités */}
         <div className="ged-card stats-insight">
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-            <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>
-              {t('Top valideurs')} <span style={{ fontWeight:400, color:'var(--fg-muted)' }}>· {periodLabel}</span>
-            </div>
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:15, fontWeight:700, color:'var(--fg)' }}>{t('Valideurs les plus sollicités')}</div>
+            <div style={{ fontSize:12, color:'var(--fg-muted)', marginTop:2 }}>{t('Décisions prises (validations et rejets) · délai moyen de réponse')}</div>
           </div>
-          {stats.topValidators.length === 0 ? (
+          {!data?.topValidators?.length ? (
             <div style={{ textAlign:'center', color:'var(--fg-muted)', fontSize:13, padding:'24px 0' }}>{t('Aucun valideur sur la période')}</div>
-          ) : stats.topValidators.map((v, i, arr) => (
-            <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom: i < arr.length-1 ? '1px solid var(--border)' : 'none' }}>
-              <Avatar name={v.name} size={36} />
+          ) : data.topValidators.map((v, i, arr) => (
+            <div key={v.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom: i < arr.length-1 ? '1px solid var(--border)' : 'none' }}>
+              <Avatar name={v.name} size={34} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:600, color:'var(--fg)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{v.name}</div>
-                <div style={{ fontSize:11, color:'var(--fg-muted)', textTransform:'capitalize' }}>{v.role}</div>
+                <div style={{ fontSize:11.5, color:'var(--fg-muted)' }}>{t('Répond en {{d}} en moyenne', { d: formatHours(v.avgHours, t) })}</div>
               </div>
               <div style={{ textAlign:'right', flexShrink:0 }}>
-                <span style={{ fontSize:22, fontWeight:700, color:'var(--fg)', letterSpacing:'-0.5px' }}>{v.count}</span>
-                <span style={{ fontSize:12, color:'var(--fg-muted)', marginLeft:3 }}>{t('docs')}</span>
+                <span style={{ fontSize:20, fontWeight:700, color:'var(--fg)', letterSpacing:'-0.5px' }}>{v.decisions}</span>
+                <span style={{ fontSize:12, color:'var(--fg-muted)', marginLeft:3 }}>{t('décisions')}</span>
               </div>
             </div>
           ))}
         </div>
       </div>
-
-      {selectedTask && (
-        <DocumentViewer
-          document={selectedTask.document}
-          onClose={() => setSelectedTask(null)}
-          onValidate={handleValidate}
-          onReject={handleReject}
-          showActions={selectedTask.status === 'pending'}
-        />
-      )}
     </div>
   );
 }
