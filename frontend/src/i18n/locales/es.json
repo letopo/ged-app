@@ -2548,5 +2548,13 @@
   "Écart (j)": "Diferencia (d)",
   "Étape {{s}}/{{n}} · {{who}}": "Etapa {{s}}/{{n}} · {{who}}",
   "État GED": "Estado GED",
-  "État Sage": "Estado Sage"
+  "État Sage": "Estado Sage",
+  "Par poste": "Por puesto",
+  "Poste du validateur": "Puesto del validador",
+  "— Choisir un poste —": "— Elegir un puesto —",
+  "Titulaire(s) : {{names}}": "Titular(es): {{names}}",
+  "Aucun titulaire : attribuez ce poste dans Postes & Fonctions.": "Sin titular: asigne este puesto en Puestos y funciones.",
+  "Titulaire à solliciter en priorité": "Titular a solicitar primero",
+  "Le premier titulaire": "El primer titular",
+  "L'étape \"{{name}}\" nécessite un poste": "La etapa \"{{name}}\" necesita un puesto"
 }

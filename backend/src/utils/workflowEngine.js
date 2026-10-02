@@ -3,6 +3,7 @@
 // (ex: job de synchro Sage) — extrait de workflowController.createWorkflow.
 
 import { Workflow, User, NotificationPreference, WorkflowTemplate } from '../models/index.js';
+import { getPosteHolders } from './posteResolver.js';
 import { sendNotificationEmail } from './mailer.js';
 import { emitNewTaskNotification, isUserConnected } from './socketManager.js';
 import { sendNewTaskPushNotification } from '../services/pushNotificationService.js';
@@ -65,12 +66,21 @@ export async function resolveValidatorIdsFromTemplate(workflowTemplateId, tenant
   if (!template) {
     throw new Error('Modèle de workflow introuvable.');
   }
-  const steps = (template.validators || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const steps = [...(template.validators || [])].sort((a, b) => (a.order ?? a.step ?? 0) - (b.order ?? b.step ?? 0));
   const resolved = [];
   for (const step of steps) {
-    if (step.validatorType === 'user' && step.userId) {
+    // Type implicite pour les anciens modèles ({ label, userId } sans validatorType)
+    const type = step.validatorType || (step.posteCode ? 'poste' : step.userId ? 'user' : step.role ? 'role' : null);
+    if (type === 'poste' && step.posteCode) {
+      // Titulaire actuel du poste (la personne préférée si elle l'occupe toujours) :
+      // le modèle reste valable quand quelqu'un change de poste
+      const holders = await getPosteHolders(step.posteCode);
+      const preferred = step.userId && holders.find(h => h.id === step.userId);
+      const holder = preferred || holders[0];
+      if (holder) resolved.push(holder.id);
+    } else if (type === 'user' && step.userId) {
       resolved.push(step.userId);
-    } else if (step.validatorType === 'role' && step.role) {
+    } else if (type === 'role' && step.role) {
       try {
         const u = await User.findOne({ where: { role: step.role, tenantId }, attributes: ['id'] });
         if (u) resolved.push(u.id);
@@ -119,6 +129,17 @@ export async function createWorkflowFromTemplate(document, workflowTemplateId, t
   const validatorIds = await resolveValidatorIdsFromTemplate(workflowTemplateId, tenantId);
   if (validatorIds.length === 0) {
     throw new Error('Aucun validateur résolu depuis le modèle.');
+  }
+  // Toutes les étapes doivent avoir un validateur : sinon les signatures se
+  // décaleraient d'un cadre (cadre p ↔ étape p sur les documents générés)
+  const template = await WorkflowTemplate.findByPk(workflowTemplateId, { attributes: ['name', 'validators'] });
+  const steps = template?.validators || [];
+  if (validatorIds.length < steps.length) {
+    const missing = [];
+    for (const st of steps) {
+      if ((st.validatorType === 'poste' || st.posteCode) && st.posteCode && !(await getPosteHolders(st.posteCode)).length) missing.push(st.name || st.posteCode);
+    }
+    throw new Error(`Modèle « ${template.name} » : ${missing.length ? `poste(s) sans titulaire : ${missing.join(', ')}` : 'une étape n’a pas de validateur'}. Corrigez dans Postes & Fonctions ou Modèles workflow.`);
   }
   return createWorkflowForDocument(document, validatorIds, tenantId);
 }

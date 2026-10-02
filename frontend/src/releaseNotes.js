@@ -388,6 +388,18 @@ const RELEASE_NOTES = [
     ],
     access: (user) => user?.role === 'superadmin' || !!user?.canSeeSageBl,
   },
+  {
+    id: '2026-10-02-modeles-par-poste',
+    date: '2026-10-02',
+    target: '/workflow-templates',
+    title: 'Modèles de workflow : étapes « par poste »',
+    items: [
+      'Une étape peut désormais désigner un poste (Service Facturation, DG, CCG…) : le document va à la personne qui occupe le poste, même si elle change. Si plusieurs personnes l’occupent, choisissez celle à solliciter en priorité.',
+      'Nouveaux modèles « Circuit Facture PHP » (Service Facturation → DG → CCG) et « Circuit Relevé Factures PHP » (Service Facturation → DG), modifiables ici.',
+      'Si un poste du circuit n’a pas de titulaire, le circuit n’est pas lancé et un message l’indique (pas de signatures décalées).',
+    ],
+    access: isAdmin,
+  },
 ];
 
 export default RELEASE_NOTES;
