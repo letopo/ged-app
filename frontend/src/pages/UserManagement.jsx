@@ -62,6 +62,41 @@ const thStyle    = { padding: '10px 14px', fontSize: 11, fontWeight: 600, color:
 const tdStyle    = { padding: '11px 14px', verticalAlign: 'middle' };
 
 // ── Modal wrapper ─────────────────────────────────────────────────────────────
+// Aperçu à l'échelle d'un cachet : page A4 réduite (1 mm = 1 px × zoom) avec un
+// cadre de signature type (formulaire à 3 signataires, 61,6 × 32,5 mm) ; le
+// cachet y est dessiné à sa largeur réelle, hauteur selon le ratio de l'image,
+// centré sur le cadre — comme sur le PDF validé (backend utils/stampSize.js).
+const PREVIEW_ZOOM = 1.4; // px par mm
+function StampScalePreview({ src, widthMm, heightMm }) {
+  const { t } = useTranslation();
+  const [ratio, setRatio] = useState(null);
+  const w = Number(widthMm) || 0;
+  const realH = ratio ? w * ratio : null;
+  const z = PREVIEW_ZOOM;
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>
+        {t('Aperçu à l’échelle (bas de page A4)')}
+      </div>
+      <div style={{ width: 210 * z, maxWidth: '100%', height: 70 * z, background: '#fff', border: '1px solid var(--border)', borderRadius: 4, position: 'relative', overflow: 'hidden', margin: '0 auto' }}>
+        {/* cadre de signature type, centré en bas de page */}
+        <div style={{ position: 'absolute', left: (210 - 61.6) / 2 * z, top: 20 * z, width: 61.6 * z, height: 32.5 * z, border: '1px dashed #94a3b8', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {src && w > 0 && (
+            <img src={src} alt="" onLoad={e => setRatio(e.currentTarget.naturalHeight / e.currentTarget.naturalWidth)}
+              style={{ width: w * z, maxWidth: 'none', height: 'auto', flexShrink: 0, mixBlendMode: 'multiply' }} />
+          )}
+        </div>
+      </div>
+      {realH != null && (
+        <div style={{ fontSize: 11.5, color: Math.abs(realH - Number(heightMm)) > 2 ? 'var(--warning)' : 'var(--fg-muted)', marginTop: 6, lineHeight: 1.5 }}>
+          {t('Posé à {{w}} × {{h}} mm (hauteur selon les proportions de l’image).', { w: w.toFixed(1).replace('.0', ''), h: realH.toFixed(1) })}
+          {Math.abs(realH - Number(heightMm)) > 2 && ' ' + t('L’image n’a pas les proportions du tampon ({{w}} × {{h}} mm) : recadrez-la sans marges pour un rendu exact.', { w: widthMm, h: heightMm })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Modal({ title, onClose, children, footer }) {
   return ReactDOM.createPortal(
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}>
@@ -223,6 +258,15 @@ const UserManagement = () => {
   const [uploadType, setUploadType]         = useState('');
   const [selectedFile, setSelectedFile]     = useState(null);
   const [uploading, setUploading]           = useState(false);
+  const [stampSize, setStampSize]           = useState({ w: '58', h: '22' }); // dimensions du tampon (mm)
+  const [filePreview, setFilePreview]       = useState(null);
+  useEffect(() => {
+    if (!selectedFile) { setFilePreview(null); return undefined; }
+    const url = URL.createObjectURL(selectedFile);
+    setFilePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
+  const stampMmValid = (v) => { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) && n >= 10 && n <= 150; };
 
   // service map: userId -> serviceName
   const [userServiceMap, setUserServiceMap] = useState({});
@@ -326,9 +370,27 @@ const UserManagement = () => {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !userToUpload) return;
+    if (!userToUpload) return;
+    const isStamp = uploadType === 'stamp';
+    if (isStamp && (!stampMmValid(stampSize.w) || !stampMmValid(stampSize.h))) return;
+    // Cachet existant, sans nouvelle image : on n'enregistre que les dimensions
+    if (!selectedFile) {
+      if (!isStamp || !userToUpload.stampPath) return;
+      setUploading(true);
+      try {
+        await usersAPI.updateStampSize(userToUpload.id, { stampWidthMm: stampSize.w.replace(',', '.'), stampHeightMm: stampSize.h.replace(',', '.') });
+        toast.success(t('Dimensions du cachet enregistrées.'));
+        setUploadOpen(false); setUserToUpload(null); setUploadType(''); loadAll();
+      } catch (err) { toast.error(err.response?.data?.message || t('Erreur')); }
+      finally { setUploading(false); }
+      return;
+    }
     const fd = new FormData();
     fd.append(uploadType, selectedFile);
+    if (isStamp) {
+      fd.append('stampWidthMm', stampSize.w.replace(',', '.'));
+      fd.append('stampHeightMm', stampSize.h.replace(',', '.'));
+    }
     setUploading(true);
     try {
       if (uploadType === 'signature') await usersAPI.uploadSignature(userToUpload.id, fd);
@@ -525,7 +587,7 @@ const UserManagement = () => {
                       onReset2FA={() => handleReset2FA(u)}
                       onDelete={() => handleDelete(u)}
                       onUploadSig={() => { setUserToUpload(u); setUploadType('signature'); setSelectedFile(null); setUploadOpen(true); }}
-                      onUploadStamp={() => { setUserToUpload(u); setUploadType('stamp'); setSelectedFile(null); setUploadOpen(true); }}
+                      onUploadStamp={() => { setUserToUpload(u); setUploadType('stamp'); setSelectedFile(null); setStampSize({ w: String(u.stampWidthMm ?? 58), h: String(u.stampHeightMm ?? 22) }); setUploadOpen(true); }}
                     />
                   </td>
                 </tr>
@@ -545,10 +607,17 @@ const UserManagement = () => {
         <Modal title={uploadType === 'signature' ? t('Uploader une signature') : t('Uploader un cachet')} onClose={() => setUploadOpen(false)}
           footer={<>
             <button onClick={() => setUploadOpen(false)} style={btnOutline}>{t('Annuler')}</button>
-            <button onClick={handleUpload} disabled={!selectedFile || uploading} style={{ ...btnPrimary, opacity: (!selectedFile || uploading) ? 0.5 : 1 }}>
-              {uploading && <Loader size={13} className="animate-spin" />}
-              {uploading ? t('Upload…') : t('Uploader')}
-            </button>
+            {(() => {
+              const isStamp = uploadType === 'stamp';
+              const sizeOnly = isStamp && !selectedFile && userToUpload?.stampPath;
+              const disabled = uploading || (!selectedFile && !sizeOnly) || (isStamp && (!stampMmValid(stampSize.w) || !stampMmValid(stampSize.h)));
+              return (
+                <button onClick={handleUpload} disabled={disabled} style={{ ...btnPrimary, opacity: disabled ? 0.5 : 1 }}>
+                  {uploading && <Loader size={13} className="animate-spin" />}
+                  {uploading ? t('Upload…') : sizeOnly ? t('Enregistrer les dimensions') : t('Uploader')}
+                </button>
+              );
+            })()}
           </>}>
           <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 14 }}>
             {t('Pour :')} <strong style={{ color: 'var(--fg)' }}>{userToUpload?.firstName} {userToUpload?.lastName}</strong>
@@ -557,6 +626,30 @@ const UserManagement = () => {
             onChange={e => setSelectedFile(e.target.files[0])}
             style={{ ...inputStyle, height: 'auto', padding: '8px 10px', cursor: 'pointer', marginBottom: 0 }} />
           {selectedFile && <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 6 }}>{selectedFile.name}</div>}
+          {uploadType === 'stamp' && (
+            <>
+              <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 8 }}>
+                {t('PNG à fond transparent recommandé (le JPEG n’a pas de transparence). Haute résolution acceptée (jusqu’à 5 Mo).')}
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                {[['w', t('Largeur du tampon')], ['h', t('Hauteur du tampon')]].map(([k, lbl]) => (
+                  <div key={k} style={{ flex: 1 }}>
+                    <label style={labelStyle}>{lbl} (mm)</label>
+                    <input type="number" inputMode="decimal" min={10} max={150} step={0.5}
+                      value={stampSize[k]} onChange={e => setStampSize(v => ({ ...v, [k]: e.target.value }))}
+                      style={{ ...inputStyle, marginBottom: 0, borderColor: stampMmValid(stampSize[k]) ? 'var(--border)' : 'var(--danger)' }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 6 }}>
+                {t('Format standard : 58 × 22 mm. Le cachet est apposé à cette largeur exacte ; la hauteur suit les proportions de l’image.')}
+              </div>
+              <StampScalePreview
+                src={filePreview || (userToUpload?.stampPath ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/${userToUpload.stampPath}` : null)}
+                widthMm={stampMmValid(stampSize.w) ? Number(String(stampSize.w).replace(',', '.')) : 0}
+                heightMm={Number(String(stampSize.h).replace(',', '.'))} />
+            </>
+          )}
         </Modal>
       )}
 

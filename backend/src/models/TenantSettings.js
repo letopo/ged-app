@@ -12,6 +12,7 @@ const TenantSettings = sequelize.define('TenantSettings', {
   sessionIdleMinutes:   { type: DataTypes.INTEGER, allowNull: false, defaultValue: 30 },
   sessionMaxDays:       { type: DataTypes.INTEGER, allowNull: false, defaultValue: 7 },
   maxUploadMb:          { type: DataTypes.INTEGER, allowNull: false, defaultValue: 50 },
+  stampRealSize:        { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
   updatedBy:            { type: DataTypes.UUID, allowNull: true },
 }, {
   tableName: 'tenant_settings',

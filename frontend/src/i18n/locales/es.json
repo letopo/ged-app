@@ -2380,5 +2380,22 @@
   "E-mail": "Correo",
   "Destinataire": "Destinatario",
   "Réussi": "Exitoso",
-  "Champs modifiés": "Campos modificados"
+  "Champs modifiés": "Campos modificados",
+  "Signatures": "Firmas",
+  "Apposer les cachets à leur taille réelle": "Aplicar los sellos a su tamaño real",
+  "Chaque cachet est posé à la largeur de son tampon (58 mm par défaut, réglable par utilisateur dans Utilisateurs › Uploader cachet), centré sur le cadre de signature. Désactivé : ancien calcul, cachet réduit au cadre.": "Cada sello se aplica al ancho de su tampón (58 mm por defecto, ajustable por usuario en Usuarios › Subir sello), centrado en el recuadro de firma. Desactivado: cálculo anterior, sello reducido al recuadro.",
+  "S’applique aux validations suivantes ; les documents déjà signés ne changent pas.": "Se aplica a las validaciones siguientes; los documentos ya firmados no cambian.",
+  "Par défaut : {{value}}.": "Por defecto: {{value}}.",
+  "activé": "activado",
+  "désactivé": "desactivado",
+  "Aperçu à l’échelle (bas de page A4)": "Vista previa a escala (parte inferior de una página A4)",
+  "Posé à {{w}} × {{h}} mm (hauteur selon les proportions de l’image).": "Aplicado a {{w}} × {{h}} mm (altura según las proporciones de la imagen).",
+  "L’image n’a pas les proportions du tampon ({{w}} × {{h}} mm) : recadrez-la sans marges pour un rendu exact.": "La imagen no tiene las proporciones del tampón ({{w}} × {{h}} mm): recórtela sin márgenes para un resultado exacto.",
+  "Dimensions du cachet enregistrées.": "Dimensiones del sello guardadas.",
+  "Enregistrer les dimensions": "Guardar dimensiones",
+  "PNG à fond transparent recommandé (le JPEG n’a pas de transparence). Haute résolution acceptée (jusqu’à 5 Mo).": "Se recomienda PNG con fondo transparente (el JPEG no tiene transparencia). Se acepta alta resolución (hasta 5 MB).",
+  "Largeur du tampon": "Ancho del tampón",
+  "Hauteur du tampon": "Alto del tampón",
+  "Format standard : 58 × 22 mm. Le cachet est apposé à cette largeur exacte ; la hauteur suit les proportions de l’image.": "Formato estándar: 58 × 22 mm. El sello se aplica a este ancho exacto; la altura sigue las proporciones de la imagen.",
+  "Cachet modifié": "Sello modificado"
 }

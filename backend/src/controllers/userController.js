@@ -5,6 +5,7 @@ import ServiceMember from '../models/ServiceMember.js';
 import Poste from '../models/Poste.js';
 import AuditLog from '../models/AuditLog.js';
 import { Op } from 'sequelize';
+import { parseStampMm, STAMP_MM_MIN, STAMP_MM_MAX } from '../utils/stampSize.js';
 import { emitRightsChanged } from '../utils/socketManager.js';
 
 // @desc    Récupérer tous les utilisateurs
@@ -239,14 +240,44 @@ export const uploadStamp = async (req, res, next) => {
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'Aucun fichier image n\'a été envoyé' });
       }
-  
+      // Dimensions physiques du tampon (facultatives : sinon on garde les actuelles)
+      const widthMm = parseStampMm(req.body?.stampWidthMm);
+      const heightMm = parseStampMm(req.body?.stampHeightMm);
+      if (widthMm === null || heightMm === null) {
+        return res.status(400).json({ success: false, message: `Dimensions du cachet : entre ${STAMP_MM_MIN} et ${STAMP_MM_MAX} mm.` });
+      }
+
       user.stampPath = req.file.path.replace(/\\/g, "/");
+      if (widthMm !== undefined) user.stampWidthMm = widthMm;
+      if (heightMm !== undefined) user.stampHeightMm = heightMm;
       await user.save();
-  
+      await AuditLog.log(req, 'STAMP_UPDATED', 'user', user.id, { stampWidthMm: user.stampWidthMm, stampHeightMm: user.stampHeightMm, image: true });
+
       res.json({ success: true, message: 'Image du cachet mise à jour avec succès.', user });
     } catch (error) {
       next(error);
     }
+};
+
+// @desc    Modifier les dimensions physiques du cachet (sans changer l'image)
+// @route   PUT /api/users/:id/stamp-size
+// @access  Private (Admin)
+export const updateStampSize = async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    const widthMm = parseStampMm(req.body?.stampWidthMm);
+    const heightMm = parseStampMm(req.body?.stampHeightMm);
+    if (!widthMm || !heightMm) {
+      return res.status(400).json({ success: false, message: `Dimensions du cachet : entre ${STAMP_MM_MIN} et ${STAMP_MM_MAX} mm.` });
+    }
+    const before = { stampWidthMm: user.stampWidthMm, stampHeightMm: user.stampHeightMm };
+    await user.update({ stampWidthMm: widthMm, stampHeightMm: heightMm });
+    await AuditLog.log(req, 'STAMP_UPDATED', 'user', user.id, { avant: before, après: { stampWidthMm: widthMm, stampHeightMm: heightMm } });
+    res.json({ success: true, message: 'Dimensions du cachet enregistrées.', stampWidthMm: user.stampWidthMm, stampHeightMm: user.stampHeightMm });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // @desc    Récupérer le service de l'utilisateur connecté

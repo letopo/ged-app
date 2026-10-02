@@ -26,7 +26,11 @@ const FIELDS = [
     help: 'Même en cas d’activité, l’utilisateur doit se reconnecter après ce délai.', when: 'À la prochaine connexion de chaque utilisateur.' },
   { group: 'Fichiers', key: 'maxUploadMb', label: 'Taille maximale d’un fichier envoyé', unit: 'Mo',
     help: 'Documents, pièces jointes, factures, cartes Trello.', when: 'Immédiat.' },
+  { group: 'Signatures', key: 'stampRealSize', boolean: true, label: 'Apposer les cachets à leur taille réelle',
+    help: 'Chaque cachet est posé à la largeur de son tampon (58 mm par défaut, réglable par utilisateur dans Utilisateurs › Uploader cachet), centré sur le cadre de signature. Désactivé : ancien calcul, cachet réduit au cadre.',
+    when: 'S’applique aux validations suivantes ; les documents déjà signés ne changent pas.' },
 ];
+const fromForm = (f, v) => (f.boolean ? v === 'true' : Number(v));
 
 export default function TenantSettingsPanel() {
   const { t } = useTranslation();
@@ -48,6 +52,7 @@ export default function TenantSettingsPanel() {
   if (!limits) return <div style={{ padding: 30, display: 'flex', justifyContent: 'center' }}><Loader size={20} className="animate-spin" color="var(--brand)" /></div>;
 
   const invalid = (key) => {
+    if (limits[key]?.boolean) return false;
     const n = Number(form[key]);
     return !Number.isInteger(n) || n < limits[key].min || n > limits[key].max;
   };
@@ -59,7 +64,7 @@ export default function TenantSettingsPanel() {
     if (hasError) return;
     setSaving(true);
     try {
-      const res = await tenantSettingsAPI.save(Object.fromEntries(FIELDS.map(f => [f.key, Number(form[f.key])])));
+      const res = await tenantSettingsAPI.save(Object.fromEntries(FIELDS.map(f => [f.key, fromForm(f, form[f.key])])));
       apply(res.data);
       setTenantSettings(res.data.settings); // Accueil, Upload, session : sans recharger la page
       toast.success(t('Réglages enregistrés.'));
@@ -83,7 +88,33 @@ export default function TenantSettingsPanel() {
         lastGroup = f.group;
         const { min, max } = limits[f.key];
         const bad = invalid(f.key);
-        const isDefault = Number(form[f.key]) === TENANT_SETTINGS_DEFAULTS[f.key];
+        const isDefault = fromForm(f, form[f.key]) === TENANT_SETTINGS_DEFAULTS[f.key];
+        if (f.boolean) {
+          const on = form[f.key] === 'true';
+          return (
+            <React.Fragment key={f.key}>
+              {header && (
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.6px', margin: '20px 0 10px' }}>
+                  {t(f.group)}
+                </div>
+              )}
+              <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', padding: '14px 16px', marginBottom: 10, background: 'var(--surface)' }}>
+                <label htmlFor={`ts-${f.key}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{t(f.label)}</span>
+                  <input id={`ts-${f.key}`} type="checkbox" role="switch" checked={on}
+                    onChange={e => setForm(v => ({ ...v, [f.key]: String(e.target.checked) }))}
+                    style={{ width: 20, height: 20, accentColor: 'var(--brand)', cursor: 'pointer' }} />
+                </label>
+                <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 8, lineHeight: 1.5 }}>
+                  {t(f.help)}{' '}
+                  <span style={{ color: 'var(--fg-subtle)' }}>
+                    {t('Par défaut : {{value}}.', { value: TENANT_SETTINGS_DEFAULTS[f.key] ? t('activé') : t('désactivé') })} {t(f.when)}
+                  </span>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        }
         return (
           <React.Fragment key={f.key}>
             {header && (

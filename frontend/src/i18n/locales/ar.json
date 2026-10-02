@@ -2380,5 +2380,22 @@
   "E-mail": "البريد الإلكتروني",
   "Destinataire": "المستلم",
   "Réussi": "ناجح",
-  "Champs modifiés": "الحقول المعدّلة"
+  "Champs modifiés": "الحقول المعدّلة",
+  "Signatures": "التوقيعات",
+  "Apposer les cachets à leur taille réelle": "وضع الأختام بحجمها الحقيقي",
+  "Chaque cachet est posé à la largeur de son tampon (58 mm par défaut, réglable par utilisateur dans Utilisateurs › Uploader cachet), centré sur le cadre de signature. Désactivé : ancien calcul, cachet réduit au cadre.": "يوضع كل ختم بعرض ختمه الفعلي (58 مم افتراضيًا، قابل للتعديل لكل مستخدم في المستخدمون › رفع الختم)، في وسط إطار التوقيع. عند التعطيل: الحساب السابق، ختم مصغّر داخل الإطار.",
+  "S’applique aux validations suivantes ; les documents déjà signés ne changent pas.": "ينطبق على عمليات المصادقة اللاحقة؛ لا تتغير المستندات الموقّعة مسبقًا.",
+  "Par défaut : {{value}}.": "الافتراضي: {{value}}.",
+  "activé": "مفعّل",
+  "désactivé": "معطّل",
+  "Aperçu à l’échelle (bas de page A4)": "معاينة بالمقياس (أسفل صفحة A4)",
+  "Posé à {{w}} × {{h}} mm (hauteur selon les proportions de l’image).": "يوضع بقياس {{w}} × {{h}} مم (الارتفاع حسب أبعاد الصورة).",
+  "L’image n’a pas les proportions du tampon ({{w}} × {{h}} mm) : recadrez-la sans marges pour un rendu exact.": "الصورة لا تطابق أبعاد الختم ({{w}} × {{h}} مم): قصّها دون هوامش للحصول على نتيجة دقيقة.",
+  "Dimensions du cachet enregistrées.": "تم حفظ أبعاد الختم.",
+  "Enregistrer les dimensions": "حفظ الأبعاد",
+  "PNG à fond transparent recommandé (le JPEG n’a pas de transparence). Haute résolution acceptée (jusqu’à 5 Mo).": "يُنصح بصورة PNG بخلفية شفافة (JPEG لا يدعم الشفافية). تُقبل الدقة العالية (حتى 5 ميغابايت).",
+  "Largeur du tampon": "عرض الختم",
+  "Hauteur du tampon": "ارتفاع الختم",
+  "Format standard : 58 × 22 mm. Le cachet est apposé à cette largeur exacte ; la hauteur suit les proportions de l’image.": "المقاس القياسي: 58 × 22 مم. يوضع الختم بهذا العرض بالضبط؛ ويتبع الارتفاع أبعاد الصورة.",
+  "Cachet modifié": "تعديل الختم"
 }

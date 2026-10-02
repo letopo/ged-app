@@ -8,15 +8,28 @@
 //    l'écran, on affiche « Signataire N » pour situer le cadre ;
 //  - fixedLabel : circuits imposés dont le cadre désigne un rôle dans le document
 //    (ex. « Visa Bénéficiaire ») — le libellé est écrit tel quel dans le PDF.
+//
+// Cachet à taille réelle (réglage de l'organisation, actif par défaut) : le
+// cachet est dessiné à la largeur physique du tampon, en mm CSS — la page des
+// formulaires fait 210 mm de large, donc la proportion par rapport à la page
+// est celle du PDF final — et centré sur le cadre, par-dessus la signature,
+// comme le fait le serveur à la validation (backend utils/stampSize.js).
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
+import useTenantSettings from '../hooks/useTenantSettings';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 export const getImageUrl = (filePath) => filePath ? `${API_BASE}/${filePath}` : null;
 
-const SignatureFrame = ({ label, signatureUrl, stampUrl, zoneIndex, height = '112px', fixedLabel = false }) => {
+const SignatureFrame = ({ label, signatureUrl, stampUrl, zoneIndex, height = '112px', fixedLabel = false, stampWidthMm, showFooter = true }) => {
     const { t } = useTranslation();
+    const { user } = useAuth();
+    const { stampRealSize } = useTenantSettings();
+    // Les cachets affichés dans les formulaires sont ceux de l'utilisateur connecté
+    const widthMm = Number(stampWidthMm ?? user?.stampWidthMm) || 58;
+    const realStamp = stampRealSize && stampUrl;
     return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {fixedLabel ? (
@@ -32,6 +45,7 @@ const SignatureFrame = ({ label, signatureUrl, stampUrl, zoneIndex, height = '11
         <div
             data-sig-zone={zoneIndex}
             style={{
+                position: 'relative',
                 width: '100%',
                 borderRadius: 4,
                 display: 'flex',
@@ -45,7 +59,7 @@ const SignatureFrame = ({ label, signatureUrl, stampUrl, zoneIndex, height = '11
             <div
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderBottom: '1px dashed rgba(100,100,200,0.10)' }}
             >
-                {stampUrl ? (
+                {stampUrl && !realStamp ? (
                     <img
                         src={stampUrl}
                         alt="Cachet"
@@ -56,6 +70,19 @@ const SignatureFrame = ({ label, signatureUrl, stampUrl, zoneIndex, height = '11
                     <span style={{ visibility: 'hidden', fontSize: 12 }}>Cachet</span>
                 )}
             </div>
+            {/* Cachet à taille réelle : centré sur tout le cadre, par-dessus la signature */}
+            {realStamp && (
+                // Centrage par flex (et non transform) : rendu identique par html2canvas
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, pointerEvents: 'none' }}>
+                    <img
+                        src={stampUrl}
+                        alt="Cachet"
+                        crossOrigin="anonymous"
+                        data-stamp-real-size={widthMm}
+                        style={{ width: `${widthMm}mm`, maxWidth: 'none', height: 'auto', flexShrink: 0, mixBlendMode: 'multiply' }}
+                    />
+                </div>
+            )}
             {/* Moitié BASSE : Signature */}
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4 }}>
                 {signatureUrl ? (
@@ -70,9 +97,11 @@ const SignatureFrame = ({ label, signatureUrl, stampUrl, zoneIndex, height = '11
                 )}
             </div>
         </div>
-        <div style={{ borderTop: '1px solid #000', width: '100%', marginTop: 4, paddingTop: 4, fontSize: 12, fontStyle: 'italic', color: '#6b7280', textAlign: 'center' }}>
-            Signature
-        </div>
+        {showFooter && (
+            <div style={{ borderTop: '1px solid #000', width: '100%', marginTop: 4, paddingTop: 4, fontSize: 12, fontStyle: 'italic', color: '#6b7280', textAlign: 'center' }}>
+                Signature
+            </div>
+        )}
     </div>
     );
 };

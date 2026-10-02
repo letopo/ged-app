@@ -310,6 +310,7 @@ export const usersAPI = {
   uploadStamp: (userId, formData) => api.post(`/users/${userId}/stamp`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  updateStampSize: (userId, data) => api.put(`/users/${userId}/stamp-size`, data),
   getProfile: () => api.get('/users/profile'),
   setAbsence: (userId, isAbsent) => api.put(`/users/${userId}/absence`, { isAbsent }),
 };

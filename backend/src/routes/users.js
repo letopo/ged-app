@@ -12,6 +12,7 @@ import {
   resetUserPassword,
   uploadSignature,
   uploadStamp,
+  updateStampSize,
   getMyService,
   getValidators,
   getUsersWithPostes,
@@ -67,5 +68,6 @@ router.post(
   uploadSignatureMiddleware.single('stamp'),
   uploadStamp
 );
+router.put('/:id/stamp-size', authorize('admin'), updateStampSize);
 
 export default router;

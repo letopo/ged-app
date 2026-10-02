@@ -11,6 +11,7 @@ export const TENANT_SETTINGS_DEFAULTS = {
   sessionIdleMinutes: 30,
   sessionMaxDays: 7,
   maxUploadMb: 50,
+  stampRealSize: true,
 };
 
 let current = { ...TENANT_SETTINGS_DEFAULTS };

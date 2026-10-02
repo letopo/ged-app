@@ -7,7 +7,7 @@ import { auditLogAPI } from '../services/api';
 import {
   Shield, Search, ChevronLeft, ChevronRight, FileText,
   LogIn, Upload, Trash2, CheckCircle, XCircle, Loader, X,
-  UserX, UserCheck, Briefcase, Mail, Settings, Lock, Plug, RefreshCw, Repeat, UserCog,
+  UserX, UserCheck, Briefcase, Mail, Settings, Lock, Plug, RefreshCw, Repeat, UserCog, Stamp,
 } from 'lucide-react';
 
 const NEUTRAL = { iconColor: 'var(--fg-muted)', bg: 'var(--surface-2)' };
@@ -32,6 +32,7 @@ const ACTION_CONFIG = {
   CATEGORY_ACCESS_UPDATED: { icon: Lock,     ...NEUTRAL, label: 'Confidentialité modifiée' },
   INTEGRATION_UPDATED: { icon: Plug, ...NEUTRAL, label: 'Intégration modifiée' },
   INTEGRATION_TESTED:  { icon: Plug, ...NEUTRAL, label: "Test d'intégration" },
+  STAMP_UPDATED: { icon: Stamp, ...NEUTRAL, label: 'Cachet modifié' },
 };
 const DEFAULT_CONFIG = { icon: FileText, ...NEUTRAL, label: '' };
 
