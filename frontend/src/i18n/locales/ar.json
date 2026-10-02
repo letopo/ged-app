@@ -2439,5 +2439,10 @@
   "{{p}} % des documents": "{{p}}٪ من المستندات",
   "{{p}} % des documents de l’étape {{n}}": "{{p}}٪ من مستندات المرحلة {{n}}",
   "Étape suivante": "المرحلة التالية",
-  "Étape {{n}}": "المرحلة {{n}}"
+  "Étape {{n}}": "المرحلة {{n}}",
+  "Compte collectif du client (recommandé)": "الحساب الجماعي للعميل (موصى به)",
+  "Patients PHP : 4127000 = employés, 4122000 = familles. Séparez plusieurs comptes par une virgule.": "مرضى PHP: ‏4127000 = الموظفون، ‏4122000 = العائلات. افصل بين الحسابات بفاصلة.",
+  "Compte collectif": "الحساب الجماعي",
+  "Employé PHP": "موظف PHP",
+  "Famille PHP": "عائلة PHP"
 }

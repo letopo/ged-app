@@ -66,7 +66,14 @@ export const SAGE_DEFAULTS = {
   documentCategory: 'Facture PHP Sage',
   workflowTemplateName: 'Circuit Facture PHP',
 };
-export const SAGE_FILTER_MODES = ['none', 'client_name', 'cat_tarif', 'client_nums'];
+export const SAGE_FILTER_MODES = ['none', 'compte_collectif', 'client_name', 'cat_tarif', 'client_nums'];
+
+// Patients PHP dans Sage : reconnus par le compte collectif de leur fiche client
+// (F_COMPTET.CG_NumPrinc), indépendant du nom et du compte tiers.
+export const PHP_COMPTES_COLLECTIFS = { '4127000': 'Employé PHP', '4122000': 'Famille PHP' };
+export const phpBeneficiaryType = (compteCollectif) => PHP_COMPTES_COLLECTIFS[String(compteCollectif || '').trim()] || null;
+export const parseComptesCollectifs = (value) =>
+  [...new Set(String(value || '').split(/[\s,;]+/).map(v => v.trim()).filter(Boolean))].slice(0, 20);
 
 // Serveur « adresse\INSTANCE » (instance nommée, ex. 192.168.1.70\SAGE100) : le
 // port est demandé au service SQL Browser (UDP 1434) à chaque connexion — il est
@@ -92,6 +99,13 @@ export function buildSageFilter(config, request) {
   const where = ['E.DO_Type = 7', 'E.DO_Domaine = 0'];
   const value = String(config.filterValue || '').trim();
   switch (config.filterMode) {
+    case 'compte_collectif': {
+      const comptes = parseComptesCollectifs(value).filter(c => /^\d{3,13}$/.test(c));
+      if (!comptes.length) return null;
+      comptes.forEach((c, i) => request.input(`collectif${i}`, sql.VarChar, c));
+      where.push(`C.CG_NumPrinc IN (${comptes.map((_, i) => `@collectif${i}`).join(', ')})`);
+      break;
+    }
     case 'client_name':
       if (!value) return null;
       request.input('clientName', sql.NVarChar, `%${value}%`);
@@ -125,7 +139,7 @@ export async function fetchSageFactures(pool, config, limit = 200) {
   request.input('limit', sql.Int, limit);
   const result = await request.query(`
     SELECT TOP (@limit)
-      E.DO_Piece, E.DO_Date, E.DO_Tiers, C.CT_Intitule, E.DO_TotalHT, E.DO_TotalTTC
+      E.DO_Piece, E.DO_Date, E.DO_Tiers, C.CT_Intitule, C.CG_NumPrinc, E.DO_TotalHT, E.DO_TotalTTC
     FROM F_DOCENTETE E
     LEFT JOIN F_COMPTET C ON C.CT_Num = E.DO_Tiers
     WHERE ${filter}

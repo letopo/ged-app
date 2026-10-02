@@ -21,7 +21,7 @@ import { Document, SageFactureImport, User, WorkflowTemplate, TenantIntegration 
 import { createWorkflowFromTemplate } from './workflowEngine.js';
 import { buildFacturePhpPdf } from './facturePhpPdfBuilder.js';
 import { decryptSecret } from './secretBox.js';
-import { SAGE_DEFAULTS, sageConnectionConfig, fetchSageFactures, describeSageError } from './integrations.js';
+import { SAGE_DEFAULTS, sageConnectionConfig, fetchSageFactures, describeSageError, phpBeneficiaryType } from './integrations.js';
 
 async function fetchLignes(pool, docPiece) {
   const result = await pool.request()
@@ -105,8 +105,11 @@ export async function runSageSyncForTenant(integration) {
         if (alreadyImported) continue;
 
         const lignes = await fetchLignes(pool, docPiece);
+        // Employé PHP (4127000) ou famille d'employé (4122000), d'après le compte collectif
+        const beneficiaireType = phpBeneficiaryType(row.CG_NumPrinc);
         const { buffer, signatureZones } = await buildFacturePhpPdf({
           docPiece,
+          beneficiaireType,
           patientNom: row.CT_Intitule,
           dateFacture: row.DO_Date instanceof Date ? row.DO_Date.toISOString().slice(0, 10) : row.DO_Date,
           lignes,
@@ -118,7 +121,7 @@ export async function runSageSyncForTenant(integration) {
         await fs.writeFile(path.resolve(process.cwd(), 'uploads', fileName), buffer);
 
         const document = await Document.create({
-          title: `Facture PHP - ${row.CT_Intitule || 'Patient'} - ${docPiece}`,
+          title: `Facture PHP - ${row.CT_Intitule || 'Patient'}${beneficiaireType ? ` (${beneficiaireType})` : ''} - ${docPiece}`,
           fileName,
           originalName: fileName,
           filePath: `uploads/${fileName}`,
@@ -127,7 +130,7 @@ export async function runSageSyncForTenant(integration) {
           userId: uploaderId,
           category: config.documentCategory,
           status: 'pending_validation',
-          metadata: { signatureZones, sageDocPiece: docPiece },
+          metadata: { signatureZones, sageDocPiece: docPiece, sageCompteCollectif: row.CG_NumPrinc || null, beneficiaireType },
           tenantId,
         });
 

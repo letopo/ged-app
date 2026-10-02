@@ -11,11 +11,13 @@ import { inputStyle, hintStyle, btn, Field, Notice, SectionTitle, EnableToggle }
 
 const FILTER_LABELS = {
   none: 'Aucun critère — rien n’est importé',
+  compte_collectif: 'Compte collectif du client (recommandé)',
   client_name: 'Le nom du client contient…',
   cat_tarif: 'Catégorie tarifaire du client égale à…',
   client_nums: 'Numéros de client (liste)…',
 };
 const FILTER_HINTS = {
+  compte_collectif: 'Patients PHP : 4127000 = employés, 4122000 = familles. Séparez plusieurs comptes par une virgule.',
   client_name: 'Ex. « PHP » : toutes les factures dont le client (ou la mutuelle) contient ce texte.',
   cat_tarif: 'Numéro de la catégorie tarifaire Sage des patients PHP (ex. 3).',
   client_nums: 'Codes clients Sage séparés par des virgules ou des retours à la ligne.',
@@ -81,7 +83,7 @@ export default function SageSettingsPanel({ tenantId = null }) {
             <thead>
               <tr style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)', textAlign: 'left' }}>
                 <th style={{ padding: '6px 8px' }}>{t('Pièce')}</th><th style={{ padding: '6px 8px' }}>{t('Date')}</th>
-                <th style={{ padding: '6px 8px' }}>{t('Client')}</th><th style={{ padding: '6px 8px', textAlign: 'right' }}>{t('Total TTC')}</th>
+                <th style={{ padding: '6px 8px' }}>{t('Client')}</th><th style={{ padding: '6px 8px' }}>{t('Compte collectif')}</th><th style={{ padding: '6px 8px', textAlign: 'right' }}>{t('Total TTC')}</th>
               </tr>
             </thead>
             <tbody>
@@ -90,6 +92,9 @@ export default function SageSettingsPanel({ tenantId = null }) {
                   <td style={{ padding: '6px 8px', fontFamily: 'var(--font-mono)' }}>{r.piece}</td>
                   <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{r.date ? new Date(r.date).toLocaleDateString() : ''}</td>
                   <td style={{ padding: '6px 8px' }}>{r.client} <span style={{ color: 'var(--fg-subtle)' }}>({r.clientNum})</span></td>
+                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                    {r.compteCollectif || '—'}{r.type && <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 999, fontSize: 11, background: r.type === 'Employé PHP' ? 'var(--brand-soft)' : 'var(--success-soft)', color: r.type === 'Employé PHP' ? 'var(--brand)' : 'var(--success)' }}>{t(r.type)}</span>}
+                  </td>
                   <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>{Number(r.totalTTC || 0).toLocaleString()}</td>
                 </tr>
               ))}
@@ -174,7 +179,10 @@ export default function SageSettingsPanel({ tenantId = null }) {
         {t('Seules les factures de vente sont lues. Choisissez comment reconnaître celles des patients PHP, puis vérifiez avec l’aperçu.')}
       </p>
       <Field label={t('Critère')}>
-        <select style={inputStyle} value={cfg.filterMode || 'none'} onChange={set('filterMode')}>
+        <select style={inputStyle} value={cfg.filterMode || 'none'} onChange={e => {
+          const mode = e.target.value;
+          setCfg(c => ({ ...c, filterMode: mode, filterValue: mode === 'compte_collectif' && !(c.filterValue || '').trim() ? '4127000, 4122000' : c.filterValue }));
+        }}>
           {(data.filterModes || Object.keys(FILTER_LABELS)).map(m => <option key={m} value={m}>{t(FILTER_LABELS[m])}</option>)}
         </select>
       </Field>

@@ -2439,5 +2439,10 @@
   "{{p}} % des documents": "{{p}}% of documents",
   "{{p}} % des documents de l’étape {{n}}": "{{p}}% of step {{n}} documents",
   "Étape suivante": "Next step",
-  "Étape {{n}}": "Step {{n}}"
+  "Étape {{n}}": "Step {{n}}",
+  "Compte collectif du client (recommandé)": "Customer control account (recommended)",
+  "Patients PHP : 4127000 = employés, 4122000 = familles. Séparez plusieurs comptes par une virgule.": "PHP patients: 4127000 = employees, 4122000 = families. Separate several accounts with a comma.",
+  "Compte collectif": "Control account",
+  "Employé PHP": "PHP employee",
+  "Famille PHP": "PHP family"
 }
