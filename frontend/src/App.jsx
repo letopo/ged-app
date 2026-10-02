@@ -338,7 +338,7 @@ function App() {
 
           {/* Routes avec permission spéciale */}
           <Route path="/user-management" element={<AdminRoute><PageWrapper><UserManagement /></PageWrapper></AdminRoute>} />
-          <Route path="/sage-factures-php" element={<AdminRoute><PageWrapper><SageFacturesPHP /></PageWrapper></AdminRoute>} />
+          <Route path="/sage-factures-php" element={<PageWrapper><SageFacturesPHP /></PageWrapper>} />
           <Route path="/sage-bl-php"       element={<PageWrapper><SageBlPhp /></PageWrapper>} />
           <Route path="/postes"          element={<AdminRoute><PageWrapper><PostesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/services"        element={<AdminRoute><PageWrapper><ServicesManagement /></PageWrapper></AdminRoute>} />

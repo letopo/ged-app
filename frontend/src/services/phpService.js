@@ -110,6 +110,10 @@ export const sageBlAPI = {
   controle: (days) => api.get('/sage-bl/controle', { params: { days } }),
   access: () => api.get('/sage-bl/access'),
   updateAccess: (postes) => api.put('/sage-bl/access', { postes }),
+  factures: (from, to) => api.get('/sage-bl/factures', { params: { from, to } }),
+  facturePdf: (piece) => api.get(`/sage-bl/factures/${encodeURIComponent(piece)}/pdf`, { responseType: 'blob' }),
+  relevePdf: (date) => api.get(`/sage-bl/releve/${date}/pdf`, { responseType: 'blob' }),
+  createReleve: (date, force) => api.post('/sage-bl/releve', { date, force }),
 };
 
 export default { phpReferenceAPI, phpPatientAPI, phpConsultationAPI, phpStatsAPI, phpRendezVousAPI, phpFactureAPI };
