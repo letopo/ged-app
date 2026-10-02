@@ -54,6 +54,7 @@ import phpStatsRoutes from './routes/phpStats.js';
 import phpRendezVousRoutes from './routes/phpRendezVous.js';
 import phpFacturesRoutes from './routes/phpFactures.js'; // ✅ Module factures PHP
 import sageFacturesRoutes from './routes/sageFactures.js'; // ✅ Import auto factures PHP depuis Sage
+import sageBlRoutes from './routes/sageBl.js'; // ✅ BL PHP en attente de facturation (lecture Sage)
 import comptaRoutes from './routes/compta.js';           // ✅ Module Comptabilité
 import templatePermissionRoutes from './routes/templatePermissionRoutes.js';
 import notificationPreferenceRoutes from './routes/notificationPreferenceRoutes.js';
@@ -239,6 +240,7 @@ app.use('/api/php/stats', phpStatsRoutes);
 app.use('/api/php/rendez-vous', phpRendezVousRoutes);
 app.use('/api/php/factures', phpFacturesRoutes); // ✅ Factures prestataires (OCR)
 app.use('/api/sage-factures', sageFacturesRoutes); // ✅ Import auto factures PHP depuis Sage
+app.use('/api/sage-bl', sageBlRoutes); // ✅ BL PHP en attente de facturation (lecture Sage)
 app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
 app.use('/api/template-permissions', templatePermissionRoutes);
 app.use('/api/notification-preferences', notificationPreferenceRoutes);

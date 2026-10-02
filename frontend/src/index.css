@@ -851,3 +851,21 @@ a.kpi-card:active { transform: scale(0.98); }
   .kb-modal-body { flex-direction: column; overflow: visible !important; }
   .kb-modal-side { width: 100% !important; border-left: none !important; border-top: 1px solid var(--border); min-height: 320px; }
 }
+
+/* BL PHP en attente — une ligne par BPC (grille sur ordinateur, carte sur téléphone) */
+.blphp-row { display: grid; grid-template-columns: 20px minmax(0, 2.2fr) 190px 150px minmax(0, 1.4fr) 130px; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 16px; border: none; border-top: 1px solid var(--border); background: var(--surface); text-align: left; font: inherit; font-size: 13px; color: var(--fg); cursor: pointer; }
+.blphp-row:hover { background: var(--surface-2); }
+.blphp-patient, .blphp-services { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.blphp-services { white-space: nowrap; color: var(--fg-muted); font-size: 12.5px; }
+.blphp-period { white-space: nowrap; color: var(--fg-muted); font-size: 12.5px; }
+.blphp-amount { text-align: right; font-weight: 650; white-space: nowrap; }
+@media (max-width: 860px) {
+  .blphp-row { grid-template-columns: 20px minmax(0, 1fr) auto; grid-template-areas: "chev patient amount" "chev period status" "chev services services"; row-gap: 4px; }
+  .blphp-row > :first-child { grid-area: chev; align-self: start; padding-top: 2px; }
+  .blphp-patient  { grid-area: patient; }
+  .blphp-amount   { grid-area: amount; }
+  .blphp-period   { grid-area: period; }
+  .blphp-status   { grid-area: status; justify-self: end; }
+  .blphp-services { grid-area: services; white-space: normal; }
+}

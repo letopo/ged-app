@@ -103,4 +103,13 @@ export const sageFactureAPI = {
   exportPaiement: (from, to) => api.get('/sage-factures/export-paiement', { params: { from, to }, responseType: 'blob' }),
 };
 
+// BL PHP en attente de facturation — lecture directe de Sage (backend sageBlController)
+export const sageBlAPI = {
+  summary: (refresh) => api.get('/sage-bl/summary', { params: refresh ? { refresh: 1 } : {} }),
+  lines: (pieces) => api.get('/sage-bl/lines', { params: { pieces: pieces.join(',') } }),
+  controle: (days) => api.get('/sage-bl/controle', { params: { days } }),
+  access: () => api.get('/sage-bl/access'),
+  updateAccess: (postes) => api.put('/sage-bl/access', { postes }),
+};
+
 export default { phpReferenceAPI, phpPatientAPI, phpConsultationAPI, phpStatsAPI, phpRendezVousAPI, phpFactureAPI };

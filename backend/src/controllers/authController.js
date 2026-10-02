@@ -1,5 +1,6 @@
 ﻿// backend/src/controllers/authController.js
 import jwt from 'jsonwebtoken';
+import { canAccessSageBl } from './sageBlController.js';
 import { Op } from 'sequelize';
 import User from '../models/User.js';
 import { getUserPosteCodes } from '../utils/posteResolver.js';
@@ -120,6 +121,7 @@ export const login = async (req, res, next) => {
     delete userResult.totpSecret;
     delete userResult.emailOtpHash;
     userResult.postes = await getUserPosteCodes(user.id);
+    userResult.canSeeSageBl = await canAccessSageBl(userResult, req.tenantId);
 
     // Audit login
     const { AuditLog } = await import('../models/index.js');
@@ -138,6 +140,7 @@ export const getProfile = async (req, res, next) => {
     try {
       const userObj = req.user?.toJSON ? req.user.toJSON() : { ...req.user };
       userObj.postes = await getUserPosteCodes(req.user.id); // ex: ['comptable']
+      userObj.canSeeSageBl = await canAccessSageBl(userObj, req.tenantId);
       res.json({ success: true, user: userObj });
     } catch (error) {
       next(error);

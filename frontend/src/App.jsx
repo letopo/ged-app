@@ -17,6 +17,7 @@ import MyTasks from './components/MyTasks';
 import WorkflowDashboard from './pages/WorkflowDashboard';
 import UserManagement from './pages/UserManagement';
 import SageFacturesPHP from './pages/SageFacturesPHP';
+import SageBlPhp from './pages/SageBlPhp';
 import PostesManagement from './pages/PostesManagement';
 import CreateFromTemplate from './pages/CreateFromTemplate';
 import CreateWorkRequest from './pages/CreateWorkRequest';
@@ -338,6 +339,7 @@ function App() {
           {/* Routes avec permission spéciale */}
           <Route path="/user-management" element={<AdminRoute><PageWrapper><UserManagement /></PageWrapper></AdminRoute>} />
           <Route path="/sage-factures-php" element={<AdminRoute><PageWrapper><SageFacturesPHP /></PageWrapper></AdminRoute>} />
+          <Route path="/sage-bl-php"       element={<PageWrapper><SageBlPhp /></PageWrapper>} />
           <Route path="/postes"          element={<AdminRoute><PageWrapper><PostesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/services"        element={<AdminRoute><PageWrapper><ServicesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/audit-log"       element={<AdminRoute><PageWrapper><AuditLogPage /></PageWrapper></AdminRoute>} />
