@@ -17,6 +17,7 @@ import {
   getPosteChainPreview,
 } from '../controllers/workflowController.js';
 import { protect, authorize } from '../middleware/auth.js';
+import { getFlowStats } from '../controllers/workflowFlowController.js';
 
 const router = express.Router();
 
@@ -24,6 +25,7 @@ const router = express.Router();
 router.post('/', protect, createWorkflow);
 // Titres possibles des signataires (fenêtre « Soumettre »)
 router.get('/signer-titles', protect, getSignerTitles);
+router.get('/flow-stats', protect, getFlowStats);
 router.get('/my-tasks', protect, getMyTasks);
 router.put('/:taskId/validate', protect, validateTask);
 router.get('/document/:documentId', protect, getDocumentWorkflow);

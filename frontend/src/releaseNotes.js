@@ -325,6 +325,17 @@ const RELEASE_NOTES = [
     ],
     access: isAdmin,
   },
+  {
+    id: '2026-10-02-flux-validation',
+    date: '2026-10-02',
+    target: '/workflow-dashboard',
+    title: 'Nouveau schéma du flux de validation',
+    items: [
+      'Le flux de validation est maintenant calculé sur les vrais circuits : on voit, étape par étape, combien de documents passent à l’étape suivante, sont validés, rejetés, expirés ou encore en cours.',
+      'Survolez une étape ou un ruban pour le détail et le temps moyen de traitement ; filtrez par service et par type de document.',
+      'Les indicateurs, les goulots d’étranglement et les valideurs les plus sollicités utilisent les mêmes données ; l’export donne un document par ligne avec son issue.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
