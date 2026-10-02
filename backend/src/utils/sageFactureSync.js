@@ -20,25 +20,15 @@ import { tenantNamespace } from '../config/database.js';
 import { Document, SageFactureImport, User, WorkflowTemplate, TenantIntegration } from '../models/index.js';
 import { createWorkflowFromTemplate } from './workflowEngine.js';
 import { buildFacturePhpPdf } from './facturePhpPdfBuilder.js';
+import { loadSageFacture } from './sageFactureData.js';
 import { decryptSecret } from './secretBox.js';
-import { SAGE_DEFAULTS, sageConnectionConfig, fetchSageFactures, describeSageError, phpBeneficiaryType, isIsoDate } from './integrations.js';
+import { SAGE_DEFAULTS, sageConnectionConfig, fetchSageFactures, describeSageError, isIsoDate } from './integrations.js';
 
-async function fetchLignes(pool, docPiece, doType) {
-  const result = await pool.request()
-    .input('piece', sql.VarChar, docPiece)
-    .input('type', sql.Int, doType)
-    .query(`
-      SELECT DL_Design, DL_Qte, DL_PrixUnitaire, DL_MontantHT
-      FROM F_DOCLIGNE
-      WHERE DO_Type = @type AND DO_Piece = @piece
-      ORDER BY DL_Ligne ASC
-    `);
-  return result.recordset.map(r => ({
-    designation: r.DL_Design,
-    quantite: r.DL_Qte,
-    prixUnitaire: r.DL_PrixUnitaire,
-    montant: r.DL_MontantHT,
-  }));
+// Libellés des cadres de signature = étapes du modèle de workflow (même ordre),
+// sinon réglage Sage (signatureLabels)
+export function signatureLabelsFor(template, config) {
+  const fromTemplate = (Array.isArray(template?.validators) ? template.validators : []).map(v => (v?.label || '').trim()).filter(Boolean);
+  return fromTemplate.length ? fromTemplate : (config.signatureLabels || SAGE_DEFAULTS.signatureLabels);
 }
 
 // Compte auquel rattacher les documents importés : un administrateur du tenant
@@ -108,24 +98,18 @@ export async function runSageSyncForTenant(integration) {
         const alreadyImported = await SageFactureImport.findOne({ where: { sageDocPiece: docPiece, tenantId } });
         if (alreadyImported) continue;
 
-        const lignes = await fetchLignes(pool, docPiece, row.DO_Type);
-        // Employé PHP (4127000) ou famille d'employé (4122000), d'après le compte collectif
-        const beneficiaireType = phpBeneficiaryType(row.CG_NumPrinc);
-        const { buffer, signatureZones } = await buildFacturePhpPdf({
-          docPiece,
-          beneficiaireType,
-          patientNom: row.CT_Intitule,
-          dateFacture: row.DO_Date instanceof Date ? row.DO_Date.toISOString().slice(0, 10) : row.DO_Date,
-          lignes,
-          totalHT: row.DO_TotalHT,
-          totalTTC: row.DO_TotalTTC,
-        });
+        // Facture complète (patient, lignes avec leur BL d'origine) → liasse PDF :
+        // facture + bordereaux de cession des BL en annexe
+        const facture = await loadSageFacture(pool, docPiece);
+        if (!facture) continue;
+        const beneficiaireType = facture.patient.type;
+        const { buffer, signatureZones, signaturePage } = await buildFacturePhpPdf(facture, { signatureLabels: signatureLabelsFor(template, config) });
 
         const fileName = `facture-php-sage-${docPiece}-${Date.now()}.pdf`;
         await fs.writeFile(path.resolve(process.cwd(), 'uploads', fileName), buffer);
 
         const document = await Document.create({
-          title: `Facture PHP - ${row.CT_Intitule || 'Patient'}${beneficiaireType ? ` (${beneficiaireType})` : ''} - ${docPiece}`,
+          title: `Facture PHP - ${facture.patient.nom || 'Patient'}${beneficiaireType ? ` (${beneficiaireType})` : ''} - ${docPiece}`,
           fileName,
           originalName: fileName,
           filePath: `uploads/${fileName}`,
@@ -134,7 +118,11 @@ export async function runSageSyncForTenant(integration) {
           userId: uploaderId,
           category: config.documentCategory,
           status: 'pending_validation',
-          metadata: { signatureZones, sageDocPiece: docPiece, sageCompteCollectif: row.CG_NumPrinc || null, beneficiaireType, sageComptabilisee: row.DO_Type === 7 },
+          metadata: {
+            signatureZones, signaturePage, sageDocPiece: docPiece, sageCompteCollectif: facture.patient.compteCollectif || null,
+            beneficiaireType, sageComptabilisee: facture.comptabilisee, sageBl: facture.bl.map(x => x.piece),
+            patientMatricule: facture.patient.matricule, patientSecteur: facture.patient.secteur,
+          },
           tenantId,
         });
 
@@ -142,12 +130,12 @@ export async function runSageSyncForTenant(integration) {
 
         await SageFactureImport.create({
           sageDocPiece: docPiece,
-          sageClientNum: row.DO_Tiers,
-          patientNom: row.CT_Intitule,
-          montantHT: row.DO_TotalHT,
-          montantTTC: row.DO_TotalTTC,
+          sageClientNum: facture.patient.compteTiers,
+          patientNom: facture.patient.nom,
+          montantHT: facture.totalHT,
+          montantTTC: facture.totalTTC,
           documentId: document.id,
-          rawSnapshot: { entete: row, lignes },
+          rawSnapshot: facture,
           tenantId,
         });
         imported++;

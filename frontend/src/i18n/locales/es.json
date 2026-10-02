@@ -2504,5 +2504,9 @@
   "{{n}} facture(s) sur {{total}} ({{p}} %) regroupent des BL espacés de plus de 3 jours, alors qu’un BPC ne couvre que 3 jours.": "{{n}} factura(s) de {{total}} ({{p}} %) agrupan albaranes separados más de 3 días, mientras un bono solo cubre 3 días.",
   "{{n}} patients": "{{n}} pacientes",
   "À facturer": "Por facturar",
-  "Écart": "Diferencia"
+  "Écart": "Diferencia",
+  "Aperçu de la liasse PDF d’une facture": "Vista previa del PDF de una factura",
+  "Génère le PDF tel qu’il sera importé (facture, contrôle du BPC, cadres de signature, BL en annexe) sans rien importer.": "Genera el PDF tal como se importará (factura, control del bono, recuadros de firma, albaranes anexos) sin importar nada.",
+  "Aperçu PDF": "Vista previa PDF",
+  "Aperçu impossible.": "Vista previa imposible."
 }

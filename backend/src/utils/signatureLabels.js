@@ -40,8 +40,9 @@ export async function getSignerTitleOptions(userIds) {
 }
 
 // Page qui porte les cadres (même règle que pour les signatures)
-const signaturePageIndex = (category, pageCount) =>
-  (['Demande de travaux', 'Demande de permutation'].includes(category) ? 0 : pageCount - 1);
+const signaturePageIndex = (document, pageCount) =>
+  (Number.isInteger(document.metadata?.signaturePage) ? Math.min(document.metadata.signaturePage, pageCount - 1)
+    : ['Demande de travaux', 'Demande de permutation'].includes(document.category) ? 0 : pageCount - 1);
 
 // Texte réduit jusqu'à tenir dans la largeur du cadre
 function fit(font, text, maxSize, minSize, maxWidth) {
@@ -101,7 +102,7 @@ export async function applySignerLabels(document, chosenTitles = {}) {
   }
   const pdfDoc = await PDFDocument.load(await fs.readFile(path.resolve(process.cwd(), basePath)));
   const pages = pdfDoc.getPages();
-  const page = pages[signaturePageIndex(document.category, pages.length)];
+  const page = pages[signaturePageIndex(document, pages.length)];
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   // Les polices standard PDF ne couvrent que le jeu WinAnsi : on retire le reste

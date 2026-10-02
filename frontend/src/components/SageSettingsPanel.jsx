@@ -31,7 +31,8 @@ export default function SageSettingsPanel({ tenantId = null }) {
   const [adminCanManage, setAdminCanManage] = useState(false);
   const [secret, setSecret] = useState('');
   const [showSecret, setShowSecret] = useState(false);
-  const [busy, setBusy] = useState(null);      // 'save' | 'test' | 'preview' | 'sync'
+  const [busy, setBusy] = useState(null);      // 'save' | 'test' | 'preview' | 'sync' | 'pdf'
+  const [pdfPiece, setPdfPiece] = useState('');
   const [result, setResult] = useState(null);  // { kind, ok, message, rows? }
 
   const apply = (payload) => {
@@ -212,6 +213,32 @@ export default function SageSettingsPanel({ tenantId = null }) {
         </button>
         <ResultBox kind="preview" />
       </div>
+
+      {/* Aperçu de la liasse PDF d'une facture (tenant courant) */}
+      {!tenantId && (
+        <div style={{ marginBottom: 20 }}>
+          <Field label={t('Aperçu de la liasse PDF d’une facture')} hint={t('Génère le PDF tel qu’il sera importé (facture, contrôle du BPC, cadres de signature, BL en annexe) sans rien importer.')}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input style={{ ...inputStyle, flex: '1 1 200px', fontFamily: 'var(--font-mono)' }} placeholder="FA00000317014" value={pdfPiece} onChange={e => setPdfPiece(e.target.value.toUpperCase())} />
+              <button type="button" disabled={busy || !pdfPiece.trim() || !cfg.host || !hasPassword}
+                onClick={async () => {
+                  setBusy('pdf');
+                  try {
+                    const res = await integrationsAPI.facturePdf({ ...payload(), piece: pdfPiece.trim() });
+                    window.open(URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' })), '_blank');
+                  } catch (err) {
+                    let msg = t('Aperçu impossible.');
+                    try { msg = JSON.parse(await err.response.data.text()).message || msg; } catch { /* réponse non JSON */ }
+                    toast.error(msg);
+                  } finally { setBusy(null); }
+                }}
+                style={{ ...btn(false), opacity: busy || !pdfPiece.trim() || !cfg.host || !hasPassword ? 0.6 : 1 }}>
+                {busy === 'pdf' ? <Loader size={13} className="animate-spin" /> : <Search size={13} />} {t('Aperçu PDF')}
+              </button>
+            </div>
+          </Field>
+        </div>
+      )}
 
       {/* Import */}
       <SectionTitle>{t('Import dans la GED')}</SectionTitle>

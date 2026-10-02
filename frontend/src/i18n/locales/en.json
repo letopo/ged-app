@@ -2504,5 +2504,9 @@
   "{{n}} facture(s) sur {{total}} ({{p}} %) regroupent des BL espacés de plus de 3 jours, alors qu’un BPC ne couvre que 3 jours.": "{{n}} invoice(s) out of {{total}} ({{p}}%) group delivery notes more than 3 days apart, while a voucher only covers 3 days.",
   "{{n}} patients": "{{n}} patients",
   "À facturer": "To invoice",
-  "Écart": "Gap"
+  "Écart": "Gap",
+  "Aperçu de la liasse PDF d’une facture": "Invoice PDF bundle preview",
+  "Génère le PDF tel qu’il sera importé (facture, contrôle du BPC, cadres de signature, BL en annexe) sans rien importer.": "Generates the PDF as it will be imported (invoice, voucher check, signature boxes, delivery notes attached) without importing anything.",
+  "Aperçu PDF": "PDF preview",
+  "Aperçu impossible.": "Preview unavailable."
 }

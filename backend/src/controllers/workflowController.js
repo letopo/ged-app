@@ -637,6 +637,8 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         let pageIndexToSign = pages.length - 1; 
         if (document.category === 'Demande de travaux') pageIndexToSign = 0;
         if (document.category === 'Demande de permutation') pageIndexToSign = 0;
+        // Liasse (ex. facture PHP + BL en annexe) : page des cadres fixée à la génération
+        if (Number.isInteger(document.metadata?.signaturePage)) pageIndexToSign = document.metadata.signaturePage;
         if (pageIndexToSign >= pages.length) pageIndexToSign = pages.length - 1;
         
         const targetPage = pages[pageIndexToSign];

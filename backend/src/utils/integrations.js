@@ -67,6 +67,8 @@ export const SAGE_DEFAULTS = {
   syncIntervalMinutes: 15,
   documentCategory: 'Facture PHP Sage',
   workflowTemplateName: 'Circuit Facture PHP',
+  // Cadres de signature de la facture, dans l'ordre du circuit (= étapes du modèle de workflow)
+  signatureLabels: ['Service Facturation', 'Directeur Général', 'CCG'],
 };
 export const SAGE_FILTER_MODES = ['none', 'compte_collectif', 'client_name', 'cat_tarif', 'client_nums'];
 

@@ -362,6 +362,19 @@ const RELEASE_NOTES = [
     ],
     access: (user) => user?.role === 'superadmin' || !!user?.canSeeSageBl,
   },
+  {
+    id: '2026-10-02-liasse-facture-php',
+    date: '2026-10-02',
+    target: 'app',
+    title: 'Factures PHP : liasse complète générée depuis Sage',
+    items: [
+      'Chaque facture PHP importée devient une liasse PDF : la facture (date et n° de BL, référence, désignation, quantité, prix, montant, total en lettres) suivie des bordereaux de cession de chaque BL en pièces justificatives.',
+      'La facture indique le patient (matricule, secteur, assuré), la période du BPC et signale les BL hors période.',
+      'Les cadres de signature reprennent les étapes du modèle « Circuit Facture PHP » et accueillent les cachets à taille réelle.',
+      'Paramètres › Intégrations › Sage : « Aperçu PDF » génère la liasse d’une facture sans rien importer.',
+    ],
+    access: isAdmin,
+  },
 ];
 
 export default RELEASE_NOTES;
