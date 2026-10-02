@@ -62,6 +62,7 @@ export async function testAiConfig({ apiKey, model }) {
 export const SAGE_DEFAULTS = {
   host: '', port: 1433, database: '', authType: 'ntlm', domain: '', username: '',
   filterMode: 'none', filterValue: '',          // voir buildSageFilter
+  importFromDate: '',                           // AAAA-MM-JJ : factures datées de ce jour ou après (pas l'historique)
   syncIntervalMinutes: 15,
   documentCategory: 'Facture PHP Sage',
   workflowTemplateName: 'Circuit Facture PHP',
@@ -71,6 +72,7 @@ export const SAGE_FILTER_MODES = ['none', 'compte_collectif', 'client_name', 'ca
 // Patients PHP dans Sage : reconnus par le compte collectif de leur fiche client
 // (F_COMPTET.CG_NumPrinc), indépendant du nom et du compte tiers.
 export const PHP_COMPTES_COLLECTIFS = { '4127000': 'Employé PHP', '4122000': 'Famille PHP' };
+export const isIsoDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) && !Number.isNaN(Date.parse(v));
 export const phpBeneficiaryType = (compteCollectif) => PHP_COMPTES_COLLECTIFS[String(compteCollectif || '').trim()] || null;
 export const parseComptesCollectifs = (value) =>
   [...new Set(String(value || '').split(/[\s,;]+/).map(v => v.trim()).filter(Boolean))].slice(0, 20);
@@ -127,6 +129,11 @@ export function buildSageFilter(config, request) {
     }
     default:
       return null;
+  }
+  // Date de début : sans elle, tout l'historique des factures PHP serait importé
+  if (isIsoDate(config.importFromDate)) {
+    request.input('fromDate', sql.Date, config.importFromDate);
+    where.push('E.DO_Date >= @fromDate');
   }
   return where.join(' AND ');
 }

@@ -2444,5 +2444,7 @@
   "Patients PHP : 4127000 = employés, 4122000 = familles. Séparez plusieurs comptes par une virgule.": "Pacientes PHP: 4127000 = empleados, 4122000 = familias. Separe varias cuentas con una coma.",
   "Compte collectif": "Cuenta colectiva",
   "Employé PHP": "Empleado PHP",
-  "Famille PHP": "Familia PHP"
+  "Famille PHP": "Familia PHP",
+  "Importer les factures à partir du": "Importar las facturas a partir del",
+  "Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.": "Solo se importan las facturas de Sage con fecha de ese día o posterior: el historial no."
 }

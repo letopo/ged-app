@@ -10,7 +10,7 @@ import { INTEGRATION_KINDS } from '../models/TenantIntegration.js';
 import { encryptSecret, decryptSecret } from '../utils/secretBox.js';
 import {
   DEFAULT_AI_MODEL, testAiConfig, SAGE_DEFAULTS, SAGE_FILTER_MODES, fetchSageFactures,
-  parseComptesCollectifs, phpBeneficiaryType,
+  parseComptesCollectifs, phpBeneficiaryType, isIsoDate,
 } from '../utils/integrations.js';
 import { openSagePool, runSageSyncNow } from '../utils/sageFactureSync.js';
 
@@ -65,7 +65,7 @@ function validate(kind, body, current, enabled, hasSecret) {
     if (!/^[a-z0-9][a-z0-9.\-]{2,79}$/i.test(cfg.model || '')) errors.push('Nom de modèle invalide.');
     if (enabled && !hasSecret) errors.push("La clé d'API est obligatoire pour activer la lecture par IA.");
   } else {
-    for (const [k, max] of [['host', 255], ['database', 128], ['domain', 128], ['username', 128], ['filterValue', 2000], ['documentCategory', 100], ['workflowTemplateName', 150]]) {
+    for (const [k, max] of [['host', 255], ['database', 128], ['domain', 128], ['username', 128], ['filterValue', 2000], ['documentCategory', 100], ['workflowTemplateName', 150], ['importFromDate', 10]]) {
       const v = str(input[k], max);
       if (v !== undefined) cfg[k] = v;
     }
@@ -79,6 +79,9 @@ function validate(kind, body, current, enabled, hasSecret) {
     if (!Number.isInteger(cfg.port) || cfg.port < 1 || cfg.port > 65535) errors.push('Port invalide (1 à 65535).');
     if (!Number.isInteger(cfg.syncIntervalMinutes) || cfg.syncIntervalMinutes < 5 || cfg.syncIntervalMinutes > 1440) errors.push('Fréquence invalide (5 à 1440 minutes).');
     if (cfg.filterMode === 'cat_tarif' && cfg.filterValue && !/^\d+$/.test(cfg.filterValue)) errors.push('La catégorie tarifaire doit être un nombre.');
+    // Pas de date de début → aujourd'hui (jamais d'import de tout l'historique par défaut)
+    if (!cfg.importFromDate) cfg.importFromDate = new Date().toISOString().slice(0, 10);
+    if (!isIsoDate(cfg.importFromDate)) errors.push('Date de début de l’import invalide.');
     if (cfg.filterMode === 'compte_collectif' && parseComptesCollectifs(cfg.filterValue).some(c => !/^\d{3,13}$/.test(c))) {
       errors.push('Les comptes collectifs sont des numéros (ex. 4127000, 4122000).');
     }

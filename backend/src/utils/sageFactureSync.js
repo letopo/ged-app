@@ -21,7 +21,7 @@ import { Document, SageFactureImport, User, WorkflowTemplate, TenantIntegration 
 import { createWorkflowFromTemplate } from './workflowEngine.js';
 import { buildFacturePhpPdf } from './facturePhpPdfBuilder.js';
 import { decryptSecret } from './secretBox.js';
-import { SAGE_DEFAULTS, sageConnectionConfig, fetchSageFactures, describeSageError, phpBeneficiaryType } from './integrations.js';
+import { SAGE_DEFAULTS, sageConnectionConfig, fetchSageFactures, describeSageError, phpBeneficiaryType, isIsoDate } from './integrations.js';
 
 async function fetchLignes(pool, docPiece) {
   const result = await pool.request()
@@ -79,6 +79,9 @@ export async function runSageSyncForTenant(integration) {
   // Hors requête HTTP : on fixe le tenant pour les hooks (tenantId automatique)
   return tenantNamespace.runPromise(async () => {
     tenantNamespace.set('tenantId', tenantId);
+
+    // Sécurité : jamais d'import sans date de début (sinon tout l'historique Sage)
+    if (!isIsoDate(config.importFromDate)) return finish(false, 'Date de début de l’import non réglée : enregistrez les réglages Sage.');
 
     const template = await WorkflowTemplate.findOne({ where: { name: config.workflowTemplateName, tenantId } });
     if (!template) return finish(false, `Modèle de workflow « ${config.workflowTemplateName} » introuvable : créez-le dans Modèles de workflow.`);
