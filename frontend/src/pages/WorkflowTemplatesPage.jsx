@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { workflowTemplatesAPI, usersAPI } from '../services/api';
+import { workflowTemplatesAPI, usersAPI, postesAPI } from '../services/api';
 import {
   Plus, Trash2, Edit3, Save, X, Loader, Users, LayoutGrid,
   Search, ChevronUp, ChevronDown, ArrowDown, UserCheck, Shield,
-  Clock, AlertCircle, Copy, ToggleLeft, ToggleRight,
+  Clock, AlertCircle, Copy, ToggleLeft, ToggleRight, Briefcase,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -82,6 +82,7 @@ function makeStep(index) {
     role: 'validator',
     userId: null,
     userLabel: '',
+    posteCode: '',
     deadlineDays: '',
     onReject: 'back_to_sender',
   };
@@ -102,7 +103,7 @@ function RoleTag({ role }) {
   );
 }
 
-function StepCard({ step, index, total, onChange, onMove, onDelete, availableUsers, loadingUsers }) {
+function StepCard({ step, index, total, onChange, onMove, onDelete, availableUsers, loadingUsers, availablePostes = [] }) {
   const { t } = useTranslation();
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [search, setSearch] = useState('');
@@ -188,7 +189,51 @@ function StepCard({ step, index, total, onChange, onMove, onDelete, availableUse
             >
               <UserCheck size={12} /> {t('Personne précise')}
             </button>
+            <button
+              onClick={() => onChange({ validatorType: 'poste', role: '', userId: null, userLabel: '' })}
+              style={{
+                flex: 1, height: 32, borderRadius: 'var(--radius-2)', border: '1px solid',
+                borderColor: step.validatorType === 'poste' ? 'var(--brand)' : 'var(--border)',
+                background: step.validatorType === 'poste' ? 'var(--brand-soft)' : 'transparent',
+                color: step.validatorType === 'poste' ? 'var(--brand)' : 'var(--fg-muted)',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+              }}
+            >
+              <Briefcase size={12} /> {t('Par poste')}
+            </button>
           </div>
+
+          {/* Poste : le document va au titulaire actuel du poste */}
+          {step.validatorType === 'poste' && (() => {
+            const poste = availablePostes.find(p => p.code === step.posteCode);
+            const holders = poste?.holders || [];
+            return (
+              <div>
+                <label style={s.label}>{t('Poste du validateur')}</label>
+                <select value={step.posteCode || ''} onChange={e => onChange({ posteCode: e.target.value, userId: null })} style={s.select}>
+                  <option value="">{t('— Choisir un poste —')}</option>
+                  {availablePostes.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
+                </select>
+                {poste && (
+                  <div style={{ fontSize: 11.5, color: holders.length ? 'var(--fg-muted)' : 'var(--danger)', marginTop: 6 }}>
+                    {holders.length
+                      ? t('Titulaire(s) : {{names}}', { names: holders.map(h => `${h.firstName} ${h.lastName}`).join(', ') })
+                      : t('Aucun titulaire : attribuez ce poste dans Postes & Fonctions.')}
+                  </div>
+                )}
+                {holders.length > 1 && (
+                  <div style={{ marginTop: 8 }}>
+                    <label style={s.label}>{t('Titulaire à solliciter en priorité')}</label>
+                    <select value={step.userId || ''} onChange={e => onChange({ userId: e.target.value || null })} style={s.select}>
+                      <option value="">{t('Le premier titulaire')}</option>
+                      {holders.map(h => <option key={h.id} value={h.id}>{h.firstName} {h.lastName}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Role selector */}
           {step.validatorType === 'role' && (
@@ -311,6 +356,8 @@ export default function WorkflowTemplatesPage() {
   const [formCategories, setFormCategories] = useState([]);
 
   const [availableUsers, setAvailableUsers] = useState([]);
+  const [availablePostes, setAvailablePostes] = useState([]);
+  const loadPostes = () => postesAPI.getAll().then(r => setAvailablePostes(r.data?.data || r.data || [])).catch(() => {});
   const [loadingUsers, setLoadingUsers]     = useState(false);
   const [seeding, setSeeding]               = useState(false);
 
@@ -346,13 +393,17 @@ export default function WorkflowTemplatesPage() {
 
   const stepsToValidators = (steps) => steps.map((step, i) => ({
     step: i + 1,
+    order: i + 1,
     name: step.name,
     validatorType: step.validatorType,
     role: step.validatorType === 'role' ? step.role : null,
-    userId: step.validatorType === 'user' ? step.userId : null,
+    userId: ['user', 'poste'].includes(step.validatorType) ? step.userId : null,
+    posteCode: step.validatorType === 'poste' ? step.posteCode : null,
     label: step.validatorType === 'role'
       ? (ROLES.find(r => r.value === step.role)?.label || step.role)
-      : step.userLabel,
+      : step.validatorType === 'poste'
+        ? (availablePostes.find(p => p.code === step.posteCode)?.label || step.posteCode)
+        : step.userLabel,
     deadlineDays: step.deadlineDays ? parseInt(step.deadlineDays) : null,
     onReject: step.onReject,
   }));
@@ -360,10 +411,11 @@ export default function WorkflowTemplatesPage() {
   const validatorsToSteps = (validators) => (validators || []).map((v, i) => ({
     _id: Math.random().toString(36).slice(2),
     name: v.name || `Étape ${i + 1}`,
-    validatorType: v.validatorType || (v.userId ? 'user' : 'role'),
+    validatorType: v.validatorType || (v.posteCode ? 'poste' : v.userId ? 'user' : 'role'),
     role: v.role || 'validator',
     userId: v.userId || null,
-    userLabel: v.userId ? (v.user ? `${v.user.firstName} ${v.user.lastName}` : v.label) : '',
+    posteCode: v.posteCode || '',
+    userLabel: v.userId && v.validatorType !== 'poste' ? (v.user ? `${v.user.firstName} ${v.user.lastName}` : v.label) : '',
     deadlineDays: v.deadlineDays ? String(v.deadlineDays) : '',
     onReject: v.onReject || 'back_to_sender',
   }));
@@ -371,14 +423,14 @@ export default function WorkflowTemplatesPage() {
   const openCreate = () => {
     setEditingId(null); setFormName(''); setFormDesc('');
     setFormSteps([makeStep(0)]); setFormCategories([]);
-    setShowForm(true); loadUsers();
+    setShowForm(true); loadUsers(); loadPostes();
   };
 
   const openEdit = (tpl) => {
     setEditingId(tpl.id); setFormName(tpl.name); setFormDesc(tpl.description || '');
     setFormSteps(validatorsToSteps(tpl.validators));
     setFormCategories(tpl.categories || []);
-    setShowForm(true); loadUsers();
+    setShowForm(true); loadUsers(); loadPostes();
   };
 
   const duplicateTemplate = async (tpl) => {
@@ -398,6 +450,9 @@ export default function WorkflowTemplatesPage() {
     if (!formName.trim()) { toast.error(t('Le nom est requis')); return; }
     if (formSteps.length === 0) { toast.error(t('Ajoutez au moins une étape')); return; }
     for (const step of formSteps) {
+      if (step.validatorType === 'poste' && !step.posteCode) {
+        toast.error(t('L\'étape "{{name}}" nécessite un poste', { name: step.name })); return;
+      }
       if (step.validatorType === 'user' && !step.userId) {
         toast.error(t('L\'étape "{{name}}" nécessite une personne sélectionnée', { name: step.name })); return;
       }
@@ -669,6 +724,7 @@ export default function WorkflowTemplatesPage() {
                       onMove={(dir) => moveStep(i, dir)}
                       onDelete={() => removeStep(i)}
                       availableUsers={availableUsers}
+                      availablePostes={availablePostes}
                       loadingUsers={loadingUsers}
                     />
                   ))}

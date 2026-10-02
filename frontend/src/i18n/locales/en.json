@@ -2548,5 +2548,13 @@
   "Écart (j)": "Gap (d)",
   "Étape {{s}}/{{n}} · {{who}}": "Step {{s}}/{{n}} · {{who}}",
   "État GED": "DMS status",
-  "État Sage": "Sage status"
+  "État Sage": "Sage status",
+  "Par poste": "By position",
+  "Poste du validateur": "Approver’s position",
+  "— Choisir un poste —": "— Choose a position —",
+  "Titulaire(s) : {{names}}": "Holder(s): {{names}}",
+  "Aucun titulaire : attribuez ce poste dans Postes & Fonctions.": "No holder: assign this position in Positions & Roles.",
+  "Titulaire à solliciter en priorité": "Holder to ask first",
+  "Le premier titulaire": "The first holder",
+  "L'étape \"{{name}}\" nécessite un poste": "Step \"{{name}}\" needs a position"
 }

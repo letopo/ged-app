@@ -215,7 +215,16 @@ export const createReleve = guard(async (req, res) => {
     metadata: { signatureZones: r.signatureZones, signaturePage: r.signaturePage, releveDate: date, nbFactures: r.count, montantTotal: r.total, factures: r.factures.map(f => f.piece) },
     tenantId: req.tenantId,
   });
-  if (r.template) await createWorkflowFromTemplate(document, r.template.id, req.tenantId);
+  if (r.template) {
+    try {
+      await createWorkflowFromTemplate(document, r.template.id, req.tenantId);
+    } catch (err) {
+      // Circuit impossible (ex. poste sans titulaire) : pas de relevé orphelin
+      await document.destroy({ force: true }).catch(() => {});
+      await fs.unlink(path.resolve(process.cwd(), 'uploads', fileName)).catch(() => {});
+      return res.status(400).json({ success: false, message: err.message });
+    }
+  }
   await AuditLog.log(req, 'UPLOAD', 'document', document.id, { title: document.title, releve: true, factures: r.count });
   res.status(201).json({
     success: true, documentId: document.id, count: r.count, total: r.total, circuit: !!r.template,

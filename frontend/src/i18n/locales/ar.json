@@ -2548,5 +2548,13 @@
   "Écart (j)": "الفارق (ي)",
   "Étape {{s}}/{{n}} · {{who}}": "المرحلة {{s}}/{{n}} · {{who}}",
   "État GED": "حالة النظام",
-  "État Sage": "حالة Sage"
+  "État Sage": "حالة Sage",
+  "Par poste": "حسب المنصب",
+  "Poste du validateur": "منصب المصادق",
+  "— Choisir un poste —": "— اختر منصبًا —",
+  "Titulaire(s) : {{names}}": "الشاغل(ون): {{names}}",
+  "Aucun titulaire : attribuez ce poste dans Postes & Fonctions.": "لا يوجد شاغل: أسند هذا المنصب في المناصب والوظائف.",
+  "Titulaire à solliciter en priorité": "الشاغل المطلوب أولًا",
+  "Le premier titulaire": "الشاغل الأول",
+  "L'étape \"{{name}}\" nécessite un poste": "المرحلة \"{{name}}\" تتطلب منصبًا"
 }

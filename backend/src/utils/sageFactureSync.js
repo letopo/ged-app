@@ -27,7 +27,9 @@ import { SAGE_DEFAULTS, sageConnectionConfig, fetchSageFactures, describeSageErr
 // Libellés des cadres de signature = étapes du modèle de workflow (même ordre),
 // sinon réglage Sage (signatureLabels)
 export function signatureLabelsFor(template, config) {
-  const fromTemplate = (Array.isArray(template?.validators) ? template.validators : []).map(v => (v?.label || '').trim()).filter(Boolean);
+  // Nom de l'étape (ex. « Directeur Général ») ; `label` vaut le nom de la personne pour une étape « personne précise »
+  const steps = [...(Array.isArray(template?.validators) ? template.validators : [])].sort((a, b) => (a.order ?? a.step ?? 0) - (b.order ?? b.step ?? 0));
+  const fromTemplate = steps.map(v => (v?.name || v?.label || '').trim()).filter(Boolean);
   return fromTemplate.length ? fromTemplate : (config.signatureLabels || SAGE_DEFAULTS.signatureLabels);
 }
 
@@ -126,7 +128,15 @@ export async function runSageSyncForTenant(integration) {
           tenantId,
         });
 
-        await createWorkflowFromTemplate(document, template.id, tenantId);
+        try {
+          await createWorkflowFromTemplate(document, template.id, tenantId);
+        } catch (err) {
+          // Circuit impossible (ex. poste sans titulaire) : on retire le document,
+          // sinon il serait recréé à chaque synchronisation (pas encore marqué importé)
+          await document.destroy({ force: true }).catch(() => {});
+          await fs.unlink(path.resolve(process.cwd(), 'uploads', fileName)).catch(() => {});
+          throw err;
+        }
 
         await SageFactureImport.create({
           sageDocPiece: docPiece,
