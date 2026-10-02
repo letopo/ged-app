@@ -23,13 +23,14 @@ import { buildFacturePhpPdf } from './facturePhpPdfBuilder.js';
 import { decryptSecret } from './secretBox.js';
 import { SAGE_DEFAULTS, sageConnectionConfig, fetchSageFactures, describeSageError, phpBeneficiaryType, isIsoDate } from './integrations.js';
 
-async function fetchLignes(pool, docPiece) {
+async function fetchLignes(pool, docPiece, doType) {
   const result = await pool.request()
     .input('piece', sql.VarChar, docPiece)
+    .input('type', sql.Int, doType)
     .query(`
       SELECT DL_Design, DL_Qte, DL_PrixUnitaire, DL_MontantHT
       FROM F_DOCLIGNE
-      WHERE DO_Type = 7 AND DO_Piece = @piece
+      WHERE DO_Type = @type AND DO_Piece = @piece
       ORDER BY DL_Ligne ASC
     `);
   return result.recordset.map(r => ({
@@ -107,7 +108,7 @@ export async function runSageSyncForTenant(integration) {
         const alreadyImported = await SageFactureImport.findOne({ where: { sageDocPiece: docPiece, tenantId } });
         if (alreadyImported) continue;
 
-        const lignes = await fetchLignes(pool, docPiece);
+        const lignes = await fetchLignes(pool, docPiece, row.DO_Type);
         // Employé PHP (4127000) ou famille d'employé (4122000), d'après le compte collectif
         const beneficiaireType = phpBeneficiaryType(row.CG_NumPrinc);
         const { buffer, signatureZones } = await buildFacturePhpPdf({
@@ -133,7 +134,7 @@ export async function runSageSyncForTenant(integration) {
           userId: uploaderId,
           category: config.documentCategory,
           status: 'pending_validation',
-          metadata: { signatureZones, sageDocPiece: docPiece, sageCompteCollectif: row.CG_NumPrinc || null, beneficiaireType },
+          metadata: { signatureZones, sageDocPiece: docPiece, sageCompteCollectif: row.CG_NumPrinc || null, beneficiaireType, sageComptabilisee: row.DO_Type === 7 },
           tenantId,
         });
 

@@ -71,11 +71,14 @@ function validate(kind, body, current, enabled, hasSecret) {
     }
     if (input.authType !== undefined) cfg.authType = input.authType;
     if (input.filterMode !== undefined) cfg.filterMode = input.filterMode;
+    if (input.invoiceStatus !== undefined) cfg.invoiceStatus = input.invoiceStatus;
     if (input.port !== undefined && input.port !== '') cfg.port = Number(input.port);
     if (input.syncIntervalMinutes !== undefined && input.syncIntervalMinutes !== '') cfg.syncIntervalMinutes = Number(input.syncIntervalMinutes);
 
     if (!['ntlm', 'sql'].includes(cfg.authType)) errors.push('Type de connexion inconnu.');
     if (!SAGE_FILTER_MODES.includes(cfg.filterMode)) errors.push('Critère de filtre inconnu.');
+    if (!cfg.invoiceStatus) cfg.invoiceStatus = 'all';
+    if (!['all', 'posted'].includes(cfg.invoiceStatus)) errors.push('État des factures inconnu.');
     if (!Number.isInteger(cfg.port) || cfg.port < 1 || cfg.port > 65535) errors.push('Port invalide (1 à 65535).');
     if (!Number.isInteger(cfg.syncIntervalMinutes) || cfg.syncIntervalMinutes < 5 || cfg.syncIntervalMinutes > 1440) errors.push('Fréquence invalide (5 à 1440 minutes).');
     if (cfg.filterMode === 'cat_tarif' && cfg.filterValue && !/^\d+$/.test(cfg.filterValue)) errors.push('La catégorie tarifaire doit être un nombre.');
@@ -174,8 +177,9 @@ async function test(req, kind, tenantId, row) {
         throw err;
       }
       try {
-        const r = await pool.request().query('SELECT COUNT(*) AS n FROM F_DOCENTETE WHERE DO_Type = 7 AND DO_Domaine = 0');
-        message = `Connexion réussie : ${r.recordset[0].n} facture(s) de vente dans la base ${config.database}.`;
+        const r = await pool.request().query('SELECT SUM(CASE WHEN DO_Type = 7 THEN 1 ELSE 0 END) AS comptabilisees, SUM(CASE WHEN DO_Type = 6 THEN 1 ELSE 0 END) AS enCours FROM F_DOCENTETE WHERE DO_Type IN (6, 7) AND DO_Domaine = 0');
+        const { comptabilisees = 0, enCours = 0 } = r.recordset[0] || {};
+        message = `Connexion réussie : ${comptabilisees || 0} facture(s) de vente comptabilisée(s) et ${enCours || 0} non comptabilisée(s) dans la base ${config.database}.`;
       } finally { await pool.close().catch(() => {}); }
     }
     await record({ lastTestAt: new Date(), lastTestOk: true, lastTestError: null });
@@ -206,7 +210,7 @@ async function preview(req, tenantId, row) {
         body: {
           success: true,
           message: rows.length ? `${rows.length} facture(s) correspondent (les 20 plus récentes).` : 'Aucune facture ne correspond à ce critère.',
-          rows: rows.map(r => ({ piece: r.DO_Piece, date: r.DO_Date, client: r.CT_Intitule, clientNum: r.DO_Tiers, compteCollectif: r.CG_NumPrinc || null, type: phpBeneficiaryType(r.CG_NumPrinc), totalTTC: r.DO_TotalTTC })),
+          rows: rows.map(r => ({ piece: r.DO_Piece, comptabilisee: r.DO_Type === 7, date: r.DO_Date, client: r.CT_Intitule, clientNum: r.DO_Tiers, compteCollectif: r.CG_NumPrinc || null, type: phpBeneficiaryType(r.CG_NumPrinc), totalTTC: r.DO_TotalTTC })),
         },
       };
     } finally { await pool.close().catch(() => {}); }

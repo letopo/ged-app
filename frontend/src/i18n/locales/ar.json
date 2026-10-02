@@ -2446,5 +2446,13 @@
   "Employé PHP": "موظف PHP",
   "Famille PHP": "عائلة PHP",
   "Importer les factures à partir du": "استيراد الفواتير ابتداءً من",
-  "Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.": "تُستورد فواتير Sage المؤرخة في هذا اليوم أو بعده فقط، دون السجل السابق."
+  "Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.": "تُستورد فواتير Sage المؤرخة في هذا اليوم أو بعده فقط، دون السجل السابق.",
+  "État": "الحالة",
+  "Comptabilisée": "مُرحّلة محاسبيًا",
+  "Non comptabilisée": "غير مُرحّلة",
+  "Factures à importer": "الفواتير المراد استيرادها",
+  "Comptabilisées et non comptabilisées (recommandé)": "المُرحّلة وغير المُرحّلة (موصى به)",
+  "Comptabilisées seulement": "المُرحّلة فقط",
+  "Seules les factures déjà comptabilisées dans Sage sont importées (elles arrivent après la clôture comptable).": "تُستورد الفواتير المُرحّلة في Sage فقط (تصل بعد الإقفال المحاسبي).",
+  "Une facture non comptabilisée peut encore être modifiée dans Sage : la GED garde la version du moment de l’import. Une fois comptabilisée, elle n’est pas importée une seconde fois.": "يمكن تعديل الفاتورة غير المُرحّلة في Sage: تحتفظ الأنظمة بالنسخة وقت الاستيراد. وبعد ترحيلها لا تُستورد مرة ثانية."
 }

@@ -2446,5 +2446,13 @@
   "Employé PHP": "PHP employee",
   "Famille PHP": "PHP family",
   "Importer les factures à partir du": "Import invoices from",
-  "Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.": "Only Sage invoices dated on or after this day are imported: past invoices are not."
+  "Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.": "Only Sage invoices dated on or after this day are imported: past invoices are not.",
+  "État": "Status",
+  "Comptabilisée": "Posted",
+  "Non comptabilisée": "Not posted",
+  "Factures à importer": "Invoices to import",
+  "Comptabilisées et non comptabilisées (recommandé)": "Posted and not yet posted (recommended)",
+  "Comptabilisées seulement": "Posted only",
+  "Seules les factures déjà comptabilisées dans Sage sont importées (elles arrivent après la clôture comptable).": "Only invoices already posted in Sage are imported (they arrive after the accounting close).",
+  "Une facture non comptabilisée peut encore être modifiée dans Sage : la GED garde la version du moment de l’import. Une fois comptabilisée, elle n’est pas importée une seconde fois.": "An invoice that is not yet posted can still be changed in Sage: the DMS keeps the version from the time of import. Once posted, it is not imported a second time."
 }

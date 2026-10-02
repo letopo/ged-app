@@ -2446,5 +2446,13 @@
   "Employé PHP": "Empleado PHP",
   "Famille PHP": "Familia PHP",
   "Importer les factures à partir du": "Importar las facturas a partir del",
-  "Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.": "Solo se importan las facturas de Sage con fecha de ese día o posterior: el historial no."
+  "Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.": "Solo se importan las facturas de Sage con fecha de ese día o posterior: el historial no.",
+  "État": "Estado",
+  "Comptabilisée": "Contabilizada",
+  "Non comptabilisée": "No contabilizada",
+  "Factures à importer": "Facturas a importar",
+  "Comptabilisées et non comptabilisées (recommandé)": "Contabilizadas y no contabilizadas (recomendado)",
+  "Comptabilisées seulement": "Solo contabilizadas",
+  "Seules les factures déjà comptabilisées dans Sage sont importées (elles arrivent après la clôture comptable).": "Solo se importan las facturas ya contabilizadas en Sage (llegan tras el cierre contable).",
+  "Une facture non comptabilisée peut encore être modifiée dans Sage : la GED garde la version du moment de l’import. Une fois comptabilisée, elle n’est pas importée une seconde fois.": "Una factura no contabilizada aún puede modificarse en Sage: la GED conserva la versión del momento de la importación. Una vez contabilizada, no se importa por segunda vez."
 }
