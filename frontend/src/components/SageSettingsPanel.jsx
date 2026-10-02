@@ -38,7 +38,7 @@ export default function SageSettingsPanel({ tenantId = null }) {
     setData(payload);
     const i = payload.integration || {};
     setEnabled(payload.source === 'tenant' ? Boolean(i.enabled) : true);
-    setCfg({ ...(i.config || {}) });
+    setCfg({ importFromDate: new Date().toISOString().slice(0, 10), ...(i.config || {}) });
     setAdminCanManage(Boolean(i.adminCanManage));
     setSecret('');
   };
@@ -212,9 +212,14 @@ export default function SageSettingsPanel({ tenantId = null }) {
           <input style={inputStyle} value={cfg.workflowTemplateName || ''} onChange={set('workflowTemplateName')} />
         </Field>
       </div>
-      <Field label={t('Fréquence de synchronisation (minutes)')} hint={t('Entre 5 et 1440 minutes.')} style={{ maxWidth: 260 }}>
-        <input style={inputStyle} value={cfg.syncIntervalMinutes ?? ''} onChange={set('syncIntervalMinutes')} inputMode="numeric" />
-      </Field>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 16px' }}>
+        <Field label={t('Importer les factures à partir du')} hint={t('Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.')} style={{ flex: '1 1 260px', maxWidth: 360 }}>
+          <input type="date" style={inputStyle} value={cfg.importFromDate || ''} onChange={set('importFromDate')} />
+        </Field>
+        <Field label={t('Fréquence de synchronisation (minutes)')} hint={t('Entre 5 et 1440 minutes.')} style={{ flex: '1 1 220px', maxWidth: 260 }}>
+          <input style={inputStyle} value={cfg.syncIntervalMinutes ?? ''} onChange={set('syncIntervalMinutes')} inputMode="numeric" />
+        </Field>
+      </div>
 
       {data.canDelegate && (
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, margin: '4px 0 20px', cursor: 'pointer', fontSize: 13, color: 'var(--fg)' }}>

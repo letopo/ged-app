@@ -2444,5 +2444,7 @@
   "Patients PHP : 4127000 = employés, 4122000 = familles. Séparez plusieurs comptes par une virgule.": "مرضى PHP: ‏4127000 = الموظفون، ‏4122000 = العائلات. افصل بين الحسابات بفاصلة.",
   "Compte collectif": "الحساب الجماعي",
   "Employé PHP": "موظف PHP",
-  "Famille PHP": "عائلة PHP"
+  "Famille PHP": "عائلة PHP",
+  "Importer les factures à partir du": "استيراد الفواتير ابتداءً من",
+  "Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.": "تُستورد فواتير Sage المؤرخة في هذا اليوم أو بعده فقط، دون السجل السابق."
 }

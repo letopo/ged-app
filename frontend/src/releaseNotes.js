@@ -344,6 +344,7 @@ const RELEASE_NOTES = [
     items: [
       'Paramètres › Intégrations › Sage : nouveau critère « Compte collectif du client » — 4127000 pour les employés PHP, 4122000 pour leurs familles. C’est la méthode recommandée pour reconnaître les patients PHP.',
       'L’aperçu affiche le compte collectif de chaque facture ; les factures importées indiquent « Employé PHP » ou « Famille PHP » (titre et PDF).',
+      'Nouveau réglage « Importer les factures à partir du » : seules les factures datées de ce jour ou après sont importées, jamais tout l’historique.',
     ],
     access: isAdmin,
   },

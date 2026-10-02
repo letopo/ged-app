@@ -2444,5 +2444,7 @@
   "Patients PHP : 4127000 = employés, 4122000 = familles. Séparez plusieurs comptes par une virgule.": "PHP patients: 4127000 = employees, 4122000 = families. Separate several accounts with a comma.",
   "Compte collectif": "Control account",
   "Employé PHP": "PHP employee",
-  "Famille PHP": "PHP family"
+  "Famille PHP": "PHP family",
+  "Importer les factures à partir du": "Import invoices from",
+  "Seules les factures Sage datées de ce jour ou après sont importées : l’historique ne l’est pas.": "Only Sage invoices dated on or after this day are imported: past invoices are not."
 }
