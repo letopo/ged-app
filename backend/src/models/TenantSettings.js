@@ -13,6 +13,8 @@ const TenantSettings = sequelize.define('TenantSettings', {
   sessionMaxDays:       { type: DataTypes.INTEGER, allowNull: false, defaultValue: 7 },
   maxUploadMb:          { type: DataTypes.INTEGER, allowNull: false, defaultValue: 50 },
   stampRealSize:        { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  // Postes autorisés à voir « BL PHP en attente » (le superadmin y a toujours accès)
+  sageBlAccessPostes:   { type: DataTypes.JSONB, allowNull: false, defaultValue: ['facturation', 'dg', 'ccg'] },
   updatedBy:            { type: DataTypes.UUID, allowNull: true },
 }, {
   tableName: 'tenant_settings',

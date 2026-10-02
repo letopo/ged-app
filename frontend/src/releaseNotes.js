@@ -350,6 +350,18 @@ const RELEASE_NOTES = [
     ],
     access: isAdmin,
   },
+  {
+    id: '2026-10-02-bl-php-en-attente',
+    date: '2026-10-02',
+    target: '/sage-bl-php',
+    title: 'BL PHP en attente de facturation',
+    items: [
+      'Nouveau tableau de bord (Finances › BL PHP en attente) : les actes des employés et familles PHP pas encore facturés dans Sage, regroupés par Bon de Prise en Charge de 3 jours (à partir de la date d’entrée du patient).',
+      'Pour chaque BPC : état (en cours J1–J3, à facturer, en retard), services, montant, et le détail des actes de chaque BL. Filtres, recherche et export Excel.',
+      'Onglet « Contrôle des 3 jours » : les factures qui regroupent des BL espacés de plus de 3 jours.',
+    ],
+    access: (user) => user?.role === 'superadmin' || !!user?.canSeeSageBl,
+  },
 ];
 
 export default RELEASE_NOTES;

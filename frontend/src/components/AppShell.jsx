@@ -134,6 +134,7 @@ const makeCanAccess = (user) => (item) => {
   if (item.gmaoOnly)        return isAdmin || (user.postes || []).includes('gmao');
   if (item.phpOnly)         return isAdmin || user.role === 'agent_accueil_php';
   if (item.comptaOnly)      return isAdmin || (user.postes || []).includes('comptable');
+  if (item.sageBlOnly)      return user.role === 'superadmin' || !!user.canSeeSageBl;
   return true;
 };
 
@@ -168,6 +169,7 @@ const buildOrgGroups = (t, user) => {
       { path: '/compta',             icon: Calculator,      label: t('Comptabilité'),        comptaOnly: true },
       { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
       { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), adminOnly: true },
+      { path: '/sage-bl-php',        icon: ClipboardList,   label: t('BL PHP en attente'),   sageBlOnly: true },
     ]},
     { id: 'php', color: '#DC2626', icon: Stethoscope, label: t('Module PHP'), items: [
       { path: '/php',                icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
@@ -414,6 +416,7 @@ const ROUTE_CRUMBS = {
   '/php':                 ['Module PHP'],
   '/php/factures':        ['Module PHP', 'Factures PHP'],
   '/sage-factures-php':   ['Factures PHP (Sage)'],
+  '/sage-bl-php':         ['Finances', 'BL PHP en attente'],
 };
 
 const timeAgo = (date) => {
