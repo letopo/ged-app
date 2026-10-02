@@ -869,3 +869,17 @@ a.kpi-card:active { transform: scale(0.98); }
   .blphp-status   { grid-area: status; justify-self: end; }
   .blphp-services { grid-area: services; white-space: normal; }
 }
+
+/* Factures PHP (Sage) — une ligne par facture (grille sur ordinateur, carte sur téléphone) */
+.fphp-row { display: grid; grid-template-columns: 180px minmax(0, 2fr) 170px 170px 120px auto; align-items: center; gap: 12px;
+  padding: 10px 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--fg); }
+.fphp-row:hover { background: var(--surface-2); }
+.fphp-patient { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fphp-bl { font-size: 12.5px; white-space: nowrap; }
+.fphp-amount { text-align: right; font-weight: 650; white-space: nowrap; }
+.fphp-actions { display: flex; gap: 6px; justify-content: flex-end; }
+@media (max-width: 1100px) {
+  .fphp-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "patient amount" "piece ged" "bl actions"; row-gap: 6px; }
+  .fphp-patient { grid-area: patient; } .fphp-amount { grid-area: amount; } .fphp-piece { grid-area: piece; }
+  .fphp-ged { grid-area: ged; justify-self: end; } .fphp-bl { grid-area: bl; white-space: normal; } .fphp-actions { grid-area: actions; }
+}

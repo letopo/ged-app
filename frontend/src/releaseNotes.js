@@ -375,6 +375,19 @@ const RELEASE_NOTES = [
     ],
     access: isAdmin,
   },
+  {
+    id: '2026-10-02-factures-php-tableau',
+    date: '2026-10-02',
+    target: '/sage-factures-php',
+    title: 'Factures PHP (Sage) : nouveau tableau de bord',
+    items: [
+      'Les factures PHP arrêtées dans Sage, lues en direct : période (aujourd’hui, 7 jours, mois…), employés / familles, état Sage, contrôle du BPC (BL étalés sur plus de 3 jours) et état dans la GED (non importée, en signature, signée).',
+      'Bouton « Liasse » : la facture et les bordereaux de cession de ses BL en PDF.',
+      'Relevé journalier : aperçu et création du relevé des factures du jour, envoyé en signature au DG (modèle « Circuit Relevé Factures PHP »).',
+      'Page accessible au superadmin et aux postes autorisés (comme « BL PHP en attente »).',
+    ],
+    access: (user) => user?.role === 'superadmin' || !!user?.canSeeSageBl,
+  },
 ];
 
 export default RELEASE_NOTES;

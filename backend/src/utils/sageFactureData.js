@@ -25,7 +25,7 @@ export async function loadSageFacture(pool, piece) {
            T.[SECTEUR] AS secteur, T.[Date Entrée du Malade] AS dateEntree, T.[Date de Sortie du Malade] AS dateSortie
     FROM F_DOCENTETE E
     LEFT JOIN F_COMPTET T ON T.CT_Num = E.DO_Tiers
-    WHERE E.DO_Domaine = 0 AND E.DO_Type IN (6, 7) AND E.DO_Piece = @piece
+    WHERE E.DO_Domaine = 0 AND E.DO_Type IN (6, 7) AND E.cbDO_Piece = CONVERT(varbinary(13), @piece)
     ORDER BY E.DO_Type DESC`);
   const h = head.recordset[0];
   if (!h) return null;
@@ -40,7 +40,7 @@ export async function loadSageFacture(pool, piece) {
   const lines = await pool.request().input('piece', sql.VarChar, piece).input('type', sql.Int, h.DO_Type).query(`
     SELECT DL_Ligne, DL_DateBL, DL_PieceBL, DO_Ref, AR_Ref, DL_Design, DL_Qte, DL_PrixUnitaire, DL_MontantHT, DL_MontantTTC
     FROM F_DOCLIGNE
-    WHERE DO_Domaine = 0 AND DO_Type = @type AND DO_Piece = @piece
+    WHERE DO_Domaine = 0 AND DO_Type = @type AND cbDO_Piece = CONVERT(varbinary(13), @piece)   -- index Sage IDL_LIGNE
     ORDER BY DL_Ligne`);
 
   const lignes = lines.recordset.map(l => ({

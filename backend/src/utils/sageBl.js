@@ -51,7 +51,7 @@ export async function fetchBlLines(pool, pieces) {
   const r = await request.query(`
     SELECT DO_Piece, DL_Ligne, AR_Ref, DL_Design, DL_Qte, DL_PrixUnitaire, DL_MontantTTC
     FROM F_DOCLIGNE
-    WHERE DO_Domaine = 0 AND DO_Type = 3 AND DO_Piece IN (${list.map((_, i) => `@p${i}`).join(', ')})
+    WHERE DO_Domaine = 0 AND DO_Type = 3 AND cbDO_Piece IN (${list.map((_, i) => `CONVERT(varbinary(13), @p${i})`).join(', ')})
     ORDER BY DO_Piece, DL_Ligne`);
   return r.recordset.map(l => ({
     piece: l.DO_Piece, ref: l.AR_Ref, designation: l.DL_Design, quantite: Number(l.DL_Qte),
@@ -169,4 +169,53 @@ export async function fetchInvoiceSpanControl(pool, days = 30) {
       ecartJours: Math.round((dayOf(x.dernierBl) - dayOf(x.premierBl)) / DAY), total: Number(x.total) || 0,
     })),
   };
+}
+
+/**
+ * Factures PHP d'une période (Sage, lecture seule), avec le nombre de BL
+ * regroupés et l'écart entre le premier et le dernier BL (contrôle du BPC).
+ */
+export async function fetchFacturesPhp(pool, from, to) {
+  // 1. Entêtes des factures PHP de la période
+  const request = pool.request();
+  const inList = collectifParams(request);
+  request.input('from', sql.Date, from);
+  request.input('to', sql.Date, to);
+  const heads = (await request.query(`
+    SELECT E.DO_Piece, E.DO_Type, E.DO_Date, E.DO_TotalTTC, E.DO_Tiers, E.Emetteur,
+           T.CT_Intitule, T.CG_NumPrinc, T.[MATRICULE] AS matricule, T.[SECTEUR] AS secteur, T.[NOM ASSURE] AS nomAssure
+    FROM F_DOCENTETE E
+    JOIN F_COMPTET T ON T.CT_Num = E.DO_Tiers
+    WHERE E.DO_Domaine = 0 AND E.DO_Type IN (6, 7) AND T.CG_NumPrinc IN (${inList})
+      AND E.DO_Date >= @from AND E.DO_Date <= @to
+    ORDER BY E.DO_Date DESC, E.DO_Piece DESC`)).recordset;
+
+  // 2. BL regroupés par facture, par lots. Les index Sage portent sur les colonnes
+  //    binaires « cb… » : cbDO_Piece est ~20× plus rapide que DO_Piece.
+  const agg = new Map();
+  for (let i = 0; i < heads.length; i += 200) {
+    const chunk = heads.slice(i, i + 200);
+    const req2 = pool.request();
+    chunk.forEach((h, j) => req2.input(`p${j}`, sql.VarChar, h.DO_Piece));
+    const rows = (await req2.query(`
+      SELECT DO_Piece, DO_Type, COUNT(DISTINCT NULLIF(LTRIM(RTRIM(DL_PieceBL)), '')) AS nbBl,
+             MIN(CASE WHEN DL_DateBL > '1901-01-01' THEN DL_DateBL END) AS premierBl,
+             MAX(CASE WHEN DL_DateBL > '1901-01-01' THEN DL_DateBL END) AS dernierBl
+      FROM F_DOCLIGNE
+      WHERE DO_Domaine = 0 AND DO_Type IN (6, 7) AND cbDO_Piece IN (${chunk.map((_, j) => `CONVERT(varbinary(13), @p${j})`).join(', ')})
+      GROUP BY DO_Piece, DO_Type`)).recordset;
+    rows.forEach(r => agg.set(`${r.DO_Piece}|${r.DO_Type}`, r));
+  }
+
+  return heads.map(x => {
+    const l = agg.get(`${x.DO_Piece}|${x.DO_Type}`) || {};
+    const ecart = l.premierBl && l.dernierBl ? Math.round((dayOf(l.dernierBl) - dayOf(l.premierBl)) / DAY) : 0;
+    return {
+      piece: x.DO_Piece.trim(), comptabilisee: x.DO_Type === 7, date: iso(dayOf(x.DO_Date)), total: Number(x.DO_TotalTTC) || 0,
+      emetteur: (x.Emetteur || '').trim() || null,
+      patient: { compteTiers: (x.DO_Tiers || '').trim(), nom: (x.CT_Intitule || '').trim(), type: phpBeneficiaryType(x.CG_NumPrinc), matricule: (x.matricule || '').trim() || null, secteur: (x.secteur || '').trim() || null, nomAssure: (x.nomAssure || '').trim() || null },
+      nbBl: Number(l.nbBl) || 0, premierBl: l.premierBl ? iso(dayOf(l.premierBl)) : null, dernierBl: l.dernierBl ? iso(dayOf(l.dernierBl)) : null,
+      ecartJours: ecart, horsBpc: ecart >= BPC_DAYS,
+    };
+  });
 }

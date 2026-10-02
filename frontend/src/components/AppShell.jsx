@@ -168,7 +168,7 @@ const buildOrgGroups = (t, user) => {
       { path: '/demandes-achat',     icon: ShoppingCart,    label: t("Demandes d'achat"),    demandeAchatOnly: true },
       { path: '/compta',             icon: Calculator,      label: t('Comptabilité'),        comptaOnly: true },
       { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
-      { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), adminOnly: true },
+      { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageBlOnly: true },
       { path: '/sage-bl-php',        icon: ClipboardList,   label: t('BL PHP en attente'),   sageBlOnly: true },
     ]},
     { id: 'php', color: '#DC2626', icon: Stethoscope, label: t('Module PHP'), items: [
