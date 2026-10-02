@@ -346,6 +346,7 @@ const RELEASE_NOTES = [
       'L’aperçu affiche le compte collectif de chaque facture ; les factures importées indiquent « Employé PHP » ou « Famille PHP » (titre et PDF).',
       'Nouveau réglage « Importer les factures à partir du » : seules les factures datées de ce jour ou après sont importées, jamais tout l’historique.',
       'Les factures du mois pas encore comptabilisées dans Sage sont aussi prises en compte (réglage « Factures à importer ») ; l’aperçu indique l’état de chacune.',
+      'L’aperçu indique le nombre total de factures qui seraient importées (employés, familles, non comptabilisées, période couverte) avant d’enregistrer.',
     ],
     access: isAdmin,
   },

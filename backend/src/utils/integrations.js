@@ -162,6 +162,25 @@ export async function fetchSageFactures(pool, config, limit = 200) {
   return result.recordset;
 }
 
+// Nombre total de factures qualifiantes (aperçu : volume que l'import créerait),
+// réparti entre employés / familles PHP et non comptabilisées
+export async function countSageFactures(pool, config) {
+  const request = pool.request();
+  const filter = buildSageFilter(config, request);
+  if (!filter) return null;
+  const result = await request.query(`
+    SELECT COUNT(*) AS total,
+      SUM(CASE WHEN C.CG_NumPrinc = '4127000' THEN 1 ELSE 0 END) AS employes,
+      SUM(CASE WHEN C.CG_NumPrinc = '4122000' THEN 1 ELSE 0 END) AS familles,
+      SUM(CASE WHEN E.DO_Type = 6 THEN 1 ELSE 0 END) AS nonComptabilisees,
+      MIN(E.DO_Date) AS premiere, MAX(E.DO_Date) AS derniere
+    FROM F_DOCENTETE E
+    LEFT JOIN F_COMPTET C ON C.CT_Num = E.DO_Tiers
+    WHERE ${filter}
+  `);
+  return result.recordset[0];
+}
+
 // Message compréhensible pour une erreur de connexion à SQL Server
 export function describeSageError(err) {
   const msg = err?.message || String(err);

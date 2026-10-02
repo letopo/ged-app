@@ -10,7 +10,7 @@ import { INTEGRATION_KINDS } from '../models/TenantIntegration.js';
 import { encryptSecret, decryptSecret } from '../utils/secretBox.js';
 import {
   DEFAULT_AI_MODEL, testAiConfig, SAGE_DEFAULTS, SAGE_FILTER_MODES, fetchSageFactures,
-  parseComptesCollectifs, phpBeneficiaryType, isIsoDate,
+  parseComptesCollectifs, phpBeneficiaryType, isIsoDate, countSageFactures,
 } from '../utils/integrations.js';
 import { openSagePool, runSageSyncNow } from '../utils/sageFactureSync.js';
 
@@ -205,11 +205,20 @@ async function preview(req, tenantId, row) {
     try {
       const rows = await fetchSageFactures(pool, config, 20);
       if (rows === null) return { status: 200, body: { success: true, rows: [], message: 'Choisissez un critère « facture PHP » : sans critère, rien n’est importé.' } };
+      const c = await countSageFactures(pool, config);
+      const total = Number(c?.total || 0);
+      const fmtD = (d) => (d ? new Date(d).toLocaleDateString('fr-FR') : '');
+      const detail = total
+        ? ` (${Number(c.employes || 0)} employé(s), ${Number(c.familles || 0)} famille(s) ; ${Number(c.nonComptabilisees || 0)} non comptabilisée(s) ; du ${fmtD(c.premiere)} au ${fmtD(c.derniere)})`
+        : '';
       return {
         status: 200,
         body: {
           success: true,
-          message: rows.length ? `${rows.length} facture(s) correspondent (les 20 plus récentes).` : 'Aucune facture ne correspond à ce critère.',
+          total,
+          message: total
+            ? `${total} facture(s) seraient importées${detail}. Ci-dessous les ${rows.length} plus récentes.${total > 200 ? ' ⚠️ Volume important : chaque facture crée un document et un circuit de validation — envisagez une date de départ plus récente.' : ''}`
+            : 'Aucune facture ne correspond à ce critère.',
           rows: rows.map(r => ({ piece: r.DO_Piece, comptabilisee: r.DO_Type === 7, date: r.DO_Date, client: r.CT_Intitule, clientNum: r.DO_Tiers, compteCollectif: r.CG_NumPrinc || null, type: phpBeneficiaryType(r.CG_NumPrinc), totalTTC: r.DO_TotalTTC })),
         },
       };
