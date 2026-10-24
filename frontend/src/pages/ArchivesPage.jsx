@@ -82,7 +82,26 @@ function TypeCheckbox({ label, count, checked, onChange }) {
 }
 
 // ── Timeline view ─────────────────────────────────────────────────────────────
-function TimelineView({ docs, onRestore, onView }) {
+// Extrait du texte reconnu (OCR) où le terme recherché a été trouvé, terme surligné
+function ContentSnippet({ snippet, q }) {
+  const { t } = useTranslation();
+  if (!snippet) return null;
+  const i = snippet.toLowerCase().indexOf(q.toLowerCase());
+  return (
+    <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 4, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+      <span style={{ fontWeight: 600, color: 'var(--brand)' }}>{t('Dans le texte')} · </span>
+      {i < 0 ? snippet : (
+        <>
+          {snippet.slice(0, i)}
+          <mark style={{ background: 'var(--warning-soft, #fef3c7)', color: 'inherit', padding: '0 1px', borderRadius: 2 }}>{snippet.slice(i, i + q.length)}</mark>
+          {snippet.slice(i + q.length)}
+        </>
+      )}
+    </div>
+  );
+}
+
+function TimelineView({ docs, onRestore, onView, contentHits, q }) {
   const { t } = useTranslation();
   const sorted = [...docs].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
   let lastMonth = null;
@@ -107,6 +126,7 @@ function TimelineView({ docs, onRestore, onView }) {
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:13, fontWeight:600, color:'var(--fg)', marginBottom:3 }}>{doc.title}</div>
+                    <ContentSnippet snippet={contentHits?.get(doc.id)} q={q} />
                     <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--fg-muted)', flexWrap:'wrap' }}>
                       <Avatar name={uploaderName} size={16} />
                       <span>{uploaderName}</span>
@@ -146,6 +166,23 @@ export default function ArchivesPage() {
   const [selectedAuthors, setSelectedAuthors] = useState(new Set());
   const [sort, setSort]               = useState('date');   // 'date' | 'name' | 'size'
   const [showFilters, setShowFilters] = useState(false);    // mobile : filtres repliés par défaut
+  // Recherche dans le texte des documents (OCR), faite par le serveur : id → extrait
+  const [contentHits, setContentHits] = useState(new Map());
+  const [contentSearching, setContentSearching] = useState(false);
+
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 3) { setContentHits(new Map()); setContentSearching(false); return undefined; }
+    let alive = true;
+    setContentSearching(true);
+    const timer = setTimeout(() => {
+      documentsAPI.searchArchivesContent(q)
+        .then(res => { if (alive) setContentHits(new Map((res.data.data || []).map(h => [h.id, h.snippet]))); })
+        .catch(() => { if (alive) setContentHits(new Map()); })
+        .finally(() => { if (alive) setContentSearching(false); });
+    }, 350);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [search]);
 
   useEffect(() => { loadArchives(); }, []);
 
@@ -195,7 +232,7 @@ export default function ArchivesPage() {
 
     if (search.trim()) {
       const q = search.toLowerCase();
-      docs = docs.filter(d => d.title?.toLowerCase().includes(q) || d.category?.toLowerCase().includes(q));
+      docs = docs.filter(d => d.title?.toLowerCase().includes(q) || d.category?.toLowerCase().includes(q) || contentHits.has(d.id));
     }
 
     if (selectedTypes.size > 0)
@@ -220,7 +257,7 @@ export default function ArchivesPage() {
     });
 
     return docs;
-  }, [allDocs, search, selectedTypes, dateFrom, dateTo, selectedAuthors, sort]);
+  }, [allDocs, search, contentHits, selectedTypes, dateFrom, dateTo, selectedAuthors, sort]);
 
   const handleUnarchive = async (doc) => {
     const ok = await confirm({
@@ -320,7 +357,7 @@ export default function ArchivesPage() {
           {/* OCR search */}
           <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', borderRadius:'var(--radius-2)', border:'1px solid var(--border)', background:'var(--surface-2)' }}>
-              <Search size={13} color="var(--fg-subtle)" />
+              {contentSearching ? <Loader size={13} color="var(--fg-subtle)" className="animate-spin" /> : <Search size={13} color="var(--fg-subtle)" />}
               <input
                 value={search} onChange={e => setSearch(e.target.value)}
                 placeholder={t('Plein texte (OCR)...')}
@@ -437,7 +474,7 @@ export default function ArchivesPage() {
               <div style={{ fontSize:12, color:'var(--fg-subtle)' }}>{t('Modifiez les filtres ou la recherche')}</div>
             </div>
           ) : view === 'timeline' ? (
-            <TimelineView docs={filteredDocs} onRestore={handleUnarchive} onView={setViewingDocument} />
+            <TimelineView docs={filteredDocs} onRestore={handleUnarchive} onView={setViewingDocument} contentHits={contentHits} q={search.trim()} />
           ) : (
             <div className="ged-card" style={{ overflow:'hidden', padding:0 }}>
               {filteredDocs.map((doc, i) => {
@@ -467,6 +504,7 @@ export default function ArchivesPage() {
                         {doc.title}
                         {doc.service || doc.department ? <span style={{ fontWeight:400, color:'var(--fg-muted)' }}> · {doc.service || doc.department}</span> : null}
                       </div>
+                      <ContentSnippet snippet={contentHits.get(doc.id)} q={search.trim()} />
                       <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--fg-muted)', flexWrap:'wrap' }}>
                         <Avatar name={uploaderName} size={18} />
                         <span>{uploaderName}</span>

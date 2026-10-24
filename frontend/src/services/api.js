@@ -243,6 +243,7 @@ export const documentsAPI = {
   getValidatedDemandesTravaux: () => api.get('/documents/demandes-travaux/valides'),
   getNextNumero: (category) => api.get(`/documents/next-numero?category=${encodeURIComponent(category)}`),
   getArchives: () => api.get('/documents/archives'),
+  searchArchivesContent: (q) => api.get('/documents/archives/content-search', { params: { q } }),
   getRecentDecisions: (days = 7) => api.get('/documents/recent-decisions', { params: { days } }),
   // Transmission d'un document validé à d'autres utilisateurs
   getTransmissionRecipients: (q = '') => api.get('/documents/transmission-recipients', { params: { q } }),
