@@ -2690,5 +2690,9 @@
   "Votre signature a été transmise. Vous pouvez rendre la tablette.": "تم إرسال توقيعك. يمكنك إعادة الجهاز اللوحي.",
   "{{count}} p.": "{{count}} ص",
   "Rejeté par {{name}}": "رفضه {{name}}",
-  "Relancer": "إعادة الإرسال"
+  "Relancer": "إعادة الإرسال",
+  "par page": "لكل صفحة",
+  "Pagination": "ترقيم الصفحات",
+  "Page précédente": "الصفحة السابقة",
+  "Page suivante": "الصفحة التالية"
 }

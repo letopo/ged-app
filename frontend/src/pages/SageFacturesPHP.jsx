@@ -9,13 +9,13 @@ import { Link } from 'react-router-dom';
 import { Loader, RefreshCw, Download, Search, FileText, AlertCircle, CheckCircle, Clock, XCircle, FileSignature, Eye, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sageBlAPI, sageFactureAPI } from '../services/phpService';
+import Pagination, { usePageSize } from '../components/Pagination';
 import { useAuth } from '../contexts/AuthContext';
 
 const fmtMoney = (n) => `${Number(n || 0).toLocaleString('fr-FR')} FCFA`;
 const fmtShort = (n) => { const v = Number(n || 0); return v >= 1e6 ? `${(v / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} M FCFA` : fmtMoney(v); };
 const fmtDate = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString('fr-FR') : '—');
 const iso = (d) => d.toISOString().slice(0, 10);
-const PAGE_SIZE = 50;
 
 const PERIODS = {
   today: () => { const d = iso(new Date()); return [d, d]; },
@@ -69,6 +69,7 @@ export default function SageFacturesPHP() {
   const [bpc, setBpc] = useState('all');
   const [ged, setGed] = useState('all');
   const [page, setPage] = useState(1);
+  const [PAGE_SIZE, setPageSize] = usePageSize('sageFactures', 50);
   const [releveDate, setReleveDate] = useState(iso(new Date()));
   const [busy, setBusy] = useState(null);
 
@@ -247,15 +248,9 @@ export default function SageFacturesPHP() {
               );
             })}
             {!filtered.length && !loading && <div style={{ padding: 30, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>{t('Aucune facture ne correspond.')}</div>}
-            {pages > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 16px', borderTop: '1px solid var(--border)', fontSize: 12.5, color: 'var(--fg-muted)' }}>
-                <span>{t('Page {{page}} sur {{pages}}', { page, pages })}</span>
-                <span style={{ display: 'flex', gap: 6 }}>
-                  <button style={btn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('Précédent')}</button>
-                  <button style={btn} disabled={page >= pages} onClick={() => setPage(p => p + 1)}>{t('Suivant')}</button>
-                </span>
-              </div>
-            )}
+            <Pagination page={page} totalPages={pages} total={filtered.length} pageSize={PAGE_SIZE}
+              onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+              style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }} />
           </div>
         </>
       )}

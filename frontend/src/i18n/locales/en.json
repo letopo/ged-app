@@ -2690,5 +2690,9 @@
   "Votre signature a été transmise. Vous pouvez rendre la tablette.": "Your signature has been sent. You can hand back the tablet.",
   "{{count}} p.": "{{count}} p.",
   "Rejeté par {{name}}": "Rejected by {{name}}",
-  "Relancer": "Resubmit"
+  "Relancer": "Resubmit",
+  "par page": "per page",
+  "Pagination": "Pagination",
+  "Page précédente": "Previous page",
+  "Page suivante": "Next page"
 }

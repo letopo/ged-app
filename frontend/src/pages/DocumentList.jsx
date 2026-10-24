@@ -11,6 +11,7 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI, formsAPI, postesAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import DocumentThumbnail from '../components/DocumentThumbnail';
+import Pagination, { usePageSize, GRID_PAGE_SIZE_OPTIONS } from '../components/Pagination';
 import { WorkflowBar, RejectionSummary, WorkflowDetailsModal } from '../components/DocumentCardWorkflow';
 import WorkflowProgress from '../components/WorkflowProgress';
 import { DocumentGridSkeleton, DocumentTableSkeleton } from '../components/SkeletonLoader';
@@ -69,7 +70,7 @@ const DocumentList = () => {
     }
   };
   const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 20;
+  const [PAGE_SIZE, setPageSize] = usePageSize('documents', 24, GRID_PAGE_SIZE_OPTIONS);
   const searchTimer = useRef(null);
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
@@ -252,7 +253,7 @@ const DocumentList = () => {
   // Recharger les documents quand les filtres ou la page changent
   useEffect(() => {
     loadDocuments(currentPage);
-  }, [currentPage, searchTerm, filterStatus, filterCategory, filterDateFrom, filterDateTo]);
+  }, [currentPage, searchTerm, filterStatus, filterCategory, filterDateFrom, filterDateTo, PAGE_SIZE]);
 
   // Le bouton de réglage des indemnités de mission n'est visible que pour
   // admin/superadmin ou un titulaire des postes comptable/dg (vérifié aussi côté serveur).
@@ -693,7 +694,6 @@ const DocumentList = () => {
   const selectStyle = { height: 34, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', cursor: 'pointer' };
   const segActive  = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 'var(--radius-2)', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)', fontSize: 13, fontWeight: 500, cursor: 'pointer', boxShadow: 'var(--shadow-1)' };
   const segIdle    = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 'var(--radius-2)', background: 'transparent', border: '1px solid transparent', color: 'var(--fg-muted)', fontSize: 13, cursor: 'pointer' };
-  const pageBtn    = { width: 30, height: 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 13 };
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -1044,24 +1044,10 @@ const DocumentList = () => {
           )}
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
-              <span>{t('Page')} <b style={{ color: 'var(--fg)' }}>{safePage}</b> {t('sur')} <b style={{ color: 'var(--fg)' }}>{totalPages}</b> · {t('{{count}} documents', { count: totalDocuments })}</span>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={() => setCurrentPage(1)} disabled={safePage === 1} style={pageBtn}>«</button>
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1} style={pageBtn}>‹</button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-                  .reduce((acc, p, idx, arr) => { if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…'); acc.push(p); return acc; }, [])
-                  .map((p, i) => p === '…'
-                    ? <span key={`e-${i}`} style={{ ...pageBtn, cursor: 'default', border: 'none' }}>…</span>
-                    : <button key={p} onClick={() => setCurrentPage(p)} style={{ ...pageBtn, background: p === safePage ? 'var(--brand)' : 'var(--surface)', color: p === safePage ? '#fff' : 'var(--fg-muted)', borderColor: p === safePage ? 'var(--brand)' : 'var(--border)' }}>{p}</button>
-                  )}
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} style={pageBtn}>›</button>
-                <button onClick={() => setCurrentPage(totalPages)} disabled={safePage === totalPages} style={pageBtn}>»</button>
-              </div>
-            </div>
-          )}
+          <Pagination page={safePage} totalPages={totalPages} total={totalDocuments} pageSize={PAGE_SIZE}
+            pageSizeOptions={GRID_PAGE_SIZE_OPTIONS}
+            onPageChange={setCurrentPage} onPageSizeChange={(n) => { setPageSize(n); setCurrentPage(1); }}
+            style={{ marginTop: 12 }} />
         </div>
 
         {/* SIDEBAR — Templates */}
