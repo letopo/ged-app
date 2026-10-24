@@ -75,6 +75,15 @@ Ouvrir http://192.168.1.186/ca.crt dans Chrome (le fichier se télécharge), pui
 Paramètres → Sécurité → *Chiffrement & identifiants* → *Installer un certificat*
 → *Certificat CA* → choisir `HSJM-Internal-CA.crt`.
 
+Une fois la CA installée, fermer complètement Chrome puis rouvrir la GED : le cadenas
+s'affiche et le menu ⋮ propose **« Installer l'application »** (vraie application
+dans le tiroir d'applications, plein écran, hors ligne, notifications). Sans la CA,
+Chrome refuse le Service Worker et ne propose qu'un **raccourci** (« Impossible
+d'installer cette appli »). Si un raccourci a déjà été créé, le supprimer avant.
+L'adresse ouverte doit figurer dans le certificat (SAN) : `ged.hsjmcam.net`,
+`ged.hsjm.local`, `192.168.1.186`, `192.168.1.210` ou `192.168.1.138` (Mac de
+développement) — sinon relancer `generate-internal-ca.sh` après l'avoir ajoutée.
+
 ### iOS / iPadOS
 Ouvrir http://192.168.1.186/ca.crt dans **Safari** → *Autoriser* le téléchargement
 du profil → *Réglages → Profil téléchargé → Installer* → puis
