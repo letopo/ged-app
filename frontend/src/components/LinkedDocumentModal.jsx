@@ -4,13 +4,15 @@
 //  - en joignant un fichier (ex. proforma scannée) → nouveau document en brouillon.
 // Dans les deux cas le document d'origine est joint en tête du PDF (liasse) et le
 // lien est enregistré (Document.linkedDocumentId).
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { X, Loader, FileText, Paperclip, Upload as UploadIcon } from 'lucide-react';
+import { X, Loader, FileText, Paperclip, Upload as UploadIcon, ScanLine } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { documentsAPI, templatePermissionsAPI } from '../services/api';
+import useTenantSettings from '../hooks/useTenantSettings';
+import DocumentScanner from './DocumentScanner';
 
 const FILE_TYPE_SUGGESTIONS = ['Proforma', 'Devis', 'Bon de commande', 'Facture', 'Bon de livraison', 'Pièce justificative'];
 
@@ -24,6 +26,11 @@ export default function LinkedDocumentModal({ document: doc, onClose }) {
   const [title, setTitle] = useState('');
   const [attachOriginal, setAttachOriginal] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { maxUploadMb } = useTenantSettings();
+  // Scanner : photo prise ici (clic direct, exigé par iOS) puis recadrée → PDF
+  const cameraRef = useRef(null);
+  const [scanPhoto, setScanPhoto] = useState(null);
+  const isImage = file && /^image\//.test(file.type);
   const originalIsPdf = doc.fileType === 'application/pdf';
 
   useEffect(() => {
@@ -105,15 +112,35 @@ export default function LinkedDocumentModal({ document: doc, onClose }) {
             )
           ) : (
             <>
-              <label className="rn-field">
+              <div className="rn-field">
                 <span>{t('Fichier')} <em>{t('— PDF ou image')}</em></span>
-                <label className="ld-drop">
-                  <input type="file" accept="application/pdf,image/*" style={{ display: 'none' }}
-                    onChange={e => setFile(e.target.files?.[0] || null)} />
-                  <UploadIcon size={16} />
-                  <span>{file ? file.name : t('Choisir un fichier…')}</span>
-                </label>
-              </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <label className="ld-drop" style={{ flex: 1, minWidth: 0 }}>
+                    <input type="file" accept="application/pdf,image/*" style={{ display: 'none' }}
+                      onChange={e => setFile(e.target.files?.[0] || null)} />
+                    <UploadIcon size={16} style={{ flexShrink: 0 }} />
+                    <span>{file ? file.name : t('Choisir un fichier…')}</span>
+                  </label>
+                  <button type="button" className="ld-drop" onClick={() => cameraRef.current?.click()}
+                    style={{ flexShrink: 0, color: 'var(--brand)', borderColor: 'var(--brand)', borderStyle: 'solid', fontWeight: 600 }}>
+                    <ScanLine size={16} /> {t('Scanner')}
+                  </button>
+                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setScanPhoto(f); }} />
+                </div>
+                {isImage && (
+                  <button type="button" onClick={() => setScanPhoto(file)}
+                    style={{ alignSelf: 'flex-start', marginTop: 6, background: 'none', border: 'none', padding: 0, color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <ScanLine size={13} /> {t("C'est une photo ? Recadrez-la et convertissez-la en PDF.")}
+                  </button>
+                )}
+              </div>
+              {scanPhoto && ReactDOM.createPortal(
+                <DocumentScanner initialFile={scanPhoto} maxUploadMb={maxUploadMb}
+                  onClose={() => setScanPhoto(null)}
+                  onDone={(pdf) => { setScanPhoto(null); setFile(pdf); }} />,
+                document.body,
+              )}
               <div className="rn-field-row">
                 <label className="rn-field">
                   <span>{t('Type de document')}</span>
