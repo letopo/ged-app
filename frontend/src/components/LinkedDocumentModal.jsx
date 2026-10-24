@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { documentsAPI, templatePermissionsAPI } from '../services/api';
 import useTenantSettings from '../hooks/useTenantSettings';
 import DocumentScanner from './DocumentScanner';
+import VisibilityChoice, { useDocumentVisibility } from './VisibilityChoice';
 import { guessDocumentType } from '../utils/scanOcr';
 
 const FILE_TYPE_SUGGESTIONS = ['Proforma', 'Devis', 'Bon de commande', 'Facture', 'Bon de livraison', 'Pièce justificative'];
@@ -24,6 +25,7 @@ export default function LinkedDocumentModal({ document: doc, onClose }) {
   const [templates, setTemplates] = useState(null);
   const [file, setFile] = useState(null);
   const [category, setCategory] = useState('Proforma');
+  const [visibility, setVisibility, visibilityContext] = useDocumentVisibility(category.trim());
   const [title, setTitle] = useState('');
   const [attachOriginal, setAttachOriginal] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -63,6 +65,7 @@ export default function LinkedDocumentModal({ document: doc, onClose }) {
       fd.append('title', title.trim());
       fd.append('category', category.trim() || 'Pièce justificative');
       fd.append('linkedDocumentId', doc.id);
+      fd.append('visibility', visibility);
       if (extractedText) fd.append('extractedText', extractedText);
       if (attachOriginal && originalIsPdf && file.type === 'application/pdf') fd.append('mergeLinked', 'true');
       await documentsAPI.upload(fd);
@@ -159,6 +162,7 @@ export default function LinkedDocumentModal({ document: doc, onClose }) {
                 <span>{t('Titre')}</span>
                 <input value={title} onChange={e => { setTitle(e.target.value); setTitleTouched(true); }} maxLength={200} />
               </label>
+              <VisibilityChoice value={visibility} onChange={setVisibility} context={visibilityContext} />
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: canMerge ? 'var(--fg)' : 'var(--fg-muted)', cursor: canMerge ? 'pointer' : 'default' }}>
                 <input type="checkbox" checked={attachOriginal && canMerge} disabled={!canMerge} onChange={e => setAttachOriginal(e.target.checked)} style={{ marginTop: 2, accentColor: 'var(--brand)' }} />
                 <span>

@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { documentsAPI, servicesAPI, templatePermissionsAPI } from '../services/api';
+import VisibilityChoice, { useDocumentVisibility } from './VisibilityChoice';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Upload as UploadIcon, CheckCircle, X, Sparkles, Smartphone,
@@ -133,7 +134,6 @@ const Upload = () => {
   const [tagInput, setTagInput] = useState('');
   const [services, setServices] = useState([]);
   const [myTemplates, setMyTemplates] = useState([]);
-  const [visibility, setVisibility] = useState('personal');
 
   // Step 3
   const [workflow, setWorkflow] = useState('2levels');
@@ -144,11 +144,8 @@ const Upload = () => {
     templatePermissionsAPI.getMyTemplates().then(r => setMyTemplates(r.data?.data || [])).catch(() => {});
   }, []);
 
-  // Pré-remplit la visibilité avec le défaut de la catégorie choisie (l'utilisateur peut l'ajuster ensuite).
-  useEffect(() => {
-    const tpl = myTemplates.find(t => t.templateName === category);
-    setVisibility(tpl?.defaultVisibility === 'service' ? 'service' : 'personal');
-  }, [category, myTemplates]);
+  // Visibilité : défaut du type de document, ajustable (Personnel / Service)
+  const [visibility, setVisibility, visibilityContext] = useDocumentVisibility(category);
 
   const formatSize = bytes => {
     if (!bytes) return '';
@@ -425,22 +422,7 @@ const Upload = () => {
               </div>
 
               {/* Visibilité */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--fg)' }}>
-                  <input
-                    type="checkbox"
-                    checked={visibility === 'service'}
-                    onChange={e => setVisibility(e.target.checked ? 'service' : 'personal')}
-                    style={{ width: 16, height: 16, accentColor: 'var(--brand)' }}
-                  />
-                  {t('Visible par tout mon service')}
-                </label>
-                <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 4, marginLeft: 24 }}>
-                  {visibility === 'service'
-                    ? t('Tous les membres de votre service pourront voir ce document.')
-                    : t('Ce document ne sera visible que par vous (et vos validateurs de workflow).')}
-                </div>
-              </div>
+              <VisibilityChoice value={visibility} onChange={setVisibility} context={visibilityContext} style={{ marginBottom: 16 }} />
 
               {/* Référence */}
               <div style={{ marginBottom: 16 }}>

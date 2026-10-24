@@ -460,6 +460,22 @@ export const downloadDocument = async (req, res) => {
     }
 };
 
+// GET /api/documents/visibility-context — service auquel un document « service »
+// de cet utilisateur serait rattaché (null : pas de service actif → personnel seulement)
+export const getVisibilityContext = async (req, res) => {
+  try {
+    const serviceId = await resolveUploaderServiceId(req.user.id);
+    let serviceName = null;
+    if (serviceId) {
+      const { Service } = await import('../models/index.js');
+      serviceName = (await Service.findByPk(serviceId, { attributes: ['name'] }))?.name || null;
+    }
+    res.json({ success: true, data: { serviceId, serviceName } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
 // GET /api/documents/:id/thumbnail — miniature de la 1re page (vue Grille).
 // 204 si le document n'en a pas (Word, formulaire…) : le client garde l'icône.
 export const getDocumentThumbnail = async (req, res) => {

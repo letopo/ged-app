@@ -504,6 +504,16 @@ const RELEASE_NOTES = [
       'Depuis la GED : documents validés par défaut, recherche par nom, filtre par type et par période, tri par date, nom ou type ; le document ajouté reste inchangé.',
     ],
   },
+  {
+    id: '2026-10-24-visibilite-creation',
+    date: '2026-10-24',
+    target: '/documents',
+    title: 'Document personnel ou de service dès sa création',
+    items: [
+      'Bons de commande, bons de sortie, demandes de permission, demandes de travaux, formulaires, documents liés et upload : choix « Personnel » ou « Service » juste avant d’enregistrer.',
+      'Le choix est pré-rempli selon le type de document et indique votre service ; « Service » rend le document visible par tous les membres de votre service.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

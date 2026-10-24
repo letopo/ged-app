@@ -9,6 +9,7 @@ import DemandeTravaux from './templates/DemandeTravaux';
 import { Loader, Send, ArrowRight, CheckCircle, Info, Users } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import VisibilityChoice, { useDocumentVisibility } from '../components/VisibilityChoice';
 import toast from 'react-hot-toast';
 
 const CreateWorkRequest = () => {
@@ -35,6 +36,7 @@ const CreateWorkRequest = () => {
     const [selectedValidators, setSelectedValidators] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [visibility, setVisibility, visibilityContext] = useDocumentVisibility('Demande de travaux');
     const [error, setError] = useState('');
     const [chefDeService, setChefDeService] = useState(null);
 
@@ -313,6 +315,7 @@ const CreateWorkRequest = () => {
             uploadData.append('file', pdfBlob, fileName);
             uploadData.append('title', `Demande de travaux - ${formData.service}`);
             uploadData.append('category', 'Demande de travaux');
+            uploadData.append('visibility', visibility);
             uploadData.append('metadata', JSON.stringify({
                 service: formData.service,
                 type: formData.type,
@@ -622,6 +625,7 @@ const CreateWorkRequest = () => {
                         </div>
                     )}
 
+                    <VisibilityChoice value={visibility} onChange={setVisibility} context={visibilityContext} style={{ marginBottom: 16 }} />
                     <div className="flex justify-between items-center">
                         <button
                             onClick={() => setStep(4)}

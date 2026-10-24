@@ -228,6 +228,7 @@ export const documentsAPI = {
   getAll: (params) => api.get('/documents', { params }),
   getById: (id) => api.get(`/documents/${id}`),
   getCategories: () => api.get('/documents/categories'),
+  getVisibilityContext: () => api.get('/documents/visibility-context'),
   upload: (formData, onUploadProgress) => api.post('/documents/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress,

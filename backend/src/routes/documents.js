@@ -21,6 +21,7 @@ import {
   getRecentDecisions,
   getDocumentChain,
   getDocumentThumbnail,
+  getVisibilityContext,
 } from '../controllers/documentController.js';
 import {
   signDocumentManually, getManualSignature,
@@ -219,6 +220,9 @@ router.get('/:id/chain', protect, getDocumentChain);
 // @route   GET /api/documents/categories
 // @desc    Retourne la liste distincte des catégories (léger, sans charger tous les docs)
 // @access  Private
+// Service de rattachement pour le choix « Personnel / Service » à la création
+router.get('/visibility-context', protect, getVisibilityContext);
+
 router.get('/categories', protect, async (req, res) => {
   try {
     const { QueryTypes } = await import('sequelize');

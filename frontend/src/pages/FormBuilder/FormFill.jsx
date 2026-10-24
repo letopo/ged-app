@@ -9,6 +9,7 @@ import { formsAPI, documentsAPI, workflowAPI, servicesAPI, usersAPI } from '../.
 import { useAuth } from '../../contexts/AuthContext';
 import { CANVAS_WIDTH, GRID_SIZE } from '../../store/formBuilderStore';
 import useFormLogic from '../../hooks/useFormLogic';
+import VisibilityChoice, { useDocumentVisibility } from '../../components/VisibilityChoice';
 import i18n from '../../i18n/config';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -560,6 +561,7 @@ export default function FormFill() {
   const [values,    setValues]    = useState({});
   const [errors,    setErrors]    = useState({});
   const [submitting,   setSubmitting]   = useState(false);
+  const [visibility, setVisibility, visibilityContext] = useDocumentVisibility(form?.title);
   const [submitted,    setSubmitted]    = useState(false);
   const [submittedRes, setSubmittedRes] = useState(null);
   const [docId,        setDocId]        = useState(null);
@@ -633,6 +635,7 @@ export default function FormFill() {
         fd.append('file', marker, `${safeTitle}.form`);
         fd.append('title', `${form.title}${submittedBy ? ' — ' + submittedBy : ''}`);
         fd.append('category', form.title);
+        fd.append('visibility', visibility);
         fd.append('metadata', JSON.stringify({
           sourceType:   'form_response',
           formId:       id,
@@ -838,7 +841,10 @@ export default function FormFill() {
             })}
           </div>
 
-          {/* Bouton soumettre */}
+          {/* Visibilité + bouton soumettre */}
+          <div style={{ width: CANVAS_WIDTH, maxWidth: '100%', margin: '20px auto 0' }}>
+            <VisibilityChoice value={visibility} onChange={setVisibility} context={visibilityContext} />
+          </div>
           <div style={{ width: CANVAS_WIDTH, margin: '20px auto 0', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             {Object.keys(errors).length > 0 && (
               <span style={{ fontSize: 12, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 4 }}>
