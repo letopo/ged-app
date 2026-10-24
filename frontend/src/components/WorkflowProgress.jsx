@@ -18,6 +18,7 @@ const WorkflowProgress = ({
   onRelanced,
   isAdmin = false,
   hideDiscussion = false,
+  startRelance = false, // ouvre directement le formulaire de relance (bouton « Relancer » de la grille)
 }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -28,7 +29,7 @@ const WorkflowProgress = ({
   const [sendingComment, setSendingComment] = useState(false);
   const [relancing, setRelancing] = useState(false);
   const [motif, setMotif] = useState('');
-  const [showRelanceForm, setShowRelanceForm] = useState(false);
+  const [showRelanceForm, setShowRelanceForm] = useState(startRelance);
   const commentsEndRef = useRef(null);
 
   const isRejected = documentStatus === 'rejected';

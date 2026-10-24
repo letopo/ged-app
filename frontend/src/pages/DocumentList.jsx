@@ -11,6 +11,7 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI, formsAPI, postesAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
 import DocumentThumbnail from '../components/DocumentThumbnail';
+import { WorkflowBar, RejectionSummary, WorkflowDetailsModal } from '../components/DocumentCardWorkflow';
 import WorkflowProgress from '../components/WorkflowProgress';
 import { DocumentGridSkeleton, DocumentTableSkeleton } from '../components/SkeletonLoader';
 import { StatusBadge } from '../utils/statusHelpers.jsx';
@@ -100,6 +101,7 @@ const DocumentList = () => {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [allCategories, setAllCategories] = useState([]);
   const [expandedWorkflows, setExpandedWorkflows] = useState(new Set());
+  const [wfDetails, setWfDetails] = useState(null); // { doc, relance } : circuit d'un document (vue Grille)
   const toggleWorkflow = (id, e) => { e.stopPropagation(); setExpandedWorkflows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; }); };
 
   // Ouverture du document via l'URL /documents/:id (liens du dashboard, partage, rechargement).
@@ -952,9 +954,9 @@ const DocumentList = () => {
                 const FILE_TYPES = { 'application/pdf': 'PDF', 'application/msword': 'Word', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word', 'image/jpeg': 'JPEG', 'image/png': 'PNG' };
                 const fileTypeLabel = FILE_TYPES[doc.fileType] || doc.fileType?.split('/')[1]?.toUpperCase() || 'PDF';
                 return (
-                  <div key={doc.id} className="ged-card" style={{ overflow: 'hidden', cursor: 'pointer', borderColor: isSelected ? 'var(--brand)' : 'var(--border)', position: 'relative' }} onClick={() => setViewingDocument(doc)}>
+                  <div key={doc.id} className="ged-card" style={{ overflow: 'hidden', cursor: 'pointer', borderColor: isSelected ? 'var(--brand)' : 'var(--border)', position: 'relative', display: 'flex', flexDirection: 'column' }} onClick={() => setViewingDocument(doc)}>
                     {/* Thumbnail area */}
-                    <div style={{ height: 150, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', position: 'relative' }}>
+                    <div style={{ height: 150, flexShrink: 0, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', position: 'relative' }}>
                       <DocumentThumbnail doc={doc}
                         label={[fileTypeLabel, doc.metadata?.pageCount > 1 ? t('{{count}} p.', { count: doc.metadata.pageCount }) : null, doc.category ? t(doc.category) : null].filter(Boolean).join(' · ')} />
                       {doc.metadata?.manualSignature && (
@@ -977,7 +979,7 @@ const DocumentList = () => {
                         {isSelected && <Check size={11} color="#fff" />}
                       </div>
                     </div>
-                    <div style={{ padding: '10px 12px' }}>
+                    <div style={{ padding: '10px 12px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg)', marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{doc.title}</div>
                       <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginBottom: 8 }}>
                         {doc.category ? `${t(doc.category)} · ` : ''}{formatDate(doc.createdAt)}
@@ -1003,24 +1005,17 @@ const DocumentList = () => {
                           <Star size={13} fill={isFav(doc.id) ? '#FBBF24' : 'none'} />
                         </button>
                       </div>
-                      {hasWf && (
-                        <div style={{ fontSize: 11, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)', marginBottom: 8 }}>{t('Workflow : {{approved}}/{{total}}', { approved: wfApproved, total: wfTotal })}</div>
+                      {hasWf && wfTotal > 0 && (
+                        <WorkflowBar approved={doc.status === 'approved' ? wfTotal : wfApproved} total={wfTotal} status={doc.status} />
                       )}
-                      {hasWf && expandedWorkflows.has(doc.id) && (
-                        <div style={{ marginBottom: 8 }} onClick={e => e.stopPropagation()}>
-                          <WorkflowProgress
-                            workflows={doc.workflows}
-                            documentStatus={doc.status}
-                            documentId={doc.id}
-                            submittedBy={doc.userId}
-                            isAdmin={['admin','superadmin'].includes(user?.role)}
-                            onReassign={['admin','superadmin'].includes(user?.role) ? handleOpenReassign : null}
-                            onRelanced={() => loadDocuments(currentPage)}
-                            hideDiscussion={doc.status !== 'rejected'}
-                          />
-                        </div>
+                      {/* Rejet : résumé compact (la carte garde la hauteur des autres) ; détail dans « Détails » */}
+                      {doc.status === 'rejected' && (
+                        <RejectionSummary doc={doc}
+                          canRelance={doc.userId === user?.id || ['admin', 'superadmin'].includes(user?.role)}
+                          onDetails={() => setWfDetails({ doc, relance: false })}
+                          onRelance={() => setWfDetails({ doc, relance: true })} />
                       )}
-                      <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 4, marginTop: 'auto' }} onClick={e => e.stopPropagation()}>
                         <button onClick={() => setViewingDocument(doc)} style={{ ...btnSmall, flex: 1 }}>{t('Voir')}</button>
                         <button onClick={() => handleOpenSubmitModal(doc)} disabled={doc.status !== 'draft'} style={{ ...iconBtn, opacity: doc.status !== 'draft' ? 0.3 : 1 }}><Send size={13} /></button>
                         <button onClick={() => handleArchive(doc)} style={iconBtn}><Archive size={13} /></button>
@@ -1339,6 +1334,13 @@ const DocumentList = () => {
       )}
 
       {ConfirmModalRenderer}
+
+      {wfDetails && (
+        <WorkflowDetailsModal doc={wfDetails.doc} startRelance={wfDetails.relance}
+          onClose={() => setWfDetails(null)}
+          onRelanced={() => loadDocuments(currentPage)}
+          onReassign={handleOpenReassign} />
+      )}
 
       {viewingDocument && (
         <DocumentViewer
