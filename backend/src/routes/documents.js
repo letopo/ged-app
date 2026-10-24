@@ -20,6 +20,7 @@ import {
   getPieceDeCaisseHistory,
   getRecentDecisions,
   getDocumentChain,
+  getDocumentThumbnail,
 } from '../controllers/documentController.js';
 import {
   signDocumentManually, getManualSignature,
@@ -438,6 +439,9 @@ router.route('/:id')
   .get(getDocument)
   .put(updateDocument)
   .delete(deleteDocument);
+
+// Miniature de la 1re page (vue Grille)
+router.get('/:id/thumbnail', getDocumentThumbnail);
 
 // @route   GET /api/documents/:id/download
 // @desc    Télécharger un document

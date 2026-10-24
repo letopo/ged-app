@@ -464,6 +464,16 @@ const RELEASE_NOTES = [
       'Sans borne : un QR code à scanner avec la tablette ou le téléphone du patient (lien valable 15 minutes, utilisable une seule fois).',
     ],
   },
+  {
+    id: '2026-10-24-miniatures-documents',
+    date: '2026-10-24',
+    target: '/documents',
+    title: 'Aperçu des documents dans la vue Grille',
+    items: [
+      'Chaque carte affiche le haut de la première page du document (PDF, scans, photos) au lieu d’une icône : on reconnaît un document d’un coup d’œil.',
+      'L’aperçu suit les nouvelles versions (cachets, signatures) ; les documents signés par le patient portent un badge « Signé ».',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

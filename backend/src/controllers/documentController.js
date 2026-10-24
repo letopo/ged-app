@@ -13,6 +13,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { mergePDFs, validatePDF } from '../utils/pdfMerger.js';
 import { isManuallySigned } from './manualSignatureController.js';
+import { getThumbnail, deleteThumbnails } from '../utils/thumbnails.js';
 
 export const uploadDocument = async (req, res) => {
   try {
@@ -387,6 +388,7 @@ export const deleteDocument = async (req, res, next) => {
     const fullPath = path.resolve(process.cwd(), document.filePath);
     try { await fs.unlink(fullPath); } catch(err) { console.warn("Fichier physique déjà supprimé ou introuvable:", err.message); }
     // Document signé à la main : supprimer aussi l'original non signé conservé
+    deleteThumbnails(id);
     const originalPath = document.metadata?.manualSignature?.original?.filePath;
     if (originalPath) { try { await fs.unlink(path.resolve(process.cwd(), originalPath)); } catch { /* déjà absent */ } }
     await Workflow.destroy({ where: { documentId: id } });
@@ -440,6 +442,24 @@ export const downloadDocument = async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
+};
+
+// GET /api/documents/:id/thumbnail — miniature de la 1re page (vue Grille).
+// 204 si le document n'en a pas (Word, formulaire…) : le client garde l'icône.
+export const getDocumentThumbnail = async (req, res) => {
+  try {
+    const document = await Document.findByPk(req.params.id, { attributes: ['id', 'filePath', 'fileName', 'fileType', 'userId', 'visibility', 'serviceId'] });
+    if (!document) return res.status(404).end();
+    if (!(await hasDocumentReadAccess(document, req.user))) return res.status(403).end();
+    const thumb = await getThumbnail(document);
+    if (!thumb) return res.status(204).end();
+    res.set({ 'Cache-Control': 'private, max-age=86400', ETag: `"${thumb.etag}"` });
+    if (req.headers['if-none-match'] === `"${thumb.etag}"`) return res.status(304).end();
+    res.type('image/jpeg').sendFile(thumb.path);
+  } catch (error) {
+    console.error('Erreur miniature:', error);
+    res.status(500).end();
+  }
 };
 
 export const addPageToDocument = async (req, res) => {

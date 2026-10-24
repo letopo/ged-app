@@ -189,8 +189,10 @@ app.use('/api/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
+  // Miniatures (uploads/.thumbs) : seulement via /api/documents/:id/thumbnail (contrôle d'accès)
+  if (/^\/\.thumbs(\/|$)/i.test(decodeURIComponent(req.path))) return res.sendStatus(404);
   next();
-}, express.static(path.join(__dirname, '../uploads')));
+}, express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny' }));
 
 app.use('/api/signatures', express.static(path.join(__dirname, '../signatures')));
 
