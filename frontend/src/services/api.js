@@ -232,6 +232,8 @@ export const documentsAPI = {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress,
   }),
+  // Ajoute les pages d'un autre document de la GED (avant / après)
+  addPageFromDocument: (documentId, sourceDocumentId, position) => api.post(`/documents/${documentId}/add-page`, { sourceDocumentId, position }),
   addPage: (documentId, formData) => api.post(`/documents/${documentId}/add-page`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),

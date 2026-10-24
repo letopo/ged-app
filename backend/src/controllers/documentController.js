@@ -232,7 +232,7 @@ export const uploadDocument = async (req, res) => {
 
 export const getDocuments = async (req, res) => {
   try {
-    const { page, limit, search, status, category, dateFrom, dateTo } = req.query;
+    const { page, limit, search, status, category, dateFrom, dateTo, fileType, excludeId, sort } = req.query;
     const whereClause = { archived: false };
     const andConditions = [];
 
@@ -257,6 +257,13 @@ export const getDocuments = async (req, res) => {
     }
     if (category && category !== 'all') {
       andConditions.push({ category });
+    }
+    // Sélecteur « Ajouter depuis la GED » : PDF seulement, sans le document ouvert
+    if (fileType === 'pdf') {
+      andConditions.push({ [Op.or]: [{ fileType: 'application/pdf' }, { fileName: { [Op.iLike]: '%.pdf' } }] });
+    }
+    if (excludeId) {
+      andConditions.push({ id: { [Op.ne]: String(excludeId) } });
     }
     if (andConditions.length > 0) {
       whereClause[Op.and] = andConditions;
@@ -304,6 +311,15 @@ export const getDocuments = async (req, res) => {
       // Tri sur l'alias (valable dans la sous-requête de pagination comme au-dessus)
       order: [[Document.sequelize.literal('"lastActivityAt"'), 'DESC'], ['createdAt', 'DESC']],
     };
+    // Tri demandé (sinon : activité la plus récente, comportement historique)
+    const SORTS = {
+      date_desc: [['createdAt', 'DESC']],
+      date_asc: [['createdAt', 'ASC']],
+      title_asc: [['title', 'ASC'], ['createdAt', 'DESC']],
+      title_desc: [['title', 'DESC'], ['createdAt', 'DESC']],
+      category_asc: [['category', 'ASC'], ['createdAt', 'DESC']],
+    };
+    if (SORTS[sort]) queryOptions.order = SORTS[sort];
 
     if (page && limit) {
       const pageNum = parseInt(page);
@@ -463,65 +479,85 @@ export const getDocumentThumbnail = async (req, res) => {
 };
 
 export const addPageToDocument = async (req, res) => {
+  const cleanupUpload = () => (req.file ? fs.unlink(req.file.path).catch(() => {}) : Promise.resolve());
   try {
     const { id } = req.params;
-    const { position } = req.body; // 'before' ou 'after'
-    
-    if (!req.file) {
+    const { position, sourceDocumentId } = req.body; // 'before' ou 'after' ; source = fichier envoyé OU document de la GED
+
+    if (!req.file && !sourceDocumentId) {
       return res.status(400).json({ success: false, message: 'Aucun fichier fourni.' });
     }
 
     const document = await Document.findByPk(id);
     if (!document) {
+      await cleanupUpload();
       return res.status(404).json({ success: false, message: 'Document original non trouvé.' });
     }
+    if (!(await hasDocumentReadAccess(document, req.user))) {
+      await cleanupUpload();
+      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
+    }
     if (isManuallySigned(document)) {
-      await fs.unlink(req.file.path).catch(() => {});
+      await cleanupUpload();
       return res.status(409).json({ success: false, message: 'Ce document est signé : il est verrouillé.' });
     }
 
-    // Vérification basique des types (PDF uniquement pour la fusion propre)
-    if (document.fileType !== 'application/pdf' || req.file.mimetype !== 'application/pdf') {
-      // Nettoyer le fichier uploadé
-      await fs.unlink(req.file.path);
+    // Pages à ajouter : fichier envoyé depuis le PC, ou PDF d'un autre document de la GED
+    let source = null;
+    let newPagePath;
+    if (sourceDocumentId) {
+      source = await Document.findByPk(sourceDocumentId);
+      if (!source || source.id === document.id) {
+        return res.status(404).json({ success: false, message: 'Document à ajouter introuvable.' });
+      }
+      if (!(await hasDocumentReadAccess(source, req.user))) {
+        return res.status(403).json({ success: false, message: 'Accès non autorisé au document à ajouter.' });
+      }
+      newPagePath = path.resolve(process.cwd(), source.filePath);
+    } else {
+      newPagePath = path.resolve(process.cwd(), req.file.path);
+    }
+
+    // Fusion propre : deux PDF
+    const sourceIsPdf = source
+      ? (source.fileType === 'application/pdf' || /\.pdf$/i.test(source.fileName || ''))
+      : req.file.mimetype === 'application/pdf';
+    if (document.fileType !== 'application/pdf' || !sourceIsPdf) {
+      await cleanupUpload();
       return res.status(400).json({ success: false, message: 'La fusion nécessite deux fichiers PDF.' });
     }
 
     const originalPath = path.resolve(process.cwd(), document.filePath);
-    const newPagePath = path.resolve(process.cwd(), req.file.path);
+    console.log(`🔄 Fusion demandée : ${position} le document ${document.id}${source ? ` (depuis le document ${source.id})` : ''}`);
 
-    console.log(`🔄 Fusion demandée : ${position} le document ${document.id}`);
+    const mergedPdfBytes = position === 'before'
+      ? await mergePDFs(newPagePath, originalPath)   // nouvelles pages + ancien fichier
+      : await mergePDFs(originalPath, newPagePath);  // ancien fichier + nouvelles pages
 
-    // Déterminer l'ordre de fusion
-    let mergedPdfBytes;
-    if (position === 'before') {
-      // Nouveau fichier + Ancien fichier
-      mergedPdfBytes = await mergePDFs(newPagePath, originalPath);
-    } else {
-      // Ancien fichier + Nouveau fichier
-      mergedPdfBytes = await mergePDFs(originalPath, newPagePath);
-    }
-
-    // Écraser l'ancien fichier avec le nouveau contenu fusionné
+    // Écraser l'ancien fichier avec le contenu fusionné (le document source, lui, ne change pas)
     await fs.writeFile(originalPath, mergedPdfBytes);
+    await cleanupUpload();
 
-    // Supprimer le fichier temporaire uploadé
-    await fs.unlink(newPagePath);
-
-    // Mettre à jour la taille du fichier en base de données
     const stats = await fs.stat(originalPath);
-    await document.update({ 
-      fileSize: stats.size,
-      updatedAt: new Date() // Forcer la mise à jour de la date
-    });
+    const changes = { fileSize: stats.size, updatedAt: new Date() };
+    if (source) {
+      // Traçabilité + recherche dans le texte du document ajouté
+      const mergedFrom = [...(document.metadata?.mergedFrom || []), {
+        id: source.id, title: source.title, position: position === 'before' ? 'before' : 'after',
+        at: new Date().toISOString(), by: req.user.id,
+      }];
+      changes.metadata = { ...(document.metadata || {}), mergedFrom };
+      if (source.extractedText) {
+        changes.extractedText = [document.extractedText, source.extractedText].filter(Boolean).join('\n\n').slice(0, 200000);
+      }
+    }
+    await document.update(changes);
 
     res.json({ success: true, message: 'Page ajoutée avec succès.' });
 
   } catch (error) {
     console.error('❌ Erreur fusion document:', error);
-    if (req.file) {
-      try { await fs.unlink(req.file.path); } catch (e) {}
-    }
+    await cleanupUpload();
     res.status(500).json({ success: false, message: 'Erreur lors de la fusion.' });
   }
 };
