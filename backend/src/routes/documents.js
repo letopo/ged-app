@@ -21,6 +21,7 @@ import {
   getRecentDecisions,
   getDocumentChain,
 } from '../controllers/documentController.js';
+import { signDocumentManually, getManualSignature } from '../controllers/manualSignatureController.js';
 import {
   listRecipients,
   transmitDocument,
@@ -405,6 +406,10 @@ router.use(protect);
 // @desc    Upload un nouveau document
 // @access  Private
 router.post('/upload', upload.single('file'), fixUploadEncoding, uploadDocument);
+
+// Signature manuscrite (patient au guichet) : apposition + vérification d'intégrité
+router.post('/:id/manual-signature', signDocumentManually);
+router.get('/:id/manual-signature', getManualSignature);
 
 // ✅ NOUVELLE ROUTE : Ajouter une page (fusionner)
 router.post('/:id/add-page', upload.single('file'), fixUploadEncoding, addPageToDocument);

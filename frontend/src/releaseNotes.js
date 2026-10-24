@@ -442,6 +442,17 @@ const RELEASE_NOTES = [
       'La recherche des Archives trouve aussi les documents scannés par leur contenu (à partir de 3 lettres) : un extrait du texte s’affiche sous le titre, le mot cherché surligné.',
     ],
   },
+  {
+    id: '2026-10-24-signature-manuscrite',
+    date: '2026-10-24',
+    target: '/documents',
+    title: 'Faire signer un document (patient, client…)',
+    items: [
+      'Nouveau bouton « Faire signer » dans la visionneuse (PDF et photos) : touchez l’endroit où signer — la GED trouve souvent seule la mention « Signature du patient ».',
+      'Le patient signe au doigt ou au stylet sur tablette ou téléphone, ou avec une tablette graphique sur PC ; « Lu et approuvé », son nom, la date et l’heure sont ajoutés.',
+      'Le document signé est verrouillé, l’original est conservé et l’intégrité du fichier est vérifiée à chaque ouverture.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
