@@ -2590,5 +2590,9 @@
   "Recadrer": "Crop",
   "Reprendre": "Retake",
   "Scanner un document": "Scan a document",
-  "Valider la page": "Confirm page"
+  "Valider la page": "Confirm page",
+  "Chargement du document…": "Loading document…",
+  "Impossible d'afficher ce PDF ici.": "This PDF cannot be displayed here.",
+  "Dézoomer": "Zoom out",
+  "Zoomer": "Zoom in"
 }

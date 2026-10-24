@@ -20,6 +20,7 @@ import OnlyOfficeEditor, { isOfficeFile } from './OnlyOfficeEditor';
 import FormResponseViewer from './FormBuilder/Renderer/FormResponseViewer';
 import TransmitDocumentModal from './TransmitDocumentModal';
 import LinkedDocumentModal from './LinkedDocumentModal';
+import PdfCanvasViewer, { canShowPdfInline } from './PdfCanvasViewer';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -335,6 +336,10 @@ const DocumentViewer = ({
   // ── Derived ──────────────────────────────────────────────────────────────────
   const isFormResponse = doc.fileType === 'application/x-form-response' || doc.metadata?.sourceType === 'form_response';
   const signatureZones = doc.metadata?.signatureZones || [];
+  // Chrome Android n'affiche pas les PDF dans une iframe (il propose de les
+  // télécharger) : on les dessine alors nous-mêmes avec pdf.js.
+  const isPdfFile = doc.fileType === 'application/pdf' || /\.pdf$/i.test(doc.fileName || doc.filePath || '');
+  const usePdfJs  = isPdfFile && !window.electronAPI?.isElectron && !canShowPdfInline();
   const fileTypeLabel  = isFormResponse ? t('Formulaire') : (FILE_TYPE_LABEL[doc.fileType] || (doc.fileType?.split('/')[1]?.toUpperCase()) || t('Fichier'));
   const sizeLabel      = fmtSize(doc.fileSize);
   const pageCount      = doc.pageCount || doc.metadata?.pageCount;
@@ -474,12 +479,18 @@ const DocumentViewer = ({
             <OnlyOfficeEditor documentId={doc.id} onClose={onClose} />
           ) : (
             <>
+              {!usePdfJs && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '7px 16px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
                 <span style={{ fontSize: 12, color: 'var(--fg-muted)', fontWeight: 500 }}>
                   {pageCount ? t('Page 1 / {{count}}', { count: pageCount }) : fileTypeLabel}
                 </span>
               </div>
+              )}
+              {usePdfJs ? (
+                <PdfCanvasViewer key={viewerKey} url={documentUrl} onDownload={handleDownload} />
+              ) : (
               <iframe key={viewerKey} ref={iframeRef} src={iframeSrc} title={doc.title} style={{ flex: 1, width: '100%', height: '100%', border: 'none' }} />
+              )}
               {signatureZones.length > 0 && pdfDimensions.width > 0 && (
                 <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', top: 36 }}>
                   {signatureZones.map((zone, i) => {
