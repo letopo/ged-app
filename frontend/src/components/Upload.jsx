@@ -11,6 +11,7 @@ import {
 import toast from 'react-hot-toast';
 import useTenantSettings from '../hooks/useTenantSettings';
 import DocumentScanner from './DocumentScanner';
+import { guessDocumentType } from '../utils/scanOcr';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const DOC_CATEGORIES = [
@@ -113,8 +114,9 @@ const Upload = () => {
   const navigate  = useNavigate();
   const { user }  = useAuth();
   const fileInputRef = useRef();
-  const cameraInputRef = useRef();
-  const [scanPhoto, setScanPhoto] = useState(null); // photo ouverte dans le scanner
+  // Scanner ouvert : { file } pour convertir une photo existante, { file: null } pour la caméra
+  const [scan, setScan] = useState(null);
+  const [extractedText, setExtractedText] = useState(''); // texte reconnu (OCR du scanner)
 
   const [step, setStep]       = useState(1);
   const [drag, setDrag]       = useState(false);
@@ -157,15 +159,20 @@ const Upload = () => {
   const fileExt = file ? file.name.split('.').pop() : '';
 
   // ── File accept ─────────────────────────────────────────────────────────────
-  const acceptFile = (f, knownPages) => {
+  const acceptFile = (f, knownPages, ocrText = '') => {
     if (!f) return;
     if (f.size > maxUploadMb * 1024 * 1024) { toast.error(t('Le fichier dépasse la taille maximale autorisée ({{max}} Mo).', { max: maxUploadMb })); return; }
     setFile(f);
+    setExtractedText(ocrText);
     setAnalyzing(true);
     setAnalysis(null);
     setTimeout(() => {
       const res = simulateOCR(f.name, f.size);
       if (knownPages) res.pages = knownPages;
+      // Document scanné : le type est deviné d'après le texte réellement lu
+      const guessed = guessDocumentType(ocrText);
+      if (guessed && DOC_CATEGORIES.includes(guessed)) { res.type = guessed; res.signatures = 1; }
+      res.textIndexed = !!ocrText;
       setAnalysis(res);
       setAnalyzing(false);
       setCategory(res.type);
@@ -176,17 +183,10 @@ const Upload = () => {
     }, 1800);
   };
 
-  // Scanner : la photo est prise ici (clic direct de l'utilisateur, exigé par iOS),
-  // recadrée/filtrée dans le scanner, puis revient sous forme de PDF.
-  const openCamera = () => cameraInputRef.current?.click();
-  const onCameraPhoto = e => {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    if (f) setScanPhoto(f);
-  };
-  const onScanDone = (pdf, pageCount) => {
-    setScanPhoto(null);
-    acceptFile(pdf, pageCount);
+  // Scanner : caméra en direct (ou photo existante à convertir) → PDF + texte reconnu
+  const onScanDone = (pdf, pageCount, { text } = {}) => {
+    setScan(null);
+    acceptFile(pdf, pageCount, text || '');
   };
   const isImage = file && /^image\//.test(file.type);
 
@@ -216,6 +216,7 @@ const Upload = () => {
       if (reference) fd.append('reference', reference);
       fd.append('visibility', visibility);
       if (tags.length) fd.append('tags', JSON.stringify(tags));
+      if (extractedText) fd.append('extractedText', extractedText);
       await documentsAPI.upload(fd);
       toast.success(t('Document créé et envoyé en validation !'));
       navigate('/documents');
@@ -270,19 +271,18 @@ const Upload = () => {
           <StepBar step={step} />
 
           {/* ── STEP 1 ───────────────────────────────────────────────── */}
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onCameraPhoto} />
-          {scanPhoto && (
-            <DocumentScanner initialFile={scanPhoto} maxUploadMb={maxUploadMb} onClose={() => setScanPhoto(null)} onDone={onScanDone} />
+          {scan && (
+            <DocumentScanner initialFile={scan.file} maxUploadMb={maxUploadMb} onClose={() => setScan(null)} onDone={onScanDone} />
           )}
           {step === 1 && (
             <>
               {!file && (
-                <button onClick={openCamera} className="upl-scan-btn"
+                <button onClick={() => setScan({ file: null })} className="upl-scan-btn"
                   style={{ width: '100%', alignItems: 'center', gap: 12, padding: '14px 16px', marginBottom: 14, borderRadius: 'var(--radius-3)', border: '1px solid var(--brand)', background: 'var(--brand)', color: '#fff', cursor: 'pointer', textAlign: 'left' }}>
                   <ScanLine size={26} strokeWidth={1.75} style={{ flexShrink: 0 }} />
                   <span style={{ flex: 1 }}>
                     <span style={{ display: 'block', fontSize: 15, fontWeight: 700 }}>{t('Scanner un document')}</span>
-                    <span style={{ display: 'block', fontSize: 12, opacity: 0.85 }}>{t('Photo recadrée automatiquement, convertie en PDF')}</span>
+                    <span style={{ display: 'block', fontSize: 12, opacity: 0.85 }}>{t('Photo automatique dès que la feuille est stable, PDF avec texte cherchable')}</span>
                   </span>
                   <ArrowRight size={18} style={{ flexShrink: 0 }} />
                 </button>
@@ -326,7 +326,7 @@ const Upload = () => {
                         {formatSize(file.size)}{analysis ? ` · ${t('{{count}} page(s)', { count: analysis.pages })}` : ''}
                       </div>
                     </div>
-                    <button onClick={() => { setFile(null); setAnalysis(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 4 }}>
+                    <button onClick={() => { setFile(null); setAnalysis(null); setExtractedText(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 4 }}>
                       <X size={16} />
                     </button>
                   </div>
@@ -334,7 +334,7 @@ const Upload = () => {
                   {isImage && (
                     <div style={{ padding: '10px 16px', background: 'var(--surface-2)', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                       <span style={{ flex: 1, minWidth: 180, fontSize: 12, color: 'var(--fg-muted)' }}>{t("C'est une photo ? Recadrez-la et convertissez-la en PDF.")}</span>
-                      <button onClick={() => setScanPhoto(file)}
+                      <button onClick={() => setScan({ file })}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                         <ScanLine size={14} />{t('Convertir en PDF')}
                       </button>
@@ -354,7 +354,9 @@ const Upload = () => {
                       </div>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>{t('Type détecté · {{type}}', { type: t(analysis.type) })}</span>
-                        <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>{t('Texte indexé · {{lang}}', { lang: t(analysis.lang) })}</span>
+                        {analysis.textIndexed && (
+                          <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>{t('Texte indexé · {{lang}}', { lang: t(analysis.lang) })}</span>
+                        )}
                         {analysis.signatures > 0 && (
                           <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-full)', background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 500 }}>{t('{{count}} zone de signature', { count: analysis.signatures })}</span>
                         )}

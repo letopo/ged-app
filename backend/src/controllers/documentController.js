@@ -187,6 +187,10 @@ export const uploadDocument = async (req, res) => {
       invoiceFolderId: invoiceFolderId,
       visibility: finalVisibility,
       serviceId: documentServiceId,
+      // Texte reconnu sur le téléphone (OCR du scanner) : indexé pour la recherche
+      extractedText: typeof req.body.extractedText === 'string' && req.body.extractedText.trim()
+        ? req.body.extractedText.trim().slice(0, 200000)
+        : null,
     };
 
     const newDocument = await Document.create(documentData);
@@ -242,6 +246,7 @@ export const getDocuments = async (req, res) => {
         [Op.or]: [
           { title: { [Op.iLike]: `%${search}%` } },
           { originalName: { [Op.iLike]: `%${search}%` } },
+          { extractedText: { [Op.iLike]: `%${search}%` } }, // contenu des documents scannés (OCR)
         ],
       });
     }
@@ -276,6 +281,7 @@ export const getDocuments = async (req, res) => {
     const queryOptions = {
       where: whereClause,
       attributes: {
+        exclude: ['extractedText'], // texte OCR : sert à la recherche, inutile (et lourd) dans les listes
         include: [
           [Document.sequelize.literal(receivedAtSql), 'receivedAt'],
           [Document.sequelize.literal(receivedFromSql), 'receivedFrom'],
@@ -390,13 +396,13 @@ export const searchDocuments = async (req, res) => {
     if (!q) return res.status(400).json({ success: false, error: 'Terme de recherche requis' });
     try {
         const andConditions = [
-          { [Op.or]: [ { title: { [Op.iLike]: `%${q}%` } }, { originalName: { [Op.iLike]: `%${q}%` } } ] },
+          { [Op.or]: [ { title: { [Op.iLike]: `%${q}%` } }, { originalName: { [Op.iLike]: `%${q}%` } }, { extractedText: { [Op.iLike]: `%${q}%` } } ] },
         ];
         const accessWhere = await buildDocumentAccessWhere(req.user);
         if (accessWhere) andConditions.push(accessWhere);
         const searchCategoryWhere = await buildCategoryRestrictionWhere(req.user);
         if (searchCategoryWhere) andConditions.push(searchCategoryWhere);
-        const documents = await Document.findAll({ where: { [Op.and]: andConditions }, limit: 50, include: [{ model: User, as: 'uploadedBy' }], });
+        const documents = await Document.findAll({ where: { [Op.and]: andConditions }, attributes: { exclude: ['extractedText'] }, limit: 50, include: [{ model: User, as: 'uploadedBy' }], });
         res.json({ success: true, data: documents });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Erreur recherche' });
@@ -633,6 +639,7 @@ export const getArchivedDocuments = async (req, res) => {
 
     const documents = await Document.findAll({
       where: whereClause,
+      attributes: { exclude: ['extractedText'] },
       include: [
         { model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] },
         {

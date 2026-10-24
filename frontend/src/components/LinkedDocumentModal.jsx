@@ -4,7 +4,7 @@
 //  - en joignant un fichier (ex. proforma scannée) → nouveau document en brouillon.
 // Dans les deux cas le document d'origine est joint en tête du PDF (liasse) et le
 // lien est enregistré (Document.linkedDocumentId).
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { documentsAPI, templatePermissionsAPI } from '../services/api';
 import useTenantSettings from '../hooks/useTenantSettings';
 import DocumentScanner from './DocumentScanner';
+import { guessDocumentType } from '../utils/scanOcr';
 
 const FILE_TYPE_SUGGESTIONS = ['Proforma', 'Devis', 'Bon de commande', 'Facture', 'Bon de livraison', 'Pièce justificative'];
 
@@ -27,9 +28,9 @@ export default function LinkedDocumentModal({ document: doc, onClose }) {
   const [attachOriginal, setAttachOriginal] = useState(true);
   const [saving, setSaving] = useState(false);
   const { maxUploadMb } = useTenantSettings();
-  // Scanner : photo prise ici (clic direct, exigé par iOS) puis recadrée → PDF
-  const cameraRef = useRef(null);
-  const [scanPhoto, setScanPhoto] = useState(null);
+  // Scanner : { file: null } = caméra en direct, { file } = photo existante à convertir
+  const [scan, setScan] = useState(null);
+  const [extractedText, setExtractedText] = useState(''); // texte reconnu (OCR)
   const isImage = file && /^image\//.test(file.type);
   const originalIsPdf = doc.fileType === 'application/pdf';
 
@@ -62,6 +63,7 @@ export default function LinkedDocumentModal({ document: doc, onClose }) {
       fd.append('title', title.trim());
       fd.append('category', category.trim() || 'Pièce justificative');
       fd.append('linkedDocumentId', doc.id);
+      if (extractedText) fd.append('extractedText', extractedText);
       if (attachOriginal && originalIsPdf && file.type === 'application/pdf') fd.append('mergeLinked', 'true');
       await documentsAPI.upload(fd);
       toast.success(t('Document créé en brouillon. Cliquez sur « Soumettre » pour lancer sa validation.'), { duration: 6000 });
@@ -117,28 +119,33 @@ export default function LinkedDocumentModal({ document: doc, onClose }) {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <label className="ld-drop" style={{ flex: 1, minWidth: 0 }}>
                     <input type="file" accept="application/pdf,image/*" style={{ display: 'none' }}
-                      onChange={e => setFile(e.target.files?.[0] || null)} />
+                      onChange={e => { setFile(e.target.files?.[0] || null); setExtractedText(''); }} />
                     <UploadIcon size={16} style={{ flexShrink: 0 }} />
                     <span>{file ? file.name : t('Choisir un fichier…')}</span>
                   </label>
-                  <button type="button" className="ld-drop" onClick={() => cameraRef.current?.click()}
+                  <button type="button" className="ld-drop" onClick={() => setScan({ file: null })}
                     style={{ flexShrink: 0, color: 'var(--brand)', borderColor: 'var(--brand)', borderStyle: 'solid', fontWeight: 600 }}>
                     <ScanLine size={16} /> {t('Scanner')}
                   </button>
-                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
-                    onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setScanPhoto(f); }} />
                 </div>
                 {isImage && (
-                  <button type="button" onClick={() => setScanPhoto(file)}
+                  <button type="button" onClick={() => setScan({ file })}
                     style={{ alignSelf: 'flex-start', marginTop: 6, background: 'none', border: 'none', padding: 0, color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
                     <ScanLine size={13} /> {t("C'est une photo ? Recadrez-la et convertissez-la en PDF.")}
                   </button>
                 )}
               </div>
-              {scanPhoto && ReactDOM.createPortal(
-                <DocumentScanner initialFile={scanPhoto} maxUploadMb={maxUploadMb}
-                  onClose={() => setScanPhoto(null)}
-                  onDone={(pdf) => { setScanPhoto(null); setFile(pdf); }} />,
+              {scan && ReactDOM.createPortal(
+                <DocumentScanner initialFile={scan.file} maxUploadMb={maxUploadMb}
+                  onClose={() => setScan(null)}
+                  onDone={(pdf, _pages, { text } = {}) => {
+                    setScan(null);
+                    setFile(pdf);
+                    setExtractedText(text || '');
+                    // Type deviné d'après le texte (Facture, Devis, Proforma…)
+                    const guessed = guessDocumentType(text);
+                    if (guessed) setCategory(guessed);
+                  }} />,
                 document.body,
               )}
               <div className="rn-field-row">

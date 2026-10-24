@@ -380,9 +380,36 @@ export function canvasToThumb(canvas, max = 360) {
 // ── PDF ──────────────────────────────────────────────────────────────────────
 // Une page par image. Proche du format A4 → page A4 ; sinon (ticket, carte…)
 // page à la taille de l'image, plus grand côté = 297 mm.
-export function buildPdf(canvases) {
+// pages : [{ canvas, ocr }] (ou directement des canvas). Si `ocr` est fourni
+// (cf. utils/scanOcr.js), le texte reconnu est posé, invisible, sur chaque mot :
+// le PDF devient sélectionnable et cherchable, comme avec CamScanner.
+
+// Polices standard du PDF = encodage WinAnsi : les autres caractères deviennent « ? »
+const WIN_ANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+const pdfSafe = (str) => Array.from(str).map((ch) => (ch.charCodeAt(0) <= 0xff || WIN_ANSI_EXTRA.includes(ch) ? ch : '?')).join('');
+
+function addTextLayer(doc, ocr, x, y, w) {
+  if (!ocr?.words?.length) return;
+  const k = w / ocr.width; // mm par pixel de l'image reconnue
+  doc.setFont('helvetica', 'normal');
+  ocr.words.forEach((word) => {
+    const text = pdfSafe(word.text);
+    const hMm = (word.y1 - word.y0) * k;
+    const wMm = (word.x1 - word.x0) * k;
+    if (!text || hMm <= 0 || wMm <= 0) return;
+    doc.setFontSize(hMm / 0.3528); // mm → points
+    const natural = doc.getTextWidth(text);
+    doc.text(text, x + word.x0 * k, y + word.y1 * k - hMm * 0.18, {
+      renderingMode: 'invisible',
+      horizontalScale: natural > 0 ? wMm / natural : 1,
+    });
+  });
+}
+
+export function buildPdf(pages) {
   let doc = null;
-  canvases.forEach((c) => {
+  pages.forEach((item) => {
+    const c = item.canvas || item;
     const ratio = Math.max(c.width, c.height) / Math.min(c.width, c.height);
     const landscape = c.width > c.height;
     let pw, ph;
@@ -397,9 +424,21 @@ export function buildPdf(canvases) {
     else doc.addPage([pw, ph], orientation);
     const k = Math.min(pw / c.width, ph / c.height);
     const w = c.width * k, h = c.height * k;
-    doc.addImage(c.toDataURL('image/jpeg', JPEG_QUALITY), 'JPEG', (pw - w) / 2, (ph - h) / 2, w, h, undefined, 'FAST');
+    const x = (pw - w) / 2, y = (ph - h) / 2;
+    doc.addImage(c.toDataURL('image/jpeg', JPEG_QUALITY), 'JPEG', x, y, w, h, undefined, 'FAST');
+    addTextLayer(doc, item.ocr, x, y, w);
   });
+  doc.setProperties({ creator: 'GED — Scanner' });
   return doc.output('blob');
+}
+
+// Réduit une image (photo, image de la caméra) à la taille de travail
+export function limitCanvas(canvas) {
+  const s = Math.min(1, SOURCE_MAX / Math.max(canvas.width, canvas.height));
+  if (s === 1) return canvas;
+  const c = makeCanvas(canvas.width * s, canvas.height * s);
+  c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
+  return c;
 }
 
 export function scanFileName(date = new Date()) {

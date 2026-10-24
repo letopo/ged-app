@@ -422,6 +422,17 @@ const RELEASE_NOTES = [
       '« Créer un document lié » › « Joindre un fichier » : nouveau bouton « Scanner » pour photographier le document et le joindre en PDF (la liasse avec le document d’origine fonctionne alors aussi).',
     ],
   },
+  {
+    id: '2026-10-24-scanner-auto-ocr',
+    date: '2026-10-24',
+    target: '/upload',
+    title: 'Scanner : photo automatique et texte reconnu',
+    items: [
+      'La caméra s’ouvre dans la GED et entoure la feuille en direct : la photo se prend toute seule dès que la feuille est stable (bouton « Auto / Manuel »), puis la caméra reste prête pour la page suivante.',
+      'Chaque page est recadrée et filtrée automatiquement ; touchez la vignette pour revoir, modifier ou réordonner les pages.',
+      'Le texte des pages est reconnu sur le téléphone (OCR) : le PDF devient sélectionnable, la recherche de la GED retrouve le document par son contenu, et le type (facture, devis, bon de commande…) est proposé automatiquement.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
