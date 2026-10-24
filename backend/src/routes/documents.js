@@ -16,6 +16,7 @@ import {
   archiveDocument,
   unarchiveDocument,
   getArchivedDocuments,
+  searchArchivedContent,
   getPieceDeCaisseHistory,
   getRecentDecisions,
   getDocumentChain,
@@ -185,6 +186,11 @@ router.get('/next-numero', protect, async (req, res) => {
 // @desc    Récupérer les documents archivés (groupés par catégorie)
 // @access  Private
 router.get('/archives', protect, getArchivedDocuments);
+
+// @route   GET /api/documents/archives/content-search?q=
+// @desc    Archives dont le texte reconnu (OCR) contient q : [{ id, snippet }]
+// @access  Private
+router.get('/archives/content-search', protect, searchArchivedContent);
 
 // @route   GET /api/documents/piece-de-caisse-history
 // @desc    Historique des Pièces de caisse payées (rapport caissière), filtrable par date

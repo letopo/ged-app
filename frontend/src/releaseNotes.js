@@ -433,6 +433,15 @@ const RELEASE_NOTES = [
       'Le texte des pages est reconnu sur le téléphone (OCR) : le PDF devient sélectionnable, la recherche de la GED retrouve le document par son contenu, et le type (facture, devis, bon de commande…) est proposé automatiquement.',
     ],
   },
+  {
+    id: '2026-10-24-archives-recherche-texte',
+    date: '2026-10-24',
+    target: '/archives',
+    title: 'Archives : recherche dans le texte des documents',
+    items: [
+      'La recherche des Archives trouve aussi les documents scannés par leur contenu (à partir de 3 lettres) : un extrait du texte s’affiche sous le titre, le mot cherché surligné.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

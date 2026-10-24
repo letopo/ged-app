@@ -623,19 +623,56 @@ export const getDocumentChain = async (req, res) => {
   }
 };
 
+// Archives visibles par l'utilisateur (droits d'accès + catégories restreintes RH/Compta)
+const buildArchivedWhere = async (user, extraConditions = []) => {
+  const whereClause = { archived: true };
+  const andConditions = [...extraConditions];
+
+  const accessWhere = await buildDocumentAccessWhere(user);
+  if (accessWhere) andConditions.push(accessWhere);
+
+  // Exclure les catégories restreintes (RH + Compta) pour les utilisateurs non-autorisés
+  const archiveCategoryWhere = await buildCategoryRestrictionWhere(user);
+  if (archiveCategoryWhere) andConditions.push(archiveCategoryWhere);
+
+  if (andConditions.length > 0) whereClause[Op.and] = andConditions;
+  return whereClause;
+};
+
+// Extrait de ~160 caractères autour de la 1re occurrence (insensible à la casse)
+const textSnippet = (text, q) => {
+  const flat = (text || '').replace(/\s+/g, ' ');
+  const i = flat.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return '';
+  const start = Math.max(0, i - 60);
+  const end = Math.min(flat.length, i + q.length + 100);
+  return `${start > 0 ? '…' : ''}${flat.slice(start, end).trim()}${end < flat.length ? '…' : ''}`;
+};
+
+// Recherche dans le texte reconnu (OCR) des documents archivés. La page Archives
+// filtre le reste (titre, type, dates…) dans le navigateur ; elle n'a pas le texte,
+// trop lourd à charger pour toutes les archives : elle demande ici les documents
+// dont le contenu correspond, avec un extrait à afficher.
+export const searchArchivedContent = async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 3) return res.json({ success: true, data: [] });
+  try {
+    const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const documents = await Document.findAll({
+      where: await buildArchivedWhere(req.user, [{ extractedText: { [Op.iLike]: like } }]),
+      attributes: ['id', 'extractedText'],
+      limit: 200,
+    });
+    res.json({ success: true, data: documents.map((d) => ({ id: d.id, snippet: textSnippet(d.extractedText, q) })) });
+  } catch (error) {
+    console.error('Erreur recherche texte archives:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
 export const getArchivedDocuments = async (req, res) => {
   try {
-    const whereClause = { archived: true };
-    const andConditions = [];
-
-    const accessWhere = await buildDocumentAccessWhere(req.user);
-    if (accessWhere) andConditions.push(accessWhere);
-
-    // Exclure les catégories restreintes (RH + Compta) pour les utilisateurs non-autorisés
-    const archiveCategoryWhere = await buildCategoryRestrictionWhere(req.user);
-    if (archiveCategoryWhere) andConditions.push(archiveCategoryWhere);
-
-    if (andConditions.length > 0) whereClause[Op.and] = andConditions;
+    const whereClause = await buildArchivedWhere(req.user);
 
     const documents = await Document.findAll({
       where: whereClause,
