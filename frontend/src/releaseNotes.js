@@ -494,6 +494,16 @@ const RELEASE_NOTES = [
       'Le nombre choisi est mémorisé pour chaque liste sur votre appareil.',
     ],
   },
+  {
+    id: '2026-10-24-ajout-pages-depuis-ged',
+    date: '2026-10-24',
+    target: '/documents',
+    title: 'Ajouter des pages depuis un document de la GED',
+    items: [
+      'Dans la visionneuse, « Ajouter une page PDF » propose « Depuis la GED » ou « Depuis le PC ».',
+      'Depuis la GED : documents validés par défaut, recherche par nom, filtre par type et par période, tri par date, nom ou type ; le document ajouté reste inchangé.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

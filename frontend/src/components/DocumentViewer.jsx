@@ -13,7 +13,7 @@ import {
   ArrowUp, ArrowDown, Loader, Download, Printer, Share2, Link2,
   ChevronRight, CheckCircle, Clock, XCircle,
   FileText, Tag, Calendar, User, Hash, Scan, Settings2, UserCheck,
-  PenLine, ShieldCheck, ShieldAlert, Lock,
+  PenLine, ShieldCheck, ShieldAlert, Lock, FolderOpen, Monitor,
 } from 'lucide-react';
 import { documentsAPI, getFileBaseUrl } from '../services/api';
 import toast from 'react-hot-toast';
@@ -23,6 +23,7 @@ import TransmitDocumentModal from './TransmitDocumentModal';
 import LinkedDocumentModal from './LinkedDocumentModal';
 import PdfCanvasViewer, { canShowPdfInline } from './PdfCanvasViewer';
 import SignatureSession, { isSignableDocument } from './SignatureSession';
+import GedDocumentPicker from './GedDocumentPicker';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -300,6 +301,9 @@ const DocumentViewer = ({
   const [pdfDimensions, setPdfDimensions]     = useState({ width: 0, height: 0 });
   const [showMergeModal, setShowMergeModal]   = useState(false);
   const [selectedMergeFile, setSelectedMergeFile] = useState(null);
+  const [selectedMergeDoc, setSelectedMergeDoc] = useState(null); // document de la GED à ajouter
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showGedPicker, setShowGedPicker] = useState(false);
   const [isMerging, setIsMerging]             = useState(false);
   const [viewerKey, setViewerKey]             = useState(0);
   const [blobUrl, setBlobUrl]                 = useState(null);
@@ -368,21 +372,27 @@ const DocumentViewer = ({
     if (e.target.files?.[0]) {
       const file = e.target.files[0];
       if (file.type !== 'application/pdf') { toast(t('Veuillez sélectionner un fichier PDF uniquement.')); return; }
-      setSelectedMergeFile(file); setShowMergeModal(true); e.target.value = null;
+      setSelectedMergeDoc(null); setSelectedMergeFile(file); setShowMergeModal(true); e.target.value = null;
     }
   };
   const handleMerge = async (position) => {
-    if (!selectedMergeFile) return;
+    if (!selectedMergeFile && !selectedMergeDoc) return;
     try {
       setIsMerging(true);
-      const formData = new FormData();
-      formData.append('file', selectedMergeFile);
-      formData.append('position', position);
-      await documentsAPI.addPage(doc.id, formData);
-      setViewerKey(prev => prev + 1); setShowMergeModal(false); setSelectedMergeFile(null);
-    } catch { toast(t("Erreur lors de l'ajout de la page.")); }
+      if (selectedMergeDoc) {
+        await documentsAPI.addPageFromDocument(doc.id, selectedMergeDoc.id, position);
+      } else {
+        const formData = new FormData();
+        formData.append('file', selectedMergeFile);
+        formData.append('position', position);
+        await documentsAPI.addPage(doc.id, formData);
+      }
+      toast.success(t('Pages ajoutées au document.'));
+      setViewerKey(prev => prev + 1); setShowMergeModal(false); setSelectedMergeFile(null); setSelectedMergeDoc(null);
+    } catch (err) { toast(err.response?.data?.message || t("Erreur lors de l'ajout de la page.")); }
     finally { setIsMerging(false); }
   };
+  const closeMergeModal = () => { setShowMergeModal(false); setSelectedMergeFile(null); setSelectedMergeDoc(null); };
 
   if (!doc) return null;
 
@@ -461,9 +471,37 @@ const DocumentViewer = ({
                 </span>
               )}
               <input type="file" ref={fileInputRef} onChange={onFileSelect} accept="application/pdf" style={{ display: 'none' }} />
-              {!isSigned && <button onClick={() => fileInputRef.current.click()} title={t('Ajouter une page PDF')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 32, width: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer' }}>
-                <FilePlus size={14} />
-              </button>}
+              {!isSigned && isPdfFile && (
+                <div style={{ position: 'relative' }}>
+                  <button onClick={() => setShowAddMenu(v => !v)} title={t('Ajouter une page PDF')} aria-haspopup="menu" aria-expanded={showAddMenu}
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 32, width: 32, borderRadius: 'var(--radius-2)', border: `1px solid ${showAddMenu ? 'var(--brand)' : 'var(--border)'}`, background: showAddMenu ? 'var(--brand-soft)' : 'transparent', color: showAddMenu ? 'var(--brand)' : 'var(--fg-muted)', cursor: 'pointer' }}>
+                    <FilePlus size={14} />
+                  </button>
+                  {showAddMenu && (
+                    <>
+                      <div onClick={() => setShowAddMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 9050 }} />
+                      <div role="menu" style={{ position: 'absolute', right: 0, top: 38, zIndex: 9060, width: 250, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-3)', padding: 6 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '.6px', padding: '6px 8px' }}>{t('Ajouter des pages')}</div>
+                        {[
+                          { icon: FolderOpen, label: t('Depuis la GED'), sub: t('Un document déjà enregistré (validé de préférence)'), onClick: () => { setShowAddMenu(false); setShowGedPicker(true); } },
+                          { icon: Monitor, label: t('Depuis le PC'), sub: t('Un fichier PDF de cet appareil'), onClick: () => { setShowAddMenu(false); fileInputRef.current.click(); } },
+                        ].map(({ icon: Icon, label, sub, onClick }) => (
+                          <button key={label} role="menuitem" onClick={onClick}
+                            style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px', borderRadius: 'var(--radius-2)', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <Icon size={16} color="var(--brand)" style={{ marginTop: 1, flexShrink: 0 }} />
+                            <span>
+                              <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{label}</span>
+                              <span style={{ display: 'block', fontSize: 11, color: 'var(--fg-muted)', marginTop: 1 }}>{sub}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
           {/* Document validé : le transmettre (ex. à l'acheteur pour le bon de commande) */}
@@ -683,17 +721,21 @@ const DocumentViewer = ({
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-3)', padding: 24, width: 360 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg)', textAlign: 'center', marginBottom: 8 }}>{t('Où insérer le document ?')}</div>
-            <div style={{ fontSize: 12, color: 'var(--fg-muted)', textAlign: 'center', marginBottom: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedMergeFile?.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--fg-muted)', textAlign: 'center', marginBottom: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedMergeDoc?.title || selectedMergeFile?.name}</div>
             {isMerging
               ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '16px 0' }}><Loader size={22} color="var(--brand)" className="animate-spin" /><span style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Fusion en cours…')}</span></div>
               : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <button onClick={() => handleMerge('before')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 40, borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}><ArrowUp size={16} /> {t('Insérer au DÉBUT')}</button>
                   <button onClick={() => handleMerge('after')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 40, borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}><ArrowDown size={16} /> {t('Insérer à la FIN')}</button>
-                  <button onClick={() => { setShowMergeModal(false); setSelectedMergeFile(null); }} style={{ background: 'none', border: 'none', color: 'var(--fg-muted)', fontSize: 12, cursor: 'pointer', marginTop: 4, textAlign: 'center', textDecoration: 'underline' }}>{t('Annuler')}</button>
+                  <button onClick={closeMergeModal} style={{ background: 'none', border: 'none', color: 'var(--fg-muted)', fontSize: 12, cursor: 'pointer', marginTop: 4, textAlign: 'center', textDecoration: 'underline' }}>{t('Annuler')}</button>
                 </div>
             }
           </div>
         </div>
+      )}
+      {showGedPicker && (
+        <GedDocumentPicker excludeId={doc.id} onClose={() => setShowGedPicker(false)}
+          onPick={(picked) => { setShowGedPicker(false); setSelectedMergeFile(null); setSelectedMergeDoc(picked); setShowMergeModal(true); }} />
       )}
       {showTransmit && <TransmitDocumentModal document={doc} onClose={() => setShowTransmit(false)} />}
       {showLinked && <LinkedDocumentModal document={doc} onClose={() => setShowLinked(false)} />}
