@@ -514,6 +514,17 @@ const RELEASE_NOTES = [
       'Le choix est pré-rempli selon le type de document et indique votre service ; « Service » rend le document visible par tous les membres de votre service.',
     ],
   },
+  {
+    id: '2026-10-24-demande-permission-refonte',
+    date: '2026-10-24',
+    target: '/documents',
+    title: 'Demande de permission : formulaire réparé et PDF plus lisible',
+    items: [
+      'Le type de permission se choisit de nouveau (les cadres de signature le recouvraient) : boutons Personnel, Journée Directeur, Journée Major, Urgence, Exceptionnelle, puis l’événement pour une permission exceptionnelle.',
+      'Formulaire plus clair : nom pré-rempli, périodes avec jours ouvrables et total, alerte si la durée dépasse celle prévue pour l’événement.',
+      'PDF généré plus présentable : périodes en tableau avec total, motif mis en évidence, zone d’intérim et signatures alignées.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
