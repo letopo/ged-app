@@ -474,6 +474,16 @@ const RELEASE_NOTES = [
       'L’aperçu suit les nouvelles versions (cachets, signatures) ; les documents signés par le patient portent un badge « Signé ».',
     ],
   },
+  {
+    id: '2026-10-24-grille-cartes-rejet',
+    date: '2026-10-24',
+    target: '/documents',
+    title: 'Vue Grille : cartes alignées, rejets résumés',
+    items: [
+      'Un document rejeté n’étire plus toute la ligne : la carte résume le rejet (qui, quand, motif) avec les boutons « Relancer » et « Détails » (progression complète et discussion).',
+      'Les boutons « Voir » sont alignés en bas de toutes les cartes et l’avancement du circuit s’affiche en fine barre colorée.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
