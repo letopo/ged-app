@@ -7,6 +7,7 @@ import AddEmployeeModal from '../components/AddEmployeeModal.jsx';
 import ImportExportEmployees from '../components/ImportExportEmployees.jsx';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../components/ConfirmModal';
+import Pagination, { usePageSize } from '../components/Pagination';
 
 const EmployeeManagement = () => {
   const { confirm, ConfirmModalRenderer } = useConfirm();
@@ -26,9 +27,10 @@ const EmployeeManagement = () => {
     serviceId: '',
     search: ''
   });
+  const [pageSize, setPageSize] = usePageSize('employees', 25);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: pageSize,
     total: 0,
     totalPages: 0
   });
@@ -73,7 +75,7 @@ const EmployeeManagement = () => {
   useEffect(() => {
     loadEmployees();
     loadServices();
-  }, [pagination.page, filters]);
+  }, [pagination.page, pagination.limit, filters]);
 
   const handleCreate = () => {
     setEditingEmployee(null);
@@ -359,34 +361,15 @@ const EmployeeManagement = () => {
       </div>
 
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
-          <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
-            Affichage de {((pagination.page - 1) * pagination.limit) + 1} à{' '}
-            {Math.min(pagination.page * pagination.limit, pagination.total)} sur{' '}
-            {pagination.total} employés
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => handlePageChange(pagination.page - 1)}
-              disabled={pagination.page === 1}
-              style={{ padding: '6px 12px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', cursor: 'pointer', opacity: pagination.page === 1 ? 0.5 : 1 }}
-            >
-              Précédent
-            </button>
-            <span style={{ padding: '6px 12px', fontSize: 13, color: 'var(--fg-muted)' }}>
-              Page {pagination.page} sur {pagination.totalPages}
-            </span>
-            <button
-              onClick={() => handlePageChange(pagination.page + 1)}
-              disabled={pagination.page === pagination.totalPages}
-              style={{ padding: '6px 12px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', cursor: 'pointer', opacity: pagination.page === pagination.totalPages ? 0.5 : 1 }}
-            >
-              Suivant
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        pageSize={pagination.limit}
+        onPageChange={handlePageChange}
+        onPageSizeChange={(n) => { setPageSize(n); setPagination(prev => ({ ...prev, limit: n, page: 1 })); }}
+        style={{ marginTop: 12 }}
+      />
 
       {/* Modal de visualisation */}
       {isViewModalOpen && selectedEmployee && (

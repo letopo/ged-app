@@ -4,10 +4,11 @@
 import { Fragment, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { auditLogAPI } from '../services/api';
+import Pagination, { usePageSize } from '../components/Pagination';
 import {
   Shield, Search, ChevronLeft, ChevronRight, FileText,
   LogIn, Upload, Trash2, CheckCircle, XCircle, Loader, X,
-  UserX, UserCheck, Briefcase, Mail, Settings, Lock, Plug, RefreshCw, Repeat, UserCog, Stamp,
+  UserX, UserCheck, Briefcase, Mail, Settings, Lock, Plug, RefreshCw, Repeat, UserCog, Stamp, PenLine,
 } from 'lucide-react';
 
 const NEUTRAL = { iconColor: 'var(--fg-muted)', bg: 'var(--surface-2)' };
@@ -18,6 +19,7 @@ const ACTION_CONFIG = {
   DELETE:  { icon: Trash2,      iconColor: 'var(--danger)',  bg: 'var(--danger-soft)',  label: 'Suppression' },
   APPROVE: { icon: CheckCircle, iconColor: 'var(--success)', bg: 'var(--success-soft)', label: 'Approbation' },
   REJECT:  { icon: XCircle,     iconColor: 'var(--warning)', bg: 'var(--warning-soft)', label: 'Rejet' },
+  SIGN_MANUAL: { icon: PenLine, iconColor: 'var(--brand)', bg: 'var(--brand-soft)', label: 'Signature manuscrite' },
   RELAUNCH: { icon: RefreshCw, ...NEUTRAL, label: 'Relance du circuit' },
   REASSIGN: { icon: Repeat,    ...NEUTRAL, label: 'Réassignation' },
   ABSENCE_ON:  { icon: UserX,     iconColor: 'var(--warning)', bg: 'var(--warning-soft)', label: 'Absence déclarée' },
@@ -59,6 +61,7 @@ export default function AuditLogPage() {
   const [selected, setSelected] = useState(null);   // événement affiché en détail
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [pageSize, setPageSize] = usePageSize('auditLogs', 25);
   const [stats, setStats] = useState([]);
   const [search, setSearch] = useState('');
   const [filterAction, setFilterAction] = useState('');
@@ -70,7 +73,7 @@ export default function AuditLogPage() {
   const loadLogs = async (page = 1) => {
     setLoading(true);
     try {
-      const params = { page, limit: 30 };
+      const params = { page, limit: pageSize };
       if (searchTerm) params.search = searchTerm;
       if (filterAction) params.action = filterAction;
       if (dateFrom) params.dateFrom = dateFrom;
@@ -86,7 +89,7 @@ export default function AuditLogPage() {
     }
   };
 
-  useEffect(() => { loadLogs(); }, [searchTerm, filterAction, dateFrom, dateTo]);
+  useEffect(() => { loadLogs(); }, [searchTerm, filterAction, dateFrom, dateTo, pageSize]);
 
   const handleSearchChange = (val) => {
     setSearch(val);
@@ -241,25 +244,9 @@ export default function AuditLogPage() {
           </>
         )}
 
-        {pagination.totalPages > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
-            <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: 0 }}>
-              {t('Page {{page}} sur {{pages}} ({{total}} résultats)', { page: pagination.page, pages: pagination.totalPages, total: pagination.total })}
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <button onClick={() => loadLogs(pagination.page - 1)} disabled={pagination.page <= 1}
-                style={{ padding: 6, background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: pagination.page <= 1 ? 'not-allowed' : 'pointer', opacity: pagination.page <= 1 ? 0.3 : 1, display: 'flex' }}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button onClick={() => loadLogs(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages}
-                style={{ padding: 6, background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', cursor: pagination.page >= pagination.totalPages ? 'not-allowed' : 'pointer', opacity: pagination.page >= pagination.totalPages ? 0.3 : 1, display: 'flex' }}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pageSize}
+          onPageChange={(p) => loadLogs(p)} onPageSizeChange={setPageSize}
+          style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }} />
       </div>
 
       {/* Détail d'un événement */}

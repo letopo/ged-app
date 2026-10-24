@@ -15,6 +15,7 @@ import PHPPatientRegistration from '../components/php/PHPPatientRegistration';
 import PHPConsultationForm from '../components/php/PHPConsultationForm';
 import PHPBonPrint from '../components/php/PHPBonPrint';
 import toast from 'react-hot-toast';
+import Pagination, { usePageSize } from '../components/Pagination';
 import i18n from '../i18n/config';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
@@ -42,6 +43,7 @@ export default function PHPPatients() {
   const [filterInfirmerie, setFilterInfirmerie] = useState('');
   const [filterStatus, setFilterStatus]         = useState('actif');
   const [page, setPage]                         = useState(1);
+  const [pageSize, setPageSize] = usePageSize('phpPatients', 25);
 
   // Détail patient sélectionné
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -69,7 +71,7 @@ export default function PHPPatients() {
         search: search || undefined,
         infirmerieId: filterInfirmerie || undefined,
         status: filterStatus || undefined,
-        page, limit: 25,
+        page, limit: pageSize,
       });
       setPatients(res.data.data || []);
       setPagination(res.data.pagination || { total: 0, page: 1, totalPages: 1 });
@@ -78,7 +80,7 @@ export default function PHPPatients() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterInfirmerie, filterStatus, page]);
+  }, [search, filterInfirmerie, filterStatus, page, pageSize]);
 
   useEffect(() => { loadPatients(); }, [loadPatients]);
 
@@ -301,25 +303,8 @@ export default function PHPPatients() {
               </div>
 
               {/* Pagination */}
-              {pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 text-sm">
-                  <p className="text-xs" style={{ color: 'var(--fg-muted)' }}>
-                    {t('{{from}}–{{to}} sur {{total}}', { from: ((page-1)*25)+1, to: Math.min(page*25, pagination.total), total: pagination.total })}
-                  </p>
-                  <div className="flex gap-1">
-                    <button disabled={page === 1} onClick={() => setPage(p => p-1)}
-                      className="px-3 py-1.5 rounded-lg disabled:opacity-50 transition-colors"
-                      style={{ border: '1px solid var(--border)', color: 'var(--fg)' }}>
-                      <ChevronLeft size={14} />
-                    </button>
-                    <button disabled={page === pagination.totalPages} onClick={() => setPage(p => p+1)}
-                      className="px-3 py-1.5 rounded-lg disabled:opacity-50 transition-colors"
-                      style={{ border: '1px solid var(--border)', color: 'var(--fg)' }}>
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                </div>
-              )}
+              <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pageSize}
+                onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1); }} style={{ marginTop: 8 }} />
             </>
           )}
         </div>

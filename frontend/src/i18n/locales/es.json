@@ -2690,5 +2690,9 @@
   "Votre signature a été transmise. Vous pouvez rendre la tablette.": "Su firma se ha enviado. Puede devolver la tableta.",
   "{{count}} p.": "{{count}} p.",
   "Rejeté par {{name}}": "Rechazado por {{name}}",
-  "Relancer": "Relanzar"
+  "Relancer": "Relanzar",
+  "par page": "por página",
+  "Pagination": "Paginación",
+  "Page précédente": "Página anterior",
+  "Page suivante": "Página siguiente"
 }

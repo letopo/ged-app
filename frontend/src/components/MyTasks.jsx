@@ -23,6 +23,7 @@ import jsPDF from 'jspdf';
 import { pdf } from '@react-pdf/renderer';
 import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
+import Pagination, { usePageSize } from './Pagination';
 import { getMissionnaires, normNom } from '../utils/omMissionnaires';
 
 const MAX_SELECTION = 20;
@@ -102,18 +103,19 @@ const MyTasks = () => {
   const [taskForPreview, setTaskForPreview] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 });
+  const [pageSize, setPageSize] = usePageSize('myTasks', 25);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: pageSize, totalPages: 1 });
 
   useEffect(() => {
     loadTasks(1);
     loadServices();
   }, []);
 
-  const loadTasks = async (page = currentPage) => {
+  const loadTasks = async (page = currentPage, size = pageSize) => {
     try {
       setLoading(true);
       setError('');
-      const response = await workflowAPI.getMyTasks('all', { page, limit: 20 });
+      const response = await workflowAPI.getMyTasks('all', { page, limit: size });
       setTasks(response.data.tasks || []);
       if (response.data.pagination) {
         setPagination(response.data.pagination);
@@ -797,7 +799,6 @@ const MyTasks = () => {
   const iconBtn    = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 6, borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--fg-muted)' };
   const thStyle    = { padding: '10px 14px', fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.4px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' };
   const tdStyle    = { padding: '10px 14px', verticalAlign: 'middle' };
-  const pageBtn    = { width: 30, height: 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 13 };
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -1008,24 +1009,9 @@ const MyTasks = () => {
       )}
 
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
-          <span>{t('Page')} <b style={{ color: 'var(--fg)' }}>{pagination.page}</b> {t('sur')} <b style={{ color: 'var(--fg)' }}>{pagination.totalPages}</b> · {t('{{count}} tâche(s)', { count: pagination.total })}</span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button onClick={() => goToPage(1)} disabled={currentPage === 1} style={pageBtn}>«</button>
-            <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} style={pageBtn}>‹</button>
-            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - currentPage) <= 1)
-              .reduce((acc, p, idx, arr) => { if (idx > 0 && p - arr[idx-1] > 1) acc.push('…'); acc.push(p); return acc; }, [])
-              .map((p, i) => p === '…'
-                ? <span key={`e-${i}`} style={{ ...pageBtn, border: 'none', cursor: 'default' }}>…</span>
-                : <button key={p} onClick={() => goToPage(p)} style={{ ...pageBtn, background: p === currentPage ? 'var(--brand)' : 'var(--surface)', color: p === currentPage ? '#fff' : 'var(--fg-muted)', borderColor: p === currentPage ? 'var(--brand)' : 'var(--border)' }}>{p}</button>
-              )}
-            <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === pagination.totalPages} style={pageBtn}>›</button>
-            <button onClick={() => goToPage(pagination.totalPages)} disabled={currentPage === pagination.totalPages} style={pageBtn}>»</button>
-          </div>
-        </div>
-      )}
+      <Pagination page={currentPage} totalPages={pagination.totalPages} total={pagination.total} pageSize={pageSize}
+        onPageChange={goToPage} onPageSizeChange={(n) => { setPageSize(n); loadTasks(1, n); }}
+        style={{ marginTop: 12 }} />
 
       <BulkValidationBar
         selectedCount={selectedTaskIds.length}

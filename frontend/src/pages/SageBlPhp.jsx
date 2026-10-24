@@ -8,6 +8,7 @@ import React, { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader, RefreshCw, Download, Search, ChevronDown, ChevronRight, AlertCircle, Shield, X, Users, Clock, FileWarning, Hourglass } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Pagination, { usePageSize } from '../components/Pagination';
 import { sageBlAPI } from '../services/phpService';
 
 const fmtMoney = (n) => `${Number(n || 0).toLocaleString('fr-FR')} FCFA`;
@@ -18,7 +19,6 @@ const fmtMoneyShort = (n) => {
   return fmtMoney(v);
 };
 const fmtDate = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
-const PAGE_SIZE = 50;
 
 const STATUS = {
   in_progress: { label: 'BPC en cours', color: 'var(--brand)', bg: 'var(--brand-soft)' },
@@ -203,6 +203,7 @@ export default function SageBlPhp() {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(null);
   const [page, setPage] = useState(1);
+  const [PAGE_SIZE, setPageSize] = usePageSize('sageBl', 50);
   const [canEditAccess, setCanEditAccess] = useState(false);
   const [showAccess, setShowAccess] = useState(false);
 
@@ -349,15 +350,9 @@ export default function SageBlPhp() {
                   </Fragment>
                 ))}
                 {!filtered.length && <div style={{ padding: 30, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>{t('Aucun BPC ne correspond.')}</div>}
-                {pages > 1 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 16px', borderTop: '1px solid var(--border)', fontSize: 12.5, color: 'var(--fg-muted)' }}>
-                    <span>{t('Page {{page}} sur {{pages}}', { page, pages })}</span>
-                    <span style={{ display: 'flex', gap: 6 }}>
-                      <button style={btn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('Précédent')}</button>
-                      <button style={btn} disabled={page >= pages} onClick={() => setPage(p => p + 1)}>{t('Suivant')}</button>
-                    </span>
-                  </div>
-                )}
+                <Pagination page={page} totalPages={pages} total={filtered.length} pageSize={PAGE_SIZE}
+                  onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+                  style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }} />
               </div>
             </>
           )}

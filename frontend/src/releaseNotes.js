@@ -484,6 +484,16 @@ const RELEASE_NOTES = [
       'Les boutons « Voir » sont alignés en bas de toutes les cartes et l’avancement du circuit s’affiche en fine barre colorée.',
     ],
   },
+  {
+    id: '2026-10-24-pagination-taille-page',
+    date: '2026-10-24',
+    target: 'app',
+    title: 'Listes : numéros de page et nombre d’éléments par page',
+    items: [
+      'Documents, Mes tâches, Employés, Journal d’audit, Patients et Consultations PHP, Factures et BL Sage : numéros de page cliquables (1 … 4 5 6 … 18) et choix du nombre d’éléments par page.',
+      'Le nombre choisi est mémorisé pour chaque liste sur votre appareil.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
