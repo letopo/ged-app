@@ -61,6 +61,7 @@ import notificationPreferenceRoutes from './routes/notificationPreferenceRoutes.
 import auditLogRoutes from './routes/auditLogRoutes.js';
 import workflowTemplateRoutes from './routes/workflowTemplateRoutes.js';
 import verificationRoutes from './routes/verificationRoutes.js';
+import signaturePublicRoutes from './routes/signaturePublic.js';
 import onlyofficeRoutes from './routes/onlyoffice.js';
 import formRoutes from './routes/forms.js'; // ✅ Form Builder
 import postesRoutes from './routes/postes.js'; // ✅ Postes organisationnels
@@ -247,6 +248,7 @@ app.use('/api/notification-preferences', notificationPreferenceRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/workflow-templates', workflowTemplateRoutes);
 app.use('/api/verify', verificationRoutes);
+app.use('/api/signature-public', signaturePublicRoutes); // Tablette du guichet (jeton, sans connexion)
 app.use('/api/forms', formRoutes); // ✅ Form Builder
 app.use('/api/onlyoffice', onlyofficeRoutes);
 app.use('/api/postes', postesRoutes); // ✅ Postes organisationnels

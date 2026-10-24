@@ -15,8 +15,12 @@ import {
   PDFDocument, StandardFonts, rgb,
   pushGraphicsState, popGraphicsState, concatTransformationMatrix,
 } from 'pdf-lib';
+import QRCode from 'qrcode';
 import { Document, Workflow } from '../models/index.js';
 import { hasDocumentReadAccess } from '../utils/documentVisibility.js';
+import {
+  createRequest, getRequest, cancelRequest, consumeRequest, sendToKiosk, listKiosks,
+} from '../utils/signatureRequests.js';
 
 const IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
 const MAX_SIGNATURE_BYTES = 2 * 1024 * 1024;
@@ -29,6 +33,30 @@ export const isManuallySigned = (doc) => !!doc?.metadata?.manualSignature;
 
 const isPdf = (doc) => doc.fileType === 'application/pdf' || /\.pdf$/i.test(doc.fileName || doc.filePath || '');
 const isImage = (doc) => IMAGE_TYPES.includes(doc.fileType) || /\.(jpe?g|png)$/i.test(doc.fileName || doc.filePath || '');
+
+// Le document peut-il être signé maintenant ? → null, ou { status, message }
+async function signabilityError(document, user) {
+  if (!document) return { status: 404, message: 'Document non trouvé.' };
+  if (!(await hasDocumentReadAccess(document, user))) return { status: 403, message: 'Accès non autorisé.' };
+  if (isManuallySigned(document)) return { status: 409, message: 'Ce document est déjà signé : il est verrouillé.' };
+  if (!isPdf(document) && !isImage(document)) {
+    return { status: 400, message: 'Seuls les PDF et les images (JPEG, PNG) peuvent être signés.' };
+  }
+  const inCircuit = ['pending_validation', 'in_progress'].includes(document.status)
+    || await Workflow.count({ where: { documentId: document.id, status: ['pending', 'queued'] } });
+  if (inCircuit) return { status: 409, message: 'Ce document est en cours de validation : il ne peut pas être signé maintenant.' };
+  return null;
+}
+
+// Image de signature envoyée en data URL PNG → Buffer (null si invalide)
+export function parseSignaturePng(signature) {
+  const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(signature || ''));
+  const bytes = m ? Buffer.from(m[1], 'base64') : null;
+  if (!bytes || bytes.length < 100 || bytes.length > MAX_SIGNATURE_BYTES || bytes[0] !== 0x89 || bytes[1] !== 0x50) return null;
+  return bytes;
+}
+
+const cleanName = (v) => String(v || '').replace(/\s+/g, ' ').trim();
 
 // Les polices standard du PDF ne connaissent que le jeu WinAnsi : on remplace
 // ce qu'elles ne savent pas écrire (accents rares → lettre de base, sinon « ? »).
@@ -89,30 +117,21 @@ async function loadAsPdf(doc, bytes) {
 export const signDocumentManually = async (req, res) => {
   try {
     const document = await Document.findByPk(req.params.id);
-    if (!document) return res.status(404).json({ success: false, message: 'Document non trouvé.' });
-    if (!(await hasDocumentReadAccess(document, req.user))) {
-      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
-    }
-    if (isManuallySigned(document)) {
-      return res.status(409).json({ success: false, message: 'Ce document est déjà signé : il est verrouillé.' });
-    }
-    if (!isPdf(document) && !isImage(document)) {
-      return res.status(400).json({ success: false, message: 'Seuls les PDF et les images (JPEG, PNG) peuvent être signés.' });
-    }
-    const inCircuit = ['pending_validation', 'in_progress'].includes(document.status)
-      || await Workflow.count({ where: { documentId: document.id, status: ['pending', 'queued'] } });
-    if (inCircuit) {
-      return res.status(409).json({ success: false, message: 'Ce document est en cours de validation : il ne peut pas être signé maintenant.' });
-    }
+    const blocked = await signabilityError(document, req.user);
+    if (blocked) return res.status(blocked.status).json({ success: false, message: blocked.message });
 
-    const { signature, placement, autoPlaced, pointerType } = req.body || {};
-    const signerName = String(req.body?.signerName || '').replace(/\s+/g, ' ').trim();
+    const { signature, placement, autoPlaced, pointerType, requestToken } = req.body || {};
+    const signerName = cleanName(req.body?.signerName);
     if (signerName.length < 2 || signerName.length > 120) {
       return res.status(400).json({ success: false, message: 'Indiquez le nom du signataire.' });
     }
-    const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(signature || ''));
-    const sigBytes = m ? Buffer.from(m[1], 'base64') : null;
-    if (!sigBytes || sigBytes.length < 100 || sigBytes.length > MAX_SIGNATURE_BYTES || sigBytes[0] !== 0x89 || sigBytes[1] !== 0x50) {
+    // Signature faite sur une tablette du guichet : on reprend la demande pour la preuve
+    const remote = requestToken ? getRequest(requestToken, req.tenantId) : null;
+    if (requestToken && (!remote || remote.requesterId !== req.user.id || remote.documentId !== document.id || remote.status !== 'signed')) {
+      return res.status(400).json({ success: false, message: 'Demande de signature expirée : recommencez.' });
+    }
+    const sigBytes = parseSignaturePng(remote ? remote.signature : signature);
+    if (!sigBytes) {
       return res.status(400).json({ success: false, message: 'Signature invalide.' });
     }
     const p = placement || {};
@@ -204,9 +223,11 @@ export const signDocumentManually = async (req, res) => {
       page: pageNumber,
       placement: { x, y, w, h },
       autoPlaced: !!autoPlaced,
-      pointerType: ['touch', 'pen', 'mouse'].includes(pointerType) ? pointerType : null,
+      pointerType: ['touch', 'pen', 'mouse'].includes(remote ? remote.pointerType : pointerType) ? (remote ? remote.pointerType : pointerType) : null,
       ip: req.ip || null,
       userAgent: String(req.headers['user-agent'] || '').slice(0, 300),
+      // Signée sur une tablette (lien / QR code ou borne) : appareil du signataire
+      remote: remote ? { kioskName: remote.kioskName || null, ip: remote.device?.ip || null, userAgent: remote.device?.userAgent || null } : null,
       sha256: sha256(signedBytes),
       original: {
         filePath: document.filePath,
@@ -224,8 +245,9 @@ export const signDocumentManually = async (req, res) => {
       metadata: { ...(document.metadata || {}), manualSignature: record, pageCount: pages.length },
     });
 
+    if (remote) consumeRequest(remote);
     const { AuditLog } = await import('../models/index.js');
-    AuditLog.log(req, 'SIGN_MANUAL', 'document', document.id, { title: document.title, signerName, sha256: record.sha256 });
+    AuditLog.log(req, 'SIGN_MANUAL', 'document', document.id, { title: document.title, signerName, sha256: record.sha256, remote: !!remote });
 
     res.json({ success: true, data: document, message: 'Document signé.' });
   } catch (error) {
@@ -252,9 +274,95 @@ export const getManualSignature = async (req, res) => {
     try {
       intact = sha256(await fs.readFile(path.resolve(process.cwd(), document.filePath))) === record.sha256;
     } catch { intact = false; }
-    const { ip, userAgent, ...publicRecord } = record;
+    const { ip, userAgent, remote, ...publicRecord } = record;
+    if (remote) publicRecord.remote = { kioskName: remote.kioskName || null };
     res.json({ success: true, data: { ...publicRecord, intact } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
+};
+
+// ── Signature sur une tablette du guichet ────────────────────────────────────
+
+const validPlacement = (p) => {
+  const n = ['x', 'y', 'w', 'h'].map((k) => Number(p?.[k]));
+  if (n.some((v) => !Number.isFinite(v) || v < 0 || v > 1)) return null;
+  return { page: Math.max(1, Math.round(Number(p.page) || 1)), x: n[0], y: n[1], w: n[2], h: n[3] };
+};
+
+// Adresse de la GED vue par l'agent (celle que la tablette doit ouvrir)
+function publicOrigin(req) {
+  const asked = String(req.body?.origin || '');
+  try {
+    const u = new URL(asked);
+    if (u.hostname === req.hostname && /^https?:$/.test(u.protocol)) return u.origin;
+  } catch { /* adresse absente ou invalide */ }
+  return `${req.protocol}://${req.get('host')}`;
+}
+
+/**
+ * POST /api/documents/:id/signature-requests  { signerName, placement, origin }
+ * → { token, expiresAt, url, qr } : lien (et QR code) à ouvrir sur la tablette.
+ */
+export const createSignatureRequest = async (req, res) => {
+  try {
+    const document = await Document.findByPk(req.params.id);
+    const blocked = await signabilityError(document, req.user);
+    if (blocked) return res.status(blocked.status).json({ success: false, message: blocked.message });
+    const signerName = cleanName(req.body?.signerName);
+    if (signerName.length < 2 || signerName.length > 120) {
+      return res.status(400).json({ success: false, message: 'Indiquez le nom du signataire.' });
+    }
+    const placement = validPlacement(req.body?.placement);
+    if (!placement) return res.status(400).json({ success: false, message: 'Emplacement de signature invalide.' });
+
+    const r = createRequest({
+      tenantId: req.tenantId, documentId: document.id, requesterId: req.user.id,
+      signerName, placement, title: document.title,
+    });
+    const url = `${publicOrigin(req)}/signer/${r.token}`;
+    const qr = await QRCode.toDataURL(url, { margin: 1, width: 360, errorCorrectionLevel: 'M' });
+    res.json({ success: true, data: { token: r.token, expiresAt: new Date(r.expiresAt).toISOString(), url, qr } });
+  } catch (error) {
+    console.error('❌ Demande de signature :', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+const ownRequest = (req) => {
+  const r = getRequest(req.params.token, req.tenantId);
+  return r && r.requesterId === req.user.id ? r : null;
+};
+
+// GET /api/documents/signature-requests/:token — état (secours si Socket.IO coupé)
+export const getSignatureRequestStatus = (req, res) => {
+  const r = ownRequest(req);
+  if (!r) return res.status(404).json({ success: false, message: 'Demande expirée.' });
+  res.json({ success: true, data: { status: r.status, signature: r.status === 'signed' ? r.signature : null, pointerType: r.pointerType } });
+};
+
+// POST /api/documents/signature-requests/:token/send  { kioskId } — envoi à une borne
+export const sendSignatureRequest = (req, res) => {
+  const r = ownRequest(req);
+  if (!r || r.status === 'signed' || r.status === 'cancelled') {
+    return res.status(404).json({ success: false, message: 'Demande expirée.' });
+  }
+  const kiosk = listKiosks(req.tenantId).find((k) => k.id === req.body?.kioskId);
+  if (!kiosk || !sendToKiosk(r, kiosk.id)) {
+    return res.status(404).json({ success: false, message: 'Cette tablette n\'est plus connectée.' });
+  }
+  r.kioskName = kiosk.name;
+  res.json({ success: true });
+};
+
+// DELETE /api/documents/signature-requests/:token — l'agent annule
+export const cancelSignatureRequest = (req, res) => {
+  const r = ownRequest(req);
+  if (r) cancelRequest(r);
+  res.json({ success: true });
+};
+
+// GET /api/documents/signature-kiosks — tablettes de guichet connectées
+export const listSignatureKiosks = (req, res) => {
+  res.json({ success: true, data: listKiosks(req.tenantId) });
 };

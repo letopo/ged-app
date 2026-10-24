@@ -239,6 +239,7 @@ function ManualSignaturePanel({ doc, fileBaseUrl, secTitle }) {
         <div style={{ fontSize: 11, color: 'var(--fg-muted)', lineHeight: 1.6 }}>
           <div>{t('Signé le {{date}}', { date: fmtDate(record.signedAt) })}{record.page ? ` · ${t('page {{n}}', { n: record.page })}` : ''}</div>
           {record.requestedBy?.name && <div>{t('Signature recueillie par {{name}}', { name: record.requestedBy.name })}</div>}
+          {record.remote && <div>{record.remote.kioskName ? t('Signée sur la tablette « {{name}} »', { name: record.remote.kioskName }) : t('Signée sur une tablette (QR code)')}</div>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 11, fontWeight: 600,
           color: intact === false ? 'var(--danger)' : intact ? 'var(--success)' : 'var(--fg-subtle)' }}>

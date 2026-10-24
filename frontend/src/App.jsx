@@ -44,6 +44,8 @@ import StatistiquesPage from './pages/StatistiquesPage';
 import NouveautesPage from './pages/NouveautesPage';
 import WorkflowTemplatesPage from './pages/WorkflowTemplatesPage';
 import VerifyDocument from './pages/VerifyDocument';
+import SignerPage from './pages/SignerPage';
+import SignatureKiosk from './pages/SignatureKiosk';
 import GMAOPage from './pages/GMAOPage';
 // ── MODULE FORM BUILDER ────────────────────────────────────────────────────────
 import FormsListPage  from './pages/FormBuilder/index.jsx';
@@ -298,6 +300,10 @@ function App() {
         <Route path="/register"      element={<Register />} />
         <Route path="/verify/:hash"  element={<VerifyDocument />} />
         <Route path="/display"       element={<PublicDisplay />} />
+        {/* Signature du patient sur une tablette (jeton du QR code, sans connexion) */}
+        <Route path="/signer/:token" element={<SignerPage />} />
+        {/* Tablette du guichet connectée, qui reçoit les demandes de signature */}
+        <Route path="/borne-signature" element={<ProtectedRoute><SignatureKiosk /></ProtectedRoute>} />
 
         {/* ── Form Designer (plein écran, hors AppShell) ───── */}
         <Route path="/forms/:id/designer" element={

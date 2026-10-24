@@ -255,6 +255,12 @@ export const documentsAPI = {
   // Signature manuscrite (patient au guichet)
   signManually: (id, data) => api.post(`/documents/${id}/manual-signature`, data),
   getManualSignature: (id) => api.get(`/documents/${id}/manual-signature`),
+  // Signature sur une tablette du guichet (lien / QR code, ou borne connectée)
+  createSignatureRequest: (id, data) => api.post(`/documents/${id}/signature-requests`, data),
+  getSignatureRequest: (token) => api.get(`/documents/signature-requests/${token}`),
+  sendSignatureRequest: (token, kioskId) => api.post(`/documents/signature-requests/${token}/send`, { kioskId }),
+  cancelSignatureRequest: (token) => api.delete(`/documents/signature-requests/${token}`),
+  getSignatureKiosks: () => api.get('/documents/signature-kiosks'),
   archive: (id) => api.patch(`/documents/${id}/archive`),
   unarchive: (id) => api.patch(`/documents/${id}/unarchive`),
   // OnlyOffice
