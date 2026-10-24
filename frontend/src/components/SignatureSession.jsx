@@ -10,8 +10,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { X, Loader, PenLine, Eraser, Undo2, Check, Sparkles, ArrowLeft, Lock } from 'lucide-react';
-import { documentsAPI } from '../services/api';
+import { X, Loader, PenLine, Eraser, Undo2, Check, Sparkles, ArrowLeft, Lock, Tablet, Send, RefreshCw, MonitorSmartphone } from 'lucide-react';
+import { documentsAPI, getSocket, initializeSocket } from '../services/api';
 import { loadPdfjs } from './PdfCanvasViewer';
 import SignaturePad from './SignaturePad';
 import { recognizeCanvas } from '../utils/scanOcr';
@@ -150,7 +150,7 @@ function nowLabel() {
 }
 
 // ── Une page du document ─────────────────────────────────────────────────────
-function PageView({ pdf, image, info, width, root, onTap, children }) {
+export function PageView({ pdf, image, info, width, root, onTap, children }) {
   const holderRef = useRef(null);
   const canvasRef = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -200,7 +200,7 @@ function PageView({ pdf, image, info, width, root, onTap, children }) {
 }
 
 // ── Cadre de signature (déplaçable, redimensionnable) ────────────────────────
-function SignatureFrame({ frame, editable, onChange, preview }) {
+export function SignatureFrame({ frame, editable, onChange, preview }) {
   const { t } = useTranslation();
   const ref = useRef(null);
   const drag = useRef(null);
@@ -271,34 +271,16 @@ function SignatureFrame({ frame, editable, onChange, preview }) {
   );
 }
 
-// ── Session complète ─────────────────────────────────────────────────────────
-export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
-  const { t } = useTranslation();
-  const isPdf = doc.fileType === 'application/pdf' || /\.pdf$/i.test(doc.fileName || doc.filePath || '');
+// ── Briques partagées avec la tablette du guichet (RemoteSigner) ─────────────
 
-  const scrollRef = useRef(null);
-  const padRef = useRef(null);
-  const [pdf, setPdf] = useState(null);
-  const [image, setImage] = useState(null);
-  const [pages, setPages] = useState([]);
-  const [loadError, setLoadError] = useState(false);
-  const [width, setWidth] = useState(0);
-  const [step, setStep] = useState('place'); // place | name | pad | review | saving
-  const [frame, setFrame] = useState(null);
-  const frameRef = useRef(null);
-  frameRef.current = frame;
-  const [autoPlaced, setAutoPlaced] = useState(false);
-  const [detecting, setDetecting] = useState(false);
-  const [signerName, setSignerName] = useState('');
-  const [ink, setInk] = useState(0);
-  const [signature, setSignature] = useState(null); // { png, pointerType }
-  const [padHeight, setPadHeight] = useState(260);
-
-  // Chargement du document
+// Charge le document (PDF via pdf.js, ou image) et la taille de ses pages
+export function useDocumentPages(fileUrl, isPdf) {
+  const [state, setState] = useState({ pdf: null, image: null, pages: [], loadError: false });
   useEffect(() => {
     let alive = true;
     let loaded = null;
-    setLoadError(false);
+    setState({ pdf: null, image: null, pages: [], loadError: false });
+    if (!fileUrl) return undefined;
     if (isPdf) {
       loadPdfjs()
         .then((pdfjs) => pdfjs.getDocument({ url: fileUrl, isEvalSupported: false }).promise)
@@ -310,21 +292,24 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
             infos.push({ number: n, width: vp.width, height: vp.height });
           }
           if (!alive) { d.destroy(); return; }
-          setPdf(d);
-          setPages(infos);
+          setState({ pdf: d, image: null, pages: infos, loadError: false });
         })
-        .catch((err) => { console.error('[signature] PDF', err); if (alive) setLoadError(true); });
+        .catch((err) => { console.error('[signature] PDF', err); if (alive) setState((st) => ({ ...st, loadError: true })); });
     } else {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => { if (alive) { setImage(img); setPages([{ number: 1, width: img.naturalWidth, height: img.naturalHeight }]); } };
-      img.onerror = () => { if (alive) setLoadError(true); };
+      img.onload = () => { if (alive) setState({ pdf: null, image: img, pages: [{ number: 1, width: img.naturalWidth, height: img.naturalHeight }], loadError: false }); };
+      img.onerror = () => { if (alive) setState((st) => ({ ...st, loadError: true })); };
       img.src = fileUrl;
     }
     return () => { alive = false; loaded?.destroy(); };
   }, [fileUrl, isPdf]);
+  return state;
+}
 
-  // Largeur d'affichage des pages
+// Largeur d'affichage des pages dans le conteneur qui défile
+export function usePageWidth(scrollRef) {
+  const [width, setWidth] = useState(0);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return undefined;
@@ -333,23 +318,243 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [scrollRef]);
+  return width;
+}
 
-  // Hauteur de la zone de signature : grande, mais tout reste visible
+// Fait défiler jusqu'au cadre (sans scrollIntoView : il fait bouger toute la page)
+export function scrollToFrameIn(el, f) {
+  const pageEl = el?.querySelector(`[data-page="${f.page}"]`);
+  if (!el || !pageEl) return;
+  el.scrollTop = Math.max(0, pageEl.offsetTop + (f.y + f.h / 2) * pageEl.offsetHeight - el.clientHeight / 2);
+}
+
+export const signButtonStyle = (primary, disabled) => ({
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, padding: '0 18px',
+  borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+  border: primary ? 'none' : '1px solid var(--border)', background: primary ? 'var(--brand)' : 'var(--surface)', color: primary ? '#fff' : 'var(--fg)',
+});
+
+// Zone de signature plein écran (c'est le patient qui l'a en main)
+export function SignPadScreen({ signerName, onBack, onValidate, busy }) {
+  const { t } = useTranslation();
+  const padRef = useRef(null);
+  const [ink, setInk] = useState(0);
+  const [padHeight, setPadHeight] = useState(260);
   useEffect(() => {
     const fit = () => setPadHeight(Math.round(clamp(Math.min(window.innerHeight - 250, window.innerWidth * 0.55), 160, 520)));
     fit();
     window.addEventListener('resize', fit);
     return () => window.removeEventListener('resize', fit);
   }, []);
+  const validate = () => {
+    const png = padRef.current?.toPng();
+    if (png) onValidate({ png, pointerType: padRef.current.pointerType() });
+  };
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: '#f4f5f8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 14 }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#1f2a52' }}>{t('Signez dans le cadre ci-dessous')}</div>
+        <div style={{ fontSize: 13, color: '#5b6275', marginTop: 4 }}>
+          {t('Lu et approuvé')} — {signerName}
+        </div>
+      </div>
+      <div style={{ width: '100%', maxWidth: 900 }}>
+        <SignaturePad ref={padRef} height={padHeight} onChange={({ ink: v }) => setInk(v)} />
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <button style={signButtonStyle(false, busy)} disabled={busy} onClick={onBack}><ArrowLeft size={16} /> {t('Retour')}</button>
+        <button style={signButtonStyle(false, ink === 0 || busy)} disabled={ink === 0 || busy} onClick={() => padRef.current?.clear()}><Eraser size={16} /> {t('Effacer')}</button>
+        <button style={signButtonStyle(true, ink < 40 || busy)} disabled={ink < 40 || busy} onClick={validate}>
+          {busy ? <Loader size={16} className="animate-spin" /> : <Check size={16} />} {t('Valider la signature')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Signature sur une tablette du guichet (vue du PC de l'agent) ──────────────
+function RemoteSignaturePanel({ doc, frame, signerName, onSigned, onBack }) {
+  const { t } = useTranslation();
+  const [request, setRequest] = useState(null); // { token, url, qr, expiresAt }
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState('waiting');
+  const [kiosks, setKiosks] = useState([]);
+  const [sentTo, setSentTo] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  const [attempt, setAttempt] = useState(0);
+  const doneRef = useRef(false);
+  const onSignedRef = useRef(onSigned);
+  onSignedRef.current = onSigned;
+
+  // Création de la demande (lien + QR code)
+  useEffect(() => {
+    let alive = true;
+    let token = null;
+    setRequest(null); setError(null); setStatus('waiting'); setSentTo(null);
+    documentsAPI.createSignatureRequest(doc.id, {
+      signerName, origin: window.location.origin,
+      placement: { page: frame.page, x: frame.x, y: frame.y, w: frame.w, h: frame.h },
+    })
+      .then((res) => {
+        token = res.data.data.token;
+        if (alive) setRequest(res.data.data);
+        else documentsAPI.cancelSignatureRequest(token).catch(() => {});
+      })
+      .catch((err) => { if (alive) setError(err.response?.data?.message || t('Erreur serveur.')); });
+    return () => {
+      alive = false;
+      // Fermé sans signature : la tablette doit lâcher le document
+      if (token && !doneRef.current) documentsAPI.cancelSignatureRequest(token).catch(() => {});
+    };
+  }, [doc.id, frame, signerName, attempt, t]);
+
+  const finish = useCallback((signature, pointerType) => {
+    if (doneRef.current || !request) return;
+    doneRef.current = true;
+    onSignedRef.current({ png: signature, pointerType, requestToken: request.token });
+  }, [request]);
+
+  // Réception en direct (Socket.IO) + vérification régulière en secours
+  useEffect(() => {
+    if (!request) return undefined;
+    const socket = getSocket() || initializeSocket();
+    const onUpdate = (u) => {
+      if (u.token !== request.token) return;
+      setStatus(u.status);
+      if (u.status === 'signed' && u.signature) finish(u.signature, u.pointerType);
+    };
+    socket?.on('signature-request:update', onUpdate);
+    const poll = setInterval(() => {
+      documentsAPI.getSignatureRequest(request.token)
+        .then((res) => {
+          const d = res.data.data;
+          setStatus(d.status);
+          if (d.status === 'signed' && d.signature) finish(d.signature, d.pointerType);
+        })
+        .catch(() => {});
+    }, 3000);
+    return () => { socket?.off('signature-request:update', onUpdate); clearInterval(poll); };
+  }, [request, finish]);
+
+  // Tablettes de guichet connectées
+  useEffect(() => {
+    let alive = true;
+    const load = () => documentsAPI.getSignatureKiosks().then((res) => { if (alive) setKiosks(res.data.data || []); }).catch(() => {});
+    load();
+    const id = setInterval(load, 4000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const send = async (kiosk) => {
+    try {
+      await documentsAPI.sendSignatureRequest(request.token, kiosk.id);
+      setSentTo(kiosk);
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('Erreur serveur.'));
+    }
+  };
+
+  const remaining = request ? Math.max(0, new Date(request.expiresAt).getTime() - now) : 0;
+  const expired = request && remaining === 0 && status !== 'signed';
+  const mmss = `${Math.floor(remaining / 60000)}:${String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0')}`;
+  const kioskUrl = `${window.location.origin}/borne-signature`;
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflow: 'auto' }}>
+      <div style={{ width: '100%', maxWidth: 680, background: 'var(--surface)', borderRadius: 14, padding: 20, boxShadow: 'var(--shadow-3)', maxHeight: '100%', overflow: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <Tablet size={18} color="var(--brand)" />
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)' }}>{t('Signature sur une tablette')}</div>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 16 }}>
+          {t('Le patient voit le document et signe sur la tablette ; la signature arrive ici pour vérification.')}
+        </div>
+
+        {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{error}</div>}
+
+        {/* Statut */}
+        {request && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600,
+            background: expired ? 'var(--danger-soft)' : status === 'opened' ? 'var(--brand-soft)' : 'var(--surface-2)',
+            color: expired ? 'var(--danger)' : status === 'opened' ? 'var(--brand)' : 'var(--fg-muted)' }}>
+            {!expired && <Loader size={14} className="animate-spin" />}
+            <span style={{ flex: 1 }}>
+              {expired ? t('Le lien a expiré.')
+                : status === 'opened' ? t('Document ouvert sur la tablette : le patient signe…')
+                : sentTo ? t('Envoyé à « {{name}} », en attente…', { name: sentTo.name })
+                : t('En attente de la tablette…')}
+            </span>
+            {!expired && <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{mmss}</span>}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+          {/* Bornes */}
+          <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 8 }}>{t('Tablettes du guichet')}</div>
+            {kiosks.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+                {t('Aucune tablette connectée. Sur la tablette, ouvrez cette adresse (connecté à la GED) pour qu\'elle apparaisse ici :')}
+                <div style={{ marginTop: 6, fontFamily: 'var(--font-mono, monospace)', fontSize: 12, color: 'var(--fg)', wordBreak: 'break-all' }}>{kioskUrl}</div>
+              </div>
+            ) : kiosks.map((k) => (
+              <div key={k.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 6 }}>
+                <MonitorSmartphone size={16} color="var(--fg-muted)" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{k.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{k.busy && sentTo?.id !== k.id ? t('Occupée') : k.userName}</div>
+                </div>
+                <button style={{ ...signButtonStyle(true, !request || expired), height: 34, padding: '0 12px', fontSize: 12 }} disabled={!request || expired} onClick={() => send(k)}>
+                  <Send size={14} /> {sentTo?.id === k.id ? t('Renvoyer') : t('Envoyer')}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* QR code */}
+          <div style={{ flex: '0 1 230px', textAlign: 'center', margin: '0 auto' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 8 }}>{t('Ou scanner ce code')}</div>
+            <div style={{ width: 200, height: 200, margin: '0 auto', borderRadius: 10, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', opacity: expired ? 0.25 : 1 }}>
+              {request ? <img src={request.qr} alt={t('QR code de signature')} style={{ width: 188, height: 188 }} /> : <Loader size={20} className="animate-spin" color="#888" />}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 6 }}>{t('Avec l\'appareil photo de la tablette ou du téléphone du patient')}</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18, flexWrap: 'wrap' }}>
+          <button style={signButtonStyle(false)} onClick={onBack}><ArrowLeft size={16} /> {t('Retour')}</button>
+          {expired && <button style={signButtonStyle(true)} onClick={() => setAttempt((a) => a + 1)}><RefreshCw size={16} /> {t('Nouveau lien')}</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Session complète ─────────────────────────────────────────────────────────
+export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
+  const { t } = useTranslation();
+  const isPdf = doc.fileType === 'application/pdf' || /\.pdf$/i.test(doc.fileName || doc.filePath || '');
+
+  const scrollRef = useRef(null);
+  const { pdf, image, pages, loadError } = useDocumentPages(fileUrl, isPdf);
+  const width = usePageWidth(scrollRef);
+  const [step, setStep] = useState('place'); // place | name | pad | remote | review | saving
+  const [frame, setFrame] = useState(null);
+  const frameRef = useRef(null);
+  frameRef.current = frame;
+  const [autoPlaced, setAutoPlaced] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [signerName, setSignerName] = useState('');
+  const [signature, setSignature] = useState(null); // { png, pointerType, requestToken? }
 
   // Fait défiler jusqu'au cadre (sans scrollIntoView : il fait bouger toute la page)
-  const scrollToFrame = useCallback((f) => {
-    const el = scrollRef.current;
-    const pageEl = el?.querySelector(`[data-page="${f.page}"]`);
-    if (!el || !pageEl) return;
-    el.scrollTop = Math.max(0, pageEl.offsetTop + (f.y + f.h / 2) * pageEl.offsetHeight - el.clientHeight / 2);
-  }, []);
+  const scrollToFrame = useCallback((f) => scrollToFrameIn(scrollRef.current, f), []);
 
   // Emplacement automatique : texte du PDF, sinon OCR de la dernière page
   useEffect(() => {
@@ -417,10 +622,9 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
     setAutoPlaced(false);
   };
 
-  const validatePad = () => {
-    const png = padRef.current?.toPng();
-    if (!png) return;
-    setSignature({ png, pointerType: padRef.current.pointerType() });
+  // Signature reçue (de cet écran ou d'une tablette du guichet) → aperçu
+  const gotSignature = (sig) => {
+    setSignature(sig);
     setStep('review');
     setTimeout(() => frame && scrollToFrame(frame), 80);
   };
@@ -434,6 +638,7 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
         placement: { page: frame.page, x: frame.x, y: frame.y, w: frame.w, h: frame.h },
         autoPlaced,
         pointerType: signature.pointerType,
+        requestToken: signature.requestToken,
       });
       toast.success(t('Document signé'));
       onSigned?.(res.data?.data);
@@ -443,11 +648,7 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
     }
   };
 
-  const btn = (primary, disabled) => ({
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, padding: '0 18px',
-    borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
-    border: primary ? 'none' : '1px solid var(--border)', background: primary ? 'var(--brand)' : 'var(--surface)', color: primary ? '#fff' : 'var(--fg)',
-  });
+  const btn = signButtonStyle;
 
   const hint = step === 'place'
     ? (frame
@@ -506,7 +707,7 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
             </button>
           ) : (
             <>
-              <button style={btn(false, step === 'saving')} disabled={step === 'saving'} onClick={() => { setSignature(null); setInk(0); setStep('pad'); }}>
+              <button style={btn(false, step === 'saving')} disabled={step === 'saving'} onClick={() => { setSignature(null); setStep('name'); }}>
                 <Undo2 size={16} /> {t('Refaire la signature')}
               </button>
               <button style={btn(true, step === 'saving')} disabled={step === 'saving'} onClick={submit}>
@@ -520,41 +721,37 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
       {/* Nom du signataire (saisi par l'agent) */}
       {step === 'name' && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <form onSubmit={(e) => { e.preventDefault(); if (signerName.trim().length >= 2) { setInk(0); setStep('pad'); } }}
+          <form onSubmit={(e) => { e.preventDefault(); if (signerName.trim().length >= 2) setStep('pad'); }}
             style={{ width: '100%', maxWidth: 420, background: 'var(--surface)', borderRadius: 14, padding: 20, boxShadow: 'var(--shadow-3)' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>{t('Qui signe ?')}</div>
             <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 14 }}>{t('Le nom sera écrit sous la signature, avec la date et l\'heure.')}</div>
             <input autoFocus value={signerName} onChange={(e) => setSignerName(e.target.value)} maxLength={120}
               placeholder={t('Nom et prénom du signataire')}
               style={{ width: '100%', boxSizing: 'border-box', height: 44, padding: '0 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 15 }} />
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-              <button type="button" style={btn(false)} onClick={() => setStep('place')}><ArrowLeft size={16} /> {t('Retour')}</button>
-              <button type="submit" style={btn(true, signerName.trim().length < 2)} disabled={signerName.trim().length < 2}>
-                <PenLine size={16} /> {t('Passer à la signature')}
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', margin: '16px 0 8px' }}>{t('Où le patient signe-t-il ?')}</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="submit" style={{ ...btn(true, signerName.trim().length < 2), flex: '1 1 160px' }} disabled={signerName.trim().length < 2}>
+                <PenLine size={16} /> {t('Sur cet écran')}
               </button>
+              <button type="button" style={{ ...btn(false, signerName.trim().length < 2), flex: '1 1 160px' }} disabled={signerName.trim().length < 2} onClick={() => setStep('remote')}>
+                <Tablet size={16} /> {t('Sur une tablette')}
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 12 }}>
+              <button type="button" style={{ ...btn(false), height: 34, fontSize: 13 }} onClick={() => setStep('place')}><ArrowLeft size={15} /> {t('Retour')}</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Zone de signature plein écran (le patient signe) */}
+      {/* Zone de signature plein écran (le patient signe sur cet écran) */}
       {step === 'pad' && (
-        <div style={{ position: 'absolute', inset: 0, background: '#f4f5f8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 14 }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#1f2a52' }}>{t('Signez dans le cadre ci-dessous')}</div>
-            <div style={{ fontSize: 13, color: '#5b6275', marginTop: 4 }}>
-              {t('Lu et approuvé')} — {signerName.trim()}
-            </div>
-          </div>
-          <div style={{ width: '100%', maxWidth: 900 }}>
-            <SignaturePad ref={padRef} height={padHeight} onChange={({ ink: v }) => setInk(v)} />
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button style={btn(false)} onClick={() => setStep('name')}><ArrowLeft size={16} /> {t('Retour')}</button>
-            <button style={btn(false, ink === 0)} disabled={ink === 0} onClick={() => padRef.current?.clear()}><Eraser size={16} /> {t('Effacer')}</button>
-            <button style={btn(true, ink < 40)} disabled={ink < 40} onClick={validatePad}><Check size={16} /> {t('Valider la signature')}</button>
-          </div>
-        </div>
+        <SignPadScreen signerName={signerName.trim()} onBack={() => setStep('name')} onValidate={gotSignature} />
+      )}
+
+      {/* Le patient signe sur une tablette du guichet */}
+      {step === 'remote' && frame && (
+        <RemoteSignaturePanel doc={doc} frame={frame} signerName={signerName.trim()} onSigned={gotSignature} onBack={() => setStep('name')} />
       )}
     </div>,
     document.body

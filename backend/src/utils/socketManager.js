@@ -2,6 +2,7 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import os from 'os';
+import { attachSignatureKiosk } from './signatureRequests.js';
 
 let io = null;
 const userSockets = new Map(); // Map<userId, Set<socketId>>
@@ -79,6 +80,9 @@ export const initializeSocket = (server) => {
 
   // Rejoindre une room personnelle basée sur l'userId
   socket.join(`user:${userId}`);
+
+  // Tablettes de guichet pour la signature des patients
+  attachSignatureKiosk(socket, io);
 
   // ============================================
   // ✅ NOUVEAUX GESTIONNAIRES POUR TICKETS

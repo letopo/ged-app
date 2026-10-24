@@ -453,6 +453,17 @@ const RELEASE_NOTES = [
       'Le document signé est verrouillé, l’original est conservé et l’intégrité du fichier est vérifiée à chaque ouverture.',
     ],
   },
+  {
+    id: '2026-10-24-signature-tablette-guichet',
+    date: '2026-10-24',
+    target: '/documents',
+    title: 'Faire signer sur une tablette du guichet',
+    items: [
+      'Depuis le PC, « Faire signer » → « Sur une tablette » : le patient voit le document et signe sur la tablette, la signature arrive aussitôt sur le PC pour vérification.',
+      'Tablette connectée en permanence : ouvrez /borne-signature sur la tablette, elle apparaît dans la liste et reçoit les documents directement.',
+      'Sans borne : un QR code à scanner avec la tablette ou le téléphone du patient (lien valable 15 minutes, utilisable une seule fois).',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
