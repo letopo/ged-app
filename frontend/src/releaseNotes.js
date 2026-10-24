@@ -412,6 +412,15 @@ const RELEASE_NOTES = [
       'Une photo déjà choisie peut aussi être convertie en PDF avec le bouton « Convertir en PDF ».',
     ],
   },
+  {
+    id: '2026-10-24-pdf-android',
+    date: '2026-10-24',
+    target: 'app',
+    title: 'PDF lisibles directement sur Android',
+    items: [
+      'Sur téléphone Android, les PDF s’affichent maintenant directement dans la visionneuse, sans devoir les télécharger : défilement des pages, numéro de page et zoom.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

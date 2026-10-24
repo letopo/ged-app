@@ -2590,5 +2590,9 @@
   "Recadrer": "اقتصاص",
   "Reprendre": "إعادة الالتقاط",
   "Scanner un document": "مسح مستند ضوئيًا",
-  "Valider la page": "تأكيد الصفحة"
+  "Valider la page": "تأكيد الصفحة",
+  "Chargement du document…": "جارٍ تحميل المستند…",
+  "Impossible d'afficher ce PDF ici.": "تعذّر عرض ملف PDF هنا.",
+  "Dézoomer": "تصغير",
+  "Zoomer": "تكبير"
 }
