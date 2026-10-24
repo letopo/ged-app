@@ -13,6 +13,7 @@ import {
   ArrowUp, ArrowDown, Loader, Download, Printer, Share2, Link2,
   ChevronRight, CheckCircle, Clock, XCircle,
   FileText, Tag, Calendar, User, Hash, Scan, Settings2, UserCheck,
+  PenLine, ShieldCheck, ShieldAlert, Lock,
 } from 'lucide-react';
 import { documentsAPI, getFileBaseUrl } from '../services/api';
 import toast from 'react-hot-toast';
@@ -21,6 +22,7 @@ import FormResponseViewer from './FormBuilder/Renderer/FormResponseViewer';
 import TransmitDocumentModal from './TransmitDocumentModal';
 import LinkedDocumentModal from './LinkedDocumentModal';
 import PdfCanvasViewer, { canShowPdfInline } from './PdfCanvasViewer';
+import SignatureSession, { isSignableDocument } from './SignatureSession';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -211,10 +213,56 @@ function DocListItem({ doc, isActive, onClick }) {
   );
 }
 
+// ── Signature manuscrite (patient) ──────────────────────────────────────────
+function ManualSignaturePanel({ doc, fileBaseUrl, secTitle }) {
+  const { t } = useTranslation();
+  const record = doc.metadata?.manualSignature;
+  const [intact, setIntact] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setIntact(null);
+    if (!record) return undefined;
+    documentsAPI.getManualSignature(doc.id)
+      .then((res) => { if (alive) setIntact(res.data?.data?.intact ?? null); })
+      .catch(() => { if (alive) setIntact(null); });
+    return () => { alive = false; };
+  }, [doc.id, record?.sha256]);
+  if (!record) return null;
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={secTitle}>{t('Signature manuscrite')}</div>
+      <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-3)', padding: 12, background: 'var(--surface-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <PenLine size={14} color="var(--brand)" />
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{record.signerName}</div>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--fg-muted)', lineHeight: 1.6 }}>
+          <div>{t('Signé le {{date}}', { date: fmtDate(record.signedAt) })}{record.page ? ` · ${t('page {{n}}', { n: record.page })}` : ''}</div>
+          {record.requestedBy?.name && <div>{t('Signature recueillie par {{name}}', { name: record.requestedBy.name })}</div>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 11, fontWeight: 600,
+          color: intact === false ? 'var(--danger)' : intact ? 'var(--success)' : 'var(--fg-subtle)' }}>
+          {intact === false ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
+          {intact === false ? t('Le fichier a été modifié depuis la signature') : intact ? t('Intégrité vérifiée : fichier inchangé depuis la signature') : t('Vérification de l\'intégrité…')}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 11, color: 'var(--fg-subtle)' }}>
+          <Lock size={12} /> {t('Document verrouillé')}
+        </div>
+        {record.original?.filePath && (
+          <a href={`${fileBaseUrl}/${record.original.filePath}`} target="_blank" rel="noreferrer"
+            style={{ display: 'inline-block', marginTop: 8, fontSize: 11, color: 'var(--brand)', fontWeight: 600 }}>
+            {t('Voir l\'original non signé')}
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 const DocumentViewer = ({
-  document: doc,
+  document: docProp,
   onClose,
   onValidate,
   onReject,
@@ -226,6 +274,10 @@ const DocumentViewer = ({
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  // Version à jour du document après une action faite ici (ex. signature)
+  const [localDoc, setLocalDoc] = useState(null);
+  const doc = localDoc && localDoc.id === docProp?.id ? localDoc : docProp;
+  const [showSign, setShowSign] = useState(false);
   const isAdmin = ['admin', 'superadmin'].includes(user?.role);
   // Ouvrir un maillon de la chaîne : dans la visionneuse si le parent le permet,
   // sinon via la page Documents (/documents/:id ouvre la visionneuse)
@@ -350,6 +402,9 @@ const DocumentViewer = ({
   const st             = STATUS_CFG[doc.status] || STATUS_CFG.draft;
   const pendingDocs    = documents.filter(d => d.status === 'pending_validation');
   const listedDocs     = docListTab === 'pending' ? pendingDocs : documents;
+  const isSigned       = !!doc.metadata?.manualSignature;
+  const inCircuit      = ['pending_validation', 'in_progress'].includes(doc.status) || wfSteps.some(w => ['pending', 'queued'].includes(w.status));
+  const canSign        = !isFormResponse && !isSigned && !inCircuit && isSignableDocument(doc) && !isOfficeFile(doc.fileName || doc.filePath);
 
   // ── Styles ────────────────────────────────────────────────────────────────────
   const textareaStyle = { width: '100%', padding: '8px 10px', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 13, resize: 'vertical', outline: 'none', lineHeight: 1.5, fontFamily: 'inherit' };
@@ -394,10 +449,20 @@ const DocumentViewer = ({
               <button onClick={handleDownload} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                 <Download size={13} /> {t('Télécharger')}
               </button>
+              {canSign && (
+                <button onClick={() => setShowSign(true)} title={t('Faire signer le document (patient, client…)')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  <PenLine size={13} /> <span className="dv-btn-label">{t('Faire signer')}</span>
+                </button>
+              )}
+              {isSigned && (
+                <span title={t('Document signé : verrouillé')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 10px', borderRadius: 'var(--radius-2)', background: 'var(--success-soft)', color: 'var(--success)', fontSize: 12, fontWeight: 600 }}>
+                  <Lock size={12} /> <span className="dv-btn-label">{t('Signé')}</span>
+                </span>
+              )}
               <input type="file" ref={fileInputRef} onChange={onFileSelect} accept="application/pdf" style={{ display: 'none' }} />
-              <button onClick={() => fileInputRef.current.click()} title={t('Ajouter une page PDF')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 32, width: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer' }}>
+              {!isSigned && <button onClick={() => fileInputRef.current.click()} title={t('Ajouter une page PDF')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 32, width: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer' }}>
                 <FilePlus size={14} />
-              </button>
+              </button>}
             </>
           )}
           {/* Document validé : le transmettre (ex. à l'acheteur pour le bon de commande) */}
@@ -542,6 +607,8 @@ const DocumentViewer = ({
               </div>
             )}
 
+            <ManualSignaturePanel doc={doc} fileBaseUrl={API_URL} secTitle={secTitle} />
+
             {/* Chaîne documentaire (affichée seulement si le document a des liens) */}
             <DocumentChain docId={doc.id} onOpen={openChainDocument} />
 
@@ -629,6 +696,18 @@ const DocumentViewer = ({
       )}
       {showTransmit && <TransmitDocumentModal document={doc} onClose={() => setShowTransmit(false)} />}
       {showLinked && <LinkedDocumentModal document={doc} onClose={() => setShowLinked(false)} />}
+      {showSign && (
+        <SignatureSession doc={doc} fileUrl={`${API_URL}/${doc.filePath}`} onClose={() => setShowSign(false)}
+          onSigned={(updated) => {
+            setShowSign(false);
+            if (updated) {
+              const next = { ...doc, ...updated, uploadedBy: doc.uploadedBy, workflows: doc.workflows };
+              setLocalDoc(next);
+              onSelectDocument?.(next);
+            }
+            setViewerKey(k => k + 1);
+          }} />
+      )}
     </div>,
     document.body
   );

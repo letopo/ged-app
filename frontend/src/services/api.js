@@ -252,6 +252,9 @@ export const documentsAPI = {
   markTransmissionRead: (tid) => api.post(`/documents/transmissions/${tid}/read`),
   getTransmissions: (id) => api.get(`/documents/${id}/transmissions`),
   getChain: (id) => api.get(`/documents/${id}/chain`),
+  // Signature manuscrite (patient au guichet)
+  signManually: (id, data) => api.post(`/documents/${id}/manual-signature`, data),
+  getManualSignature: (id) => api.get(`/documents/${id}/manual-signature`),
   archive: (id) => api.patch(`/documents/${id}/archive`),
   unarchive: (id) => api.patch(`/documents/${id}/unarchive`),
   // OnlyOffice

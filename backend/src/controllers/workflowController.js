@@ -118,6 +118,9 @@ export const createWorkflow = async (req, res) => {
     if (!document) {
       return res.status(404).json({ success: false, message: 'Document introuvable.' });
     }
+    if (document.metadata?.manualSignature) {
+      return res.status(409).json({ success: false, message: 'Ce document a été signé par le patient : il est verrouillé et ne peut pas entrer dans un circuit.' });
+    }
 
     // =========================================================================
     // ✅ DÉBUT DU BLOC AJOUTÉ : RENOMMAGE AUTOMATIQUE

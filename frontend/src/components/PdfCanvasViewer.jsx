@@ -15,7 +15,7 @@ export function canShowPdfInline() {
 }
 
 let pdfjsPromise = null;
-function loadPdfjs() {
+export function loadPdfjs() {
   if (!pdfjsPromise) {
     pdfjsPromise = Promise.all([
       import('pdfjs-dist/legacy/build/pdf.mjs'),

@@ -12,6 +12,7 @@ import { Document, User, Workflow, InvoiceFolder, TemplatePermission } from '../
 import fs from 'fs/promises';
 import path from 'path';
 import { mergePDFs, validatePDF } from '../utils/pdfMerger.js';
+import { isManuallySigned } from './manualSignatureController.js';
 
 export const uploadDocument = async (req, res) => {
   try {
@@ -360,7 +361,13 @@ export const updateDocument = async (req, res) => {
     if (!['admin','superadmin'].includes(req.user.role) && document.userId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
-    await document.update(req.body);
+    const changes = { ...req.body };
+    // Document signé à la main : le fichier et la preuve de signature ne bougent plus
+    if (isManuallySigned(document)) {
+      ['filePath', 'fileName', 'fileType', 'fileSize'].forEach((k) => delete changes[k]);
+      if (changes.metadata) changes.metadata = { ...changes.metadata, manualSignature: document.metadata.manualSignature };
+    }
+    await document.update(changes);
     const updatedDocument = await Document.findByPk(req.params.id, { include: [{ model: User, as: 'uploadedBy' }] });
     res.json({ success: true, data: updatedDocument, message: 'Document mis à jour.' });
   } catch (error) {
@@ -379,6 +386,9 @@ export const deleteDocument = async (req, res, next) => {
     }
     const fullPath = path.resolve(process.cwd(), document.filePath);
     try { await fs.unlink(fullPath); } catch(err) { console.warn("Fichier physique déjà supprimé ou introuvable:", err.message); }
+    // Document signé à la main : supprimer aussi l'original non signé conservé
+    const originalPath = document.metadata?.manualSignature?.original?.filePath;
+    if (originalPath) { try { await fs.unlink(path.resolve(process.cwd(), originalPath)); } catch { /* déjà absent */ } }
     await Workflow.destroy({ where: { documentId: id } });
     const docTitle = document.title;
     await document.destroy();
@@ -444,6 +454,10 @@ export const addPageToDocument = async (req, res) => {
     const document = await Document.findByPk(id);
     if (!document) {
       return res.status(404).json({ success: false, message: 'Document original non trouvé.' });
+    }
+    if (isManuallySigned(document)) {
+      await fs.unlink(req.file.path).catch(() => {});
+      return res.status(409).json({ success: false, message: 'Ce document est signé : il est verrouillé.' });
     }
 
     // Vérification basique des types (PDF uniquement pour la fusion propre)
