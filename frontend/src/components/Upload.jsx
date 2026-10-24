@@ -6,10 +6,11 @@ import { documentsAPI, servicesAPI, templatePermissionsAPI } from '../services/a
 import { useAuth } from '../contexts/AuthContext';
 import {
   Upload as UploadIcon, CheckCircle, X, Sparkles, Smartphone,
-  ArrowRight, ArrowLeft, FileText, Loader,
+  ArrowRight, ArrowLeft, FileText, Loader, ScanLine,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useTenantSettings from '../hooks/useTenantSettings';
+import DocumentScanner from './DocumentScanner';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const DOC_CATEGORIES = [
@@ -112,6 +113,8 @@ const Upload = () => {
   const navigate  = useNavigate();
   const { user }  = useAuth();
   const fileInputRef = useRef();
+  const cameraInputRef = useRef();
+  const [scanPhoto, setScanPhoto] = useState(null); // photo ouverte dans le scanner
 
   const [step, setStep]       = useState(1);
   const [drag, setDrag]       = useState(false);
@@ -154,7 +157,7 @@ const Upload = () => {
   const fileExt = file ? file.name.split('.').pop() : '';
 
   // ── File accept ─────────────────────────────────────────────────────────────
-  const acceptFile = f => {
+  const acceptFile = (f, knownPages) => {
     if (!f) return;
     if (f.size > maxUploadMb * 1024 * 1024) { toast.error(t('Le fichier dépasse la taille maximale autorisée ({{max}} Mo).', { max: maxUploadMb })); return; }
     setFile(f);
@@ -162,6 +165,7 @@ const Upload = () => {
     setAnalysis(null);
     setTimeout(() => {
       const res = simulateOCR(f.name, f.size);
+      if (knownPages) res.pages = knownPages;
       setAnalysis(res);
       setAnalyzing(false);
       setCategory(res.type);
@@ -171,6 +175,20 @@ const Upload = () => {
       toast.success(t('Document analysé. Type et workflow détectés.'));
     }, 1800);
   };
+
+  // Scanner : la photo est prise ici (clic direct de l'utilisateur, exigé par iOS),
+  // recadrée/filtrée dans le scanner, puis revient sous forme de PDF.
+  const openCamera = () => cameraInputRef.current?.click();
+  const onCameraPhoto = e => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (f) setScanPhoto(f);
+  };
+  const onScanDone = (pdf, pageCount) => {
+    setScanPhoto(null);
+    acceptFile(pdf, pageCount);
+  };
+  const isImage = file && /^image\//.test(file.type);
 
   const handleDrag = e => { e.preventDefault(); e.stopPropagation(); setDrag(e.type !== 'dragleave'); };
   const handleDrop = e => { e.preventDefault(); e.stopPropagation(); setDrag(false); acceptFile(e.dataTransfer.files?.[0]); };
@@ -252,8 +270,23 @@ const Upload = () => {
           <StepBar step={step} />
 
           {/* ── STEP 1 ───────────────────────────────────────────────── */}
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onCameraPhoto} />
+          {scanPhoto && (
+            <DocumentScanner initialFile={scanPhoto} maxUploadMb={maxUploadMb} onClose={() => setScanPhoto(null)} onDone={onScanDone} />
+          )}
           {step === 1 && (
             <>
+              {!file && (
+                <button onClick={openCamera} className="upl-scan-btn"
+                  style={{ width: '100%', alignItems: 'center', gap: 12, padding: '14px 16px', marginBottom: 14, borderRadius: 'var(--radius-3)', border: '1px solid var(--brand)', background: 'var(--brand)', color: '#fff', cursor: 'pointer', textAlign: 'left' }}>
+                  <ScanLine size={26} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: 'block', fontSize: 15, fontWeight: 700 }}>{t('Scanner un document')}</span>
+                    <span style={{ display: 'block', fontSize: 12, opacity: 0.85 }}>{t('Photo recadrée automatiquement, convertie en PDF')}</span>
+                  </span>
+                  <ArrowRight size={18} style={{ flexShrink: 0 }} />
+                </button>
+              )}
               {!file ? (
                 /* Drop zone */
                 <div
@@ -298,6 +331,15 @@ const Upload = () => {
                     </button>
                   </div>
 
+                  {isImage && (
+                    <div style={{ padding: '10px 16px', background: 'var(--surface-2)', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <span style={{ flex: 1, minWidth: 180, fontSize: 12, color: 'var(--fg-muted)' }}>{t("C'est une photo ? Recadrez-la et convertissez-la en PDF.")}</span>
+                      <button onClick={() => setScanPhoto(file)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        <ScanLine size={14} />{t('Convertir en PDF')}
+                      </button>
+                    </div>
+                  )}
                   {analyzing && (
                     <div style={{ padding: '12px 16px', background: 'var(--surface-2)', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Loader size={15} className="animate-spin" color="var(--brand)" />

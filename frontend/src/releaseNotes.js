@@ -400,6 +400,18 @@ const RELEASE_NOTES = [
     ],
     access: isAdmin,
   },
+  {
+    id: '2026-10-24-scanner-pdf',
+    date: '2026-10-24',
+    target: '/upload',
+    title: 'Scanner un document depuis le téléphone',
+    items: [
+      'Nouveau bouton « Scanner un document » : prenez le document en photo, la feuille est recadrée et redressée automatiquement (coins ajustables à la main, avec une loupe).',
+      'Choisissez un filtre pour mieux lire : Original, Amélioré (ombres effacées, par défaut), Gris ou Noir & blanc. Le dernier filtre choisi est retenu.',
+      'Ajoutez autant de pages que nécessaire, réordonnez-les, puis « Créer le PDF » : le document est envoyé en PDF, plus en image.',
+      'Une photo déjà choisie peut aussi être convertie en PDF avec le bouton « Convertir en PDF ».',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
