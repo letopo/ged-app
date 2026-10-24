@@ -7,6 +7,7 @@ RUN apk add --no-cache \
     tesseract-ocr-data-fra \
     tesseract-ocr-data-eng \
     postgresql-client \
+    poppler-utils \
     bash
 
 WORKDIR /app

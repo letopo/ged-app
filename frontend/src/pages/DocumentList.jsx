@@ -10,11 +10,12 @@ import { useLanguage } from '../contexts/LanguageContext';
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 import { documentsAPI, workflowAPI, usersAPI, templatePermissionsAPI, workflowTemplatesAPI, formsAPI, postesAPI } from '../services/api';
 import DocumentViewer from '../components/DocumentViewer';
+import DocumentThumbnail from '../components/DocumentThumbnail';
 import WorkflowProgress from '../components/WorkflowProgress';
 import { DocumentGridSkeleton, DocumentTableSkeleton } from '../components/SkeletonLoader';
 import { StatusBadge } from '../utils/statusHelpers.jsx';
 import { useConfirm } from '../components/ConfirmModal';
-import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive, Star, Download, Shield, Settings, ChevronDown, GitBranch, Coffee, Inbox } from 'lucide-react';
+import { FileText, Search, Eye, Calendar, User, Trash2, Send, LayoutGrid, LayoutList, X, Check, Loader, AlertCircle, FilePlus, Archive, Star, Download, Shield, Settings, ChevronDown, GitBranch, Coffee, Inbox, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/EmptyState';
 import DocumentDiscussion from '../components/DocumentDiscussion';
@@ -953,13 +954,14 @@ const DocumentList = () => {
                 return (
                   <div key={doc.id} className="ged-card" style={{ overflow: 'hidden', cursor: 'pointer', borderColor: isSelected ? 'var(--brand)' : 'var(--border)', position: 'relative' }} onClick={() => setViewingDocument(doc)}>
                     {/* Thumbnail area */}
-                    <div style={{ height: 120, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border)', position: 'relative' }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <FileText size={32} color="var(--fg-subtle)" />
-                        <div style={{ fontSize: 10, color: 'var(--fg-subtle)', marginTop: 6, fontWeight: 500 }}>
-                          {fileTypeLabel}{doc.category ? ` · ${t(doc.category)}` : ''}
-                        </div>
-                      </div>
+                    <div style={{ height: 150, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', position: 'relative' }}>
+                      <DocumentThumbnail doc={doc}
+                        label={[fileTypeLabel, doc.metadata?.pageCount > 1 ? t('{{count}} p.', { count: doc.metadata.pageCount }) : null, doc.category ? t(doc.category) : null].filter(Boolean).join(' · ')} />
+                      {doc.metadata?.manualSignature && (
+                        <span title={t('Document signé : verrouillé')} style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: '#fff', background: 'rgba(22,163,74,.9)', borderRadius: 6, padding: '2px 7px' }}>
+                          <Lock size={10} /> {t('Signé')}
+                        </span>
+                      )}
                       {/* Checkbox overlay */}
                       <div
                         onClick={e => { e.stopPropagation(); toggleSelect(doc.id); }}
