@@ -48,7 +48,17 @@ avertissement, avant même de lui faire confiance) :
   (fichier `HSJM-Internal-CA.crt`, servi par nginx depuis `nginx/ssl/ca.crt`)
 
 Empreinte SHA-256 à vérifier avant d'approuver :
-`9D:F1:CE:17:C3:4E:80:57:EE:70:4F:71:4E:78:03:22:0D:1F:94:08:B3:86:D5:37:F3:9C:E4:8E:C7:50:AE:12`
+`2D:3C:09:EA:0F:68:ED:1B:CF:2E:64:D4:48:A3:7E:D9:D7:DF:16:F3:FF:69:45:66:68:9D:D0:BF:D1:EB:FE:84`
+
+> Le 24/10/2026, le certificat de la CA a été **réémis avec la même clé, le même nom
+> et le même numéro de série**, en ajoutant les extensions d'autorité
+> (`basicConstraints CA:TRUE`, `keyUsage keyCertSign`). L'ancienne version (empreinte
+> `9D:F1:CE:17:…:AE:12`, certificat X.509 v1 sans extensions) était refusée par
+> Android (« une clé privée est requise ») qui ne la reconnaissait pas comme CA. Les
+> postes qui ont déjà l'ancienne version continuent de fonctionner (les certificats
+> serveur valident avec les deux) ; seuls les nouveaux appareils reçoivent la nouvelle.
+> **À déployer sur la VM** : copier le nouveau `ca.crt` dans `nginx/ssl/` (servi sur
+> `/ca.crt`), sans toucher à `ca.key` ni au certificat serveur.
 
 Puis :
 
@@ -74,6 +84,9 @@ trousseau, le navigateur le refuse. Quitter ensuite Chrome (Cmd+Q) et le rouvrir
 Ouvrir http://192.168.1.186/ca.crt dans Chrome (le fichier se télécharge), puis
 Paramètres → Sécurité → *Chiffrement & identifiants* → *Installer un certificat*
 → *Certificat CA* → choisir `HSJM-Internal-CA.crt`.
+Si Android répond « une clé privée est requise » : c'est l'ancienne CA sans
+extensions (voir plus haut) ou la mauvaise option (*Certificat utilisateur VPN et
+appli* / *Wi-Fi*) — choisir **Certificat CA**.
 
 Une fois la CA installée, fermer complètement Chrome puis rouvrir la GED : le cadenas
 s'affiche et le menu ⋮ propose **« Installer l'application »** (vraie application
