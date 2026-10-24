@@ -2594,5 +2594,6 @@
   "Chargement du document…": "Loading document…",
   "Impossible d'afficher ce PDF ici.": "This PDF cannot be displayed here.",
   "Dézoomer": "Zoom out",
-  "Zoomer": "Zoom in"
+  "Zoomer": "Zoom in",
+  "Scanner": "Scan"
 }

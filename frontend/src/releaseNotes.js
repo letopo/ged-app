@@ -419,6 +419,7 @@ const RELEASE_NOTES = [
     title: 'PDF lisibles directement sur Android',
     items: [
       'Sur téléphone Android, les PDF s’affichent maintenant directement dans la visionneuse, sans devoir les télécharger : défilement des pages, numéro de page et zoom.',
+      '« Créer un document lié » › « Joindre un fichier » : nouveau bouton « Scanner » pour photographier le document et le joindre en PDF (la liasse avec le document d’origine fonctionne alors aussi).',
     ],
   },
 ];
