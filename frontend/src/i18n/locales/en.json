@@ -2736,5 +2736,11 @@
   "{{count}} j. ouvrable(s)": "{{count}} working day(s)",
   "{{count}} jour(s) ouvrable(s)": "{{count}} working day(s)",
   "Événement familial ou distinction": "Family event or award",
-  "Événement imprévu": "Unforeseen event"
+  "Événement imprévu": "Unforeseen event",
+  "Délai de 48 h : en tant qu'administrateur, vous pouvez déroger (urgence).": "48-hour notice: as an administrator, you may override it (emergency).",
+  "Une permission se demande au moins 48 h à l'avance : première date possible le {{date}}.": "Leave must be requested at least 48 h in advance: earliest possible date {{date}}.",
+  "Trop tôt : la permission doit commencer au plus tôt le {{date}} (48 h de délai).": "Too early: the leave can start on {{date}} at the earliest (48 h notice).",
+  "Déjà renseigné par {{name}} : il ne peut plus être modifié.": "Already entered by {{name}}: it can no longer be changed.",
+  "Déjà renseigné : il ne peut plus être modifié.": "Already entered: it can no longer be changed.",
+  "Inscrit automatiquement sur le PDF. Une fois saisi, les validateurs suivants ne pourront plus le modifier.": "Written on the PDF automatically. Once entered, the next approvers can no longer change it."
 }

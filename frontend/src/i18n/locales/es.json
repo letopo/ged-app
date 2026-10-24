@@ -2736,5 +2736,11 @@
   "{{count}} j. ouvrable(s)": "{{count}} día(s) hábil(es)",
   "{{count}} jour(s) ouvrable(s)": "{{count}} día(s) hábil(es)",
   "Événement familial ou distinction": "Acontecimiento familiar o distinción",
-  "Événement imprévu": "Imprevisto"
+  "Événement imprévu": "Imprevisto",
+  "Délai de 48 h : en tant qu'administrateur, vous pouvez déroger (urgence).": "Plazo de 48 h: como administrador, puede omitirlo (urgencia).",
+  "Une permission se demande au moins 48 h à l'avance : première date possible le {{date}}.": "Un permiso se solicita con al menos 48 h de antelación: primera fecha posible el {{date}}.",
+  "Trop tôt : la permission doit commencer au plus tôt le {{date}} (48 h de délai).": "Demasiado pronto: el permiso puede empezar como pronto el {{date}} (48 h de plazo).",
+  "Déjà renseigné par {{name}} : il ne peut plus être modifié.": "Ya indicado por {{name}}: ya no se puede modificar.",
+  "Déjà renseigné : il ne peut plus être modifié.": "Ya indicado: ya no se puede modificar.",
+  "Inscrit automatiquement sur le PDF. Une fois saisi, les validateurs suivants ne pourront plus le modifier.": "Se escribe automáticamente en el PDF. Una vez indicado, los siguientes validadores ya no podrán modificarlo."
 }

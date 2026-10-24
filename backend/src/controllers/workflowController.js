@@ -537,7 +537,11 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       const validator = await User.findByPk(userId, { transaction: t });
 
       // --- LOGIQUE REMPLAÇANT POUR PERMISSION ---
-      if (document.category === 'Demande de permission' && remplacantName && (effectiveStatus === 'approved') && document.fileType === 'application/pdf') {
+      // L'intérim n'est saisi qu'une fois dans le circuit : le premier validateur
+      // qui le renseigne l'inscrit sur le PDF, les suivants ne peuvent plus le changer.
+      const interimName = String(remplacantName || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      const interimAlreadySet = !!document.metadata?.interim?.name;
+      if (document.category === 'Demande de permission' && interimName && !interimAlreadySet && (effectiveStatus === 'approved') && document.fileType === 'application/pdf') {
           try {
               const pdfPath = path.resolve(process.cwd(), document.filePath);
               const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
@@ -548,17 +552,41 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
               const pageContent = data.pages[0].content;
               const anchor = pageContent.find(item => item.str && item.str.includes('Intérim assuré par :'));
               
-              if (anchor) {
+              // Demandes déjà en circuit avant ce verrou : un nom figure peut-être déjà
+              // à droite du libellé (hors mention « (à remplir…) » et pointillés)
+              const alreadyWritten = anchor
+                ? pageContent.filter(it => it.str && it.str.trim() && Math.abs(it.y - anchor.y) < 4
+                    && it.x > anchor.x + anchor.width && !/remplir|validateur|chef de service/i.test(it.str)
+                    && !/^[\s_.\-()]+$/.test(it.str))
+                    .map(it => it.str.trim()).join(' ')
+                : '';
+
+              if (anchor && !alreadyWritten) {
                   const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-                  page.drawText(remplacantName, {
+                  page.drawText(interimName, {
                       x: anchor.x + anchor.width + 10,
                       y: pageHeight - anchor.y + 2,
                       size: 11,
                       font: font,
                       color: rgb(0, 0, 0),
                   });
+                  await fs.writeFile(pdfPath, await pdfDoc.save({ useObjectStreams: false }));
               }
-              await fs.writeFile(pdfPath, await pdfDoc.save({ useObjectStreams: false }));
+              if (anchor) {
+                await document.update({
+                  metadata: {
+                    ...(document.metadata || {}),
+                    interim: alreadyWritten
+                      ? { name: alreadyWritten, byId: null, byName: null, at: null }
+                      : {
+                          name: interimName,
+                          byId: validator.id,
+                          byName: `${validator.firstName || ''} ${validator.lastName || ''}`.trim(),
+                          at: new Date().toISOString(),
+                        },
+                  },
+                }, { transaction: t });
+              }
           } catch (error) {
               console.error('⚠️ Erreur écriture remplaçant:', error.message);
           }

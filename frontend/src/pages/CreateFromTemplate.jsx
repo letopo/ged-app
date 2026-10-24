@@ -10,7 +10,7 @@ import jsPDF from 'jspdf';
 import { pdf } from '@react-pdf/renderer';
 
 // Importer les composants de modèle MANUELS
-import DemandePermission from './templates/DemandePermission';
+import DemandePermission, { permissionEarliestStart, isPermissionAdmin } from './templates/DemandePermission';
 import PieceDeCaisse from './templates/PieceDeCaisse';
 import DemandeTravaux from './templates/DemandeTravaux';
 import OrdreDeMission from './templates/OrdreDeMission';
@@ -26,6 +26,7 @@ import DemandeExplication from './templates/DemandeExplication';
 
 import { PermissionPdfDocument, PERMISSION_SIGNATURE_ZONES } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 import VisibilityChoice, { useDocumentVisibility } from '../components/VisibilityChoice';
 
 // Définir les modèles disponibles (SYSTÈME HYBRIDE)
@@ -211,6 +212,7 @@ const templates = {
 
 const CreateFromTemplate = () => {
     const { t } = useTranslation();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const templateName = location.state?.templateName || "Demande de permission";
@@ -249,6 +251,12 @@ const CreateFromTemplate = () => {
         const hasDates = periods.some(p => p.startDate && p.endDate);
         if (!formData.noms_prenoms?.trim() || !hasDates) {
             setError(t("Veuillez renseigner le nom du demandeur et au moins une période (dates de début et de fin)."));
+            return;
+        }
+        // Délai de 48 h (les administrateurs peuvent y déroger)
+        const earliest = permissionEarliestStart();
+        if (!isPermissionAdmin(user) && periods.some(p => p.startDate && p.startDate < earliest)) {
+            setError(t('Une permission se demande au moins 48 h à l\'avance : première date possible le {{date}}.', { date: earliest.split('-').reverse().join('/') }));
             return;
         }
     }
