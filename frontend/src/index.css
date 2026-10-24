@@ -587,6 +587,7 @@ a.kpi-card:active { transform: scale(0.98); }
 .upl-2col     { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
 .upl-step-line { margin: 0 12px; min-width: 32px; }
 .upl-mobile-hint { display: flex; }
+.upl-scan-btn { display: flex; }
 /* Utilisateurs — formulaire Prénom/Nom */
 .um-name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 /* Archives — colonne de filtres + lignes de documents */
