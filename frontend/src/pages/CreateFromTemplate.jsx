@@ -26,6 +26,7 @@ import DemandeExplication from './templates/DemandeExplication';
 
 import { PermissionPdfDocument, PERMISSION_SIGNATURE_ZONES } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
+import VisibilityChoice, { useDocumentVisibility } from '../components/VisibilityChoice';
 
 // Définir les modèles disponibles (SYSTÈME HYBRIDE)
 const templates = {
@@ -221,6 +222,7 @@ const CreateFromTemplate = () => {
     const [formData, setFormData] = useState(template.initialState);
     const pdfContainerRef = useRef(null);
     const [loading, setLoading] = useState(false);
+    const [visibility, setVisibility, visibilityContext] = useDocumentVisibility(templateName);
     const [genStep, setGenStep] = useState(''); // étape lisible pendant la génération
     const [error, setError] = useState('');
 
@@ -421,6 +423,7 @@ const CreateFromTemplate = () => {
         uploadData.append('file', pdfBlob, fileName);
         uploadData.append('title', finalTitle);
         uploadData.append('category', templateName);
+        uploadData.append('visibility', visibility);
 
         // Gérer les métadonnées spécifiques pour la fusion de PC/OM
         const metadataToSend = { ...formData };
@@ -617,6 +620,7 @@ const CreateFromTemplate = () => {
             )}
 
             <div className="text-center mt-8" style={{ display: (isOrdreMission && !formData.type_mission) ? 'none' : undefined }}>
+                <VisibilityChoice value={visibility} onChange={setVisibility} context={visibilityContext} align="center" style={{ marginBottom: 20 }} />
                 <button
                     onClick={handleSubmit}
                     disabled={loading}

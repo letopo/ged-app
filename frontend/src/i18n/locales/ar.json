@@ -2714,5 +2714,9 @@
   "Tous les types": "كل الأنواع",
   "Trier": "ترتيب",
   "Un document déjà enregistré (validé de préférence)": "مستند محفوظ مسبقًا (يفضل أن يكون معتمدًا)",
-  "Un fichier PDF de cet appareil": "ملف PDF من هذا الجهاز"
+  "Un fichier PDF de cet appareil": "ملف PDF من هذا الجهاز",
+  "Service · {{name}}": "القسم · {{name}}",
+  "Vous n'êtes rattaché à aucun service : le document sera personnel.": "لست مرتبطًا بأي قسم: سيكون المستند شخصيًا.",
+  "Vous n'êtes rattaché à aucun service": "لست مرتبطًا بأي قسم",
+  "Visibilité du document": "رؤية المستند"
 }

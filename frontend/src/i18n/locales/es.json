@@ -2714,5 +2714,9 @@
   "Tous les types": "Todos los tipos",
   "Trier": "Ordenar",
   "Un document déjà enregistré (validé de préférence)": "Un documento ya guardado (preferiblemente validado)",
-  "Un fichier PDF de cet appareil": "Un archivo PDF de este dispositivo"
+  "Un fichier PDF de cet appareil": "Un archivo PDF de este dispositivo",
+  "Service · {{name}}": "Servicio · {{name}}",
+  "Vous n'êtes rattaché à aucun service : le document sera personnel.": "No está vinculado a ningún servicio: el documento será personal.",
+  "Vous n'êtes rattaché à aucun service": "No está vinculado a ningún servicio",
+  "Visibilité du document": "Visibilidad del documento"
 }

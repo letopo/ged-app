@@ -2714,5 +2714,9 @@
   "Tous les types": "All types",
   "Trier": "Sort",
   "Un document déjà enregistré (validé de préférence)": "A document already saved (preferably approved)",
-  "Un fichier PDF de cet appareil": "A PDF file from this device"
+  "Un fichier PDF de cet appareil": "A PDF file from this device",
+  "Service · {{name}}": "Department · {{name}}",
+  "Vous n'êtes rattaché à aucun service : le document sera personnel.": "You are not attached to any department: the document will be personal.",
+  "Vous n'êtes rattaché à aucun service": "You are not attached to any department",
+  "Visibilité du document": "Document visibility"
 }
