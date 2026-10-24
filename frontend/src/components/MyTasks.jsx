@@ -15,7 +15,7 @@ import PieceDeCaisse from '../pages/templates/PieceDeCaisse';
 import { 
   Clock, CheckCircle, XCircle, User, Calendar, Loader, Eye, Edit, 
   ShieldCheck, Filter, ThumbsUp, CalendarPlus, FileText, Send, AlertCircle,
-  AlertTriangle, ListChecks, X, ZoomIn, UserCheck // ✅ AJOUT DE UserCheck
+  AlertTriangle, ListChecks, X, ZoomIn, UserCheck, Lock
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import EmptyState from './EmptyState';
@@ -426,7 +426,7 @@ const MyTasks = () => {
     
 
     try {
-      let payload = { comment, remplacantName };
+      let payload = { comment, remplacantName: taskToProcess.document.metadata?.interim?.name ? undefined : remplacantName };
       
       if (isBypass) {
         payload.isBypass = true;
@@ -1108,15 +1108,31 @@ const MyTasks = () => {
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#92400e', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <UserCheck size={14} /> {t('Intérim assuré par')}
                   </label>
-                  <input
-                    type="text"
-                    value={remplacantName}
-                    onChange={(e) => setRemplacantName(e.target.value)}
-                    placeholder={t('Nom du remplaçant...')}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                    autoFocus
-                  />
-                  <p style={{ fontSize: 11, color: '#b45309', margin: '6px 0 0' }}>{t('Inscrit automatiquement sur le PDF')}</p>
+                  {taskToProcess.document.metadata?.interim?.name ? (
+                    // Déjà renseigné par un validateur précédent : plus modifiable
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 13, fontWeight: 600 }}>
+                        <Lock size={13} color="#b45309" /> {taskToProcess.document.metadata.interim.name}
+                      </div>
+                      <p style={{ fontSize: 11, color: '#b45309', margin: '6px 0 0' }}>
+                        {taskToProcess.document.metadata.interim.byName
+                          ? t('Déjà renseigné par {{name}} : il ne peut plus être modifié.', { name: taskToProcess.document.metadata.interim.byName })
+                          : t('Déjà renseigné : il ne peut plus être modifié.')}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={remplacantName}
+                        onChange={(e) => setRemplacantName(e.target.value)}
+                        placeholder={t('Nom du remplaçant...')}
+                        style={{ width: '100%', padding: '8px 12px', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 'var(--radius-2)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                        autoFocus
+                      />
+                      <p style={{ fontSize: 11, color: '#b45309', margin: '6px 0 0' }}>{t('Inscrit automatiquement sur le PDF. Une fois saisi, les validateurs suivants ne pourront plus le modifier.')}</p>
+                    </>
+                  )}
                 </div>
               )}
 

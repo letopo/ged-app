@@ -15,6 +15,15 @@ import { mergePDFs, validatePDF } from '../utils/pdfMerger.js';
 import { isManuallySigned } from './manualSignatureController.js';
 import { getThumbnail, deleteThumbnails } from '../utils/thumbnails.js';
 
+// Première date de début autorisée pour une demande de permission : J+2 (heure du Cameroun)
+export const PERMISSION_NOTICE_DAYS = 2;
+function permissionEarliestStart() {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Douala' }); // AAAA-MM-JJ
+  const d = new Date(`${today}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + PERMISSION_NOTICE_DAYS);
+  return d.toISOString().slice(0, 10);
+}
+
 export const uploadDocument = async (req, res) => {
   try {
     if (!req.file) {
@@ -38,6 +47,22 @@ export const uploadDocument = async (req, res) => {
       } catch (err) {
         console.warn('Metadata invalide, ignoré:', err.message);
         parsedMetadata = {};
+      }
+    }
+
+    // Demande de permission : au moins 2 jours à l'avance (48 h), sauf administrateurs
+    if ((category || parsedMetadata.type) === 'Demande de permission' && !['admin', 'superadmin'].includes(req.user.role)) {
+      const starts = [
+        ...(Array.isArray(parsedMetadata.periods) ? parsedMetadata.periods.map(p => p?.startDate) : []),
+        dateDebut,
+      ].filter(d => /^\d{4}-\d{2}-\d{2}/.test(String(d || ''))).map(d => String(d).slice(0, 10)).sort();
+      const earliestAllowed = permissionEarliestStart();
+      if (starts.length && starts[0] < earliestAllowed) {
+        await fs.unlink(req.file.path).catch(() => {});
+        return res.status(400).json({
+          success: false,
+          message: `Une permission se demande au moins 48 h à l'avance : première date possible le ${earliestAllowed.split('-').reverse().join('/')}.`,
+        });
       }
     }
     

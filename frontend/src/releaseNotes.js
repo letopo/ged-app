@@ -525,6 +525,16 @@ const RELEASE_NOTES = [
       'PDF généré plus présentable : périodes en tableau avec total, motif mis en évidence, zone d’intérim et signatures alignées.',
     ],
   },
+  {
+    id: '2026-10-24-permission-interim-48h',
+    date: '2026-10-24',
+    target: '/documents',
+    title: 'Demande de permission : intérim unique et délai de 48 h',
+    items: [
+      'L’intérim n’est saisi qu’une fois dans le circuit : dès qu’un validateur l’a renseigné, les suivants le voient sans pouvoir le modifier.',
+      'Une permission se demande au moins 48 h à l’avance (première date possible : dans 2 jours). Les administrateurs peuvent déroger à ce délai pour les urgences.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

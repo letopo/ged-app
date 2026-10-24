@@ -2736,5 +2736,11 @@
   "{{count}} j. ouvrable(s)": "{{count}} يوم عمل",
   "{{count}} jour(s) ouvrable(s)": "{{count}} يوم عمل",
   "Événement familial ou distinction": "مناسبة عائلية أو تكريم",
-  "Événement imprévu": "حدث طارئ"
+  "Événement imprévu": "حدث طارئ",
+  "Délai de 48 h : en tant qu'administrateur, vous pouvez déroger (urgence).": "مهلة 48 ساعة: بصفتك مسؤولًا يمكنك تجاوزها (حالة طارئة).",
+  "Une permission se demande au moins 48 h à l'avance : première date possible le {{date}}.": "يُطلب الإذن قبل 48 ساعة على الأقل: أول تاريخ ممكن {{date}}.",
+  "Trop tôt : la permission doit commencer au plus tôt le {{date}} (48 h de délai).": "مبكر جدًا: يمكن أن يبدأ الإذن في {{date}} على أقرب تقدير (مهلة 48 ساعة).",
+  "Déjà renseigné par {{name}} : il ne peut plus être modifié.": "أدخله {{name}} مسبقًا: لم يعد بالإمكان تعديله.",
+  "Déjà renseigné : il ne peut plus être modifié.": "تم إدخاله مسبقًا: لم يعد بالإمكان تعديله.",
+  "Inscrit automatiquement sur le PDF. Une fois saisi, les validateurs suivants ne pourront plus le modifier.": "يُكتب تلقائيًا على PDF. بعد إدخاله لن يتمكن المصادقون التالون من تعديله."
 }

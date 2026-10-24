@@ -51,6 +51,18 @@ export const EXCEPTIONAL_REASONS = [
     { value: "médaille d'honneur du travail (2 jours)", days: 2 },
 ];
 
+// Délai de prévenance : une permission se demande au moins 2 jours (48 h) à
+// l'avance ; les administrateurs peuvent y déroger (urgences). Même règle côté serveur.
+export const PERMISSION_NOTICE_DAYS = 2;
+export const isPermissionAdmin = (user) => ['admin', 'superadmin'].includes(user?.role);
+export function permissionEarliestStart() {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Douala' }); // AAAA-MM-JJ
+    const d = new Date(`${today}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + PERMISSION_NOTICE_DAYS);
+    return d.toISOString().slice(0, 10);
+}
+const frDate = (iso) => iso.split('-').reverse().join('/');
+
 const INK = '#111827';
 const MUTED = '#6b7280';
 const BRAND = '#1B3A6B';
@@ -121,6 +133,8 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
     const motifLabel = PERMISSION_TYPES.find(x => x.value === motif)?.label || motif;
     const exceptional = EXCEPTIONAL_REASONS.find(r => r.value === formData.motif_exceptionnel);
     const totalDays = formData.totalDays || 0;
+    const isAdmin = isPermissionAdmin(user);
+    const earliest = permissionEarliestStart();
 
     // Styles (page blanche, même en thème sombre : c'est la lettre)
     const fieldLine = {
@@ -196,15 +210,21 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
             {/* PÉRIODES */}
             <section style={{ padding: 16, border: '1px solid #c7d2fe', background: '#f5f7ff', borderRadius: 10, marginBottom: 18 }}>
                 <div style={sectionTitle}><Calendar size={16} /> {t('Périodes')} <span style={{ fontWeight: 500, color: MUTED, fontSize: 12 }}>({t('week-ends exclus automatiquement')})</span></div>
+                <div style={{ fontSize: 12, color: isAdmin ? '#b45309' : MUTED, margin: '-4px 0 10px' }}>
+                    {isAdmin
+                        ? t('Délai de 48 h : en tant qu\'administrateur, vous pouvez déroger (urgence).')
+                        : t('Une permission se demande au moins 48 h à l\'avance : première date possible le {{date}}.', { date: frDate(earliest) })}
+                </div>
                 {(formData.periods || []).map((period, index) => {
                     const days = calculateBusinessDays(period.startDate, period.endDate);
                     const inverted = period.startDate && period.endDate && period.endDate < period.startDate;
+                    const tooSoon = !isAdmin && period.startDate && period.startDate < earliest;
                     return (
                         <div key={index} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
                             <span style={{ fontSize: 13, color: MUTED, width: 22 }}>{t('Du')}</span>
-                            <input type="date" aria-label={t('Date de début')} value={period.startDate} onChange={(e) => handlePeriodChange(index, 'startDate', e.target.value)} style={{ ...fieldLine, width: 160, background: '#fff' }} />
+                            <input type="date" aria-label={t('Date de début')} value={period.startDate} min={isAdmin ? undefined : earliest} onChange={(e) => handlePeriodChange(index, 'startDate', e.target.value)} style={{ ...fieldLine, width: 160, background: '#fff', borderColor: tooSoon ? '#dc2626' : '#d1d5db' }} />
                             <span style={{ fontSize: 13, color: MUTED }}>{t('au')}</span>
-                            <input type="date" aria-label={t('Date de fin')} value={period.endDate} min={period.startDate || undefined} onChange={(e) => handlePeriodChange(index, 'endDate', e.target.value)} style={{ ...fieldLine, width: 160, background: '#fff', borderColor: inverted ? '#dc2626' : '#d1d5db' }} />
+                            <input type="date" aria-label={t('Date de fin')} value={period.endDate} min={period.startDate || (isAdmin ? undefined : earliest)} onChange={(e) => handlePeriodChange(index, 'endDate', e.target.value)} style={{ ...fieldLine, width: 160, background: '#fff', borderColor: inverted ? '#dc2626' : '#d1d5db' }} />
                             <span style={{ fontSize: 12, fontWeight: 700, color: days ? BRAND : MUTED, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 999, padding: '3px 10px' }}>
                                 {t('{{count}} j. ouvrable(s)', { count: days })}
                             </span>
@@ -214,6 +234,7 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
                                 </button>
                             )}
                             {inverted && <span style={{ width: '100%', fontSize: 12, color: '#dc2626', paddingLeft: 30 }}>{t('La date de fin est avant la date de début.')}</span>}
+                            {tooSoon && <span style={{ width: '100%', fontSize: 12, color: '#dc2626', paddingLeft: 30 }}>{t('Trop tôt : la permission doit commencer au plus tôt le {{date}} (48 h de délai).', { date: frDate(earliest) })}</span>}
                         </div>
                     );
                 })}
