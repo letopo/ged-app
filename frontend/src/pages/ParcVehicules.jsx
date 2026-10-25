@@ -81,7 +81,7 @@ export default function ParcVehicules() {
     { key: 'checklist', label: t('Check-list'), icon: ListChecks, show: canManageAny },
   ].filter((x) => x.show);
   const wanted = params.get('tab');
-  const tab = tabs.some((x) => x.key === wanted) ? wanted : (fleet?.canDashboard && !fleet?.canCheck ? 'tableau' : 'controles');
+  const tab = tabs.some((x) => x.key === wanted) ? wanted : (params.get('vehicle') ? 'controles' : (fleet?.canDashboard && !fleet?.canCheck ? 'tableau' : 'controles'));
 
   if (!fleet) return <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}><Loader className="animate-spin" /></div>;
 
@@ -105,7 +105,7 @@ export default function ParcVehicules() {
         ))}
       </div>
 
-      {tab === 'controles' && <VehicleChecksTab vehicles={vehicles.filter((v) => v.isActive)} loading={loading} onChanged={() => loadVehicles()} />}
+      {tab === 'controles' && <VehicleChecksTab vehicles={vehicles.filter((v) => v.isActive)} loading={loading} onChanged={() => loadVehicles()} initialVehicleId={params.get('vehicle')} />}
       {tab === 'tableau' && <FleetDashboard onVehiclesChanged={() => loadVehicles()} />}
       {tab === 'vehicules' && <VehiclesAdmin vehicles={vehicles} fleet={fleet} onChanged={() => loadVehicles()} />}
       {tab === 'checklist' && <ChecklistEditor />}

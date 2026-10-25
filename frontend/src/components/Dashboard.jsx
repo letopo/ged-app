@@ -8,6 +8,7 @@ import i18n from '../i18n/config';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
+import PendingVehicleChecks from './vehicles/PendingVehicleChecks';
 import {
   Clock, CheckCircle, FileText, TrendingDown, TrendingUp,
   Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader, Hourglass,
@@ -784,6 +785,9 @@ const Dashboard = () => {
           {t('Actualiser')}
         </button>
       </div>
+
+      {/* Contrôles d'ambulance à faire (équipage) */}
+      <PendingVehicleChecks style={{ marginBottom: 20 }} />
 
       {/* Alerte sauvegarde (administrateurs, seulement en cas de problème) */}
       {isAdmin && <BackupAlert report={backupReport} />}

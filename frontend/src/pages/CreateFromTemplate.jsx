@@ -253,10 +253,10 @@ const CreateFromTemplate = () => {
             setError(t("Veuillez renseigner le nom du demandeur et au moins une période (dates de début et de fin)."));
             return;
         }
-        // Délai de 48 h (les administrateurs peuvent y déroger)
+        // Délai de 2 jours ouvrables (les administrateurs peuvent y déroger)
         const earliest = permissionEarliestStart();
         if (!isPermissionAdmin(user) && periods.some(p => p.startDate && p.startDate < earliest)) {
-            setError(t('Une permission se demande au moins 48 h à l\'avance : première date possible le {{date}}.', { date: earliest.split('-').reverse().join('/') }));
+            setError(t('Une permission se demande au moins 2 jours ouvrables à l\'avance : première date possible le {{date}}.', { date: earliest.split('-').reverse().join('/') }));
             return;
         }
     }

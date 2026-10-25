@@ -24,6 +24,7 @@ import LinkedDocumentModal from './LinkedDocumentModal';
 import PdfCanvasViewer, { canShowPdfInline } from './PdfCanvasViewer';
 import SignatureSession, { isSignableDocument } from './SignatureSession';
 import GedDocumentPicker from './GedDocumentPicker';
+import OrdreMissionVehiclePanel from './vehicles/OrdreMissionVehiclePanel';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -647,6 +648,9 @@ const DocumentViewer = ({
             )}
 
             <ManualSignaturePanel doc={doc} fileBaseUrl={API_URL} secTitle={secTitle} />
+
+            {/* Ordre de mission RO SAU : contrôles de l'ambulance */}
+            {doc.category === 'Ordre de mission' && doc.metadata?.vehicle_id && <OrdreMissionVehiclePanel documentId={doc.id} secTitle={secTitle} />}
 
             {/* Chaîne documentaire (affichée seulement si le document a des liens) */}
             <DocumentChain docId={doc.id} onOpen={openChainDocument} />

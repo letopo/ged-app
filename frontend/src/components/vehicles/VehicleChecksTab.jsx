@@ -133,9 +133,9 @@ function VehiclePanel({ vehicleId, onClose, onChanged }) {
   );
 }
 
-export default function VehicleChecksTab({ vehicles, loading, onChanged }) {
+export default function VehicleChecksTab({ vehicles, loading, onChanged, initialVehicleId }) {
   const { t } = useTranslation();
-  const [openId, setOpenId] = useState(null);
+  const [openId, setOpenId] = useState(initialVehicleId || null);
   const closePanel = useCallback(() => setOpenId(null), []);
 
   if (loading) return <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}><Loader className="animate-spin" /></div>;

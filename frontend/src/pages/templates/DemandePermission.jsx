@@ -51,14 +51,20 @@ export const EXCEPTIONAL_REASONS = [
     { value: "médaille d'honneur du travail (2 jours)", days: 2 },
 ];
 
-// Délai de prévenance : une permission se demande au moins 2 jours (48 h) à
-// l'avance ; les administrateurs peuvent y déroger (urgences). Même règle côté serveur.
+// Délai de prévenance : une permission se demande au moins 2 jours OUVRABLES à
+// l'avance (le week-end ne compte pas : vendredi → mardi) ; les administrateurs
+// peuvent y déroger (urgences). Même règle côté serveur.
 export const PERMISSION_NOTICE_DAYS = 2;
 export const isPermissionAdmin = (user) => ['admin', 'superadmin'].includes(user?.role);
 export function permissionEarliestStart() {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Douala' }); // AAAA-MM-JJ
     const d = new Date(`${today}T12:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + PERMISSION_NOTICE_DAYS);
+    let added = 0;
+    while (added < PERMISSION_NOTICE_DAYS) {
+        d.setUTCDate(d.getUTCDate() + 1);
+        const wd = d.getUTCDay();
+        if (wd !== 0 && wd !== 6) added++;
+    }
     return d.toISOString().slice(0, 10);
 }
 const frDate = (iso) => iso.split('-').reverse().join('/');
@@ -212,8 +218,8 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
                 <div style={sectionTitle}><Calendar size={16} /> {t('Périodes')} <span style={{ fontWeight: 500, color: MUTED, fontSize: 12 }}>({t('week-ends exclus automatiquement')})</span></div>
                 <div style={{ fontSize: 12, color: isAdmin ? '#b45309' : MUTED, margin: '-4px 0 10px' }}>
                     {isAdmin
-                        ? t('Délai de 48 h : en tant qu\'administrateur, vous pouvez déroger (urgence).')
-                        : t('Une permission se demande au moins 48 h à l\'avance : première date possible le {{date}}.', { date: frDate(earliest) })}
+                        ? t('Délai de 2 jours ouvrables : en tant qu\'administrateur, vous pouvez déroger (urgence).')
+                        : t('Une permission se demande au moins 2 jours ouvrables à l\'avance : première date possible le {{date}}.', { date: frDate(earliest) })}
                 </div>
                 {(formData.periods || []).map((period, index) => {
                     const days = calculateBusinessDays(period.startDate, period.endDate);
@@ -234,7 +240,7 @@ const DemandePermission = ({ formData, setFormData, pdfContainerRef }) => {
                                 </button>
                             )}
                             {inverted && <span style={{ width: '100%', fontSize: 12, color: '#dc2626', paddingLeft: 30 }}>{t('La date de fin est avant la date de début.')}</span>}
-                            {tooSoon && <span style={{ width: '100%', fontSize: 12, color: '#dc2626', paddingLeft: 30 }}>{t('Trop tôt : la permission doit commencer au plus tôt le {{date}} (48 h de délai).', { date: frDate(earliest) })}</span>}
+                            {tooSoon && <span style={{ width: '100%', fontSize: 12, color: '#dc2626', paddingLeft: 30 }}>{t('Trop tôt : la permission doit commencer au plus tôt le {{date}} (2 jours ouvrables de délai).', { date: frDate(earliest) })}</span>}
                         </div>
                     );
                 })}

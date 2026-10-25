@@ -2867,5 +2867,11 @@
   "Les administrateurs voient et gèrent le parc véhicules (fiches, check-list, tableau de bord).": "يرى المسؤولون الأسطول ويديرونه (البطاقات، قائمة الفحص، لوحة القيادة).",
   "Seuls vous (superadmin), le chef sécurité logistique et les responsables des véhicules y ont accès.": "لا يصل إليه إلا أنت (المسؤول الأعلى) ومسؤول السلامة واللوجستيك ومسؤولو المركبات.",
   "Les administrateurs ont maintenant accès au parc véhicules.": "أصبح للمسؤولين الآن وصول إلى الأسطول.",
-  "Le parc véhicules est retiré aux administrateurs.": "لم يعد الأسطول متاحًا للمسؤولين."
+  "Le parc véhicules est retiré aux administrateurs.": "لم يعد الأسطول متاحًا للمسؤولين.",
+  "Délai de 2 jours ouvrables : en tant qu'administrateur, vous pouvez déroger (urgence).": "مهلة يومي عمل: بصفتك مسؤولًا يمكنك تجاوزها (حالة طارئة).",
+  "Une permission se demande au moins 2 jours ouvrables à l'avance : première date possible le {{date}}.": "يُطلب الإذن قبل يومي عمل على الأقل: أول تاريخ ممكن {{date}}.",
+  "Trop tôt : la permission doit commencer au plus tôt le {{date}} (2 jours ouvrables de délai).": "مبكر جدًا: يمكن أن يبدأ الإذن في {{date}} على أقرب تقدير (مهلة يومي عمل).",
+  "Contrôles d'ambulance à faire": "فحوصات سيارة الإسعاف المطلوبة",
+  "À contrôler : {{sections}}": "للفحص: {{sections}}",
+  "départ le {{date}}": "الانطلاق في {{date}}"
 }

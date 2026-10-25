@@ -2867,5 +2867,11 @@
   "Les administrateurs voient et gèrent le parc véhicules (fiches, check-list, tableau de bord).": "Los administradores ven y gestionan el parque (fichas, lista, panel).",
   "Seuls vous (superadmin), le chef sécurité logistique et les responsables des véhicules y ont accès.": "Solo usted (superadmin), el jefe de seguridad logística y los responsables de los vehículos tienen acceso.",
   "Les administrateurs ont maintenant accès au parc véhicules.": "Los administradores tienen ahora acceso al parque.",
-  "Le parc véhicules est retiré aux administrateurs.": "El parque ya no está disponible para los administradores."
+  "Le parc véhicules est retiré aux administrateurs.": "El parque ya no está disponible para los administradores.",
+  "Délai de 2 jours ouvrables : en tant qu'administrateur, vous pouvez déroger (urgence).": "Plazo de 2 días hábiles: como administrador, puede omitirlo (urgencia).",
+  "Une permission se demande au moins 2 jours ouvrables à l'avance : première date possible le {{date}}.": "Un permiso se solicita con al menos 2 días hábiles de antelación: primera fecha posible el {{date}}.",
+  "Trop tôt : la permission doit commencer au plus tôt le {{date}} (2 jours ouvrables de délai).": "Demasiado pronto: el permiso puede empezar como pronto el {{date}} (2 días hábiles de plazo).",
+  "Contrôles d'ambulance à faire": "Controles de ambulancia pendientes",
+  "À contrôler : {{sections}}": "Por controlar: {{sections}}",
+  "départ le {{date}}": "salida el {{date}}"
 }

@@ -2867,5 +2867,11 @@
   "Les administrateurs voient et gèrent le parc véhicules (fiches, check-list, tableau de bord).": "Administrators see and manage the vehicle fleet (records, checklist, dashboard).",
   "Seuls vous (superadmin), le chef sécurité logistique et les responsables des véhicules y ont accès.": "Only you (superadmin), the logistics & safety manager and vehicle managers have access.",
   "Les administrateurs ont maintenant accès au parc véhicules.": "Administrators now have access to the vehicle fleet.",
-  "Le parc véhicules est retiré aux administrateurs.": "The vehicle fleet is no longer available to administrators."
+  "Le parc véhicules est retiré aux administrateurs.": "The vehicle fleet is no longer available to administrators.",
+  "Délai de 2 jours ouvrables : en tant qu'administrateur, vous pouvez déroger (urgence).": "2-working-day notice: as an administrator, you may override it (emergency).",
+  "Une permission se demande au moins 2 jours ouvrables à l'avance : première date possible le {{date}}.": "Leave must be requested at least 2 working days in advance: earliest possible date {{date}}.",
+  "Trop tôt : la permission doit commencer au plus tôt le {{date}} (2 jours ouvrables de délai).": "Too early: the leave can start on {{date}} at the earliest (2 working days' notice).",
+  "Contrôles d'ambulance à faire": "Ambulance checks to do",
+  "À contrôler : {{sections}}": "To check: {{sections}}",
+  "départ le {{date}}": "departure on {{date}}"
 }
