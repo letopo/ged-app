@@ -151,6 +151,36 @@ export async function notifyVehicleManagers(vehicle, { title, body, url = '/vehi
   }
 }
 
+// Sections qu'un membre d'équipage doit contrôler : chauffeur → sections dont le
+// « fait par » mentionne le chauffeur (Véhicule), soignant → les autres.
+export function sectionsForRole(sections, role) {
+  const isDriver = (s) => /chauffeur|conducteur/i.test(s.role || '') || s.key === 'vehicule';
+  if (/chauffeur|conducteur/i.test(role || '')) return sections.filter(isDriver);
+  if (role) return sections.filter((s) => !isDriver(s));
+  return sections;
+}
+
+// Rappel à l'équipage (push + e-mail), message adapté à chacun
+export async function notifyCrew(mission, vehicle, build) {
+  const { User: UserModel } = await import('../models/index.js');
+  const seen = new Set();
+  for (const c of mission.crew || []) {
+    if (!c.userId || seen.has(c.userId)) continue;
+    seen.add(c.userId);
+    const { title, body } = build(c);
+    if (!title) continue;
+    const url = `/vehicules?vehicle=${vehicle.id}`;
+    sendPushNotification(c.userId, {
+      type: 'vehicle_check', title, body, icon: '/favicon.ico', badge: '/favicon.ico',
+      tag: `vehicle-check-${mission.id}`, data: { url, timestamp: Date.now() }, requireInteraction: true,
+    }).catch(() => {});
+    const u = await UserModel.findByPk(c.userId, { attributes: ['email'] });
+    if (u?.email) sendNotificationEmail(u.email, title, body, 'default', url, { tenantId: vehicle.tenantId }).catch(() => {});
+  }
+}
+
+const sectionNames = (sections) => sections.map((s) => s.label.toLowerCase()).join(' et ');
+
 // ── Ordre de mission RO SAU → mission véhicule ───────────────────────────────
 function parisDate(date, time) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;
@@ -195,7 +225,7 @@ export async function linkOrdreMissionVehicle(document) {
     plannedReturnAt: parisDate(meta.date_retour || meta.date_depart, meta.heure_retour),
   };
   const orphan = await VehicleMission.findOne({
-    where: { vehicleId: vehicle.id, documentId: null, status: { [Op.in]: ['planifiee', 'en_cours', 'terminee'] }, createdAt: { [Op.gte]: new Date(Date.now() - 48 * 3600 * 1000) } },
+    where: { vehicleId: vehicle.id, documentId: null, urgent: true, status: { [Op.in]: ['planifiee', 'en_cours', 'terminee'] }, createdAt: { [Op.gte]: new Date(Date.now() - 48 * 3600 * 1000) } },
     order: [['createdAt', 'DESC']],
   });
   if (orphan) {
@@ -204,7 +234,19 @@ export async function linkOrdreMissionVehicle(document) {
     await orphan.update({ ...fields, crew: merged, omAfterDeparture: !!orphan.departedAt });
     return orphan;
   }
-  return VehicleMission.create({ ...fields, vehicleId: vehicle.id, crew, status: 'planifiee', createdBy: document.userId });
+  const mission = await VehicleMission.create({ ...fields, vehicleId: vehicle.id, crew, status: 'planifiee', createdBy: document.userId });
+  // L'équipage est prévenu dès l'ordre de mission : contrôle à faire avant de partir
+  try {
+    const sections = (await templateFor(vehicle)).sections || [];
+    const when = fields.plannedDepartureAt ? ` le ${fmtFr(fields.plannedDepartureAt)}` : '';
+    await notifyCrew(mission, vehicle, (c) => ({
+      title: `🚑 Mission ${vehicle.label}${when}`,
+      body: `${document.title}\nAvant de partir : contrôle ${sectionNames(sectionsForRole(sections, c.role))} de l'ambulance (${vehicle.immatriculation}) dans la GED.`,
+    }));
+  } catch (err) {
+    console.warn('Rappel équipage :', err.message);
+  }
+  return mission;
 }
 
 // ── Routes ───────────────────────────────────────────────────────────────────
@@ -714,6 +756,82 @@ export const updateFleetSettings = async (req, res) => {
     res.json({ success: true, data: { adminAccess } });
   } catch (error) {
     console.error('Parc véhicules réglages :', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// Sections encore à contrôler pour une mission et une phase
+async function missingSections(mission, vehicle, phase) {
+  const sections = (await templateFor(vehicle)).sections || [];
+  const done = await VehicleCheck.findAll({ where: { missionId: mission.id, phase }, attributes: ['sectionKey'] });
+  return sections.filter((s) => !done.some((d) => d.sectionKey === s.key));
+}
+
+// GET /api/vehicles/my-pending — contrôles que l'utilisateur (équipage) doit faire
+export const myPendingChecks = async (req, res) => {
+  try {
+    const horizon = new Date(Date.now() + 24 * 3600 * 1000);
+    const missions = await VehicleMission.findAll({
+      where: {
+        crew: { [Op.contains]: [{ userId: req.user.id }] },
+        [Op.or]: [
+          { status: 'planifiee', [Op.or]: [{ plannedDepartureAt: null }, { plannedDepartureAt: { [Op.lte]: horizon } }] },
+          { status: 'en_cours' },
+          { status: 'terminee', returnedAt: { [Op.gte]: new Date(Date.now() - 24 * 3600 * 1000) } },
+        ],
+      },
+      order: [['plannedDepartureAt', 'ASC NULLS LAST']],
+      limit: 20,
+    });
+    const out = [];
+    for (const m of missions) {
+      const v = await Vehicle.findByPk(m.vehicleId);
+      if (!v || !v.isActive) continue;
+      const me = (m.crew || []).find((c) => c.userId === req.user.id);
+      const phase = m.status === 'planifiee' ? 'depart' : (m.status === 'en_cours' && !(await VehicleCheck.count({ where: { missionId: m.id, phase: 'depart' } }))) ? 'depart' : 'retour';
+      // Au retour, seulement une fois l'heure de retour approchée (ou la mission terminée)
+      if (phase === 'retour' && m.status === 'en_cours' && m.plannedReturnAt && new Date(m.plannedReturnAt).getTime() > Date.now() + 3600 * 1000) continue;
+      const mine = sectionsForRole(await missingSections(m, v, phase), me?.role);
+      if (!mine.length) continue;
+      const doc = m.documentId ? await Document.findByPk(m.documentId, { attributes: ['title'] }) : null;
+      out.push({
+        missionId: m.id, phase, status: m.status, title: doc?.title || m.title,
+        plannedDepartureAt: m.plannedDepartureAt, plannedReturnAt: m.plannedReturnAt, departedAt: m.departedAt,
+        vehicle: { id: v.id, label: v.label, immatriculation: v.immatriculation },
+        sections: mine.map((x) => ({ key: x.key, label: x.label, role: x.role })),
+      });
+    }
+    res.json({ success: true, data: out });
+  } catch (error) {
+    console.error('Contrôles à faire :', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// GET /api/vehicles/by-document/:documentId — contrôles de l'ambulance d'un ordre de mission
+export const missionByDocument = async (req, res) => {
+  try {
+    const { hasDocumentReadAccess } = await import('../utils/documentVisibility.js');
+    const doc = await Document.findByPk(req.params.documentId);
+    if (!doc) return res.status(404).json({ success: false, message: 'Document introuvable.' });
+    if (!(await hasDocumentReadAccess(doc, req.user))) return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
+    const m = await VehicleMission.findOne({ where: { documentId: doc.id }, order: [['createdAt', 'DESC']] });
+    if (!m) return res.json({ success: true, data: null });
+    const v = await Vehicle.findByPk(m.vehicleId);
+    const sections = (await templateFor(v)).sections || [];
+    const checks = await VehicleCheck.findAll({ where: { missionId: m.id }, attributes: { exclude: ['answers', 'items'] } });
+    res.json({
+      success: true,
+      data: {
+        id: m.id, status: m.status, omAfterDeparture: m.omAfterDeparture, urgent: m.urgent,
+        plannedDepartureAt: m.plannedDepartureAt, departedAt: m.departedAt, returnedAt: m.returnedAt,
+        vehicle: { id: v.id, label: v.label, immatriculation: v.immatriculation, status: v.status, unavailableReason: v.unavailableReason },
+        depart: phaseSummary(checks, sections, 'depart'),
+        retour: phaseSummary(checks, sections, 'retour'),
+      },
+    });
+  } catch (error) {
+    console.error('Contrôles de l\'OM :', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };

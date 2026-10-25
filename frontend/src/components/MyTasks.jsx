@@ -24,6 +24,7 @@ import { pdf } from '@react-pdf/renderer';
 import { PermissionPdfDocument } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
 import Pagination, { usePageSize } from './Pagination';
+import PendingVehicleChecks from './vehicles/PendingVehicleChecks';
 import { getMissionnaires, normNom } from '../utils/omMissionnaires';
 
 const MAX_SELECTION = 20;
@@ -831,6 +832,9 @@ const MyTasks = () => {
           </button>
         )}
       </div>
+
+      {/* Contrôles d'ambulance à faire (équipage d'un ordre de mission RO SAU) */}
+      <PendingVehicleChecks style={{ marginBottom: 16 }} />
 
       {/* Error */}
       {error && (

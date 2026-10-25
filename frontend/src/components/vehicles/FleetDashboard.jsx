@@ -13,7 +13,7 @@ import { StatusBadge } from './VehicleChecksTab';
 
 const iso = (d) => d.toISOString().slice(0, 10);
 
-function SectionChips({ phase }) {
+export function SectionChips({ phase }) {
   const { t } = useTranslation();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

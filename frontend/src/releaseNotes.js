@@ -557,6 +557,19 @@ const RELEASE_NOTES = [
       'Les menus suivent les droits sans avoir à se déconnecter : un accès donné apparaît à la prochaine ouverture de la GED.',
     ],
   },
+  {
+    id: '2026-10-25-parc-vehicules-etape2',
+    date: '2026-10-25',
+    target: '/my-tasks',
+    title: 'Ambulances : rappels à l’équipage et contrôles dans « Mes tâches »',
+    items: [
+      'Dès qu’un ordre de mission RO SAU est créé avec une ambulance, le chauffeur et l’infirmier sont prévenus (notification et e-mail), avec un rappel 30 min avant le départ et à l’heure du retour.',
+      'Nouveau bloc « Contrôles d’ambulance à faire » dans Mes tâches et sur l’accueil : chacun ne voit que sa partie (véhicule pour le chauffeur, matériel pour l’infirmier) et l’ouvre d’un clic.',
+      'Sur l’ordre de mission, un encadré « Ambulance » montre l’état des contrôles départ et retour (clic = fiche PDF).',
+      'Ordre de mission rejeté ou supprimé : la mission de l’ambulance est annulée automatiquement.',
+      'Demande de permission : le délai est désormais de 2 jours ouvrables (le week-end ne compte pas).',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

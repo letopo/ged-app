@@ -231,6 +231,8 @@ export const vehiclesAPI = {
   updateSettings: (data) => api.put('/vehicles/settings', data),
   list: (params) => api.get('/vehicles', { params }),
   options: (type = 'ambulance') => api.get('/vehicles/options', { params: { type } }),
+  myPending: () => api.get('/vehicles/my-pending'),
+  byDocument: (documentId) => api.get(`/vehicles/by-document/${documentId}`),
   create: (data) => api.post('/vehicles', data),
   update: (id, data) => api.put(`/vehicles/${id}`, data),
   setStatus: (id, status, reason) => api.patch(`/vehicles/${id}/status`, { status, reason }),
