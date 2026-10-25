@@ -227,6 +227,8 @@ export const authAPI = {
 // Parc véhicules (ambulances RO SAU)
 export const vehiclesAPI = {
   me: () => api.get('/vehicles/me'),
+  settings: () => api.get('/vehicles/settings'),
+  updateSettings: (data) => api.put('/vehicles/settings', data),
   list: (params) => api.get('/vehicles', { params }),
   options: (type = 'ambulance') => api.get('/vehicles/options', { params: { type } }),
   create: (data) => api.post('/vehicles', data),

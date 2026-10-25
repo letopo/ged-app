@@ -2862,5 +2862,10 @@
   "{{section}} : {{name}}, {{date}} — ouvrir la fiche": "{{section}}: {{name}}, {{date}} — open the sheet",
   "À moitié": "Half",
   "— aucun —": "— none —",
-  "🟢 contrôlée · 🟠 à moitié · 🟡 partiellement · 🔴 non contrôlée — une ambulance en mission n'apparaît pas.": "🟢 checked · 🟠 half · 🟡 partially · 🔴 not checked — an ambulance on mission is not listed."
+  "🟢 contrôlée · 🟠 à moitié · 🟡 partiellement · 🔴 non contrôlée — une ambulance en mission n'apparaît pas.": "🟢 checked · 🟠 half · 🟡 partially · 🔴 not checked — an ambulance on mission is not listed.",
+  "Accès des administrateurs": "Administrators' access",
+  "Les administrateurs voient et gèrent le parc véhicules (fiches, check-list, tableau de bord).": "Administrators see and manage the vehicle fleet (records, checklist, dashboard).",
+  "Seuls vous (superadmin), le chef sécurité logistique et les responsables des véhicules y ont accès.": "Only you (superadmin), the logistics & safety manager and vehicle managers have access.",
+  "Les administrateurs ont maintenant accès au parc véhicules.": "Administrators now have access to the vehicle fleet.",
+  "Le parc véhicules est retiré aux administrateurs.": "The vehicle fleet is no longer available to administrators."
 }

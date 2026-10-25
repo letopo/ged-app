@@ -13,7 +13,7 @@ import path from 'path';
 import { Op } from 'sequelize';
 import {
   Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck,
-  Document, ServiceMember, Service, Employee, Tenant,
+  Document, ServiceMember, Service, Employee, Tenant, TenantSettings, AuditLog,
 } from '../models/index.js';
 import { getUserPosteCodes, getPosteHolders } from '../utils/posteResolver.js';
 import {
@@ -27,7 +27,15 @@ import { sendNotificationEmail } from '../utils/mailer.js';
 const FLEET_POSTE = 'chef_securite_logistique';
 const AMBULANCE_MANAGER_POSTE = 'chef_pole_ro_sau';
 const CHECK_DIR = 'uploads/vehicle-checks';
-const isAdmin = (u) => ['admin', 'superadmin'].includes(u?.role);
+const isSuperAdmin = (u) => u?.role === 'superadmin';
+
+// Le superadmin voit toujours le parc ; les administrateurs seulement si le
+// superadmin le leur a ouvert (tenant_settings.fleet_admin_access).
+async function adminsAllowed(tenantId) {
+  if (!tenantId) return false;
+  const row = await TenantSettings.findOne({ where: { tenantId }, attributes: ['fleetAdminAccess'] });
+  return !!row?.fleetAdminAccess;
+}
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const userName = (u) => `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u?.email || '';
 const fmtFr = (d) => new Date(d).toLocaleString('fr-FR', { timeZone: 'Africa/Douala', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -42,17 +50,18 @@ async function chauffeursServiceId() {
 }
 
 async function fleetAccess(user) {
-  const [posteCodes, memberships, chauffeursId] = await Promise.all([
+  const [posteCodes, memberships, chauffeursId, adminOk] = await Promise.all([
     getUserPosteCodes(user.id),
     ServiceMember.findAll({ where: { userId: user.id, isActive: true }, attributes: ['serviceId'] }),
     chauffeursServiceId(),
+    user.role === 'admin' ? adminsAllowed(user.tenantId) : Promise.resolve(false),
   ]);
   const serviceIds = memberships.map((m) => m.serviceId);
   return {
     user,
     posteCodes,
     serviceIds,
-    fleetManager: isAdmin(user) || posteCodes.includes(FLEET_POSTE),
+    fleetManager: isSuperAdmin(user) || adminOk || posteCodes.includes(FLEET_POSTE),
     chauffeur: !!chauffeursId && serviceIds.includes(chauffeursId),
   };
 }
@@ -211,6 +220,7 @@ export async function fleetModuleFlags(user) {
   const chefPole = acc.posteCodes.includes(AMBULANCE_MANAGER_POSTE);
   return {
     fleetManager: acc.fleetManager,
+    superAdmin: isSuperAdmin(user),
     canCreate: acc.fleetManager || chefPole,
     canDashboard: acc.fleetManager || managed.length > 0,
     canCheck: checkable,
@@ -570,7 +580,7 @@ export const listMissions = async (req, res) => {
     const acc = await fleetAccess(req.user);
     const vehicles = await Vehicle.findAll();
     const managed = vehicles.filter((v) => canManage(acc, v));
-    if (!managed.length) return res.status(403).json({ success: false, message: 'Accès réservé aux responsables.' });
+    if (!managed.length && !acc.fleetManager) return res.status(403).json({ success: false, message: 'Accès réservé aux responsables.' });
     const from = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from || '') ? new Date(`${req.query.from}T00:00:00+01:00`) : new Date(Date.now() - 30 * 86400000);
     const to = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to || '') ? new Date(`${req.query.to}T23:59:59+01:00`) : new Date(Date.now() + 30 * 86400000);
     const ids = managed.map((v) => v.id).filter((id) => !req.query.vehicleId || id === req.query.vehicleId);
@@ -683,3 +693,27 @@ export const cancelMission = async (req, res) => {
 };
 
 
+
+// GET /api/vehicles/settings — accès des administrateurs (superadmin)
+export const getFleetSettings = async (req, res) => {
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ success: false, message: 'Réservé au superadmin.' });
+  res.json({ success: true, data: { adminAccess: await adminsAllowed(req.tenantId) } });
+};
+
+// PUT /api/vehicles/settings { adminAccess } — ouvrir / fermer le module aux administrateurs
+export const updateFleetSettings = async (req, res) => {
+  try {
+    if (!isSuperAdmin(req.user)) return res.status(403).json({ success: false, message: 'Réservé au superadmin.' });
+    const adminAccess = req.body?.adminAccess === true;
+    const before = await adminsAllowed(req.tenantId);
+    const [row] = await TenantSettings.findOrCreate({ where: { tenantId: req.tenantId }, defaults: { tenantId: req.tenantId } });
+    await row.update({ fleetAdminAccess: adminAccess, updatedBy: req.user.id });
+    if (before !== adminAccess) {
+      await AuditLog.log(req, 'TENANT_SETTINGS_UPDATED', 'tenant', req.tenantId, { fleetAdminAccess: { avant: before, après: adminAccess } });
+    }
+    res.json({ success: true, data: { adminAccess } });
+  } catch (error) {
+    console.error('Parc véhicules réglages :', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};

@@ -13,7 +13,7 @@ import {
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
   MessageSquare, FileSpreadsheet, Sparkles, Ambulance,
 } from 'lucide-react';
-import { workflowAPI, tenantBrandingAPI, usersAPI } from '../services/api';
+import { workflowAPI, tenantBrandingAPI, usersAPI, authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import i18n from '../i18n/config';
@@ -770,7 +770,21 @@ const MoreSheet = ({ onClose, user }) => {
 /* ─── AppShell ─────────────────────────────────────────────────────── */
 
 export default function AppShell({ onLogout }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+
+  // Droits d'affichage du menu (postes, BL Sage, parc véhicules) calculés par le
+  // serveur : rafraîchis à l'ouverture, sinon un accès donné depuis la
+  // connexion n'apparaîtrait qu'après s'être déconnecté / reconnecté.
+  useEffect(() => {
+    if (!user?.id) return;
+    authAPI.getProfile().then((res) => {
+      const fresh = res.data?.user;
+      if (!fresh) return;
+      const same = JSON.stringify([fresh.postes, fresh.canSeeSageBl, fresh.fleet]) === JSON.stringify([user.postes, user.canSeeSageBl, user.fleet]);
+      if (!same) updateUser({ ...user, postes: fresh.postes, canSeeSageBl: fresh.canSeeSageBl, fleet: fresh.fleet });
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
   const { unreadCount: chatUnread, refresh: refreshChatUnread } = useChatUnread();
   const [pendingCount,    setPendingCount]    = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);

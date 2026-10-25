@@ -2862,5 +2862,10 @@
   "{{section}} : {{name}}, {{date}} — ouvrir la fiche": "{{section}}: {{name}}, {{date}} — abrir la ficha",
   "À moitié": "A medias",
   "— aucun —": "— ninguno —",
-  "🟢 contrôlée · 🟠 à moitié · 🟡 partiellement · 🔴 non contrôlée — une ambulance en mission n'apparaît pas.": "🟢 controlada · 🟠 a medias · 🟡 parcialmente · 🔴 no controlada — una ambulancia en misión no aparece."
+  "🟢 contrôlée · 🟠 à moitié · 🟡 partiellement · 🔴 non contrôlée — une ambulance en mission n'apparaît pas.": "🟢 controlada · 🟠 a medias · 🟡 parcialmente · 🔴 no controlada — una ambulancia en misión no aparece.",
+  "Accès des administrateurs": "Acceso de los administradores",
+  "Les administrateurs voient et gèrent le parc véhicules (fiches, check-list, tableau de bord).": "Los administradores ven y gestionan el parque (fichas, lista, panel).",
+  "Seuls vous (superadmin), le chef sécurité logistique et les responsables des véhicules y ont accès.": "Solo usted (superadmin), el jefe de seguridad logística y los responsables de los vehículos tienen acceso.",
+  "Les administrateurs ont maintenant accès au parc véhicules.": "Los administradores tienen ahora acceso al parque.",
+  "Le parc véhicules est retiré aux administrateurs.": "El parque ya no está disponible para los administradores."
 }
