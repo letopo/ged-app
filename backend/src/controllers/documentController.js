@@ -221,6 +221,17 @@ export const uploadDocument = async (req, res) => {
     };
 
     const newDocument = await Document.create(documentData);
+
+    // Ordre de mission avec un véhicule du parc (ambulance RO SAU) : mission véhicule
+    // créée, ou sortie urgente déjà contrôlée au départ rattachée à cet OM
+    if (newDocument.category === 'Ordre de mission' && newDocument.metadata?.vehicle_id) {
+      try {
+        const { linkOrdreMissionVehicle } = await import('./vehicleController.js');
+        await linkOrdreMissionVehicle(newDocument);
+      } catch (err) {
+        console.warn('⚠️ Lien OM ↔ véhicule :', err.message);
+      }
+    }
     
     const resultWithUser = await Document.findByPk(newDocument.id, {
         include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }]

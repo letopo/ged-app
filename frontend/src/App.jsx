@@ -46,6 +46,7 @@ import WorkflowTemplatesPage from './pages/WorkflowTemplatesPage';
 import VerifyDocument from './pages/VerifyDocument';
 import SignerPage from './pages/SignerPage';
 import SignatureKiosk from './pages/SignatureKiosk';
+import ParcVehicules from './pages/ParcVehicules';
 import GMAOPage from './pages/GMAOPage';
 // ── MODULE FORM BUILDER ────────────────────────────────────────────────────────
 import FormsListPage  from './pages/FormBuilder/index.jsx';
@@ -352,6 +353,7 @@ function App() {
           <Route path="/statistiques"    element={<AdminRoute><PageWrapper><StatistiquesPage /></PageWrapper></AdminRoute>} />
           <Route path="/workflow-templates" element={<AdminRoute><PageWrapper><WorkflowTemplatesPage /></PageWrapper></AdminRoute>} />
           <Route path="/employees"       element={<RHOrAdminRoute><PageWrapper><EmployeeManagement /></PageWrapper></RHOrAdminRoute>} />
+          <Route path="/vehicules"       element={<PageWrapper><ParcVehicules /></PageWrapper>} />
           <Route path="/gmao"            element={<GMAORoute><PageWrapper><GMAOPage /></PageWrapper></GMAORoute>} />
           {/* ── Form Builder ── */}
           <Route path="/forms"                element={<PageWrapper><FormsListPage /></PageWrapper>} />

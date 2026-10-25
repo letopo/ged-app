@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 import PersonAutocomplete from '../../components/PersonAutocomplete';
 import { getMissionnaires } from '../../utils/omMissionnaires';
+import VehicleSelect from '../../components/vehicles/VehicleSelect';
 import { useFeatureNote } from '../../components/ReleaseNotes';
 
 // Aperçu (lecture seule) des indemnités de repas calculées pour le missionnaire et
@@ -245,8 +246,19 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
             />
           </div>
           <div>
-            <label style={labelStyle}>🚙 {t('Immatriculation du Véhicule')} *</label>
-            <input type="text" name="immat_vehicule" value={formData.immat_vehicule || ''} onChange={handleChange} placeholder={t('Ex: AB-123-CD')} style={inputStyle} required />
+            {formData.type_mission === 'ro_sau' ? (
+              <>
+                {/* RO SAU : ambulance du parc, avec l'état de son dernier contrôle */}
+                <label style={labelStyle}>🚑 {t('Ambulance')} *</label>
+                <VehicleSelect value={formData.vehicle_id || ''}
+                  onChange={(v) => setFormData(prev => ({ ...prev, vehicle_id: v?.id || null, immat_vehicule: v?.immatriculation || '', vehicule_label: v?.label || '' }))} />
+              </>
+            ) : (
+              <>
+                <label style={labelStyle}>🚙 {t('Immatriculation du Véhicule')} *</label>
+                <input type="text" name="immat_vehicule" value={formData.immat_vehicule || ''} onChange={handleChange} placeholder={t('Ex: AB-123-CD')} style={inputStyle} required />
+              </>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <input type="checkbox" name="frais_mission" checked={formData.frais_mission || false} onChange={handleChange} style={{ width: 18, height: 18 }} />

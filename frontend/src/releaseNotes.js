@@ -535,6 +535,18 @@ const RELEASE_NOTES = [
       'Une permission se demande au moins 48 h à l’avance (première date possible : dans 2 jours). Les administrateurs peuvent déroger à ce délai pour les urgences.',
     ],
   },
+  {
+    id: '2026-10-25-parc-vehicules-ambulances',
+    date: '2026-10-25',
+    target: '/vehicules',
+    title: 'Parc véhicules : contrôle des ambulances avant et après chaque mission',
+    items: [
+      'Nouveau menu Logistique › Parc véhicules : sur téléphone, le chauffeur contrôle le véhicule et l’infirmier le matériel médical, au départ et au retour, point par point (photo en cas d’anomalie), puis signe.',
+      'Chaque contrôle est horodaté par le serveur, figé et archivé en fiche PDF liée à l’ordre de mission.',
+      'Ordre de mission RO SAU : choix de l’ambulance dans une liste colorée selon son dernier contrôle (🟢 🟠 🟡 🔴) ; une ambulance en mission n’y apparaît pas ; une sortie urgente contrôlée avant l’OM y est rattachée.',
+      'Tableau de bord pour la cheffe de pôle RO SAU et le chef sécurité logistique : contrôles faits ou manquants, anomalies, alertes, remise en service des ambulances.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

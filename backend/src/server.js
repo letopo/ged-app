@@ -62,6 +62,8 @@ import auditLogRoutes from './routes/auditLogRoutes.js';
 import workflowTemplateRoutes from './routes/workflowTemplateRoutes.js';
 import verificationRoutes from './routes/verificationRoutes.js';
 import signaturePublicRoutes from './routes/signaturePublic.js';
+import vehicleRoutes from './routes/vehicles.js';
+import { startVehicleAlertsScheduler } from './utils/vehicleAlerts.js';
 import onlyofficeRoutes from './routes/onlyoffice.js';
 import formRoutes from './routes/forms.js'; // ✅ Form Builder
 import postesRoutes from './routes/postes.js'; // ✅ Postes organisationnels
@@ -250,6 +252,7 @@ app.use('/api/notification-preferences', notificationPreferenceRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/workflow-templates', workflowTemplateRoutes);
 app.use('/api/verify', verificationRoutes);
+app.use('/api/vehicles', vehicleRoutes); // Parc véhicules (ambulances RO SAU)
 app.use('/api/signature-public', signaturePublicRoutes); // Tablette du guichet (jeton, sans connexion)
 app.use('/api/forms', formRoutes); // ✅ Form Builder
 app.use('/api/onlyoffice', onlyofficeRoutes);
@@ -956,6 +959,7 @@ const startServer = async () => {
     // 4c. Workflow : expirer les tâches dépassées au démarrage, puis planifier chaque nuit
     await expireOverdueWorkflows();
     startWorkflowExpireScheduler();
+    startVehicleAlertsScheduler();
 
     // 4c-bis. Sage : import automatique périodique des factures PHP (no-op si SAGE_* absent)
     startSageFactureSync();
