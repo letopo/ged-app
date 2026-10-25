@@ -547,6 +547,16 @@ const RELEASE_NOTES = [
       'Tableau de bord pour la cheffe de pôle RO SAU et le chef sécurité logistique : contrôles faits ou manquants, anomalies, alertes, remise en service des ambulances.',
     ],
   },
+  {
+    id: '2026-10-25-parc-vehicules-acces-admin',
+    date: '2026-10-25',
+    target: '/vehicules',
+    title: 'Parc véhicules : accès du superadmin et des administrateurs',
+    items: [
+      'Le superadmin voit et gère toujours le parc véhicules ; un interrupteur « Accès des administrateurs » lui permet de l’ouvrir (ou non) aux administrateurs.',
+      'Les menus suivent les droits sans avoir à se déconnecter : un accès donné apparaît à la prochaine ouverture de la GED.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

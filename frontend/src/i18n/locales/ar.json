@@ -2862,5 +2862,10 @@
   "{{section}} : {{name}}, {{date}} — ouvrir la fiche": "{{section}}: {{name}}، {{date}} — فتح الورقة",
   "À moitié": "نصفي",
   "— aucun —": "— لا شيء —",
-  "🟢 contrôlée · 🟠 à moitié · 🟡 partiellement · 🔴 non contrôlée — une ambulance en mission n'apparaît pas.": "🟢 مفحوصة · 🟠 نصفيًا · 🟡 جزئيًا · 🔴 غير مفحوصة — لا تظهر السيارة الموجودة في مهمة."
+  "🟢 contrôlée · 🟠 à moitié · 🟡 partiellement · 🔴 non contrôlée — une ambulance en mission n'apparaît pas.": "🟢 مفحوصة · 🟠 نصفيًا · 🟡 جزئيًا · 🔴 غير مفحوصة — لا تظهر السيارة الموجودة في مهمة.",
+  "Accès des administrateurs": "وصول المسؤولين",
+  "Les administrateurs voient et gèrent le parc véhicules (fiches, check-list, tableau de bord).": "يرى المسؤولون الأسطول ويديرونه (البطاقات، قائمة الفحص، لوحة القيادة).",
+  "Seuls vous (superadmin), le chef sécurité logistique et les responsables des véhicules y ont accès.": "لا يصل إليه إلا أنت (المسؤول الأعلى) ومسؤول السلامة واللوجستيك ومسؤولو المركبات.",
+  "Les administrateurs ont maintenant accès au parc véhicules.": "أصبح للمسؤولين الآن وصول إلى الأسطول.",
+  "Le parc véhicules est retiré aux administrateurs.": "لم يعد الأسطول متاحًا للمسؤولين."
 }

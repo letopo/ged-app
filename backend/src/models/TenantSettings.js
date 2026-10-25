@@ -15,6 +15,8 @@ const TenantSettings = sequelize.define('TenantSettings', {
   stampRealSize:        { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
   // Postes autorisés à voir « BL PHP en attente » (le superadmin y a toujours accès)
   sageBlAccessPostes:   { type: DataTypes.JSONB, allowNull: false, defaultValue: ['facturation', 'dg', 'ccg'] },
+  // Parc véhicules ouvert aux administrateurs (décidé par le superadmin)
+  fleetAdminAccess:     { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'fleet_admin_access' },
   updatedBy:            { type: DataTypes.UUID, allowNull: true },
 }, {
   tableName: 'tenant_settings',

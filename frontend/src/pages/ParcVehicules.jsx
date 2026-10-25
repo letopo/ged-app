@@ -7,12 +7,51 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader } from 'lucide-react';
+import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader, ShieldCheck } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { vehiclesAPI } from '../services/api';
 import VehicleChecksTab from '../components/vehicles/VehicleChecksTab';
 import FleetDashboard from '../components/vehicles/FleetDashboard';
 import VehiclesAdmin from '../components/vehicles/VehiclesAdmin';
 import ChecklistEditor from '../components/vehicles/ChecklistEditor';
+
+// Superadmin : ouvrir (ou non) le module aux administrateurs de l'organisation
+function AdminAccessSwitch() {
+  const { t } = useTranslation();
+  const [value, setValue] = useState(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { vehiclesAPI.settings().then((r) => setValue(!!r.data.data.adminAccess)).catch(() => setValue(false)); }, []);
+  if (value === null) return null;
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      const r = await vehiclesAPI.updateSettings({ adminAccess: !value });
+      setValue(!!r.data.data.adminAccess);
+      toast.success(r.data.data.adminAccess ? t('Les administrateurs ont maintenant accès au parc véhicules.') : t('Le parc véhicules est retiré aux administrateurs.'));
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('Erreur serveur.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="ged-card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', marginBottom: 16, flexWrap: 'wrap' }}>
+      <ShieldCheck size={18} color="var(--brand)" />
+      <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{t('Accès des administrateurs')}</div>
+        <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
+          {value
+            ? t('Les administrateurs voient et gèrent le parc véhicules (fiches, check-list, tableau de bord).')
+            : t('Seuls vous (superadmin), le chef sécurité logistique et les responsables des véhicules y ont accès.')}
+        </div>
+      </div>
+      <button type="button" role="switch" aria-checked={value} aria-label={t('Accès des administrateurs')} onClick={toggle} disabled={saving}
+        style={{ width: 46, height: 26, borderRadius: 999, border: 'none', cursor: saving ? 'wait' : 'pointer', padding: 3, background: value ? 'var(--brand)' : 'var(--surface-3)', display: 'flex', justifyContent: value ? 'flex-end' : 'flex-start', transition: 'background .15s' }}>
+        <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+      </button>
+    </div>
+  );
+}
 
 export default function ParcVehicules() {
   const { t } = useTranslation();
@@ -52,6 +91,8 @@ export default function ParcVehicules() {
         <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--fg)', margin: 0 }}>{t('Parc véhicules')}</h1>
         <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>{t('Contrôle des ambulances avant et après chaque mission : véhicule par le chauffeur, matériel médical par l\'infirmier.')}</div>
       </div>
+
+      {fleet?.superAdmin && <AdminAccessSwitch />}
 
       <div role="tablist" style={{ display: 'flex', gap: 4, marginBottom: 16, overflowX: 'auto', borderBottom: '1px solid var(--border)' }}>
         {tabs.map(({ key, label, icon: Icon }) => (
