@@ -7,13 +7,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader, ShieldCheck } from 'lucide-react';
+import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader, ShieldCheck, Gauge } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { vehiclesAPI } from '../services/api';
 import VehicleChecksTab from '../components/vehicles/VehicleChecksTab';
 import FleetDashboard from '../components/vehicles/FleetDashboard';
 import VehiclesAdmin from '../components/vehicles/VehiclesAdmin';
 import ChecklistEditor from '../components/vehicles/ChecklistEditor';
+import FleetOverview from '../components/vehicles/FleetOverview';
+import VehicleDetail from '../components/vehicles/VehicleDetail';
 
 // Superadmin : ouvrir (ou non) le module aux administrateurs de l'organisation
 function AdminAccessSwitch() {
@@ -59,6 +61,9 @@ export default function ParcVehicules() {
   const [fleet, setFleet] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Fiche véhicule ouverte (?tab=suivi&vehicle=… depuis une alerte d'échéance)
+  const [detail, setDetail] = useState(() => (params.get('tab') === 'suivi' && params.get('vehicle') ? { id: params.get('vehicle'), tab: 'echeances' } : null));
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadVehicles = useCallback((f = fleet) => {
     setLoading(true);
@@ -74,9 +79,11 @@ export default function ParcVehicules() {
   }, []);
 
   const canManageAny = fleet?.canCreate || vehicles.some((v) => v.canManage);
+  const detailVehicle = detail ? vehicles.find((v) => v.id === detail.id) : null;
   const tabs = [
     { key: 'controles', label: t('Contrôles'), icon: ClipboardCheck, show: true },
     { key: 'tableau', label: t('Tableau de bord'), icon: LayoutDashboard, show: !!fleet?.canDashboard },
+    { key: 'suivi', label: t('Suivi du parc'), icon: Gauge, show: canManageAny },
     { key: 'vehicules', label: t('Véhicules'), icon: Truck, show: canManageAny },
     { key: 'checklist', label: t('Check-list'), icon: ListChecks, show: canManageAny },
   ].filter((x) => x.show);
@@ -89,7 +96,7 @@ export default function ParcVehicules() {
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '8px 4px 40px' }}>
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--fg)', margin: 0 }}>{t('Parc véhicules')}</h1>
-        <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>{t('Contrôle des ambulances avant et après chaque mission : véhicule par le chauffeur, matériel médical par l\'infirmier.')}</div>
+        <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>{t('Contrôle des véhicules avant et après chaque sortie, carnet de bord, carburant, entretien et échéances.')}</div>
       </div>
 
       {fleet?.superAdmin && <AdminAccessSwitch />}
@@ -105,9 +112,14 @@ export default function ParcVehicules() {
         ))}
       </div>
 
-      {tab === 'controles' && <VehicleChecksTab vehicles={vehicles.filter((v) => v.isActive)} loading={loading} onChanged={() => loadVehicles()} initialVehicleId={params.get('vehicle')} />}
+      {tab === 'suivi' && <FleetOverview refreshKey={refreshKey} onOpenVehicle={(id, sub) => setDetail({ id, tab: sub })} />}
+      {tab === 'controles' && <VehicleChecksTab vehicles={vehicles.filter((v) => v.isActive)} loading={loading} onChanged={() => loadVehicles()} initialVehicleId={params.get('tab') === 'suivi' ? null : params.get('vehicle')} onOpenDetail={(id) => setDetail({ id })} />}
       {tab === 'tableau' && <FleetDashboard onVehiclesChanged={() => loadVehicles()} />}
-      {tab === 'vehicules' && <VehiclesAdmin vehicles={vehicles} fleet={fleet} onChanged={() => loadVehicles()} />}
+      {tab === 'vehicules' && <VehiclesAdmin vehicles={vehicles} fleet={fleet} onChanged={() => loadVehicles()} onOpen={(id) => setDetail({ id })} />}
+      {detailVehicle && (
+        <VehicleDetail key={detailVehicle.id} vehicle={detailVehicle} initialTab={detail.tab}
+          onClose={() => setDetail(null)} onChanged={() => { loadVehicles(); setRefreshKey((k) => k + 1); }} />
+      )}
       {tab === 'checklist' && <ChecklistEditor />}
     </div>
   );

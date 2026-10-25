@@ -12,12 +12,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
 import {
-  Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck,
+  Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline,
   Document, ServiceMember, Service, Employee, Tenant, TenantSettings, AuditLog,
 } from '../models/index.js';
 import { getUserPosteCodes, getPosteHolders } from '../utils/posteResolver.js';
 import {
-  DEFAULT_AMBULANCE_SECTIONS, sanitizeSections, evaluateAnswers, completionPct, completionLevel,
+  DEFAULT_AMBULANCE_SECTIONS, DEFAULT_SERVICE_SECTIONS, DEFAULT_DEADLINES, sanitizeSections, evaluateAnswers, completionPct, completionLevel,
 } from '../utils/vehicleChecklist.js';
 import { buildVehicleCheckPdf } from '../utils/vehicleCheckPdf.js';
 import { parseSignaturePng } from './manualSignatureController.js';
@@ -49,7 +49,7 @@ async function chauffeursServiceId() {
   return chauffeursServiceCache.id;
 }
 
-async function fleetAccess(user) {
+export async function fleetAccess(user) {
   const [posteCodes, memberships, chauffeursId, adminOk] = await Promise.all([
     getUserPosteCodes(user.id),
     ServiceMember.findAll({ where: { userId: user.id, isActive: true }, attributes: ['serviceId'] }),
@@ -66,25 +66,29 @@ async function fleetAccess(user) {
   };
 }
 
-const canManage = (acc, v) => acc.fleetManager || (!!v.managerPosteCode && acc.posteCodes.includes(v.managerPosteCode));
+export const canManage = (acc, v) => acc.fleetManager || (!!v.managerPosteCode && acc.posteCodes.includes(v.managerPosteCode));
 const inCrew = (acc, mission) => (mission?.crew || []).some((c) => c.userId === acc.user.id);
-const canCheck = (acc, v, mission) => canManage(acc, v) || (!!v.serviceId && acc.serviceIds.includes(v.serviceId)) || acc.chauffeur || inCrew(acc, mission);
+export const canCheck = (acc, v, mission) => canManage(acc, v) || (!!v.serviceId && acc.serviceIds.includes(v.serviceId)) || acc.chauffeur || inCrew(acc, mission);
 
 // ── Check-list ───────────────────────────────────────────────────────────────
-async function ensureDefaultTemplate(userId = null) {
-  let tpl = await VehicleChecklistTemplate.findOne({ where: { vehicleType: 'ambulance', isActive: true }, order: [['createdAt', 'ASC']] });
+// Check-list par type : ambulance (véhicule + matériel médical) ou véhicule de service
+const templateType = (vehicleType) => (vehicleType === 'ambulance' ? 'ambulance' : 'service');
+async function ensureDefaultTemplate(type = 'ambulance', userId = null) {
+  let tpl = await VehicleChecklistTemplate.findOne({ where: { vehicleType: type, isActive: true }, order: [['createdAt', 'ASC']] });
   if (!tpl) {
-    tpl = await VehicleChecklistTemplate.create({ name: 'Check-list ambulance', vehicleType: 'ambulance', sections: DEFAULT_AMBULANCE_SECTIONS, updatedBy: userId });
+    tpl = type === 'ambulance'
+      ? await VehicleChecklistTemplate.create({ name: 'Check-list ambulance', vehicleType: 'ambulance', sections: DEFAULT_AMBULANCE_SECTIONS, updatedBy: userId })
+      : await VehicleChecklistTemplate.create({ name: 'Check-list véhicule de service', vehicleType: 'service', sections: DEFAULT_SERVICE_SECTIONS, updatedBy: userId });
   }
   return tpl;
 }
 
-async function templateFor(vehicle) {
+export async function templateFor(vehicle) {
   if (vehicle.checklistTemplateId) {
     const tpl = await VehicleChecklistTemplate.findByPk(vehicle.checklistTemplateId);
     if (tpl) return tpl;
   }
-  return ensureDefaultTemplate();
+  return ensureDefaultTemplate(templateType(vehicle.vehicleType));
 }
 
 // ── État des contrôles ───────────────────────────────────────────────────────
@@ -118,6 +122,7 @@ async function serializeVehicle(v, acc, { withState = true } = {}) {
     id: v.id, label: v.label, immatriculation: v.immatriculation, vehicleType: v.vehicleType,
     serviceId: v.serviceId, managerPosteCode: v.managerPosteCode, checklistTemplateId: v.checklistTemplateId,
     status: v.status, unavailableReason: v.unavailableReason, mileage: v.mileage, notes: v.notes, isActive: v.isActive,
+    brand: v.brand, model: v.model, year: v.year, fuelType: v.fuelType, vin: v.vin,
   };
   if (!withState) return base;
   const [template, mission] = await Promise.all([templateFor(v), activeMissionOf(v.id)]);
@@ -284,7 +289,7 @@ export const getMyFleetAccess = async (req, res) => {
 export const listVehicles = async (req, res) => {
   try {
     const acc = await fleetAccess(req.user);
-    await ensureDefaultTemplate(req.user.id);
+    await ensureDefaultTemplate('ambulance', req.user.id);
     const vehicles = await Vehicle.findAll({ where: acc.fleetManager && req.query.all === '1' ? {} : { isActive: true }, order: [['label', 'ASC']] });
     const out = [];
     for (const v of vehicles) {
@@ -322,6 +327,11 @@ const cleanVehicle = (b = {}) => {
   if (b.mileage !== undefined) out.mileage = b.mileage === '' || b.mileage === null ? null : Math.max(0, Math.round(Number(b.mileage) || 0));
   if (b.notes !== undefined) out.notes = String(b.notes || '').slice(0, 2000) || null;
   if (b.isActive !== undefined) out.isActive = !!b.isActive;
+  if (b.brand !== undefined) out.brand = String(b.brand || '').trim().slice(0, 60) || null;
+  if (b.model !== undefined) out.model = String(b.model || '').trim().slice(0, 60) || null;
+  if (b.year !== undefined) { const y = Math.round(Number(b.year)); out.year = y >= 1950 && y <= 2100 ? y : null; }
+  if (b.fuelType !== undefined) out.fuelType = ['diesel', 'essence', 'autre'].includes(b.fuelType) ? b.fuelType : null;
+  if (b.vin !== undefined) out.vin = String(b.vin || '').toUpperCase().trim().slice(0, 40) || null;
   return out;
 };
 
@@ -340,6 +350,8 @@ export const createVehicle = async (req, res) => {
     }
     if (isAmbulance && data.managerPosteCode === undefined) data.managerPosteCode = AMBULANCE_MANAGER_POSTE;
     const v = await Vehicle.create({ ...data, status: 'disponible' });
+    // Échéances habituelles (dates à renseigner par le parc)
+    await VehicleDeadline.bulkCreate(DEFAULT_DEADLINES.map((d) => ({ ...d, vehicleId: v.id, tenantId: v.tenantId })));
     res.status(201).json({ success: true, data: await serializeVehicle(v, acc) });
   } catch (error) {
     console.error('Parc véhicules création :', error);
@@ -389,7 +401,8 @@ export const setVehicleStatus = async (req, res) => {
 // GET /api/vehicles/templates
 export const listTemplates = async (req, res) => {
   try {
-    await ensureDefaultTemplate(req.user.id);
+    await ensureDefaultTemplate('ambulance', req.user.id);
+    await ensureDefaultTemplate('service', req.user.id);
     const rows = await VehicleChecklistTemplate.findAll({ where: { isActive: true }, order: [['createdAt', 'ASC']] });
     res.json({ success: true, data: rows });
   } catch (error) {
@@ -525,8 +538,14 @@ export const submitCheck = async (req, res) => {
     // Sortie urgente : pas encore d'ordre de mission → mission créée ici, rattachée à l'OM plus tard
     const now = new Date();
     if (!mission) {
+      // Ambulance : sortie urgente, rattachée à l'OM RO SAU créé ensuite ;
+      // autre véhicule : simple sortie (carnet de bord), avec sa destination
+      const isAmbulance = v.vehicleType === 'ambulance';
+      const destination = String(req.body?.destination || '').trim().slice(0, 255) || null;
       mission = await VehicleMission.create({
-        vehicleId: v.id, status: 'planifiee', urgent: true, title: 'Sortie urgente (ordre de mission à venir)',
+        vehicleId: v.id, status: 'planifiee', urgent: isAmbulance,
+        title: isAmbulance ? 'Sortie urgente (ordre de mission à venir)' : `Sortie${destination ? ` — ${destination}` : ''}`,
+        destination,
         crew: [{ userId: req.user.id, name: userName(req.user), role: section.role || null }], createdBy: req.user.id,
       });
     } else if (!inCrew(acc, mission)) {

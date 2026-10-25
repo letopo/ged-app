@@ -64,6 +64,27 @@ export const DEFAULT_AMBULANCE_SECTIONS = [
   },
 ];
 
+// Véhicule de service (pas de matériel médical) : une seule section, le conducteur
+export const DEFAULT_SERVICE_SECTIONS = [
+  {
+    key: 'vehicule',
+    label: 'Véhicule',
+    role: 'Conducteur',
+    askMileage: true,
+    items: DEFAULT_AMBULANCE_SECTIONS[0].items
+      .filter((it) => !['gyrophare', 'proprete'].includes(it.id))
+      .concat([item('proprete_int', 'Propreté intérieure'), item('carrosserie', 'Carrosserie (rayures, chocs)')]),
+  },
+];
+
+// Échéances créées avec chaque véhicule (dates à renseigner)
+export const DEFAULT_DEADLINES = [
+  { kind: 'assurance', label: 'Assurance', intervalMonths: 12 },
+  { kind: 'visite_technique', label: 'Visite technique', intervalMonths: 12 },
+  { kind: 'vidange', label: 'Vidange', intervalKm: 5000, intervalMonths: 6 },
+  { kind: 'extincteur', label: 'Extincteur (contrôle)', intervalMonths: 12 },
+];
+
 export const ANSWER_LABELS = { ok: 'OK', ko: 'Pas OK', absent: 'Absent' };
 
 /** Nettoie les sections reçues de l'interface (modèle de check-list). */

@@ -5,7 +5,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Loader, X, CheckCircle2, Circle, FileText, ArrowUpRight, ArrowDownLeft, Truck } from 'lucide-react';
+import { Loader, X, CheckCircle2, Circle, FileText, ArrowUpRight, ArrowDownLeft, Truck, Fuel, Gauge } from 'lucide-react';
+import { FuelForm } from './fleetForms';
 import { vehiclesAPI } from '../../services/api';
 import VehicleCheckForm from './VehicleCheckForm';
 import { LEVELS, STATUS, fmtDateTime, openCheckPdf } from './fleetUi';
@@ -32,10 +33,11 @@ export function StatusBadge({ status, reason }) {
 }
 
 // Contrôles d'une ambulance : départ / retour, une ligne par section
-function VehiclePanel({ vehicleId, onClose, onChanged }) {
+function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
   const { t } = useTranslation();
   const [state, setState] = useState(null);
   const [form, setForm] = useState(null); // { phase, section, mission }
+  const [fuel, setFuel] = useState(false);
 
   const load = useCallback(() => {
     vehiclesAPI.state(vehicleId).then((r) => setState(r.data.data)).catch((err) => { toast.error(err.response?.data?.message || t('Erreur serveur.')); onClose(); });
@@ -64,7 +66,7 @@ function VehiclePanel({ vehicleId, onClose, onChanged }) {
           <Icon size={16} color={phase === 'depart' ? '#2563eb' : '#16a34a'} /> {phase === 'depart' ? t('Départ') : t('Retour')}
         </div>
         <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 10 }}>
-          {disabledReason || (target?.title || (phase === 'depart' ? t('Sortie urgente (l\'ordre de mission sera rattaché ensuite)') : ''))}
+          {disabledReason || (target?.title || (phase === 'depart' ? (vehicle.vehicleType === 'ambulance' ? t('Sortie urgente (l\'ordre de mission sera rattaché ensuite)') : t('Nouvelle sortie')) : ''))}
         </div>
         {!disabledReason && sections.map((s) => {
           const done = target ? checkOf(target.id, phase, s.key) : null;
@@ -101,6 +103,9 @@ function VehiclePanel({ vehicleId, onClose, onChanged }) {
   // L'écran de contrôle est rendu À CÔTÉ du panneau, pas dedans : avec les
   // portails React, un clic dans le formulaire remonterait jusqu'au fond du
   // panneau (onClick = fermer) et fermerait tout.
+  if (fuel) {
+    return <FuelForm vehicle={vehicle} onClose={() => setFuel(false)} onDone={() => { setFuel(false); load(); onChanged?.(); }} />;
+  }
   if (form) {
     return (
       <VehicleCheckForm vehicle={vehicle} phase={form.phase} section={form.section} mission={form.mission}
@@ -126,6 +131,16 @@ function VehiclePanel({ vehicleId, onClose, onChanged }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {phaseBlock('depart', departMission)}
           {phaseBlock('retour', retourMission)}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setFuel(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              <Fuel size={15} /> {t('Ajouter un plein')}
+            </button>
+            {onOpenDetail && (
+              <button type="button" onClick={() => onOpenDetail(vehicle.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <Gauge size={15} /> {t('Fiche du véhicule')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>,
@@ -133,7 +148,7 @@ function VehiclePanel({ vehicleId, onClose, onChanged }) {
   );
 }
 
-export default function VehicleChecksTab({ vehicles, loading, onChanged, initialVehicleId }) {
+export default function VehicleChecksTab({ vehicles, loading, onChanged, initialVehicleId, onOpenDetail }) {
   const { t } = useTranslation();
   const [openId, setOpenId] = useState(initialVehicleId || null);
   const closePanel = useCallback(() => setOpenId(null), []);
@@ -169,7 +184,7 @@ export default function VehicleChecksTab({ vehicles, loading, onChanged, initial
           </button>
         ))}
       </div>
-      {openId && <VehiclePanel vehicleId={openId} onClose={closePanel} onChanged={onChanged} />}
+      {openId && <VehiclePanel vehicleId={openId} onClose={closePanel} onChanged={onChanged} onOpenDetail={onOpenDetail ? (id) => { setOpenId(null); onOpenDetail(id); } : null} />}
     </>
   );
 }

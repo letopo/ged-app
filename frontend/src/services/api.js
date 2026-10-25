@@ -245,6 +245,19 @@ export const vehiclesAPI = {
   check: (id) => api.get(`/vehicles/checks/${id}`),
   checkPdf: (id) => api.get(`/vehicles/checks/${id}/pdf`, { responseType: 'blob' }),
   cancelMission: (id) => api.post(`/vehicles/missions/${id}/cancel`),
+  // Étape 3 : suivi du parc
+  overview: () => api.get('/vehicles/overview'),
+  details: (id) => api.get(`/vehicles/${id}/details`),
+  uploadAttachment: (file) => { const fd = new FormData(); fd.append('file', file, file.name || 'piece.jpg'); return api.post('/vehicles/attachments', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); },
+  createDeadline: (id, data) => api.post(`/vehicles/${id}/deadlines`, data),
+  updateDeadline: (id, did, data) => api.put(`/vehicles/${id}/deadlines/${did}`, data),
+  deleteDeadline: (id, did) => api.delete(`/vehicles/${id}/deadlines/${did}`),
+  completeDeadline: (id, did, data) => api.post(`/vehicles/${id}/deadlines/${did}/done`, data),
+  addFuel: (id, data) => api.post(`/vehicles/${id}/fuel`, data),
+  deleteFuel: (id, fid) => api.delete(`/vehicles/${id}/fuel/${fid}`),
+  createMaintenance: (id, data) => api.post(`/vehicles/${id}/maintenances`, data),
+  updateMaintenance: (id, mid, data) => api.put(`/vehicles/${id}/maintenances/${mid}`, data),
+  deleteMaintenance: (id, mid) => api.delete(`/vehicles/${id}/maintenances/${mid}`),
 };
 
 export const documentsAPI = {

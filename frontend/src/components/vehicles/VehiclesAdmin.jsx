@@ -8,9 +8,9 @@ import { Plus, Pencil, X, Truck } from 'lucide-react';
 import { vehiclesAPI, servicesAPI } from '../../services/api';
 import { StatusBadge, ReadinessBadge } from './VehicleChecksTab';
 
-const EMPTY = { label: '', immatriculation: '', vehicleType: 'ambulance', serviceId: '', mileage: '', notes: '', isActive: true, managerPosteCode: 'chef_pole_ro_sau' };
+const EMPTY = { label: '', immatriculation: '', vehicleType: 'ambulance', serviceId: '', mileage: '', notes: '', isActive: true, managerPosteCode: 'chef_pole_ro_sau', brand: '', model: '', year: '', fuelType: '', vin: '' };
 
-export default function VehiclesAdmin({ vehicles, fleet, onChanged }) {
+export default function VehiclesAdmin({ vehicles, fleet, onChanged, onOpen }) {
   const { t } = useTranslation();
   const [services, setServices] = useState([]);
   const [edit, setEdit] = useState(null); // objet en cours d'édition
@@ -23,7 +23,7 @@ export default function VehiclesAdmin({ vehicles, fleet, onChanged }) {
       const sau = services.find((s) => s.name === 'SAU');
       setEdit({ ...EMPTY, serviceId: sau?.id || '' });
     } else {
-      setEdit({ ...EMPTY, ...v, serviceId: v.serviceId || '', mileage: v.mileage ?? '', notes: v.notes || '', managerPosteCode: v.managerPosteCode || '' });
+      setEdit({ ...EMPTY, ...v, serviceId: v.serviceId || '', mileage: v.mileage ?? '', notes: v.notes || '', managerPosteCode: v.managerPosteCode || '', brand: v.brand || '', model: v.model || '', year: v.year || '', fuelType: v.fuelType || '', vin: v.vin || '' });
     }
   };
 
@@ -62,7 +62,7 @@ export default function VehiclesAdmin({ vehicles, fleet, onChanged }) {
         {vehicles.filter((v) => v.canManage).map((v) => (
           <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: '1px solid var(--surface-3)', flexWrap: 'wrap', opacity: v.isActive ? 1 : 0.55 }}>
             <Truck size={18} color="var(--brand)" />
-            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <div style={{ flex: '1 1 200px', minWidth: 0, cursor: onOpen ? 'pointer' : 'default' }} onClick={() => onOpen?.(v.id)} title={t('Ouvrir la fiche du véhicule')}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>{v.label} {!v.isActive && <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>({t('retiré du parc')})</span>}</div>
               <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
                 {v.immatriculation} · {typeLabel[v.vehicleType] || v.vehicleType}
@@ -107,6 +107,19 @@ export default function VehiclesAdmin({ vehicles, fleet, onChanged }) {
                 </select>
               </label>
             )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <label style={{ flex: 1 }}><span style={label}>{t('Marque')}</span><input value={edit.brand} onChange={(e) => setEdit({ ...edit, brand: e.target.value })} placeholder="Toyota" style={field} /></label>
+              <label style={{ flex: 1 }}><span style={label}>{t('Modèle')}</span><input value={edit.model} onChange={(e) => setEdit({ ...edit, model: e.target.value })} placeholder="Hiace" style={field} /></label>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <label style={{ flex: 1 }}><span style={label}>{t('Année')}</span><input type="number" min="1950" max="2100" value={edit.year} onChange={(e) => setEdit({ ...edit, year: e.target.value })} style={field} /></label>
+              <label style={{ flex: 1 }}><span style={label}>{t('Carburant')}</span>
+                <select value={edit.fuelType} onChange={(e) => setEdit({ ...edit, fuelType: e.target.value })} style={field}>
+                  <option value="">—</option><option value="diesel">{t('Diesel')}</option><option value="essence">{t('Essence')}</option><option value="autre">{t('Autre')}</option>
+                </select>
+              </label>
+            </div>
+            <label><span style={label}>{t('N° de châssis')}</span><input value={edit.vin} onChange={(e) => setEdit({ ...edit, vin: e.target.value.toUpperCase() })} style={field} /></label>
             <label><span style={label}>{t('Kilométrage')}</span><input type="number" min="0" value={edit.mileage} onChange={(e) => setEdit({ ...edit, mileage: e.target.value })} style={field} /></label>
             <label><span style={label}>{t('Notes')}</span><textarea value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} rows={2} style={{ ...field, height: 'auto', padding: 10 }} /></label>
             {edit.id && (
