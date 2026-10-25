@@ -41,6 +41,8 @@ export default function VehicleCheckForm({ vehicle, phase, section, mission, onC
   const [answers, setAnswers] = useState({}); // itemId → { status, value, comment, photoPath, photoUrl }
   const [mileage, setMileage] = useState('');
   const [comment, setComment] = useState('');
+  const [destination, setDestination] = useState('');
+  const newTrip = phase === 'depart' && !mission && vehicle.vehicleType !== 'ambulance';
   const [step, setStep] = useState('form'); // form | sign | saving
   const [uploading, setUploading] = useState(null);
   const fileRef = useRef(null);
@@ -83,7 +85,7 @@ export default function VehicleCheckForm({ vehicle, phase, section, mission, onC
         phase, sectionKey: section.key, missionId: mission?.id || undefined,
         answers: items.map((it) => ({ itemId: it.id, status: answers[it.id]?.status || null, value: answers[it.id]?.value ?? null, comment: answers[it.id]?.comment || null, photoPath: answers[it.id]?.photoPath || null })),
         mileage: section.askMileage ? Number(mileage) : undefined,
-        comment, signature: png,
+        comment, signature: png, destination: newTrip ? destination : undefined,
       });
       toast.success(t('Contrôle enregistré.'));
       onDone?.();
@@ -123,10 +125,19 @@ export default function VehicleCheckForm({ vehicle, phase, section, mission, onC
           <div style={{ fontSize: 12, color: 'var(--fg-muted)', padding: '8px 10px', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)' }}>
             {mission?.title
               ? <>{t('Mission')} : <strong style={{ color: 'var(--fg)' }}>{mission.title}</strong></>
-              : phase === 'depart'
+              : newTrip
+                ? t('Nouvelle sortie : indiquez la destination ci-dessous (carnet de bord).')
+                : phase === 'depart'
                 ? t('Aucun ordre de mission pour l\'instant : ce contrôle ouvre une sortie urgente, qui sera rattachée à l\'ordre de mission dès sa création.')
                 : t('Retour de mission')}
           </div>
+
+          {newTrip && (
+            <label style={{ display: 'block', padding: 12, borderRadius: 'var(--radius-3)', background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--fg)', marginBottom: 6 }}>{t('Destination / motif de la sortie')}</span>
+              <input value={destination} onChange={(e) => setDestination(e.target.value)} maxLength={255} placeholder={t('Ex : Douala — achats pharmacie')} style={field} />
+            </label>
+          )}
 
           {section.askMileage && (
             <label style={{ display: 'block', padding: 12, borderRadius: 'var(--radius-3)', background: 'var(--surface)', border: `1px solid ${mileageOk ? 'var(--border)' : '#f59e0b'}` }}>

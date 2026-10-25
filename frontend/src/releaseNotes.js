@@ -570,6 +570,19 @@ const RELEASE_NOTES = [
       'Demande de permission : le délai est désormais de 2 jours ouvrables (le week-end ne compte pas).',
     ],
   },
+  {
+    id: '2026-10-25-parc-vehicules-etape3',
+    date: '2026-10-25',
+    target: '/vehicules?tab=suivi',
+    title: 'Parc véhicules : tout le parc, carnet de bord, carburant, entretien et échéances',
+    items: [
+      'Véhicules de service avec leur propre check-list ; chaque sortie (destination, km départ / retour) alimente le carnet de bord.',
+      'Fiche véhicule : résumé, carnet de bord, pleins de carburant (consommation en L/100 km), entretiens et réparations (coût, garage, facture), échéances.',
+      'Échéances (assurance, visite technique, vidange, extincteur…) par date et/ou kilométrage, avec alertes à J-30, J-7, 1 000 km et au dépassement ; « Fait » calcule la suivante.',
+      'Onglet « Suivi du parc » pour le chef sécurité logistique : véhicules disponibles / en mission / indisponibles, échéances à traiter, coûts carburant et entretien.',
+      'Les conducteurs peuvent ajouter un plein (avec photo du ticket) depuis l’écran de contrôle.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

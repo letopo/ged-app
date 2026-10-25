@@ -7,15 +7,39 @@
 // et annulation des missions dont l'ordre de mission est rejeté ou supprimé.
 import { Op } from 'sequelize';
 import { tenantNamespace } from '../config/database.js';
-import { Tenant, Vehicle, VehicleMission, VehicleCheck, Document, VehicleChecklistTemplate } from '../models/index.js';
-import { notifyVehicleManagers, notifyCrew, sectionsForRole } from '../controllers/vehicleController.js';
+import { Tenant, Vehicle, VehicleMission, VehicleCheck, Document, VehicleDeadline } from '../models/index.js';
+import { notifyVehicleManagers, notifyCrew, sectionsForRole, templateFor } from '../controllers/vehicleController.js';
+import { deadlineStatus } from '../controllers/vehicleFleetController.js';
 
 const fmt = (d) => new Date(d).toLocaleString('fr-FR', { timeZone: 'Africa/Douala', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 async function sectionsOf(vehicle) {
-  const tpl = (vehicle.checklistTemplateId && await VehicleChecklistTemplate.findByPk(vehicle.checklistTemplateId))
-    || await VehicleChecklistTemplate.findOne({ where: { vehicleType: vehicle.vehicleType, isActive: true }, order: [['createdAt', 'ASC']] });
-  return tpl?.sections || [];
+  return (await templateFor(vehicle))?.sections || [];
+}
+
+// Échéances (assurance, visite technique, vidange…) : alerte à J-30, J-7, au
+// dépassement, et à 1 000 km / au dépassement du kilométrage — une fois chacune.
+async function deadlineAlerts(tenantId) {
+  const deadlines = await VehicleDeadline.findAll({ where: { tenantId, [Op.or]: [{ dueDate: { [Op.ne]: null } }, { dueMileage: { [Op.ne]: null } }] } });
+  for (const d of deadlines) {
+    const vehicle = await Vehicle.findByPk(d.vehicleId);
+    if (!vehicle?.isActive) continue;
+    const st = deadlineStatus(d, vehicle.mileage);
+    let key = null;
+    let when = '';
+    if (st.status === 'depassee') { key = 'depassee'; when = 'est dépassée'; }
+    else if (st.kmLeft !== null && st.kmLeft <= 1000) { key = 'km1000'; when = `arrive dans ${st.kmLeft} km`; }
+    else if (st.days !== null && st.days <= 7) { key = 'j7'; when = `arrive dans ${st.days} jour(s)`; }
+    else if (st.days !== null && st.days <= 30) { key = 'j30'; when = `arrive dans ${st.days} jours`; }
+    if (!key || d.alertsSent?.[key]) continue;
+    const due = [d.dueDate && `le ${d.dueDate.split('-').reverse().join('/')}`, d.dueMileage && `à ${d.dueMileage.toLocaleString('fr-FR')} km`].filter(Boolean).join(' ou ');
+    await notifyVehicleManagers(vehicle, {
+      title: `${key === 'depassee' ? '🚨' : '📅'} ${vehicle.label} : ${d.label} ${when}`,
+      body: `${vehicle.label} (${vehicle.immatriculation}) — ${d.label} prévue ${due}.`,
+      url: `/vehicules?tab=suivi&vehicle=${vehicle.id}`,
+    });
+    await d.update({ alertsSent: { ...(d.alertsSent || {}), [key]: new Date().toISOString() } });
+  }
 }
 
 // Rappels à l'équipage : sections encore à faire pour son rôle
@@ -48,6 +72,7 @@ async function checkTenant(tenantId) {
     tenantNamespace.set('tenantId', tenantId);
     const now = Date.now();
     await cancelOrphanedMissions(tenantId);
+    await deadlineAlerts(tenantId);
 
     // Rappels à l'équipage
     const toRemind = await VehicleMission.findAll({
