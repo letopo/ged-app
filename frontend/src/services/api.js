@@ -224,6 +224,25 @@ export const authAPI = {
 // ============================================
 // API pour les Documents
 // ============================================
+// Parc véhicules (ambulances RO SAU)
+export const vehiclesAPI = {
+  me: () => api.get('/vehicles/me'),
+  list: (params) => api.get('/vehicles', { params }),
+  options: (type = 'ambulance') => api.get('/vehicles/options', { params: { type } }),
+  create: (data) => api.post('/vehicles', data),
+  update: (id, data) => api.put(`/vehicles/${id}`, data),
+  setStatus: (id, status, reason) => api.patch(`/vehicles/${id}/status`, { status, reason }),
+  state: (id) => api.get(`/vehicles/${id}/state`),
+  templates: () => api.get('/vehicles/templates'),
+  updateTemplate: (id, data) => api.put(`/vehicles/templates/${id}`, data),
+  uploadPhoto: (file) => { const fd = new FormData(); fd.append('file', file, file.name || 'photo.jpg'); return api.post('/vehicles/check-photos', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); },
+  submitCheck: (id, data) => api.post(`/vehicles/${id}/checks`, data),
+  missions: (params) => api.get('/vehicles/missions', { params }),
+  check: (id) => api.get(`/vehicles/checks/${id}`),
+  checkPdf: (id) => api.get(`/vehicles/checks/${id}/pdf`, { responseType: 'blob' }),
+  cancelMission: (id) => api.post(`/vehicles/missions/${id}/cancel`),
+};
+
 export const documentsAPI = {
   getAll: (params) => api.get('/documents', { params }),
   getById: (id) => api.get(`/documents/${id}`),

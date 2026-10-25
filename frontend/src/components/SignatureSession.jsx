@@ -336,7 +336,7 @@ export const signButtonStyle = (primary, disabled) => ({
 });
 
 // Zone de signature plein écran (c'est le patient qui l'a en main)
-export function SignPadScreen({ signerName, onBack, onValidate, busy }) {
+export function SignPadScreen({ signerName, onBack, onValidate, busy, title, subtitle }) {
   const { t } = useTranslation();
   const padRef = useRef(null);
   const [ink, setInk] = useState(0);
@@ -354,9 +354,9 @@ export function SignPadScreen({ signerName, onBack, onValidate, busy }) {
   return (
     <div style={{ position: 'absolute', inset: 0, background: '#f4f5f8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 14 }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#1f2a52' }}>{t('Signez dans le cadre ci-dessous')}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#1f2a52' }}>{title || t('Signez dans le cadre ci-dessous')}</div>
         <div style={{ fontSize: 13, color: '#5b6275', marginTop: 4 }}>
-          {t('Lu et approuvé')} — {signerName}
+          {subtitle || `${t('Lu et approuvé')} — ${signerName}`}
         </div>
       </div>
       <div style={{ width: '100%', maxWidth: 900 }}>

@@ -4,6 +4,10 @@ import { canAccessSageBl } from './sageBlController.js';
 import { Op } from 'sequelize';
 import User from '../models/User.js';
 import { getUserPosteCodes } from '../utils/posteResolver.js';
+import { fleetModuleFlags } from './vehicleController.js';
+
+// Accès au module Parc véhicules (menu) : jamais bloquant pour la connexion
+const fleetFlagsSafe = (user) => fleetModuleFlags(user).catch(() => ({ hasModule: false }));
 import { getTenantSettings } from '../utils/tenantSettings.js';
 import { sendEmailOtp, EmailOtpError, maskEmail } from '../utils/emailOtp.js';
 
@@ -122,6 +126,7 @@ export const login = async (req, res, next) => {
     delete userResult.emailOtpHash;
     userResult.postes = await getUserPosteCodes(user.id);
     userResult.canSeeSageBl = await canAccessSageBl(userResult, req.tenantId);
+    userResult.fleet = await fleetFlagsSafe(user);
 
     // Audit login
     const { AuditLog } = await import('../models/index.js');
@@ -141,6 +146,7 @@ export const getProfile = async (req, res, next) => {
       const userObj = req.user?.toJSON ? req.user.toJSON() : { ...req.user };
       userObj.postes = await getUserPosteCodes(req.user.id); // ex: ['comptable']
       userObj.canSeeSageBl = await canAccessSageBl(userObj, req.tenantId);
+      userObj.fleet = await fleetFlagsSafe(req.user);
       res.json({ success: true, user: userObj });
     } catch (error) {
       next(error);

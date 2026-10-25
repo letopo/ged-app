@@ -11,7 +11,7 @@ import {
   ShoppingCart, Wrench, Stethoscope, Shield, Archive,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
-  MessageSquare, FileSpreadsheet, Sparkles,
+  MessageSquare, FileSpreadsheet, Sparkles, Ambulance,
 } from 'lucide-react';
 import { workflowAPI, tenantBrandingAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -135,6 +135,7 @@ const makeCanAccess = (user) => (item) => {
   if (item.phpOnly)         return isAdmin || user.role === 'agent_accueil_php';
   if (item.comptaOnly)      return isAdmin || (user.postes || []).includes('comptable');
   if (item.sageBlOnly)      return user.role === 'superadmin' || !!user.canSeeSageBl;
+  if (item.fleetOnly)       return !!user.fleet?.hasModule;
   return true;
 };
 
@@ -174,6 +175,9 @@ const buildOrgGroups = (t, user) => {
     { id: 'php', color: '#DC2626', icon: Stethoscope, label: t('Module PHP'), items: [
       { path: '/php',                icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
       { path: '/php/factures',       icon: Receipt,     label: t('Factures PHP'),       phpOnly: true },
+    ]},
+    { id: 'logistique', color: '#0284C7', icon: Ambulance, label: t('Logistique'), items: [
+      { path: '/vehicules',          icon: Ambulance,   label: t('Parc véhicules'),     fleetOnly: true },
     ]},
     { id: 'technique', color: '#EA580C', icon: Wrench, label: t('Technique'), items: [
       { path: '/kanban/MG',          icon: Kanban,      label: t('Suivi technique'),    kanbanOnly: true },
@@ -413,6 +417,7 @@ const ROUTE_CRUMBS = {
   '/compta':              ['Finances', 'Comptabilité'],
   '/kanban':              ['Outils', 'Suivi technique'],
   '/gmao':                ['Outils', 'GMAO'],
+  '/vehicules':           ['Logistique', 'Parc véhicules'],
   '/php':                 ['Module PHP'],
   '/php/factures':        ['Module PHP', 'Factures PHP'],
   '/sage-factures-php':   ['Factures PHP (Sage)'],

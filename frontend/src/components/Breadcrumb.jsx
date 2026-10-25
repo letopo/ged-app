@@ -20,6 +20,7 @@ const ROUTE_LABELS = {
   '/caisse':                     'Caisse',
   '/invoices':                   'Factures',
   '/gmao':                       'GMAO',
+  '/vehicules':                  'Parc véhicules',
   '/demandes-achat':             'Demandes d\'Achat',
   '/settings':                   'Paramètres',
   '/parametres/notifications':   'Notifications',
