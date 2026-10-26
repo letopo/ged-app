@@ -69,11 +69,7 @@ for (const [who, expected] of Object.entries(EXPECTED)) {
   });
 }
 
-// À CORRIGER (PR dédiée) : le filtre automatique par établissement (hook
-// beforeFind de config/database.js) ne s'applique pas — Sequelize ne renseigne
-// pas options.model avant ce hook. Les lectures ne sont isolées que là où le
-// code ajoute tenantId lui-même.
-test('un autre établissement ne voit rien', { todo: 'filtre tenant automatique inopérant (beforeFind)' }, async () => {
+test('un autre établissement ne voit rien', async () => {
   const other = makeFactory(await createTenant());
   const admin = await other.user({ role: 'admin' });
   await other.run(async () => {

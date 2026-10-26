@@ -1,4 +1,4 @@
-import { Sequelize } from 'sequelize';
+import { Sequelize, Op } from 'sequelize';
 import { createNamespace } from 'cls-hooked';
 import dotenv from 'dotenv';
 
@@ -20,21 +20,38 @@ const sequelize = new Sequelize({
   define: { timestamps: true, underscored: true }
 });
 
-// ── Hook global : injecte tenant_id dans tous les SELECT ──────────────────────
-sequelize.addHook('beforeFind', (options) => {
+// ── Hooks globaux : chaque requête reste dans l'établissement courant ────────
+// Dans une requête HTTP (ou une tâche lancée avec tenantNamespace.runPromise),
+// toute lecture, tout comptage et toute modification / suppression en masse
+// d'un modèle qui a un tenantId est limité à cet établissement.
+//  - Le modèle est `this` : Sequelize n'a pas encore renseigné options.model
+//    au moment de beforeFind (l'ancienne version s'y fiait et ne filtrait donc
+//    jamais rien).
+//  - Un tenantId passé explicitement est respecté.
+//  - Hors contexte (super-admin, socket, migrations), rien n'est ajouté.
+export function scopeToTenant(model, options, { columnNames = false } = {}) {
   const tenantId = tenantNamespace.get('tenantId');
-  if (!tenantId) return;
-
-  const model = options.model;
-  // Ne filtre que si le modèle possède un attribut tenantId
-  if (!model?.rawAttributes?.tenantId) return;
-
-  options.where = options.where || {};
-  // Ne pas écraser un tenantId explicitement passé (ex: super-admin)
-  if (options.where.tenantId === undefined) {
-    options.where.tenantId = tenantId;
+  const attr = model?.rawAttributes?.tenantId;
+  if (!tenantId || !attr) return;
+  // update / destroy en masse : Sequelize a déjà traduit les attributs en
+  // noms de colonnes avant le hook → il faut « tenant_id »
+  const key = columnNames ? (attr.field || 'tenantId') : 'tenantId';
+  const where = options.where;
+  if (where === undefined || where === null) {
+    options.where = { [key]: tenantId };
+  } else if (Object.getPrototypeOf(where) === Object.prototype) {
+    if (where.tenantId === undefined && where[key] === undefined) where[key] = tenantId;
+  } else {
+    // sequelize.where(...), literal… : on combine sans y toucher
+    options.where = { [Op.and]: [where, { [key]: tenantId }] };
   }
-});
+}
+for (const hook of ['beforeFind', 'beforeCount']) {
+  sequelize.addHook(hook, function tenantScope(options) { scopeToTenant(this, options); });
+}
+for (const hook of ['beforeBulkUpdate', 'beforeBulkDestroy']) {
+  sequelize.addHook(hook, function tenantScope(options) { scopeToTenant(this, options, { columnNames: true }); });
+}
 
 // ── Hook global : injecte tenant_id à la création ────────────────────────────
 // Doit tourner sur `beforeValidate` (pas `beforeCreate`) : Sequelize valide

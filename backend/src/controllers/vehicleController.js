@@ -43,19 +43,20 @@ const userName = (u) => `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u
 const fmtFr = (d) => new Date(d).toLocaleString('fr-FR', { timeZone: 'Africa/Douala', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 // ── Droits ───────────────────────────────────────────────────────────────────
-let chauffeursServiceCache = { at: 0, id: null };
-async function chauffeursServiceId() {
-  if (Date.now() - chauffeursServiceCache.at < 60_000) return chauffeursServiceCache.id;
-  const s = await Service.findOne({ where: { name: 'Chauffeurs' }, attributes: ['id'] });
-  chauffeursServiceCache = { at: Date.now(), id: s?.id || null };
-  return chauffeursServiceCache.id;
+const chauffeursServiceCache = new Map(); // tenantId → { at, id }
+async function chauffeursServiceId(tenantId) {
+  const hit = chauffeursServiceCache.get(tenantId);
+  if (hit && Date.now() - hit.at < 60_000) return hit.id;
+  const s = await Service.findOne({ where: { name: 'Chauffeurs', ...(tenantId ? { tenantId } : {}) }, attributes: ['id'] });
+  chauffeursServiceCache.set(tenantId, { at: Date.now(), id: s?.id || null });
+  return s?.id || null;
 }
 
 export async function fleetAccess(user) {
   const [posteCodes, memberships, chauffeursId, adminOk] = await Promise.all([
     getUserPosteCodes(user.id),
     ServiceMember.findAll({ where: { userId: user.id, isActive: true }, attributes: ['serviceId'] }),
-    chauffeursServiceId(),
+    chauffeursServiceId(user.tenantId),
     user.role === 'admin' ? adminsAllowed(user.tenantId) : Promise.resolve(false),
   ]);
   const serviceIds = memberships.map((m) => m.serviceId);
