@@ -50,7 +50,7 @@ function drawStrokes(ctx, strokes, scale, offsetX = 0, offsetY = 0) {
   }
 }
 
-const SignaturePad = forwardRef(function SignaturePad({ onChange, height = 260 }, ref) {
+const SignaturePad = forwardRef(function SignaturePad({ onChange, height = 260, bare = false }, ref) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const strokes = useRef([]);
@@ -162,7 +162,7 @@ const SignaturePad = forwardRef(function SignaturePad({ onChange, height = 260 }
   }));
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative', width: '100%', height, background: '#fff', borderRadius: 12, border: '1px solid #d6dae3', overflow: 'hidden', touchAction: 'none', userSelect: 'none' }}>
+    <div ref={wrapRef} style={{ position: 'relative', width: '100%', height, background: '#fff', borderRadius: bare ? 0 : 12, border: bare ? 'none' : '1px solid #d6dae3', overflow: 'hidden', touchAction: 'none', userSelect: 'none' }}>
       {/* Ligne d'appui, comme sur un formulaire papier */}
       <div style={{ position: 'absolute', left: '8%', right: '8%', bottom: '26%', borderBottom: '1.5px dashed #b8bfcc', pointerEvents: 'none' }} />
       <span style={{ position: 'absolute', left: '8%', bottom: 'calc(26% + 6px)', fontSize: 22, color: '#b8bfcc', pointerEvents: 'none' }}>✕</span>

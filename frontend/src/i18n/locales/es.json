@@ -2963,5 +2963,8 @@
   "Échéances dépassées": "Vencimientos superados",
   "Échéances à traiter": "Vencimientos pendientes",
   "à renseigner": "por completar",
-  "… ou tous les (km)": "… o cada (km)"
+  "… ou tous les (km)": "… o cada (km)",
+  "Signez sur la tablette graphique": "Firme en la tableta gráfica",
+  "Tablette graphique (USB)": "Tableta gráfica (USB)",
+  "Tablette sans écran branchée en USB (Huion, Wacom…) : la zone de signature passe en plein écran pour utiliser toute la surface de la tablette.": "Tableta sin pantalla conectada por USB (Huion, Wacom…): la zona de firma pasa a pantalla completa para usar toda la superficie de la tableta."
 }

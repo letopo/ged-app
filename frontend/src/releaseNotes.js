@@ -583,6 +583,16 @@ const RELEASE_NOTES = [
       'Les conducteurs peuvent ajouter un plein (avec photo du ticket) depuis l’écran de contrôle.',
     ],
   },
+  {
+    id: '2026-10-26-signature-tablette-graphique',
+    date: '2026-10-26',
+    target: '/documents',
+    title: 'Faire signer sur une tablette graphique USB',
+    items: [
+      'Dans « Faire signer », nouveau choix « Tablette graphique (USB) » pour les tablettes sans écran branchées sur le PC (Huion HS64, Wacom…) : la zone de signature passe en plein écran pour que le patient dispose de toute la surface de la tablette.',
+      'Le choix « Sur cet écran » reste disponible ; le dernier choix utilisé sur le poste est proposé en premier (touche Entrée).',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
