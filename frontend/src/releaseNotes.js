@@ -661,6 +661,17 @@ const RELEASE_NOTES = [
     access: isAdmin,
   },
   {
+    id: '2026-10-26-securite-discussion',
+    date: '2026-10-26',
+    target: 'app',
+    title: 'Discussion : conversations mieux protégées',
+    items: [
+      'Seuls les membres d’une conversation (ou un administrateur) peuvent y ajouter un collègue ; une conversation privée à deux reste à deux.',
+      'La discussion d’un document n’est accessible qu’aux personnes autorisées à lire ce document.',
+      'Une personne retirée d’une conversation cesse immédiatement de recevoir ses messages.',
+    ],
+  },
+  {
     id: '2026-10-26-securite-ajout-pages',
     date: '2026-10-26',
     target: 'app',

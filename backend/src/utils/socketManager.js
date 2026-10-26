@@ -172,10 +172,18 @@ export const initializeSocket = (server) => {
   // GESTIONNAIRES CHAT
   // ============================================
 
-  socket.on('chat:join', (conversationId) => {
-    if (typeof conversationId === 'string' && conversationId.length < 100) {
-      socket.join(`conv:${conversationId}`);
-    }
+  // Salle d'une conversation : réservée à ses membres, dans l'établissement de la session
+  socket.on('chat:join', async (conversationId) => {
+    if (typeof conversationId !== 'string' || conversationId.length >= 100) return;
+    try {
+      const { default: ChatMember } = await import('../models/ChatMember.js');
+      const { default: Conversation } = await import('../models/Conversation.js');
+      const [member, conv] = await Promise.all([
+        ChatMember.findOne({ where: { conversationId, userId } }),
+        Conversation.findOne({ where: { id: conversationId, tenantId: socket.tenantId ?? null } }),
+      ]);
+      if (member && conv) socket.join(`conv:${conversationId}`);
+    } catch { /* identifiant invalide : ignoré */ }
   });
 
   socket.on('chat:leave', (conversationId) => {
@@ -188,8 +196,9 @@ export const initializeSocket = (server) => {
     socket.emit('users:online', { userIds: Array.from(userSockets.keys()) });
   });
 
-  socket.on('chat:typing', ({ conversationId }) => {
-    if (typeof conversationId === 'string' && conversationId.length < 100) {
+  socket.on('chat:typing', ({ conversationId } = {}) => {
+    // Seulement dans une salle déjà rejointe (donc en tant que membre)
+    if (typeof conversationId === 'string' && conversationId.length < 100 && socket.rooms.has(`conv:${conversationId}`)) {
       socket.to(`conv:${conversationId}`).emit('chat:typing', {
         userId,
         conversationId,
