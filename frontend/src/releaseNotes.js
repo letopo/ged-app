@@ -639,6 +639,16 @@ const RELEASE_NOTES = [
     ],
     access: isAdmin,
   },
+  {
+    id: '2026-10-26-securite-ajout-pages',
+    date: '2026-10-26',
+    target: 'app',
+    title: 'Ajout de pages réservé au propriétaire',
+    items: [
+      'Ajouter des pages à un document modifie son fichier : seuls son propriétaire et les administrateurs peuvent le faire. Les autres personnes peuvent toujours le consulter.',
+      'Un document approuvé est verrouillé, comme un document signé.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

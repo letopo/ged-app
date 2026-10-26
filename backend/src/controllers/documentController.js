@@ -562,13 +562,18 @@ export const addPageToDocument = async (req, res) => {
       await cleanupUpload();
       return res.status(404).json({ success: false, message: 'Document original non trouvé.' });
     }
-    if (!(await hasDocumentReadAccess(document, req.user))) {
+    // Réécrit le fichier : même règle que la modification et la suppression
+    if (!['admin', 'superadmin'].includes(req.user.role) && document.userId !== req.user.id) {
       await cleanupUpload();
-      return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
+      return res.status(403).json({ success: false, message: 'Seul le propriétaire du document peut y ajouter des pages.' });
     }
     if (isManuallySigned(document)) {
       await cleanupUpload();
       return res.status(409).json({ success: false, message: 'Ce document est signé : il est verrouillé.' });
+    }
+    if (document.status === 'approved') {
+      await cleanupUpload();
+      return res.status(409).json({ success: false, message: 'Ce document est approuvé : il est verrouillé.' });
     }
 
     // Pages à ajouter : fichier envoyé depuis le PC, ou PDF d'un autre document de la GED
