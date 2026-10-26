@@ -1,5 +1,6 @@
-# Contrôles du serveur à chaque PR (docs/plan-typescript.md, étape 0) :
-# vérification des types, compilation src/ → dist/, tests.
+# Contrôles du serveur à chaque PR (docs/plan-typescript.md) : vérification
+# des types, compilation src/ → dist/, tests unitaires et d'intégration (base
+# PostgreSQL jetable, structure tirée de tests/fixtures/schema.sql).
 name: Serveur — types et tests
 
 on:
@@ -12,6 +13,17 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.5-alpine
+        env:
+          POSTGRES_PASSWORD: test
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DB_HOST: localhost
+      TEST_DB_PORT: 5432
     defaults:
       run:
         working-directory: backend
