@@ -651,6 +651,16 @@ const RELEASE_NOTES = [
     access: isAdmin,
   },
   {
+    id: '2026-10-26-securite-bornes',
+    date: '2026-10-26',
+    target: 'app',
+    title: 'Tablettes de signature : comptes autorisés',
+    items: [
+      'Seuls les comptes de guichet (caisse, accueil PHP, accueil), les administrateurs et les titulaires du poste « Borne de signature » (code borne_signature) peuvent servir de tablette de signature. Un autre compte voit « Tablette non autorisée ».',
+    ],
+    access: isAdmin,
+  },
+  {
     id: '2026-10-26-securite-ajout-pages',
     date: '2026-10-26',
     target: 'app',
