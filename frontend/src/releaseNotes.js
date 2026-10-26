@@ -618,6 +618,16 @@ const RELEASE_NOTES = [
     ],
     access: isAdmin,
   },
+  {
+    id: '2026-10-26-securite-roles',
+    date: '2026-10-26',
+    target: 'app',
+    title: 'Rôle super-administrateur protégé',
+    items: [
+      'Seul un super-administrateur peut attribuer le rôle « Super Administrateur », ou modifier, réinitialiser ou supprimer un tel compte.',
+    ],
+    access: isAdmin,
+  },
 ];
 
 export default RELEASE_NOTES;
