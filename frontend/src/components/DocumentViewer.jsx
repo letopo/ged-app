@@ -415,6 +415,7 @@ const DocumentViewer = ({
   const pendingDocs    = documents.filter(d => d.status === 'pending_validation');
   const listedDocs     = docListTab === 'pending' ? pendingDocs : documents;
   const isSigned       = !!doc.metadata?.manualSignature;
+  const canAddPages    = !isSigned && doc.status !== 'approved' && (isAdmin || doc.userId === user?.id);
   const inCircuit      = ['pending_validation', 'in_progress'].includes(doc.status) || wfSteps.some(w => ['pending', 'queued'].includes(w.status));
   const canSign        = !isFormResponse && !isSigned && !inCircuit && isSignableDocument(doc) && !isOfficeFile(doc.fileName || doc.filePath);
 
@@ -472,7 +473,7 @@ const DocumentViewer = ({
                 </span>
               )}
               <input type="file" ref={fileInputRef} onChange={onFileSelect} accept="application/pdf" style={{ display: 'none' }} />
-              {!isSigned && isPdfFile && (
+              {canAddPages && isPdfFile && (
                 <div style={{ position: 'relative' }}>
                   <button onClick={() => setShowAddMenu(v => !v)} title={t('Ajouter une page PDF')} aria-haspopup="menu" aria-expanded={showAddMenu}
                     style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 32, width: 32, borderRadius: 'var(--radius-2)', border: `1px solid ${showAddMenu ? 'var(--brand)' : 'var(--border)'}`, background: showAddMenu ? 'var(--brand-soft)' : 'transparent', color: showAddMenu ? 'var(--brand)' : 'var(--fg-muted)', cursor: 'pointer' }}>
