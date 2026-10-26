@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { X, Loader, PenLine, Eraser, Undo2, Check, Sparkles, ArrowLeft, Lock, Tablet, Send, RefreshCw, MonitorSmartphone } from 'lucide-react';
+import { X, Loader, PenLine, Eraser, Undo2, Check, Sparkles, ArrowLeft, Lock, Tablet, Send, RefreshCw, MonitorSmartphone, Monitor } from 'lucide-react';
 import { documentsAPI, getSocket, initializeSocket } from '../services/api';
 import { loadPdfjs } from './PdfCanvasViewer';
 import SignaturePad from './SignaturePad';
@@ -30,6 +30,7 @@ export const isSignableDocument = (doc) => {
     || ['image/jpeg', 'image/jpg', 'image/png'].includes(doc.fileType) || /\.(jpe?g|png)$/i.test(name);
 };
 
+const LAST_PAD_KEY = 'ged.signature.localPad';
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
 function defaultFrame(page, cx, cy, pageW, pageH) {
@@ -373,6 +374,44 @@ export function SignPadScreen({ signerName, onBack, onValidate, busy, title, sub
   );
 }
 
+// Tablette graphique sans écran branchée en USB (Huion, Wacom…) : son pilote
+// fait correspondre toute sa surface à tout l'écran. La zone de signature
+// occupe donc tout l'écran (plein écran du navigateur) pour que le patient
+// dispose de toute la surface de la tablette.
+export function GraphicTabletPadScreen({ signerName, onBack, onValidate, busy }) {
+  const { t } = useTranslation();
+  const padRef = useRef(null);
+  const [ink, setInk] = useState(0);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!document.fullscreenElement) root.requestFullscreen?.().catch(() => {});
+    return () => { if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); };
+  }, []);
+  const validate = () => {
+    const png = padRef.current?.toPng();
+    if (png) onValidate({ png, pointerType: padRef.current.pointerType() });
+  };
+  const small = (primary, disabled) => ({ ...signButtonStyle(primary, disabled), height: 36, padding: '0 14px', fontSize: 13 });
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9600, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#f4f5f8', borderBottom: '1px solid #d6dae3', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#1f2a52' }}>{t('Signez sur la tablette graphique')}</div>
+          <div style={{ fontSize: 12, color: '#5b6275' }}>{`${t('Lu et approuvé')} — ${signerName}`}</div>
+        </div>
+        <button style={small(false, busy)} disabled={busy} onClick={onBack}><ArrowLeft size={15} /> {t('Retour')}</button>
+        <button style={small(false, ink === 0 || busy)} disabled={ink === 0 || busy} onClick={() => padRef.current?.clear()}><Eraser size={15} /> {t('Effacer')}</button>
+        <button style={small(true, ink < 40 || busy)} disabled={ink < 40 || busy} onClick={validate}>
+          {busy ? <Loader size={15} className="animate-spin" /> : <Check size={15} />} {t('Valider la signature')}
+        </button>
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <SignaturePad ref={padRef} height="100%" bare onChange={({ ink: v }) => setInk(v)} />
+      </div>
+    </div>
+  );
+}
+
 // ── Signature sur une tablette du guichet (vue du PC de l'agent) ──────────────
 function RemoteSignaturePanel({ doc, frame, signerName, onSigned, onBack }) {
   const { t } = useTranslation();
@@ -622,6 +661,17 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
     setAutoPlaced(false);
   };
 
+  // Signature sur ce PC : à l'écran ou à la tablette graphique USB. Le dernier
+  // choix est retenu sur ce poste (Entrée le reprend).
+  const [lastPad, setLastPad] = useState(() => {
+    try { return localStorage.getItem(LAST_PAD_KEY) === 'graphic' ? 'graphic' : 'pad'; } catch { return 'pad'; }
+  });
+  const startPad = (mode) => {
+    setLastPad(mode);
+    try { localStorage.setItem(LAST_PAD_KEY, mode); } catch { /* stockage indisponible */ }
+    setStep(mode);
+  };
+
   // Signature reçue (de cet écran ou d'une tablette du guichet) → aperçu
   const gotSignature = (sig) => {
     setSignature(sig);
@@ -721,7 +771,7 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
       {/* Nom du signataire (saisi par l'agent) */}
       {step === 'name' && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <form onSubmit={(e) => { e.preventDefault(); if (signerName.trim().length >= 2) setStep('pad'); }}
+          <form onSubmit={(e) => { e.preventDefault(); if (signerName.trim().length >= 2) startPad(lastPad); }}
             style={{ width: '100%', maxWidth: 420, background: 'var(--surface)', borderRadius: 14, padding: 20, boxShadow: 'var(--shadow-3)' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>{t('Qui signe ?')}</div>
             <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 14 }}>{t('Le nom sera écrit sous la signature, avec la date et l\'heure.')}</div>
@@ -730,10 +780,14 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
               style={{ width: '100%', boxSizing: 'border-box', height: 44, padding: '0 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 15 }} />
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', margin: '16px 0 8px' }}>{t('Où le patient signe-t-il ?')}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="submit" style={{ ...btn(true, signerName.trim().length < 2), flex: '1 1 160px' }} disabled={signerName.trim().length < 2}>
+              <button type="button" style={{ ...btn(lastPad === 'pad', signerName.trim().length < 2), flex: '1 1 100%' }} disabled={signerName.trim().length < 2} onClick={() => startPad('pad')}>
                 <PenLine size={16} /> {t('Sur cet écran')}
               </button>
-              <button type="button" style={{ ...btn(false, signerName.trim().length < 2), flex: '1 1 160px' }} disabled={signerName.trim().length < 2} onClick={() => setStep('remote')}>
+              <button type="button" style={{ ...btn(lastPad === 'graphic', signerName.trim().length < 2), flex: '1 1 100%' }} disabled={signerName.trim().length < 2} onClick={() => startPad('graphic')}
+                title={t('Tablette sans écran branchée en USB (Huion, Wacom…) : la zone de signature passe en plein écran pour utiliser toute la surface de la tablette.')}>
+                <Monitor size={16} /> {t('Tablette graphique (USB)')}
+              </button>
+              <button type="button" style={{ ...btn(false, signerName.trim().length < 2), flex: '1 1 100%' }} disabled={signerName.trim().length < 2} onClick={() => setStep('remote')}>
                 <Tablet size={16} /> {t('Sur une tablette')}
               </button>
             </div>
@@ -747,6 +801,11 @@ export default function SignatureSession({ doc, fileUrl, onClose, onSigned }) {
       {/* Zone de signature plein écran (le patient signe sur cet écran) */}
       {step === 'pad' && (
         <SignPadScreen signerName={signerName.trim()} onBack={() => setStep('name')} onValidate={gotSignature} />
+      )}
+
+      {/* Tablette graphique USB : zone de signature en plein écran */}
+      {step === 'graphic' && (
+        <GraphicTabletPadScreen signerName={signerName.trim()} onBack={() => setStep('name')} onValidate={gotSignature} />
       )}
 
       {/* Le patient signe sur une tablette du guichet */}

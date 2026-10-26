@@ -2963,5 +2963,8 @@
   "Échéances dépassées": "Overdue items",
   "Échéances à traiter": "Due dates to handle",
   "à renseigner": "to fill in",
-  "… ou tous les (km)": "… or every (km)"
+  "… ou tous les (km)": "… or every (km)",
+  "Signez sur la tablette graphique": "Sign on the pen tablet",
+  "Tablette graphique (USB)": "Pen tablet (USB)",
+  "Tablette sans écran branchée en USB (Huion, Wacom…) : la zone de signature passe en plein écran pour utiliser toute la surface de la tablette.": "Screenless tablet connected by USB (Huion, Wacom…): the signature area goes full screen so the whole tablet surface can be used."
 }

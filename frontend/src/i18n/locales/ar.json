@@ -2963,5 +2963,8 @@
   "Échéances dépassées": "مواعيد متجاوزة",
   "Échéances à traiter": "مواعيد للمعالجة",
   "à renseigner": "للتعبئة",
-  "… ou tous les (km)": "… أو كل (كم)"
+  "… ou tous les (km)": "… أو كل (كم)",
+  "Signez sur la tablette graphique": "وقّع على اللوح الرسومي",
+  "Tablette graphique (USB)": "لوح رسومي (USB)",
+  "Tablette sans écran branchée en USB (Huion, Wacom…) : la zone de signature passe en plein écran pour utiliser toute la surface de la tablette.": "لوح بدون شاشة موصول عبر USB (Huion وWacom…): تنتقل منطقة التوقيع إلى ملء الشاشة لاستخدام كامل سطح اللوح."
 }
