@@ -1,4 +1,5 @@
 // backend/src/middleware/uploadSignature.js
+import crypto from 'crypto';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -18,20 +19,23 @@ const storage = multer.diskStorage({
     cb(null, uploadDir); // Le dossier où sauvegarder les fichiers
   },
   filename: (req, file, cb) => {
-    // Crée un nom de fichier unique pour éviter les conflits
-    // Format: userID-type-timestamp.extension (ex: uuid-signature-1678886400000.png)
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    // Format : <id utilisateur>-<type>-<horodatage>-<aléa>.png|jpg ; l'identifiant
+    // de l'URL n'est repris que s'il a la forme d'un UUID (aucun chemin possible)
     const type = req.path.includes('signature') ? 'signature' : 'stamp';
-    cb(null, `${req.params.id}-${type}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    const id = /^[0-9a-f-]{36}$/i.test(req.params.id || '') ? req.params.id : 'inconnu';
+    cb(null, `${id}-${type}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}${IMAGE_TYPES[file.mimetype]}`);
   }
 });
 
-// Filtre pour n'accepter que les fichiers de type image
+// Signatures et cachets : PNG ou JPEG uniquement (incrustés dans les PDF)
+const IMAGE_TYPES = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/jpg': '.jpg' };
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image')) {
+  if (IMAGE_TYPES[file.mimetype] && /^[0-9a-f-]{36}$/i.test(req.params.id || '')) {
     cb(null, true);
   } else {
-    cb(new Error('Le fichier doit être une image (png, jpg, etc.) !'), false);
+    const err = new Error('Le fichier doit être une image PNG ou JPEG.');
+    err.status = 400;
+    cb(err, false);
   }
 };
 

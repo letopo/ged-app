@@ -628,6 +628,17 @@ const RELEASE_NOTES = [
     ],
     access: isAdmin,
   },
+  {
+    id: '2026-10-26-securite-depots',
+    date: '2026-10-26',
+    target: 'app',
+    title: 'Dépôts de fichiers mieux contrôlés',
+    items: [
+      'Seuls les PDF, documents Word et images JPEG ou PNG peuvent être déposés comme documents ; l’extension doit correspondre au contenu annoncé.',
+      'Signatures et cachets : images PNG ou JPEG uniquement. Logos : PNG, JPEG, WebP ou SVG.',
+    ],
+    access: isAdmin,
+  },
 ];
 
 export default RELEASE_NOTES;

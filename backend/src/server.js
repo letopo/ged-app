@@ -185,6 +185,17 @@ app.use((req, res, next) => {
 // Les uploads doivent être accessibles par OnlyOffice (Origin: localhost:8080)
 // → on ajoute CORS: * explicitement avant le middleware global
 // ============================================
+// Fichiers déposés : jamais interprétés comme une page de l'application.
+// PDF et images s'affichent ; tout autre type (HTML, SVG, ancien dépôt…) est
+// servi en téléchargement, dans un bac à sable sans script.
+const INLINE_UPLOAD_EXT = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif']);
+function setUploadHeaders(res, filePath) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  if (!INLINE_UPLOAD_EXT.has(path.extname(filePath).toLowerCase())) {
+    res.setHeader('Content-Disposition', 'attachment');
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+  }
+}
 app.use('/api/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
@@ -194,9 +205,9 @@ app.use('/api/uploads', (req, res, next) => {
   // Miniatures (uploads/.thumbs) : seulement via /api/documents/:id/thumbnail (contrôle d'accès)
   if (/^\/\.thumbs(\/|$)/i.test(decodeURIComponent(req.path))) return res.sendStatus(404);
   next();
-}, express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny' }));
+}, express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny', setHeaders: setUploadHeaders }));
 
-app.use('/api/signatures', express.static(path.join(__dirname, '../signatures')));
+app.use('/api/signatures', express.static(path.join(__dirname, '../signatures'), { dotfiles: 'deny', setHeaders: setUploadHeaders }));
 
 // ============================================
 // RATE LIMITING

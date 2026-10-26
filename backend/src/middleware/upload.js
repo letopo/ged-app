@@ -1,4 +1,5 @@
 // backend/src/middleware/upload.js - VERSION 100% COMPLÈTE ET CORRIGÉE
+import crypto from 'crypto';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -16,32 +17,42 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Types acceptés : extension → types MIME annoncés possibles. L'extension ET
+// le type doivent correspondre ; l'extension stockée est celle de cette liste
+// (jamais celle du client telle quelle) : un fichier actif (HTML, SVG, JS…) ne
+// peut pas être déposé puis servi par /api/uploads.
+const ALLOWED_TYPES = {
+  '.pdf': ['application/pdf', 'application/x-pdf'],
+  '.doc': ['application/msword'],
+  '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  '.jpg': ['image/jpeg', 'image/jpg', 'image/pjpeg'],
+  '.jpeg': ['image/jpeg', 'image/jpg', 'image/pjpeg'],
+  '.png': ['image/png'],
+  // Réponses de formulaire (FormFill) : petit marqueur JSON, jamais exécuté
+  '.form': ['application/x-form-response'],
+};
+const allowedExtension = (file) => {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  return ALLOWED_TYPES[ext]?.includes(String(file.mimetype || '').toLowerCase()) ? (ext === '.jpeg' ? '.jpg' : ext) : null;
+};
+
 // Configuration du stockage avec Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir); // Le dossier où sauvegarder physiquement les fichiers
   },
   filename: (req, file, cb) => {
-    // Générer un nom de fichier unique pour éviter les collisions
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    // Nom unique et non prévisible, extension fixée par le serveur
+    cb(null, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${allowedExtension(file)}`);
   },
 });
 
 // Filtre pour n'accepter que certains types de fichiers
 const fileFilter = (req, file, cb) => {
-  // Autoriser les réponses de formulaire HTML (blobs internes)
-  if (file.mimetype === 'application/x-form-response' || path.extname(file.originalname).toLowerCase() === '.form') {
-    return cb(null, true);
-  }
-  const allowedTypes = /pdf|doc|docx|jpeg|jpg|png/;
-  const mimetype = allowedTypes.test(file.mimetype);
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-
-  if (mimetype && extname) {
-    return cb(null, true);
-  }
-  cb(new Error('Erreur: Seuls les fichiers PDF, Word et Images sont autorisés !'));
+  if (allowedExtension(file)) return cb(null, true);
+  const err = new Error('Seuls les fichiers PDF, Word et images (JPEG, PNG) sont autorisés.');
+  err.status = 400;
+  cb(err);
 };
 
 // Création de l'instance multer à exporter et utiliser dans les routes
