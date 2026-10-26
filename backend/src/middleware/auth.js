@@ -1,7 +1,7 @@
 ﻿// backend/src/middleware/auth.js - Middleware d'authentification et autorisation
 
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { verifySessionToken, sessionRejection } from '../utils/sessionTokens.js';
 
 // ============================================
 // Middleware de protection des routes (JWT)
@@ -21,16 +21,18 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Non autorisé, token manquant' });
     }
 
-    // Vérifier et décoder le token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Vérifier et décoder le token (session uniquement : le jeton provisoire 2FA est refusé)
+    const decoded = verifySessionToken(token);
 
     // Récupérer l'utilisateur depuis la base de données
     const user = await User.findByPk(decoded.id, {
       attributes: { exclude: ['password'] }
     });
 
-    if (!user) {
-      return res.status(401).json({ message: 'Utilisateur non trouvé' });
+    // Compte inexistant, désactivé ou sessions révoquées
+    const rejection = sessionRejection(user, decoded);
+    if (rejection) {
+      return res.status(401).json({ message: rejection });
     }
 
     // Ajouter l'utilisateur à la requête
@@ -105,22 +107,10 @@ export const isValidator = (req, res, next) => {
   }
 };
 
-// ============================================
-// Fonction utilitaire : générer un token JWT
-// ============================================
-export const generateToken = (userId) => {
-  return jwt.sign(
-    { id: userId },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
-};
-
 // Export par défaut (optionnel)
 export default {
   protect,
   authorize,
   isAdmin,
-  isValidator,
-  generateToken
+  isValidator
 };

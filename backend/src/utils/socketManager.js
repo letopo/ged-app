@@ -1,6 +1,6 @@
 // backend/src/utils/socketManager.js
 import { Server } from 'socket.io';
-import jwt from 'jsonwebtoken';
+import { verifySessionToken, sessionRejection } from './sessionTokens.js';
 import os from 'os';
 import { attachSignatureKiosk } from './signatureRequests.js';
 
@@ -37,7 +37,7 @@ export const initializeSocket = (server) => {
   });
 
   // Middleware d'authentification Socket.IO
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token;
       
@@ -45,10 +45,16 @@ export const initializeSocket = (server) => {
         return next(new Error('Authentication error: No token provided'));
       }
 
-      // Vérifier le token JWT
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Même règle que l'API : jeton de session uniquement (pas le jeton
+      // provisoire 2FA), compte existant, actif et sessions non révoquées
+      const decoded = verifySessionToken(token);
+      const { User } = await import('../models/index.js');
+      const user = await User.unscoped().findByPk(decoded.id, { attributes: ['id', 'email', 'isActive', 'tokenVersion', 'tenantId'] });
+      const rejection = sessionRejection(user, decoded);
+      if (rejection) return next(new Error(`Authentication error: ${rejection}`));
       socket.userId = decoded.id;
       socket.userEmail = decoded.email;
+      socket.tenantId = user.tenantId;
       
       console.log(`✅ Socket authentifié: User ${decoded.id} (${decoded.email})`);
       next();

@@ -7,6 +7,8 @@ import AuditLog from '../models/AuditLog.js';
 import { Op } from 'sequelize';
 import { parseStampMm, STAMP_MM_MIN, STAMP_MM_MAX } from '../utils/stampSize.js';
 import { emitRightsChanged } from '../utils/socketManager.js';
+import { revokeSessions } from '../utils/sessionTokens.js';
+import { generateToken } from './authController.js';
 
 // @desc    Récupérer tous les utilisateurs
 // @route   GET /api/users
@@ -37,6 +39,25 @@ export const getUsers = async (req, res, next) => {
   }
 };
 
+// Rôles : seul un super-administrateur attribue le rôle super-admin (il
+// contrôle tous les établissements) et modifie un compte super-admin.
+// (le modèle écrit 'agent_accueil_PHP', la base 'agent_accueil_php' : les deux sont acceptés)
+const ROLES = [...new Set(User.rawAttributes.role.values.flatMap((r) => [r, r.toLowerCase()]))];
+function roleError(req, role) {
+  if (role === undefined) return null;
+  if (!ROLES.includes(role)) return { status: 400, error: 'Rôle inconnu.' };
+  if (role === 'superadmin' && req.user.role !== 'superadmin') {
+    return { status: 403, error: 'Seul un super-administrateur peut attribuer ce rôle.' };
+  }
+  return null;
+}
+function superadminTargetError(req, target) {
+  return target?.role === 'superadmin' && req.user.role !== 'superadmin'
+    ? { status: 403, error: 'Seul un super-administrateur peut modifier ce compte.' }
+    : null;
+}
+const refuse = (res, e) => res.status(e.status).json({ success: false, error: e.error, message: e.error });
+
 // @desc    Récupérer un utilisateur par ID
 // @route   GET /api/users/:id
 // @access  Private (Admin/Director)
@@ -62,6 +83,8 @@ export const createUser = async (req, res, next) => {
       if (!email || !password || !username || !firstName || !lastName || !role) {
         return res.status(400).json({ success: false, error: 'Tous les champs sont requis' });
       }
+      const badRole = roleError(req, role);
+      if (badRole) return refuse(res, badRole);
   
       const existingUser = await User.findOne({ where: { [Op.or]: [{ email }, { username }] } });
       if (existingUser) {
@@ -91,6 +114,8 @@ export const updateUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
     }
+    const denied = superadminTargetError(req, user) || roleError(req, role);
+    if (denied) return refuse(res, denied);
 
     // --- Validation d'unicité pour Email et Username ---
     // Vérifier si un autre utilisateur utilise déjà ce nouvel email
@@ -128,7 +153,11 @@ export const updateUser = async (req, res, next) => {
     } else if (role !== undefined) {
       user.role = role;
     }
-    if (isActive !== undefined) user.isActive = isActive;
+    if (isActive !== undefined) {
+      // Désactivation : toutes les sessions du compte sont révoquées
+      if (user.isActive !== false && (isActive === false || isActive === 'false')) await revokeSessions(user);
+      user.isActive = isActive;
+    }
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
     if (substituteId !== undefined) {
@@ -162,6 +191,8 @@ export const resetUserPassword = async (req, res, next) => {
         if (!user) {
             return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
         }
+        const denied = superadminTargetError(req, user);
+        if (denied) return refuse(res, denied);
         
         let finalPassword;
 
@@ -173,13 +204,16 @@ export const resetUserPassword = async (req, res, next) => {
         }
 
         user.password = finalPassword; // Le hook Sequelize hachera ce mot de passe
+        await revokeSessions(user); // anciennes sessions révoquées
         await user.save();
 
-        // On renvoie le mot de passe EN CLAIR pour qu'il soit affiché à l'admin
+        // On renvoie le mot de passe EN CLAIR pour qu'il soit affiché à l'admin ;
+        // s'il s'agit de son propre compte, un nouveau jeton remplace sa session
         res.json({
             success: true,
             message: `Le mot de passe pour ${user.username} a été réinitialisé.`,
-            newPassword: finalPassword 
+            newPassword: finalPassword,
+            ...(user.id === req.user.id ? { token: await generateToken(user) } : {}),
         });
     } catch (error) {
         next(error);
@@ -199,6 +233,8 @@ export const deleteUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
     }
+    const denied = superadminTargetError(req, user);
+    if (denied) return refuse(res, denied);
     await user.destroy();
     res.json({ success: true, message: 'Utilisateur supprimé avec succès' });
   } catch (error) {
@@ -214,6 +250,11 @@ export const uploadSignature = async (req, res, next) => {
       const user = await User.findByPk(req.params.id);
       if (!user) {
         return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      }
+      const denied = superadminTargetError(req, user);
+      if (denied) {
+        if (req.file?.path) await import('fs/promises').then((fs) => fs.unlink(req.file.path)).catch(() => {});
+        return refuse(res, denied);
       }
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'Aucun fichier image n\'a été envoyé' });
@@ -236,6 +277,11 @@ export const uploadStamp = async (req, res, next) => {
       const user = await User.findByPk(req.params.id);
       if (!user) {
         return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      }
+      const denied = superadminTargetError(req, user);
+      if (denied) {
+        if (req.file?.path) await import('fs/promises').then((fs) => fs.unlink(req.file.path)).catch(() => {});
+        return refuse(res, denied);
       }
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'Aucun fichier image n\'a été envoyé' });
@@ -266,6 +312,8 @@ export const updateStampSize = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    const denied = superadminTargetError(req, user);
+    if (denied) return refuse(res, denied);
     const widthMm = parseStampMm(req.body?.stampWidthMm);
     const heightMm = parseStampMm(req.body?.stampHeightMm);
     if (!widthMm || !heightMm) {

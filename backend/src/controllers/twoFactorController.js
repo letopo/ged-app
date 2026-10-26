@@ -1,6 +1,7 @@
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import jwt from 'jsonwebtoken';
+import { signSessionToken } from '../utils/sessionTokens.js';
 import { getTenantSettings } from '../utils/tenantSettings.js';
 import User from '../models/User.js';
 import { Tenant, AuditLog } from '../models/index.js';
@@ -148,11 +149,7 @@ export const verifyLogin2FA = async (req, res, next) => {
 
     // Émettre le vrai JWT
     const { sessionMaxDays } = await getTenantSettings(user.tenantId);
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: `${sessionMaxDays}d` }
-    );
+    const token = signSessionToken(user, `${sessionMaxDays}d`);
 
     await user.update({ lastLogin: new Date() });
 

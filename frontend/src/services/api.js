@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { handleUnauthorized } from '../utils/authSession';
+import { handleUnauthorized, SESSION_RENEWED_EVENT } from '../utils/authSession';
 
 // Détection Electron : utiliser l'URL configurée par l'utilisateur
 const getApiBaseUrl = () => {
@@ -43,8 +43,17 @@ api.interceptors.request.use(
 );
 
 // Session expirée ou jeton invalide : AuthContext déconnecte et renvoie au login.
+// Mot de passe changé : le serveur révoque les anciennes sessions et rend un
+// nouveau jeton à la personne qui a fait le changement (son propre compte).
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const token = response.data?.token;
+    if (token && /\/reset-password$|\/auth\/profile$/.test(response.config?.url || '')) {
+      try { localStorage.setItem('token', token); } catch { /* stockage indisponible */ }
+      window.dispatchEvent(new CustomEvent(SESSION_RENEWED_EVENT, { detail: token }));
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) handleUnauthorized(error);
     return Promise.reject(error);

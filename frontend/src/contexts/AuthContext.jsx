@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import i18n from '../i18n/config';
-import { isTokenExpired, getTokenExpiry, SESSION_EXPIRED_EVENT, resetSessionExpiredNotice } from '../utils/authSession';
+import { isTokenExpired, getTokenExpiry, SESSION_EXPIRED_EVENT, SESSION_RENEWED_EVENT, resetSessionExpiredNotice } from '../utils/authSession';
 
 // Plafond de setTimeout (~24,8 jours) : au-delà, le minuteur se déclencherait aussitôt.
 const MAX_TIMER_MS = 2 ** 31 - 1;
@@ -83,6 +83,13 @@ export const AuthProvider = ({ children }) => {
       if (timer) clearTimeout(timer);
     };
   }, [token]);
+
+  // Nouveau jeton après un changement de mot de passe (cf. services/api.js)
+  useEffect(() => {
+    const renew = (e) => { if (e.detail) setToken(e.detail); };
+    window.addEventListener(SESSION_RENEWED_EVENT, renew);
+    return () => window.removeEventListener(SESSION_RENEWED_EVENT, renew);
+  }, []);
 
   const updateUser = (userData) => {
     try { localStorage.setItem('user', JSON.stringify(userData)); } catch (err) { console.error('Erreur écriture localStorage:', err); }

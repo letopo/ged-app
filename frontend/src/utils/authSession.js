@@ -6,6 +6,8 @@
 //    serveur déclenche SESSION_EXPIRED_EVENT, écouté par AuthContext.
 
 export const SESSION_EXPIRED_EVENT = 'auth:session-expired';
+// Nouveau jeton rendu après un changement de mot de passe (anciennes sessions révoquées)
+export const SESSION_RENEWED_EVENT = 'ged:session-renewed';
 
 // Date d'expiration du jeton en millisecondes, ou null si illisible / sans `exp`.
 export function getTokenExpiry(token) {

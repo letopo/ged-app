@@ -13,6 +13,7 @@ import {
 import { accessControlService } from '../services/accessControlService';
 import { ROLES, MODULES, CATEGORIES, POSTES_STATIC, getUserModules, getRoleInfo } from '../config/accessDefinitions';
 import i18n from '../i18n/config';
+import { useAuth } from '../contexts/AuthContext';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -86,6 +87,8 @@ function Notice({ msg, type = 'ok', onDismiss }) {
 
 // ── Onglet Droits ─────────────────────────────────────────────────────────────
 function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
+  // Le rôle super-admin n'est attribuable que par un super-administrateur
+  const { user: currentUser } = useAuth();
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [collapsed, setCollapsed] = useState({});
@@ -149,8 +152,8 @@ function DroitsTab({ user, dbPostes, onNotify, onUserUpdate }) {
             cursor: 'pointer', fontFamily: 'inherit',
           }}
         >
-          {ROLES.map(r => (
-            <option key={r.id} value={r.id}>{t(r.label)}</option>
+          {ROLES.filter(r => r.id !== 'superadmin' || currentUser?.role === 'superadmin' || user.role === 'superadmin').map(r => (
+            <option key={r.id} value={r.id} disabled={r.id === 'superadmin' && currentUser?.role !== 'superadmin'}>{t(r.label)}</option>
           ))}
         </select>
         <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
