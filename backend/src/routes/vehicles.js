@@ -12,6 +12,7 @@ import {
   uploadVehicleAttachment, getVehicleDetails, createDeadline, updateDeadline, deleteDeadline, completeDeadline,
   createFuelLog, deleteFuelLog, createMaintenance, updateMaintenance, deleteMaintenance, fleetOverview,
 } from '../controllers/vehicleFleetController.js';
+import { getInventoryState, submitInventory, listInventories, getInventoryPdf } from '../controllers/vehicleInventoryController.js';
 
 const router = express.Router();
 router.use(protect);
@@ -31,6 +32,9 @@ router.post('/missions/:id/cancel', cancelMission);
 router.post('/check-photos', upload.single('file'), uploadCheckPhoto);
 router.get('/checks/:id', getCheck);
 router.get('/checks/:id/pdf', getCheckPdf);
+// Inventaire hebdomadaire des ambulances
+router.get('/inventories', listInventories);
+router.get('/inventories/:iid/pdf', getInventoryPdf);
 
 router.get('/', listVehicles);
 router.post('/', createVehicle);
@@ -38,6 +42,8 @@ router.put('/:id', updateVehicle);
 router.patch('/:id/status', setVehicleStatus);
 router.get('/:id/state', getVehicleState);
 router.post('/:id/checks', submitCheck);
+router.get('/:id/inventory', getInventoryState);
+router.post('/:id/inventory', submitInventory);
 // Étape 3 : fiche, échéances, carburant, entretien
 router.get('/:id/details', getVehicleDetails);
 router.post('/:id/deadlines', createDeadline);

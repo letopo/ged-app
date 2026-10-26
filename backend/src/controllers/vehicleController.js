@@ -18,6 +18,7 @@ import {
 import { getUserPosteCodes, getPosteHolders } from '../utils/posteResolver.js';
 import {
   DEFAULT_AMBULANCE_SECTIONS, DEFAULT_SERVICE_SECTIONS, DEFAULT_DEADLINES, sanitizeSections, evaluateAnswers, completionPct, completionLevel,
+  DEFAULT_INVENTORY_SECTIONS, DEFAULT_INVENTORY_DAYS, LEGACY_MATERIEL_IDS, MISSION_MATERIEL_ITEMS, sanitizeInventorySections, sanitizeInventoryDays,
 } from '../utils/vehicleChecklist.js';
 import { buildVehicleCheckPdf } from '../utils/vehicleCheckPdf.js';
 import { parseSignaturePng } from './manualSignatureController.js';
@@ -28,6 +29,7 @@ const FLEET_POSTE = 'chef_securite_logistique';
 const AMBULANCE_MANAGER_POSTE = 'chef_pole_ro_sau';
 const CHECK_DIR = 'uploads/vehicle-checks';
 const isSuperAdmin = (u) => u?.role === 'superadmin';
+export { CHECK_DIR, userName, fmtFr };
 
 // Le superadmin voit toujours le parc ; les administrateurs seulement si le
 // superadmin le leur a ouvert (tenant_settings.fleet_admin_access).
@@ -77,16 +79,30 @@ async function ensureDefaultTemplate(type = 'ambulance', userId = null) {
   let tpl = await VehicleChecklistTemplate.findOne({ where: { vehicleType: type, isActive: true }, order: [['createdAt', 'ASC']] });
   if (!tpl) {
     tpl = type === 'ambulance'
-      ? await VehicleChecklistTemplate.create({ name: 'Check-list ambulance', vehicleType: 'ambulance', sections: DEFAULT_AMBULANCE_SECTIONS, updatedBy: userId })
+      ? await VehicleChecklistTemplate.create({ name: 'Check-list ambulance', vehicleType: 'ambulance', sections: DEFAULT_AMBULANCE_SECTIONS, inventorySections: DEFAULT_INVENTORY_SECTIONS, inventoryDays: DEFAULT_INVENTORY_DAYS, updatedBy: userId })
       : await VehicleChecklistTemplate.create({ name: 'Check-list véhicule de service', vehicleType: 'service', sections: DEFAULT_SERVICE_SECTIONS, updatedBy: userId });
   }
+  return upgradeAmbulanceTemplate(tpl);
+}
+
+// Check-list ambulance créée avant l'inventaire hebdomadaire : on ajoute la
+// fiche d'inventaire RO SAU et, si la section « Matériel médical » n'a pas été
+// modifiée, on la remplace par le contrôle court de mission (points vitaux).
+async function upgradeAmbulanceTemplate(tpl) {
+  if (tpl.vehicleType !== 'ambulance' || (tpl.inventorySections || []).length) return tpl;
+  const sections = (tpl.sections || []).map((s) => {
+    const ids = (s.items || []).map((it) => it.id);
+    const legacy = s.key === 'materiel' && ids.length === LEGACY_MATERIEL_IDS.length && ids.every((id, i) => id === LEGACY_MATERIEL_IDS[i]);
+    return legacy ? { ...s, items: MISSION_MATERIEL_ITEMS } : s;
+  });
+  await tpl.update({ sections, inventorySections: DEFAULT_INVENTORY_SECTIONS, inventoryDays: DEFAULT_INVENTORY_DAYS });
   return tpl;
 }
 
 export async function templateFor(vehicle) {
   if (vehicle.checklistTemplateId) {
     const tpl = await VehicleChecklistTemplate.findByPk(vehicle.checklistTemplateId);
-    if (tpl) return tpl;
+    if (tpl) return upgradeAmbulanceTemplate(tpl);
   }
   return ensureDefaultTemplate(templateType(vehicle.vehicleType));
 }
@@ -426,7 +442,14 @@ export const updateTemplate = async (req, res) => {
     if (!sections || !sections.length || !sections.some((s) => s.items.length)) {
       return res.status(400).json({ success: false, message: 'La check-list doit contenir au moins une section avec des points.' });
     }
-    await tpl.update({ sections, name: String(req.body?.name || tpl.name).slice(0, 150), updatedBy: req.user.id });
+    const patch = { sections, name: String(req.body?.name || tpl.name).slice(0, 150), updatedBy: req.user.id };
+    if (req.body?.inventorySections !== undefined) {
+      const inv = sanitizeInventorySections(req.body.inventorySections);
+      if (!inv) return res.status(400).json({ success: false, message: 'Inventaire invalide.' });
+      patch.inventorySections = inv;
+      patch.inventoryDays = sanitizeInventoryDays(req.body?.inventoryDays);
+    }
+    await tpl.update(patch);
     res.json({ success: true, data: tpl });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
@@ -820,6 +843,9 @@ export const myPendingChecks = async (req, res) => {
         sections: mine.map((x) => ({ key: x.key, label: x.label, role: x.role })),
       });
     }
+    // Inventaire de l'ambulance attendu aujourd'hui (lun / mer / ven)
+    const { myPendingInventories } = await import('./vehicleInventoryController.js');
+    out.push(...await myPendingInventories(req.user));
     res.json({ success: true, data: out });
   } catch (error) {
     console.error('Contrôles à faire :', error);

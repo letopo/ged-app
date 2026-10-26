@@ -21,11 +21,14 @@ export const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('fr-FR', { day
 
 export const levelOf = (pct) => (pct >= 100 ? 'complet' : pct >= 50 ? 'moitie' : pct > 0 ? 'quart' : 'aucun');
 
+export const WEEKDAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+export const fmtDay = (iso) => (iso ? iso.split('-').reverse().slice(0, 2).join('/') : '');
+
 // Ouvre une fiche PDF de contrôle (récupérée avec le jeton de connexion)
-export async function openCheckPdf(vehiclesAPI, checkId) {
+export async function openCheckPdf(vehiclesAPI, checkId, kind = 'check') {
   const win = window.open('', '_blank');
   try {
-    const res = await vehiclesAPI.checkPdf(checkId);
+    const res = kind === 'inventory' ? await vehiclesAPI.inventoryPdf(checkId) : await vehiclesAPI.checkPdf(checkId);
     const url = URL.createObjectURL(res.data);
     if (win) win.location.href = url; else window.location.href = url;
   } catch {

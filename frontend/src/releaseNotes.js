@@ -593,6 +593,19 @@ const RELEASE_NOTES = [
       'Le choix « Sur cet écran » reste disponible ; le dernier choix utilisé sur le poste est proposé en premier (touche Entrée).',
     ],
   },
+  {
+    id: '2026-10-26-inventaire-ambulance',
+    date: '2026-10-26',
+    target: '/vehicules',
+    title: 'Ambulances : inventaire hebdomadaire (fiche RO SAU)',
+    items: [
+      'Le lundi, le mercredi et le vendredi, l’infirmier fait l’inventaire de chaque ambulance depuis « Parc véhicules » (ou « Mes tâches ») : matériel médical, consommables, médicaments et DSA, avec la quantité requise de la fiche RO SAU.',
+      'Pour chaque article : quantité présente (bouton « Tout est complet » par section), case « Périme ce mois » pour les médicaments, pression des bouteilles d’O2 en bar ; l’inventaire est signé et sa fiche PDF archivée dans la GED.',
+      'Les manques et les péremptions forment une liste « À réapprovisionner » envoyée à la cheffe de pôle ; O2 sous 50 bar, DSA ou électrodes en défaut rendent l’ambulance indisponible.',
+      'Nouvel onglet « Inventaires » : la semaine en grille, une colonne par ambulance, comme la fiche papier ; alerte à 14 h si l’inventaire du jour n’est pas fait.',
+      'Le contrôle avant / après mission est raccourci aux points vitaux (O2 en bar, ballon, aspirateur, DSA, brancard). La fiche d’inventaire se modifie dans l’onglet « Check-list ».',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

@@ -7,10 +7,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader, ShieldCheck, Gauge } from 'lucide-react';
+import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader, ShieldCheck, Gauge, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { vehiclesAPI } from '../services/api';
 import VehicleChecksTab from '../components/vehicles/VehicleChecksTab';
+import InventoriesTab from '../components/vehicles/InventoriesTab';
 import FleetDashboard from '../components/vehicles/FleetDashboard';
 import VehiclesAdmin from '../components/vehicles/VehiclesAdmin';
 import ChecklistEditor from '../components/vehicles/ChecklistEditor';
@@ -83,6 +84,7 @@ export default function ParcVehicules() {
   const tabs = [
     { key: 'controles', label: t('Contrôles'), icon: ClipboardCheck, show: true },
     { key: 'tableau', label: t('Tableau de bord'), icon: LayoutDashboard, show: !!fleet?.canDashboard },
+    { key: 'inventaires', label: t('Inventaires'), icon: ClipboardList, show: canManageAny },
     { key: 'suivi', label: t('Suivi du parc'), icon: Gauge, show: canManageAny },
     { key: 'vehicules', label: t('Véhicules'), icon: Truck, show: canManageAny },
     { key: 'checklist', label: t('Check-list'), icon: ListChecks, show: canManageAny },
@@ -115,6 +117,7 @@ export default function ParcVehicules() {
       {tab === 'suivi' && <FleetOverview refreshKey={refreshKey} onOpenVehicle={(id, sub) => setDetail({ id, tab: sub })} />}
       {tab === 'controles' && <VehicleChecksTab vehicles={vehicles.filter((v) => v.isActive)} loading={loading} onChanged={() => loadVehicles()} initialVehicleId={params.get('tab') === 'suivi' ? null : params.get('vehicle')} onOpenDetail={(id) => setDetail({ id })} />}
       {tab === 'tableau' && <FleetDashboard onVehiclesChanged={() => loadVehicles()} />}
+      {tab === 'inventaires' && <InventoriesTab refreshKey={refreshKey} />}
       {tab === 'vehicules' && <VehiclesAdmin vehicles={vehicles} fleet={fleet} onChanged={() => loadVehicles()} onOpen={(id) => setDetail({ id })} />}
       {detailVehicle && (
         <VehicleDetail key={detailVehicle.id} vehicle={detailVehicle} initialTab={detail.tab}
