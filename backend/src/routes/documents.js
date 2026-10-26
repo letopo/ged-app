@@ -36,6 +36,7 @@ import {
 } from '../controllers/documentTransmissionController.js';
 import { Document, User, Workflow, Service } from '../models/index.js';
 import { Op } from 'sequelize'; // ✅ AJOUT IMPORTANT
+import { readableWhere } from '../utils/documentVisibility.js';
 
 const router = express.Router();
 
@@ -50,12 +51,12 @@ router.get('/ordres-mission/valides', protect, async (req, res) => {
     console.log('👤 Utilisateur:', req.user.email, '- Rôle:', req.user.role);
 
     const documents = await Document.findAll({
-      where: {
+      where: await readableWhere(req.user, {
         category: 'Ordre de mission',
         status: {
           [Op.in]: ['pending_validation', 'in_progress', 'approved']
         }
-      },
+      }),
       include: [
         { 
           model: User, 
@@ -225,12 +226,14 @@ router.get('/visibility-context', protect, getVisibilityContext);
 
 router.get('/categories', protect, async (req, res) => {
   try {
-    const { QueryTypes } = await import('sequelize');
-    const sequelize = (await import('../config/database.js')).default;
-    const rows = await sequelize.query(
-      `SELECT DISTINCT category FROM documents WHERE category IS NOT NULL AND archived = false ORDER BY category ASC`,
-      { type: QueryTypes.SELECT }
-    );
+    // Via le modèle (et non en SQL brut) : limité à l'établissement courant
+    const rows = await Document.findAll({
+      attributes: ['category'],
+      where: { category: { [Op.ne]: null }, archived: false },
+      group: ['category'],
+      order: [['category', 'ASC']],
+      raw: true,
+    });
     res.json({ success: true, data: rows.map(r => r.category) });
   } catch (err) {
     console.error('Erreur /categories:', err);

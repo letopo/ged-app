@@ -72,13 +72,14 @@ test('/api/uploads : un fichier actif est servi en téléchargement isolé, un P
   const legacy = `uploads/test-ancien-${Date.now()}.html`;
   await fs.writeFile(path.resolve(legacy), '<script>alert(1)</script>');
   written.push(legacy);
-  const html = await request(app).get(`/api/${legacy}`);
+  const session = { Cookie: `ged_files=${authHeaders(f.tenant, user).Authorization.split(' ')[1]}` };
+  const html = await request(app).get(`/api/${legacy}`).set(session);
   assert.equal(html.status, 200);
   assert.match(html.headers['content-disposition'] || '', /attachment/);
   assert.match(html.headers['content-security-policy'] || '', /sandbox/);
   assert.equal(html.headers['x-content-type-options'], 'nosniff');
   const { filePath } = await upload('doc.pdf', 'application/pdf');
-  const pdf = await request(app).get(`/api/${filePath}`);
+  const pdf = await request(app).get(`/api/${filePath}`).set(session);
   assert.equal(pdf.status, 200);
   assert.doesNotMatch(pdf.headers['content-disposition'] || '', /attachment/);
   assert.equal(pdf.headers['x-content-type-options'], 'nosniff');

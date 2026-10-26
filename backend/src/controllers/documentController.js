@@ -6,6 +6,7 @@ import {
   buildCategoryRestrictionWhere,
   buildDocumentAccessWhere,
   hasDocumentReadAccess,
+  readableWhere,
   resolveUploaderServiceId,
 } from '../utils/documentVisibility.js';
 import { Document, User, Workflow, InvoiceFolder, TemplatePermission } from '../models/index.js'; // ✅ AJOUT IMPORT InvoiceFolder
@@ -533,7 +534,7 @@ export const getVisibilityContext = async (req, res) => {
 // 204 si le document n'en a pas (Word, formulaire…) : le client garde l'icône.
 export const getDocumentThumbnail = async (req, res) => {
   try {
-    const document = await Document.findByPk(req.params.id, { attributes: ['id', 'filePath', 'fileName', 'fileType', 'userId', 'visibility', 'serviceId'] });
+    const document = await Document.findByPk(req.params.id, { attributes: ['id', 'filePath', 'fileName', 'fileType', 'userId', 'visibility', 'serviceId', 'category'] });
     if (!document) return res.status(404).end();
     if (!(await hasDocumentReadAccess(document, req.user))) return res.status(403).end();
     const thumb = await getThumbnail(document);
@@ -903,12 +904,12 @@ export const getPieceDeCaisseHistory = async (req, res) => {
 export const getValidatedDemandesTravaux = async (req, res) => {
   try {
     const documents = await Document.findAll({
-      where: {
+      where: await readableWhere(req.user, {
         category: 'Demande de travaux',
         status: {
           [Op.in]: ['pending_validation', 'in_progress', 'approved'] // Les DT en cours ou validées
         }
-      },
+      }),
       include: [
         { 
           model: User, 

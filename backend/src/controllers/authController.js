@@ -11,6 +11,7 @@ const fleetFlagsSafe = (user) => fleetModuleFlags(user).catch(() => ({ hasModule
 import { getTenantSettings } from '../utils/tenantSettings.js';
 import { sendEmailOtp, EmailOtpError, maskEmail } from '../utils/emailOtp.js';
 import { signSessionToken, revokeSessions } from '../utils/sessionTokens.js';
+import { setFileCookie } from '../utils/fileAccess.js';
 
 // Durée de session réglée par tenant (Paramètres › Délais et session, 7 j par défaut)
 export const generateToken = async (user) => {
@@ -117,6 +118,7 @@ export const login = async (req, res, next) => {
 
     await user.update({ lastLogin: new Date() });
     const token = await generateToken(user);
+    setFileCookie(req, res, token, jwt.decode(token));
     const userResult = user.toJSON();
     delete userResult.password;
     delete userResult.totpSecret;

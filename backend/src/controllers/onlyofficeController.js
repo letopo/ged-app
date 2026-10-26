@@ -2,6 +2,7 @@
 // Intégration OnlyOffice Document Server
 
 import jwt from 'jsonwebtoken';
+import { signFileUrl } from '../utils/fileAccess.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -56,7 +57,8 @@ export const getOnlyOfficeConfig = async (req, res) => {
 
     // URL que OnlyOffice utilise pour télécharger le fichier (réseau Docker interne en prod)
     // Le backend sert les uploads à /api/uploads/<filename>
-    const fileUrl = `${BACKEND_ONLYOFFICE_URL}/api/uploads/${document.fileName}`;
+    // Lien signé à durée limitée : OnlyOffice récupère le fichier sans session
+    const fileUrl = `${BACKEND_ONLYOFFICE_URL}${signFileUrl(document.filePath, 6 * 3600)}`;
 
     // URL du callback (OnlyOffice POST ici après sauvegarde — même réseau Docker)
     const callbackUrl = `${BACKEND_ONLYOFFICE_URL}/api/onlyoffice/callback/${documentId}`;
