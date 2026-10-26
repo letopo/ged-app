@@ -174,7 +174,7 @@ ok "Images construites : ged-app-backend:$SHORT, ged-app-frontend:$SHORT"
 
 # ── 4. Contrôle des images ───────────────────────────────────────────────────
 step "4. Contrôle du contenu des images"
-docker run --rm --entrypoint sh "ged-app-backend:$SHORT" -c 'test -f src/server.js && test -d database/migrations && node --check src/server.js' \
+docker run --rm --entrypoint sh "ged-app-backend:$SHORT" -c 'test -f dist/server.js && test -f src/config/database-cli.cjs && test -d database/migrations && node --check dist/server.js' \
   || fail "Image backend incomplète."
 if [ "$MODE" = deploy ] || [ -f backend/public_key.pem ]; then
   docker run --rm --entrypoint sh "ged-app-backend:$SHORT" -c 'test -s public_key.pem' || fail "Clé de licence absente de l'image backend."

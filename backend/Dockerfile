@@ -34,11 +34,19 @@ CMD ["npm", "run", "dev"]
 # Stage 3: Build
 FROM base AS builder
 
+# Toutes les dépendances (TypeScript compris) pour compiler src/ → dist/
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copier tout le code source
 COPY . .
+
+# Compilation, puis l'image ne garde que dist/ et les dépendances de production.
+# src/config/database-cli.cjs reste : sequelize-cli le lit (.sequelizerc).
+RUN npm run build && \
+    npm prune --omit=dev && \
+    find src -type f ! -path src/config/database-cli.cjs -delete && \
+    find src -type d -empty -delete
 
 # Stage 4: Production
 FROM base AS production
@@ -73,4 +81,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["node", "src/server.js"]
+CMD ["node", "--enable-source-maps", "dist/server.js"]
