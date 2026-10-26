@@ -75,6 +75,7 @@ import { startPHPAutoCloseScheduler, cloturerConsultationsPassees } from './util
 import { startSageFactureSync } from './utils/sageFactureSync.js';
 import { startWorkflowExpireScheduler, expireOverdueWorkflows } from './utils/workflowAutoExpire.js';
 import { resolveTenant } from './middleware/tenant.js';
+import { requireFileAccess } from './utils/fileAccess.js';
 import superAdminRoutes from './routes/superAdmin.js';
 import { Tenant as TenantModel } from './models/index.js';
 import { globalLimiter } from './middleware/rateLimiter.js';
@@ -205,9 +206,9 @@ app.use('/api/uploads', (req, res, next) => {
   // Miniatures (uploads/.thumbs) : seulement via /api/documents/:id/thumbnail (contrôle d'accès)
   if (/^\/\.thumbs(\/|$)/i.test(decodeURIComponent(req.path))) return res.sendStatus(404);
   next();
-}, express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny', setHeaders: setUploadHeaders }));
+}, requireFileAccess('uploads'), express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny', setHeaders: setUploadHeaders }));
 
-app.use('/api/signatures', express.static(path.join(__dirname, '../signatures'), { dotfiles: 'deny', setHeaders: setUploadHeaders }));
+app.use('/api/signatures', requireFileAccess('signatures'), express.static(path.join(__dirname, '../signatures'), { dotfiles: 'deny', setHeaders: setUploadHeaders }));
 
 // ============================================
 // RATE LIMITING

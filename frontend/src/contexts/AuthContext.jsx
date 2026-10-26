@@ -62,6 +62,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // Efface aussi le cookie de session des fichiers (/api/uploads)
+    fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/logout`, { method: 'POST', credentials: 'same-origin' }).catch(() => {});
     try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch { /* ignore */ }
     setToken(null);
     setUser(null);

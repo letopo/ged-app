@@ -640,6 +640,17 @@ const RELEASE_NOTES = [
     access: isAdmin,
   },
   {
+    id: '2026-10-26-securite-acces-fichiers',
+    date: '2026-10-26',
+    target: 'app',
+    title: 'Fichiers accessibles seulement aux personnes connectées',
+    items: [
+      'Les fichiers des documents, signatures et pièces jointes ne s’ouvrent plus sans être connecté, et le fichier d’un document seulement pour qui a le droit de le lire.',
+      'Un lien de fichier copié ne fonctionne donc plus une fois déconnecté ni pour une personne sans accès au document.',
+    ],
+    access: isAdmin,
+  },
+  {
     id: '2026-10-26-securite-bornes',
     date: '2026-10-26',
     target: 'app',
