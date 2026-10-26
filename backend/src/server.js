@@ -986,6 +986,8 @@ const startServer = async () => {
   }
 };
 
-startServer();
+// Tests (node --test) : l'application est importée sans démarrer le serveur,
+// les planificateurs ni les vérifications de démarrage.
+if (process.env.NODE_ENV !== 'test') startServer();
 
 export default app;

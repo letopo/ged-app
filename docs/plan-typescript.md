@@ -58,6 +58,20 @@ L'interface (`frontend/`, React) est hors périmètre. Elle pourra suivre plus t
 
 ### Étape 1 : filet de sécurité, des tests sur les règles sensibles (2 jours)
 
+> ✅ **Fait le 26/10/2026** : 67 tests (42 unitaires, 25 d'intégration), plus 1 test « à corriger ».
+> - **Outil** : le testeur intégré de Node (`node --test`) plutôt que Jest. Il gère nativement les modules ES sans configuration, et lancera aussi le TypeScript via `tsx`. Jest est retiré.
+> - **Commandes** :
+>   - `npm test` (tout) ;
+>   - `npm run test:unit` (sans base) ;
+>   - `npm run test:integration` (recrée la base `ged_test`, charge `tests/fixtures/schema.sql`, applique les migrations récentes) ;
+>   - `npm run test:db` (base jetable locale sur le port 55432) ;
+>   - `npm run test:schema` (rafraîchit l'instantané de la structure depuis la base de développement).
+> - **Pourquoi un instantané** : la base ne se reconstruit pas depuis les seules migrations. Une partie de la structure vient de `docker/init-db.sql` et du démarrage du serveur.
+> - **Testabilité** : `src/server.js` ne démarre pas en `NODE_ENV=test`, et le délai de permission est sorti dans `utils/permissionRules.js` (date injectable).
+> - **Constats** :
+>   1. Le filtre automatique par établissement (hook `beforeFind`) ne s'applique jamais. Le test « un autre établissement ne voit rien » est marqué `todo`, à corriger dans une PR dédiée.
+>   2. `services.name` est unique dans toute la base, pas par établissement.
+
 À écrire **avant** de convertir, pour prouver que rien ne change :
 
 - **Droits d'accès** : `hasDocumentReadAccess` et `buildDocumentAccessWhere` (personnel / service / validateurs / transmis, plafonds RH et Compta).

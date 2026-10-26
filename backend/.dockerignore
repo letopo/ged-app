@@ -13,4 +13,4 @@ signatures/*
 !signatures/.gitkeep
 dist
 coverage
-.nyc_output
+.nyc_outputtests

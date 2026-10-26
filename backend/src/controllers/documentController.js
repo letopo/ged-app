@@ -14,22 +14,7 @@ import path from 'path';
 import { mergePDFs, validatePDF } from '../utils/pdfMerger.js';
 import { isManuallySigned } from './manualSignatureController.js';
 import { getThumbnail, deleteThumbnails } from '../utils/thumbnails.js';
-
-// Première date de début autorisée pour une demande de permission : 2 jours
-// OUVRABLES après aujourd'hui (heure du Cameroun), le week-end ne compte pas
-// (ex. demande le vendredi → au plus tôt le mardi).
-export const PERMISSION_NOTICE_DAYS = 2;
-function permissionEarliestStart() {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Douala' }); // AAAA-MM-JJ
-  const d = new Date(`${today}T12:00:00Z`);
-  let added = 0;
-  while (added < PERMISSION_NOTICE_DAYS) {
-    d.setUTCDate(d.getUTCDate() + 1);
-    const wd = d.getUTCDay();
-    if (wd !== 0 && wd !== 6) added++;
-  }
-  return d.toISOString().slice(0, 10);
-}
+import { permissionEarliestStart, isPermissionNoticeExempt } from '../utils/permissionRules.js';
 
 export const uploadDocument = async (req, res) => {
   try {
@@ -58,7 +43,7 @@ export const uploadDocument = async (req, res) => {
     }
 
     // Demande de permission : au moins 2 jours ouvrables à l'avance, sauf administrateurs
-    if ((category || parsedMetadata.type) === 'Demande de permission' && !['admin', 'superadmin'].includes(req.user.role)) {
+    if ((category || parsedMetadata.type) === 'Demande de permission' && !isPermissionNoticeExempt(req.user)) {
       const starts = [
         ...(Array.isArray(parsedMetadata.periods) ? parsedMetadata.periods.map(p => p?.startDate) : []),
         dateDebut,

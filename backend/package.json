@@ -9,7 +9,11 @@
     "build": "tsc -p .",
     "typecheck": "tsc -p . --noEmit",
     "start": "node --enable-source-maps dist/server.js",
-    "test": "jest --passWithNoTests"
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:integration": "node tests/setup-db.mjs && node --test --test-concurrency=1 tests/integration/*.test.js",
+    "test:db": "docker run -d --rm --name ged-test-db -p 55432:5432 -e POSTGRES_PASSWORD=test postgres:17.5-alpine",
+    "test:schema": "./scripts/dump-test-schema.sh"
   },
   "keywords": [
     "ged",
@@ -57,7 +61,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^1.4.13",
     "@types/node": "^20.19.43",
-    "jest": "^29.7.0",
     "nodemon": "^3.0.2",
     "supertest": "^6.3.3",
     "tsx": "^4.23.15",
