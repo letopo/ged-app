@@ -3039,5 +3039,8 @@
   "Jeudi": "الخميس",
   "Vendredi": "الجمعة",
   "Samedi": "السبت",
-  "Dimanche": "الأحد"
+  "Dimanche": "الأحد",
+  "Tablette non autorisée": "جهاز لوحي غير مصرح به",
+  "Ce compte ne peut pas servir de tablette de signature.": "لا يمكن استخدام هذا الحساب كجهاز لوحي للتوقيع.",
+  "Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.": "لا يمكن استخدام هذا الحساب كجهاز لوحي للتوقيع. سجّل دخول الجهاز بحساب شباك (الصندوق، الاستقبال) أو اطلب من المسؤول منصب «محطة التوقيع»."
 }

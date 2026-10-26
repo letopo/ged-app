@@ -3039,5 +3039,8 @@
   "Jeudi": "Jueves",
   "Vendredi": "Viernes",
   "Samedi": "Sábado",
-  "Dimanche": "Domingo"
+  "Dimanche": "Domingo",
+  "Tablette non autorisée": "Tableta no autorizada",
+  "Ce compte ne peut pas servir de tablette de signature.": "Esta cuenta no puede servir como tableta de firma.",
+  "Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.": "Esta cuenta no puede servir como tableta de firma. Conecte la tableta con una cuenta de ventanilla (caja, recepción) o pida a un administrador el puesto «Terminal de firma»."
 }
