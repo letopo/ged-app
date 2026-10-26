@@ -33,6 +33,14 @@ L'interface (`frontend/`, React) est hors périmètre. Elle pourra suivre plus t
 
 ### Étape 0 : outillage (½ journée)
 
+> ✅ **Fait le 26/10/2026.** Choix retenus :
+> - TypeScript 7 (compilateur natif, ~3 s pour tout le serveur) et `tsx` pour le mode dev.
+> - `src/server.js` reste en JavaScript : aucun fichier n'est converti à l'étape 0. Le script `dev` lance donc `tsx watch src/server.js`.
+> - L'image ne garde de `src/` que `src/config/database-cli.cjs`, lu par sequelize-cli via `.sequelizerc`.
+> - Le JavaScript produit dans `dist/` a été comparé fichier par fichier à `src/` : il est identique, à la mise en forme près.
+> - CI : `.github/workflows/backend-ci.yml` (typecheck, build, test) sur chaque PR qui touche `backend/`.
+> - **Attention pour le dev local** : un `docker cp` vers `/app/src` n'a plus d'effet. Il faut viser `/app/dist`, ou reconstruire l'image.
+
 - Ajouter `typescript`, `@types/node`, `@types/express`, `@types/multer`, `@types/jsonwebtoken`, `@types/cls-hooked` (devDependencies).
 - `backend/tsconfig.json` :
   - `module`/`moduleResolution: NodeNext`, `target: ES2022` ;

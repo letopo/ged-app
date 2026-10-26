@@ -1,0 +1,24 @@
+{
+  // Migration progressive vers TypeScript (docs/plan-typescript.md) :
+  // JavaScript et TypeScript cohabitent, le serveur tourne depuis dist/.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "types": ["node"],
+
+    "allowJs": true,
+    "checkJs": false,
+    "strict": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "rootDir": "src",
+    "outDir": "dist",
+    "sourceMap": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "src/config/database-cli.cjs"]
+}
