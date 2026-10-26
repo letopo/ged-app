@@ -2,6 +2,7 @@
 
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
+import { isSafeStoredPath } from '../utils/storedFiles.js';
 
 const Document = sequelize.define('Document', {
   id: {
@@ -27,6 +28,12 @@ const Document = sequelize.define('Document', {
     type: DataTypes.STRING,
     allowNull: false,
     field: 'file_path',
+    // Toujours un chemin relatif confiné à uploads/ (utils/storedFiles.js)
+    validate: {
+      cheminConfine(value) {
+        if (!isSafeStoredPath(value)) throw new Error('filePath : chemin de fichier invalide (hors du dossier uploads/).');
+      },
+    },
   },
   fileSize: {
     type: DataTypes.INTEGER,

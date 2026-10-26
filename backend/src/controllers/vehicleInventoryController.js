@@ -5,6 +5,7 @@
 // les péremptions du mois forment la liste de réassort envoyée aux
 // responsables ; un point critique en défaut rend l'ambulance indisponible.
 import crypto from 'crypto';
+import { resolveStoredFile } from '../utils/storedFiles.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
@@ -208,7 +209,7 @@ export const getInventoryPdf = async (req, res) => {
     if (!canManage(acc, v) && !canCheck(acc, v, null)) return res.status(403).end();
     const doc = await Document.findByPk(inv.documentId, { attributes: ['filePath'] });
     if (!doc) return res.status(404).end();
-    res.type('application/pdf').sendFile(path.resolve(process.cwd(), doc.filePath));
+    res.type('application/pdf').sendFile(resolveStoredFile(doc.filePath));
   } catch (error) {
     res.status(500).end();
   }

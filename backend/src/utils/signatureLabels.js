@@ -11,6 +11,7 @@
 // (workflowController.validateWorkflowStep) — les N derniers signataires (hors
 // comptable ajouté en fin de circuit) signent les cadres 1..N dans l'ordre.
 import fs from 'fs/promises';
+import { resolveStoredFile } from './storedFiles.js';
 import path from 'path';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { User, Poste, ServiceMember, Workflow } from '../models/index.js';
@@ -93,7 +94,7 @@ export async function applySignerLabels(document, chosenTitles = {}) {
   // (après expiration ou rejet) ne laisse ainsi aucun ancien titre — même caché
   // sous du blanc, il resterait dans le texte du PDF — ni signature d'un cycle
   // précédent.
-  const pdfPath = path.resolve(process.cwd(), document.filePath);
+  const pdfPath = resolveStoredFile(document.filePath);
   let basePath = document.metadata?.unsignedFilePath;
   const baseExists = basePath && await fs.access(path.resolve(process.cwd(), basePath)).then(() => true, () => false);
   if (!baseExists) {

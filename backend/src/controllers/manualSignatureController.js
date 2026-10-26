@@ -9,6 +9,7 @@
 // documents.metadata.manualSignature (+ journal d'audit). Le document est
 // ensuite verrouillé (plus de nouvelle signature, d'ajout de page ni de circuit).
 import crypto from 'crypto';
+import { resolveStoredFile } from '../utils/storedFiles.js';
 import fs from 'fs/promises';
 import path from 'path';
 import {
@@ -145,7 +146,7 @@ export const signDocumentManually = async (req, res) => {
     const x = clamp(nums[0], 0, 1 - w);
     const y = clamp(nums[1], 0, 1 - h);
 
-    const originalAbs = path.resolve(process.cwd(), document.filePath);
+    const originalAbs = resolveStoredFile(document.filePath);
     let originalBytes;
     try { originalBytes = await fs.readFile(originalAbs); } catch {
       return res.status(404).json({ success: false, message: 'Fichier introuvable sur le serveur.' });
@@ -272,7 +273,7 @@ export const getManualSignature = async (req, res) => {
     if (!record) return res.json({ success: true, data: null });
     let intact = false;
     try {
-      intact = sha256(await fs.readFile(path.resolve(process.cwd(), document.filePath))) === record.sha256;
+      intact = sha256(await fs.readFile(resolveStoredFile(document.filePath))) === record.sha256;
     } catch { intact = false; }
     const { ip, userAgent, remote, ...publicRecord } = record;
     if (remote) publicRecord.remote = { kioskName: remote.kioskName || null };

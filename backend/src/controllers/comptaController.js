@@ -1,10 +1,11 @@
 // backend/src/controllers/comptaController.js — Module Comptabilité (pièces de caisse)
 import path from 'path';
+import { resolveStoredFile } from '../utils/storedFiles.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ComptaDoc, Document, User } from '../models/index.js';
 import { extractComptaFields } from '../services/comptaExtractionService.js';
 
-const resolveDocPath = (doc) => path.resolve(process.cwd(), doc.filePath);
+const resolveDocPath = (doc) => resolveStoredFile(doc.filePath);
 
 const nextNumeroOrdre = async () => {
   const max = await ComptaDoc.max('numeroOrdre');
