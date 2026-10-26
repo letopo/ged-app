@@ -1,5 +1,5 @@
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { verifySessionToken, sessionRejection } from '../utils/sessionTokens.js';
 
 // Vérifie que le token JWT appartient à un superadmin
 export const requireSuperAdmin = async (req, res, next) => {
@@ -10,11 +10,14 @@ export const requireSuperAdmin = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifySessionToken(token);
 
     // Charger l'utilisateur sans filtre tenant (User.unscoped())
     const user = await User.unscoped().findByPk(decoded.id);
-    if (!user || user.role !== 'superadmin') {
+    if (sessionRejection(user, decoded)) {
+      return res.status(401).json({ success: false, error: 'Session invalide' });
+    }
+    if (user.role !== 'superadmin') {
       return res.status(403).json({ success: false, error: 'Accès réservé au super-administrateur' });
     }
 

@@ -76,6 +76,8 @@ const User = sequelize.define('User', {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
+  // Version des jetons : l'incrémenter révoque toutes les sessions (utils/sessionTokens.js)
+  tokenVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'token_version' },
   lastLogin: {
     type: DataTypes.DATE,
     allowNull: true

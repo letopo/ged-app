@@ -606,6 +606,18 @@ const RELEASE_NOTES = [
       'Le contrôle avant / après mission est raccourci aux points vitaux (O2 en bar, ballon, aspirateur, DSA, brancard). La fiche d’inventaire se modifie dans l’onglet « Check-list ».',
     ],
   },
+  {
+    id: '2026-10-26-securite-sessions',
+    date: '2026-10-26',
+    target: 'app',
+    title: 'Sécurité des sessions renforcée',
+    items: [
+      'Désactiver un compte ou réinitialiser son mot de passe ferme immédiatement toutes ses sessions, y compris sur les autres appareils et en temps réel.',
+      'Changer son propre mot de passe garde la session en cours et déconnecte les autres appareils.',
+      'La double authentification ne peut plus être contournée : sans le code, aucune page n’est accessible.',
+    ],
+    access: isAdmin,
+  },
 ];
 
 export default RELEASE_NOTES;

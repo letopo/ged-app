@@ -10,15 +10,12 @@ import { fleetModuleFlags } from './vehicleController.js';
 const fleetFlagsSafe = (user) => fleetModuleFlags(user).catch(() => ({ hasModule: false }));
 import { getTenantSettings } from '../utils/tenantSettings.js';
 import { sendEmailOtp, EmailOtpError, maskEmail } from '../utils/emailOtp.js';
+import { signSessionToken, revokeSessions } from '../utils/sessionTokens.js';
 
 // Durée de session réglée par tenant (Paramètres › Délais et session, 7 j par défaut)
-const generateToken = async (user) => {
+export const generateToken = async (user) => {
   const { sessionMaxDays } = await getTenantSettings(user.tenantId);
-  return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: `${sessionMaxDays}d` }
-  );
+  return signSessionToken(user, `${sessionMaxDays}d`);
 };
 
 export const register = async (req, res, next) => {
@@ -210,14 +207,17 @@ export const updateProfile = async (req, res, next) => {
             }
             // Le hook `beforeSave` s'occupera de hacher le nouveau mot de passe
             user.password = newPassword;
+            // Les autres sessions (autres appareils) sont révoquées ; un nouveau jeton est rendu
+            await revokeSessions(user);
         }
     
         await user.save();
     
         const updatedUser = user.toJSON();
         delete updatedUser.password;
+        delete updatedUser.tokenVersion;
     
-        res.json({ success: true, message: 'Profil mis à jour', user: updatedUser });
+        res.json({ success: true, message: 'Profil mis à jour', user: updatedUser, ...(newPassword ? { token: await generateToken(user) } : {}) });
     } catch (error) {
         next(error);
     }
