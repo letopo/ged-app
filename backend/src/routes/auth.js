@@ -19,6 +19,8 @@ const router = express.Router();
 
 router.post('/register', register);
 router.post('/login', loginLimiter, login);
+// Déconnexion : efface le cookie de fichiers (le jeton est retiré côté navigateur)
+router.post('/logout', (req, res) => { res.clearCookie('ged_files', { path: '/api' }); res.json({ success: true }); });
 router.get('/profile',  protect, getProfile);
 router.put('/profile',  protect, updateProfile);
 router.get('/release-notes',       protect, getReleaseNotesState);

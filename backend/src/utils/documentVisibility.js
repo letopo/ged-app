@@ -5,7 +5,7 @@
 import { Op } from 'sequelize';
 import { getPosteHolders } from './posteResolver.js';
 import { ServiceMember, Workflow, DocumentTransmission } from '../models/index.js';
-import { canReadDocumentCategory } from './categoryAccess.js';
+import { canReadDocumentCategory, buildCategoryRestrictionWhere as categoryWhere } from './categoryAccess.js';
 
 // Documents générés par le RH : visibles uniquement par l'admin
 export const canViewHRDocuments = (user) => ['admin', 'superadmin'].includes(user.role);
@@ -62,6 +62,12 @@ export async function buildDocumentAccessWhere(user) {
     orConditions.push({ id: { [Op.in]: myReceivedDocIds } });
   }
   return { [Op.or]: orConditions };
+}
+
+// `where` restreint aux documents que l'utilisateur peut lister (droits + plafond par catégorie).
+export async function readableWhere(user, where = {}) {
+  const conditions = [where, await buildDocumentAccessWhere(user), await categoryWhere(user)].filter(Boolean);
+  return { [Op.and]: conditions };
 }
 
 // Vérifie l'accès à UN document déjà chargé (getDocument, downloadDocument, ...).
