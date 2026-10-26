@@ -97,14 +97,30 @@ export function sendToKiosk(r, kioskId) {
   return true;
 }
 
+// Comptes autorisés à servir de tablette de signature
+export const KIOSK_ROLES = ['caissier', 'agent_accueil_php', 'agent_accueil_PHP', 'agent_accueil_normal', 'admin', 'superadmin'];
+export const KIOSK_POSTE = 'borne_signature';
+export const KIOSK_REFUSED_MESSAGE = 'Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.';
+async function canBeKiosk(user) {
+  if (KIOSK_ROLES.includes(user.role)) return true;
+  const { getUserPosteCodes } = await import('./posteResolver.js');
+  return (await getUserPosteCodes(user.id)).includes(KIOSK_POSTE);
+}
+
 // Branché sur chaque connexion Socket.IO (cf. socketManager.js)
 export function attachSignatureKiosk(socket, io) {
   ioRef = io;
   socket.on('signature-kiosk:register', async ({ name } = {}) => {
     try {
       const { User } = await import('../models/index.js');
-      const user = await User.findByPk(socket.userId, { attributes: ['id', 'firstName', 'lastName', 'tenantId'] });
-      if (!user) return;
+      const user = await User.findByPk(socket.userId, { attributes: ['id', 'firstName', 'lastName', 'tenantId', 'role', 'isActive'] });
+      if (!user || user.isActive === false) return;
+      // Seuls les comptes de guichet (ou un poste « Borne de signature ») peuvent
+      // servir de tablette : un autre compte recevrait les documents des patients
+      if (!(await canBeKiosk(user))) {
+        socket.emit('signature-kiosk:refused', { message: KIOSK_REFUSED_MESSAGE });
+        return;
+      }
       const prev = kiosks.get(socket.id);
       kiosks.set(socket.id, {
         id: socket.id,

@@ -3039,5 +3039,8 @@
   "Jeudi": "Thursday",
   "Vendredi": "Friday",
   "Samedi": "Saturday",
-  "Dimanche": "Sunday"
+  "Dimanche": "Sunday",
+  "Tablette non autorisée": "Tablet not authorised",
+  "Ce compte ne peut pas servir de tablette de signature.": "This account cannot be used as a signature tablet.",
+  "Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.": "This account cannot be used as a signature tablet. Sign the tablet in with a counter account (cash desk, reception) or ask an administrator for the “Signature kiosk” position."
 }

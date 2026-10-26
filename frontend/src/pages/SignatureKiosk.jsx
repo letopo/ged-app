@@ -19,6 +19,7 @@ export default function SignatureKiosk() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [connected, setConnected] = useState(false);
+  const [refused, setRefused] = useState(null); // compte non autorisé comme tablette
   const [token, setToken] = useState(null);
   const tokenRef = useRef(null);
   tokenRef.current = token;
@@ -32,6 +33,8 @@ export default function SignatureKiosk() {
     const register = () => { setConnected(true); socket.emit('signature-kiosk:register', { name: nameRef.current }); };
     const onDisconnect = () => setConnected(false);
     const onRequest = ({ token: tk }) => setToken(tk);
+    const onRefused = ({ message } = {}) => setRefused(message || t('Ce compte ne peut pas servir de tablette de signature.'));
+    const onRegistered = () => setRefused(null);
     const onCancel = ({ token: tk }) => {
       if (tk === tokenRef.current) { setToken(null); toast(t('Demande annulée depuis le PC.')); }
     };
@@ -39,6 +42,8 @@ export default function SignatureKiosk() {
     socket.on('disconnect', onDisconnect);
     socket.on('signature-kiosk:request', onRequest);
     socket.on('signature-kiosk:cancel', onCancel);
+    socket.on('signature-kiosk:refused', onRefused);
+    socket.on('signature-kiosk:registered', onRegistered);
     if (socket.connected) register();
     return () => {
       socket.emit('signature-kiosk:unregister');
@@ -46,6 +51,8 @@ export default function SignatureKiosk() {
       socket.off('disconnect', onDisconnect);
       socket.off('signature-kiosk:request', onRequest);
       socket.off('signature-kiosk:cancel', onCancel);
+      socket.off('signature-kiosk:refused', onRefused);
+      socket.off('signature-kiosk:registered', onRegistered);
     };
   }, [t]);
 
@@ -91,10 +98,12 @@ export default function SignatureKiosk() {
           {name} <Pencil size={16} color="#8a90a0" />
         </button>
       )}
-      <div style={{ fontSize: 18, color: '#5b6275', maxWidth: 520 }}>{t('Prête à recevoir les documents à signer.')}</div>
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: connected ? '#16a34a' : '#d97706' }}>
+      {refused
+        ? <div style={{ fontSize: 16, color: '#b91c1c', maxWidth: 520, background: '#fee2e2', borderRadius: 10, padding: '12px 14px' }}>{t(refused)}</div>
+        : <div style={{ fontSize: 18, color: '#5b6275', maxWidth: 520 }}>{t('Prête à recevoir les documents à signer.')}</div>}
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: refused ? '#b91c1c' : connected ? '#16a34a' : '#d97706' }}>
         {connected ? <Wifi size={16} /> : <WifiOff size={16} />}
-        {connected ? t('Connectée à la GED') : t('Connexion en cours…')}
+        {refused ? t('Tablette non autorisée') : connected ? t('Connectée à la GED') : t('Connexion en cours…')}
       </div>
       <div style={{ fontSize: 13, color: '#8a90a0', maxWidth: 520, marginTop: 12 }}>
         {t('Sur le PC : « Faire signer » → « Sur une tablette » → « {{name}} ».', { name })}
