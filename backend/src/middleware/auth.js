@@ -2,6 +2,7 @@
 
 import User from '../models/User.js';
 import { verifySessionToken, sessionRejection } from '../utils/sessionTokens.js';
+import { setFileCookie } from '../utils/fileAccess.js';
 
 // ============================================
 // Middleware de protection des routes (JWT)
@@ -34,6 +35,10 @@ export const protect = async (req, res, next) => {
     if (rejection) {
       return res.status(401).json({ message: rejection });
     }
+
+    // Cookie de session limité aux fichiers (/api/uploads, /api/signatures),
+    // envoyé par le navigateur avec les images, liens et la visionneuse PDF
+    setFileCookie(req, res, token, decoded);
 
     // Ajouter l'utilisateur à la requête
     req.user = user;
