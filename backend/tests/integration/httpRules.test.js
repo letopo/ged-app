@@ -95,8 +95,11 @@ test('signature manuscrite : signée une fois, puis verrouillée', async () => {
   const again = await request(app).post(`/api/documents/${doc.id}/manual-signature`).set(authHeaders(f.tenant, u.agent)).send(body);
   assert.equal(again.status, 409);
   // Modification : le fichier et la preuve ne bougent pas
+  const moved = await request(app).put(`/api/documents/${doc.id}`).set(authHeaders(f.tenant, u.agent))
+    .send({ filePath: 'uploads/autre.pdf' });
+  assert.equal(moved.status, 400, 'le fichier ne se change pas par PUT');
   const upd = await request(app).put(`/api/documents/${doc.id}`).set(authHeaders(f.tenant, u.agent))
-    .send({ title: 'Nouveau titre', filePath: 'uploads/autre.pdf', metadata: { manualSignature: null } });
+    .send({ title: 'Nouveau titre', metadata: { manualSignature: null } });
   assert.equal(upd.status, 200);
   const after = await f.run(() => Document.findByPk(doc.id));
   assert.equal(after.title, 'Nouveau titre');

@@ -15,6 +15,7 @@ import { mergePDFs, validatePDF } from '../utils/pdfMerger.js';
 import { isManuallySigned } from './manualSignatureController.js';
 import { getThumbnail, deleteThumbnails } from '../utils/thumbnails.js';
 import { permissionEarliestStart, isPermissionNoticeExempt } from '../utils/permissionRules.js';
+import { resolveStoredFile, resolveStoredFileOrNull } from '../utils/storedFiles.js';
 
 export const uploadDocument = async (req, res) => {
   try {
@@ -105,7 +106,7 @@ export const uploadDocument = async (req, res) => {
           throw new Error('Le document lié doit être au format PDF pour être fusionné');
         }
 
-        const linkedDocPath = path.resolve(process.cwd(), linkedDocument.filePath);
+        const linkedDocPath = resolveStoredFile(linkedDocument.filePath);
         const pcPath = path.resolve(process.cwd(), finalFilePath);
 
         // Valider les deux PDFs
@@ -399,6 +400,16 @@ export const getDocument = async (req, res) => {
   }
 };
 
+// Modification d'un document par son propriétaire (ou un admin) : champs
+// descriptifs seulement. Fichier, propriétaire, établissement, statut, liens et
+// texte extrait sont gérés par le serveur (upload, circuits, signature…).
+const EDITABLE_DOCUMENT_FIELDS = ['title', 'category', 'dateDebut', 'dateFin', 'metadata'];
+const SERVER_DOCUMENT_FIELDS = ['filePath', 'fileName', 'originalName', 'fileSize', 'fileType', 'userId', 'status', 'tenantId',
+  'linkedDocumentId', 'extractedText', 'archived', 'visibility', 'serviceId', 'invoiceFolderId'];
+// Métadonnées posées par le serveur : conservées telles quelles
+const SERVER_METADATA_KEYS = ['manualSignature', 'verification_hash', 'interim', 'mergedFrom', 'paye', 'signatureZones',
+  'sourceType', 'vehicleId', 'missionId', 'checkId', 'inventoryId'];
+
 export const updateDocument = async (req, res) => {
   try {
     const document = await Document.findByPk(req.params.id);
@@ -406,16 +417,27 @@ export const updateDocument = async (req, res) => {
     if (!['admin','superadmin'].includes(req.user.role) && document.userId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
-    const changes = { ...req.body };
-    // Document signé à la main : le fichier et la preuve de signature ne bougent plus
-    if (isManuallySigned(document)) {
-      ['filePath', 'fileName', 'fileType', 'fileSize'].forEach((k) => delete changes[k]);
-      if (changes.metadata) changes.metadata = { ...changes.metadata, manualSignature: document.metadata.manualSignature };
+    const body = req.body || {};
+    const refused = SERVER_DOCUMENT_FIELDS.filter((k) => body[k] !== undefined && String(body[k]) !== String(document[k] ?? ''));
+    if (refused.length) {
+      return res.status(400).json({ success: false, message: `Champs non modifiables : ${refused.join(', ')}.` });
+    }
+    const changes = {};
+    for (const k of EDITABLE_DOCUMENT_FIELDS) if (body[k] !== undefined) changes[k] = body[k];
+    if (changes.metadata !== undefined) {
+      const incoming = changes.metadata && typeof changes.metadata === 'object' && !Array.isArray(changes.metadata) ? { ...changes.metadata } : {};
+      const current = document.metadata || {};
+      for (const k of SERVER_METADATA_KEYS) {
+        delete incoming[k];
+        if (current[k] !== undefined) incoming[k] = current[k];
+      }
+      changes.metadata = incoming;
     }
     await document.update(changes);
     const updatedDocument = await Document.findByPk(req.params.id, { include: [{ model: User, as: 'uploadedBy' }] });
     res.json({ success: true, data: updatedDocument, message: 'Document mis à jour.' });
   } catch (error) {
+    if (error?.name === 'SequelizeValidationError') return res.status(400).json({ success: false, message: error.errors?.[0]?.message || 'Données invalides.' });
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
   }
 };
@@ -429,12 +451,14 @@ export const deleteDocument = async (req, res, next) => {
     if (!['admin','superadmin'].includes(req.user.role) && document.userId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     }
-    const fullPath = path.resolve(process.cwd(), document.filePath);
-    try { await fs.unlink(fullPath); } catch(err) { console.warn("Fichier physique déjà supprimé ou introuvable:", err.message); }
+    const fullPath = resolveStoredFileOrNull(document.filePath);
+    if (fullPath) { try { await fs.unlink(fullPath); } catch(err) { console.warn("Fichier physique déjà supprimé ou introuvable:", err.message); } }
+    else console.warn('Suppression : chemin de fichier hors de uploads/ ignoré pour', document.id);
     // Document signé à la main : supprimer aussi l'original non signé conservé
     deleteThumbnails(id);
     const originalPath = document.metadata?.manualSignature?.original?.filePath;
-    if (originalPath) { try { await fs.unlink(path.resolve(process.cwd(), originalPath)); } catch { /* déjà absent */ } }
+    const originalAbs = resolveStoredFileOrNull(originalPath);
+    if (originalAbs) { try { await fs.unlink(originalAbs); } catch { /* déjà absent */ } }
     await Workflow.destroy({ where: { documentId: id } });
     const docTitle = document.title;
     await document.destroy();
@@ -472,8 +496,9 @@ export const downloadDocument = async (req, res) => {
         if (!(await hasDocumentReadAccess(document, req.user))) {
             return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
         }
-        const filePath = path.resolve(process.cwd(), document.filePath);
+        const filePath = resolveStoredFileOrNull(document.filePath);
         try {
+          if (!filePath) throw new Error('chemin hors de uploads/');
           await fs.access(filePath);
           // Utiliser le titre du document comme nom de fichier téléchargé
           const ext = path.extname(document.fileName || document.originalName || '.pdf') || '.pdf';
@@ -557,7 +582,7 @@ export const addPageToDocument = async (req, res) => {
       if (!(await hasDocumentReadAccess(source, req.user))) {
         return res.status(403).json({ success: false, message: 'Accès non autorisé au document à ajouter.' });
       }
-      newPagePath = path.resolve(process.cwd(), source.filePath);
+      newPagePath = resolveStoredFile(source.filePath);
     } else {
       newPagePath = path.resolve(process.cwd(), req.file.path);
     }
@@ -571,7 +596,7 @@ export const addPageToDocument = async (req, res) => {
       return res.status(400).json({ success: false, message: 'La fusion nécessite deux fichiers PDF.' });
     }
 
-    const originalPath = path.resolve(process.cwd(), document.filePath);
+    const originalPath = resolveStoredFile(document.filePath);
     console.log(`🔄 Fusion demandée : ${position} le document ${document.id}${source ? ` (depuis le document ${source.id})` : ''}`);
 
     const mergedPdfBytes = position === 'before'

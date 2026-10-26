@@ -1,11 +1,12 @@
 // backend/src/controllers/phpFactureController.js — Module factures PHP (secrétaire)
 import path from 'path';
+import { resolveStoredFile } from '../utils/storedFiles.js';
 import fs from 'fs/promises';
 import { PhpFacture, Document, User } from '../models/index.js';
 import { extractInvoiceFields } from '../services/invoiceExtractionService.js';
 
 // Résout le chemin disque d'un document (filePath est relatif, ex: uploads/xxx)
-const resolveDocPath = (doc) => path.resolve(process.cwd(), doc.filePath);
+const resolveDocPath = (doc) => resolveStoredFile(doc.filePath);
 
 // Prochain numéro d'ordre (N° DATE) — max + 1
 const nextNumeroOrdre = async () => {

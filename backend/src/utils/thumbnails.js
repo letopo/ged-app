@@ -7,6 +7,7 @@
 // protégée). La clé dépend du chemin, de la taille et de la date du fichier :
 // nouvelle version (cachet, signature, page ajoutée) → nouvelle miniature.
 import { execFile } from 'child_process';
+import { resolveStoredFile } from './storedFiles.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
@@ -62,7 +63,7 @@ async function renderImage(src, dest) {
  */
 export async function getThumbnail(doc) {
   if (!canHaveThumbnail(doc)) return null;
-  const src = path.resolve(process.cwd(), doc.filePath);
+  const src = resolveStoredFile(doc.filePath);
   let stat;
   try { stat = await fs.stat(src); } catch { return null; }
   const key = crypto.createHash('sha1').update(`${doc.filePath}|${stat.size}|${stat.mtimeMs}`).digest('hex').slice(0, 16);

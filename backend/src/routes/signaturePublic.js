@@ -4,6 +4,7 @@
 // signer et à l'envoi d'une signature. Le PC de l'agent appose ensuite la
 // signature (POST /api/documents/:id/manual-signature avec requestToken).
 import express from 'express';
+import { resolveStoredFile } from '../utils/storedFiles.js';
 import path from 'path';
 import { Document } from '../models/index.js';
 import { getRequest, markOpened, storeSignature } from '../utils/signatureRequests.js';
@@ -52,7 +53,7 @@ router.get('/:token/file', async (req, res) => {
   const doc = await Document.findByPk(r.documentId, { attributes: ['filePath', 'fileType'] });
   if (!doc) return res.status(404).end();
   if (doc.fileType) res.type(doc.fileType);
-  res.sendFile(path.resolve(process.cwd(), doc.filePath), (err) => {
+  res.sendFile(resolveStoredFile(doc.filePath), (err) => {
     if (err && !res.headersSent) res.status(404).end();
   });
 });

@@ -8,6 +8,7 @@
 //  - contrôles : en plus, membres du service du véhicule (SAU), chauffeurs
 //    (service « Chauffeurs ») et équipage inscrit sur la mission.
 import crypto from 'crypto';
+import { resolveStoredFile } from '../utils/storedFiles.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
@@ -755,7 +756,7 @@ export const getCheckPdf = async (req, res) => {
     if (!canManage(acc, v) && !canCheck(acc, v, mission)) return res.status(403).end();
     const doc = await Document.findByPk(check.documentId, { attributes: ['filePath', 'fileName'] });
     if (!doc) return res.status(404).end();
-    res.type('application/pdf').sendFile(path.resolve(process.cwd(), doc.filePath));
+    res.type('application/pdf').sendFile(resolveStoredFile(doc.filePath));
   } catch (error) {
     res.status(500).end();
   }

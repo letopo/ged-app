@@ -1,6 +1,7 @@
 // backend/src/controllers/workflowController.js - VERSION COMPLÈTE AVEC SOCKET.IO
 
 import { Workflow, Document, User, InvoiceFolder, NotificationPreference, WorkflowComment } from '../models/index.js';
+import { resolveStoredFile } from '../utils/storedFiles.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
@@ -415,8 +416,8 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         try {
             console.log(`🔄 Fusion automatique : Ajout de "${originDocument.category}" #${originDocument.id} à la DT #${workRequest.id}`);
             
-            const dtPath = path.resolve(process.cwd(), workRequest.filePath);
-            const childPath = path.resolve(process.cwd(), originDocument.filePath);
+            const dtPath = resolveStoredFile(workRequest.filePath);
+            const childPath = resolveStoredFile(originDocument.filePath);
             
             // Fusion : DT (Page 1) + Document Enfant (Page 2)
             const mergedPdfBytes = await mergePDFs(dtPath, childPath);
@@ -543,7 +544,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       const interimAlreadySet = !!document.metadata?.interim?.name;
       if (document.category === 'Demande de permission' && interimName && !interimAlreadySet && (effectiveStatus === 'approved') && document.fileType === 'application/pdf') {
           try {
-              const pdfPath = path.resolve(process.cwd(), document.filePath);
+              const pdfPath = resolveStoredFile(document.filePath);
               const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
               const page = pdfDoc.getPages()[0];
               const { height: pageHeight } = page.getSize();
@@ -658,7 +659,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
 
       // --- APPLICATION SIGNATURE / CACHET SUR LE PDF ---
       if (['approve_sign_stamp', 'signature', 'stamp', 'dater'].includes(validationType) && document.fileType === 'application/pdf') {
-        const pdfPath = path.resolve(process.cwd(), document.filePath);
+        const pdfPath = resolveStoredFile(document.filePath);
         const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
         pdfDoc.registerFontkit(fontkit);
         
@@ -904,7 +905,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
             const verificationUrl = buildVerificationUrl(verificationHash);
 
             try {
-              const currentFilePath = path.resolve(process.cwd(), document.filePath);
+              const currentFilePath = resolveStoredFile(document.filePath);
               const currentPdfBytes = await fs.readFile(currentFilePath);
               const qrPdfDoc = await PDFDocument.load(currentPdfBytes);
               const qrBuffer = await generateQRCodeBuffer(verificationUrl);
@@ -1124,7 +1125,7 @@ export const bulkValidateTask = async (req, res) => {
         if (action === 'approve' && applySignature && validator.signaturePath && 
             document.fileType === 'application/pdf') {
           try {
-            const pdfPath = path.resolve(process.cwd(), document.filePath);
+            const pdfPath = resolveStoredFile(document.filePath);
             const pdfDoc = await PDFDocument.load(await fs.readFile(pdfPath));
             pdfDoc.registerFontkit(fontkit);
             
@@ -1251,7 +1252,7 @@ export const bulkValidateTask = async (req, res) => {
             const vHash = generateVerificationHash(document.id, task.step, task.validatorId);
             const vUrl = buildVerificationUrl(vHash);
             try {
-              const curPath = path.resolve(process.cwd(), document.filePath);
+              const curPath = resolveStoredFile(document.filePath);
               const curBytes = await fs.readFile(curPath);
               const qrDoc = await PDFDocument.load(curBytes);
               const qrBuf = await generateQRCodeBuffer(vUrl);
