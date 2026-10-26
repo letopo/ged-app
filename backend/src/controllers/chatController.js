@@ -4,6 +4,8 @@ import { sequelize } from '../models/index.js';
 import Conversation from '../models/Conversation.js';
 import ChatMessage from '../models/ChatMessage.js';
 import ChatMember from '../models/ChatMember.js';
+import { User, Document } from '../models/index.js';
+import { hasDocumentReadAccess } from '../utils/documentVisibility.js';
 import { getIO, isUserConnected } from '../utils/socketManager.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
 
@@ -85,6 +87,15 @@ export const getConversation = async (req, res, next) => {
   }
 };
 
+// Utilisateurs actifs de l'établissement courant parmi `ids` (requête filtrée
+// par établissement) ; renvoie null si l'un d'eux n'en fait pas partie.
+async function tenantUsers(ids) {
+  const unique = [...new Set((ids || []).filter(Boolean).map(String))];
+  if (!unique.length) return [];
+  const rows = await User.findAll({ where: { id: unique, isActive: true }, attributes: ['id'] });
+  return rows.length === unique.length ? rows.map((u) => u.id) : null;
+}
+
 export const createConversation = async (req, res, next) => {
   try {
     const { type, name, description, memberIds = [], documentId } = req.body;
@@ -95,6 +106,15 @@ export const createConversation = async (req, res, next) => {
     }
     if (type === 'channel' && !name?.trim()) {
       return res.status(400).json({ success: false, error: 'Nom requis pour un canal' });
+    }
+
+    if (!Array.isArray(memberIds) || (await tenantUsers(memberIds)) === null) {
+      return res.status(400).json({ success: false, error: 'Participant inconnu dans cet établissement.' });
+    }
+    if (documentId) {
+      const doc = await Document.findByPk(documentId);
+      if (!doc) return res.status(404).json({ success: false, error: 'Document introuvable.' });
+      if (!(await hasDocumentReadAccess(doc, req.user))) return res.status(403).json({ success: false, error: 'Accès non autorisé au document.' });
     }
 
     if (type === 'direct') {
@@ -144,13 +164,15 @@ export const getOrCreateDocumentThread = async (req, res, next) => {
     const { documentId } = req.params;
     const userId = req.user.id;
 
+    // Le fil d'un document est réservé à qui peut lire ce document
+    // (recherche filtrée par établissement : un document d'ailleurs est introuvable)
+    const doc = await Document.findByPk(documentId, { attributes: ['id', 'title', 'userId', 'visibility', 'serviceId', 'category', 'tenantId'] });
+    if (!doc) return res.status(404).json({ success: false, error: 'Document introuvable.' });
+    if (!(await hasDocumentReadAccess(doc, req.user))) return res.status(403).json({ success: false, error: 'Accès non autorisé au document.' });
+
     let conv = await Conversation.findOne({ where: { type: 'document', documentId } });
 
     if (!conv) {
-      const [doc] = await sequelize.query(
-        'SELECT title FROM documents WHERE id = :id',
-        { replacements: { id: documentId }, type: QueryTypes.SELECT }
-      );
       conv = await Conversation.create({
         type: 'document',
         name: doc?.title || 'Discussion document',
@@ -419,6 +441,21 @@ export const addMember = async (req, res, next) => {
     const { id } = req.params;
     const { userId: targetId } = req.body;
 
+    // Conversation de l'établissement courant (sinon introuvable)
+    const conv = await Conversation.findByPk(id);
+    if (!conv) return res.status(404).json({ success: false, error: 'Conversation introuvable.' });
+    // Seul un membre (ou un administrateur) ajoute quelqu'un ; jamais un tiers dans une conversation privée
+    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+    const callerMember = await ChatMember.findOne({ where: { conversationId: id, userId: req.user.id } });
+    if (!callerMember && !isAdmin) return res.status(403).json({ success: false, error: 'Non autorisé' });
+    if (conv.type === 'direct') return res.status(403).json({ success: false, error: 'Une conversation privée ne reçoit pas de nouveau participant.' });
+    if ((await tenantUsers([targetId])) === null) return res.status(400).json({ success: false, error: 'Participant inconnu dans cet établissement.' });
+    if (conv.type === 'document' && conv.documentId) {
+      const doc = await Document.findByPk(conv.documentId);
+      const target = await User.findByPk(targetId);
+      if (!doc || !(await hasDocumentReadAccess(doc, target))) return res.status(403).json({ success: false, error: 'Cette personne ne peut pas lire le document.' });
+    }
+
     await ChatMember.findOrCreate({
       where: { conversationId: id, userId: targetId },
       defaults: { conversationId: id, userId: targetId, role: 'member', lastReadAt: new Date(), joinedAt: new Date() },
@@ -440,6 +477,8 @@ export const removeMember = async (req, res, next) => {
     }
 
     await ChatMember.destroy({ where: { conversationId: id, userId: targetId } });
+    // Ses connexions temps réel quittent la conversation
+    getIO()?.in(`user:${targetId}`).socketsLeave(`conv:${id}`);
     res.json({ success: true });
   } catch (error) {
     next(error);
