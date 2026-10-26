@@ -1,7 +1,40 @@
-﻿import { DataTypes } from 'sequelize';
-import sequelize from '../config/database.js';
+﻿// backend/src/models/Workflow.ts — une étape de validation d'un document
 
-const Workflow = sequelize.define('Workflow', {
+import { DataTypes, Model } from 'sequelize';
+import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
+import sequelize from '../config/database.js';
+import { initModel } from './types.js';
+import type { ModelRegistry } from './types.js';
+
+class Workflow extends Model<InferAttributes<Workflow>, InferCreationAttributes<Workflow>> {
+  declare id: CreationOptional<string>;
+  /** Ordre de cette étape dans le circuit. */
+  declare step: number;
+  declare status: string;
+  declare documentId: string;
+  declare validatorId: string;
+  declare comment: string | null;
+  declare validatedAt: Date | null;
+  declare assignedAt: Date | null;
+  declare deadlineAt: Date | null;
+  declare tenantId: CreationOptional<string>;
+  declare originalValidatorId: string | null;
+  declare isSubstituted: CreationOptional<boolean>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+  // Champs calculés (VIRTUAL, lecture seule)
+  declare isOverdue: CreationOptional<boolean>;
+  declare daysOverdue: CreationOptional<number>;
+  declare hoursOverdue: CreationOptional<number>;
+
+  static associate(models: ModelRegistry) {
+    this.belongsTo(models.Document, { foreignKey: 'documentId', as: 'document' });
+    this.belongsTo(models.User, { foreignKey: 'validatorId', as: 'validator' });
+    this.belongsTo(models.User, { foreignKey: 'originalValidatorId', as: 'originalValidator' });
+  }
+}
+
+initModel(Workflow, {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -56,7 +89,7 @@ const Workflow = sequelize.define('Workflow', {
       if (!this.assignedAt || !['pending'].includes(this.status)) return false;
       const now = new Date();
       if (this.deadlineAt) return now > new Date(this.deadlineAt);
-      const hoursDiff = (now - new Date(this.assignedAt)) / (1000 * 60 * 60);
+      const hoursDiff = (now.getTime() - new Date(this.assignedAt).getTime()) / (1000 * 60 * 60);
       return hoursDiff > 8;
     }
   },
@@ -66,7 +99,7 @@ const Workflow = sequelize.define('Workflow', {
     get() {
       if (!this.deadlineAt || !['pending'].includes(this.status)) return 0;
       const now = new Date();
-      const diff = (now - new Date(this.deadlineAt)) / (1000 * 60 * 60 * 24);
+      const diff = (now.getTime() - new Date(this.deadlineAt).getTime()) / (1000 * 60 * 60 * 24);
       return Math.max(0, Math.ceil(diff));
     }
   },
@@ -77,7 +110,7 @@ const Workflow = sequelize.define('Workflow', {
       if (!this.assignedAt || !['pending'].includes(this.status)) return 0;
       const now = new Date();
       const assigned = new Date(this.assignedAt);
-      const hoursDiff = (now - assigned) / (1000 * 60 * 60);
+      const hoursDiff = (now.getTime() - assigned.getTime()) / (1000 * 60 * 60);
       return Math.max(0, Math.floor(hoursDiff - 8));
     }
   },
@@ -100,6 +133,8 @@ const Workflow = sequelize.define('Workflow', {
     field: 'is_substituted',
   },
 }, {
+  sequelize,
+  modelName: 'Workflow',
   tableName: 'workflows',
   timestamps: true,
   underscored: true,
@@ -112,11 +147,5 @@ const Workflow = sequelize.define('Workflow', {
     { fields: ['created_at'] },
   ],
 });
-
-Workflow.associate = function(models) {
-  this.belongsTo(models.Document, { foreignKey: 'documentId', as: 'document' });
-  this.belongsTo(models.User, { foreignKey: 'validatorId', as: 'validator' });
-  this.belongsTo(models.User, { foreignKey: 'originalValidatorId', as: 'originalValidator' });
-};
 
 export default Workflow;

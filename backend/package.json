@@ -10,8 +10,8 @@
     "typecheck": "tsc -p . --noEmit",
     "start": "node --enable-source-maps dist/server.js",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "node --test tests/unit/*.test.js",
-    "test:integration": "node tests/setup-db.mjs && node --test --test-concurrency=1 tests/integration/*.test.js",
+    "test:unit": "node --import tsx --test tests/unit/*.test.js",
+    "test:integration": "node tests/setup-db.mjs && node --import tsx --test --test-concurrency=1 tests/integration/*.test.js",
     "test:db": "docker run -d --rm --name ged-test-db -p 55432:5432 -e POSTGRES_PASSWORD=test postgres:17.5-alpine",
     "test:schema": "./scripts/dump-test-schema.sh"
   },

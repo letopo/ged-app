@@ -1,13 +1,41 @@
-// backend/src/models/ParcVehicules.js
+// backend/src/models/ParcVehicules.ts
 // Parc véhicules : véhicules, check-lists modèles, missions (sorties) et
 // contrôles départ / retour. Voir migration 20261025100000-create-parc-vehicules.
-import { DataTypes } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
+import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 import sequelize from '../config/database.js';
+import { initModel } from './types.js';
 
-const opts = (tableName) => ({ tableName, timestamps: true, underscored: true });
+const opts = (modelName: string, tableName: string) => ({ sequelize, modelName, tableName, timestamps: true, underscored: true });
 const tenantId = { type: DataTypes.UUID, allowNull: false };
 
-export const VehicleChecklistTemplate = sequelize.define('VehicleChecklistTemplate', {
+type Id = CreationOptional<string>;
+
+/** Élément d'une check-list de départ / retour. */
+export interface ChecklistItem { id: string; label: string; kind: 'check' | 'level' | 'quantity'; critical?: boolean; expected?: unknown }
+export interface ChecklistSection { key: string; label: string; role?: string; items: ChecklistItem[] }
+/** Élément de l'inventaire hebdomadaire (fiche RO SAU). */
+export interface InventoryItem { id: string; label: string; kind: 'qty' | 'level' | 'check' | 'yesno'; required?: number; unit?: string; expiry?: boolean; critical?: boolean }
+export interface InventorySection { key: string; label: string; items: InventoryItem[] }
+export interface CheckAnswer { itemId: string; status?: string; value?: unknown; comment?: string; photoPath?: string }
+export interface InventoryAnswer { itemId: string; present?: number | boolean; expiring?: boolean; value?: unknown; status?: string; comment?: string }
+export interface CrewMember { userId?: string | null; name: string; role?: string }
+
+export class VehicleChecklistTemplate extends Model<InferAttributes<VehicleChecklistTemplate>, InferCreationAttributes<VehicleChecklistTemplate>> {
+  declare id: Id;
+  declare name: string;
+  declare vehicleType: CreationOptional<string>;
+  declare sections: CreationOptional<ChecklistSection[]>;
+  declare inventorySections: CreationOptional<InventorySection[]>;
+  /** Jours d'inventaire, 1 = lundi. */
+  declare inventoryDays: CreationOptional<number[]>;
+  declare isActive: CreationOptional<boolean>;
+  declare updatedBy: string | null;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleChecklistTemplate, {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   name: { type: DataTypes.STRING(150), allowNull: false },
   vehicleType: { type: DataTypes.STRING(30), allowNull: false, defaultValue: 'ambulance', field: 'vehicle_type' },
@@ -19,9 +47,33 @@ export const VehicleChecklistTemplate = sequelize.define('VehicleChecklistTempla
   isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'is_active' },
   updatedBy: { type: DataTypes.UUID, allowNull: true, field: 'updated_by' },
   tenantId,
-}, opts('vehicle_checklist_templates'));
+}, opts('VehicleChecklistTemplate', 'vehicle_checklist_templates'));
 
-export const Vehicle = sequelize.define('Vehicle', {
+export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttributes<Vehicle>> {
+  declare id: Id;
+  declare label: string;
+  declare immatriculation: string;
+  declare vehicleType: CreationOptional<string>;
+  declare serviceId: string | null;
+  declare managerPosteCode: string | null;
+  declare checklistTemplateId: string | null;
+  declare status: CreationOptional<string>;
+  declare unavailableReason: string | null;
+  declare mileage: number | null;
+  declare notes: string | null;
+  declare brand: string | null;
+  declare model: string | null;
+  declare year: number | null;
+  declare fuelType: string | null;
+  declare vin: string | null;
+  /** { missing: 'AAAA-MM-JJ' } : dernière alerte envoyée par type. */
+  declare inventoryAlerts: CreationOptional<Record<string, string>>;
+  declare isActive: CreationOptional<boolean>;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(Vehicle, {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   label: { type: DataTypes.STRING(120), allowNull: false },
   immatriculation: { type: DataTypes.STRING(40), allowNull: false },
@@ -41,9 +93,29 @@ export const Vehicle = sequelize.define('Vehicle', {
   inventoryAlerts: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: 'inventory_alerts' }, // { missing: 'AAAA-MM-JJ' }
   isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'is_active' },
   tenantId,
-}, opts('vehicles'));
+}, opts('Vehicle', 'vehicles'));
 
-export const VehicleMission = sequelize.define('VehicleMission', {
+export class VehicleMission extends Model<InferAttributes<VehicleMission>, InferCreationAttributes<VehicleMission>> {
+  declare id: Id;
+  declare vehicleId: string;
+  declare documentId: string | null;
+  declare title: string | null;
+  declare destination: string | null;
+  declare status: CreationOptional<string>;
+  declare plannedDepartureAt: Date | null;
+  declare plannedReturnAt: Date | null;
+  declare departedAt: Date | null;
+  declare returnedAt: Date | null;
+  declare crew: CreationOptional<CrewMember[]>;
+  declare urgent: CreationOptional<boolean>;
+  declare omAfterDeparture: CreationOptional<boolean>;
+  declare alertsSent: CreationOptional<Record<string, unknown>>;
+  declare createdBy: string | null;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleMission, {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   vehicleId: { type: DataTypes.UUID, allowNull: false, field: 'vehicle_id' },
   documentId: { type: DataTypes.UUID, allowNull: true, field: 'document_id' },
@@ -60,9 +132,34 @@ export const VehicleMission = sequelize.define('VehicleMission', {
   alertsSent: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: 'alerts_sent' },
   createdBy: { type: DataTypes.UUID, allowNull: true, field: 'created_by' },
   tenantId,
-}, opts('vehicle_missions'));
+}, opts('VehicleMission', 'vehicle_missions'));
 
-export const VehicleCheck = sequelize.define('VehicleCheck', {
+export class VehicleCheck extends Model<InferAttributes<VehicleCheck>, InferCreationAttributes<VehicleCheck>> {
+  declare id: Id;
+  declare vehicleId: string;
+  declare missionId: string;
+  declare phase: string;
+  declare sectionKey: string;
+  declare sectionLabel: string;
+  declare items: CreationOptional<ChecklistItem[]>;
+  declare answers: CreationOptional<CheckAnswer[]>;
+  declare totalItems: CreationOptional<number>;
+  declare answeredItems: CreationOptional<number>;
+  declare anomalies: CreationOptional<number>;
+  declare criticalAnomaly: CreationOptional<boolean>;
+  declare mileage: number | null;
+  declare comment: string | null;
+  declare performedBy: string | null;
+  declare performedByName: string | null;
+  declare performedAt: Date;
+  declare signaturePath: string | null;
+  declare documentId: string | null;
+  declare sha256: string | null;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleCheck, {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   vehicleId: { type: DataTypes.UUID, allowNull: false, field: 'vehicle_id' },
   missionId: { type: DataTypes.UUID, allowNull: false, field: 'mission_id' },
@@ -84,10 +181,28 @@ export const VehicleCheck = sequelize.define('VehicleCheck', {
   documentId: { type: DataTypes.UUID, allowNull: true, field: 'document_id' },
   sha256: { type: DataTypes.STRING(64), allowNull: true },
   tenantId,
-}, opts('vehicle_checks'));
+}, opts('VehicleCheck', 'vehicle_checks'));
 
 // Étape 3 : échéances, carburant, entretien
-export const VehicleDeadline = sequelize.define('VehicleDeadline', {
+export class VehicleDeadline extends Model<InferAttributes<VehicleDeadline>, InferCreationAttributes<VehicleDeadline>> {
+  declare id: Id;
+  declare vehicleId: string;
+  declare kind: string;
+  declare label: string;
+  declare dueDate: string | null;
+  declare dueMileage: number | null;
+  declare intervalMonths: number | null;
+  declare intervalKm: number | null;
+  declare lastDoneDate: string | null;
+  declare lastDoneMileage: number | null;
+  declare notes: string | null;
+  declare attachmentPath: string | null;
+  declare alertsSent: CreationOptional<Record<string, unknown>>;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleDeadline, {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   vehicleId: { type: DataTypes.UUID, allowNull: false, field: 'vehicle_id' },
   kind: { type: DataTypes.STRING(30), allowNull: false },
@@ -102,9 +217,26 @@ export const VehicleDeadline = sequelize.define('VehicleDeadline', {
   attachmentPath: { type: DataTypes.STRING(255), allowNull: true, field: 'attachment_path' },
   alertsSent: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: 'alerts_sent' },
   tenantId,
-}, opts('vehicle_deadlines'));
+}, opts('VehicleDeadline', 'vehicle_deadlines'));
 
-export const VehicleFuelLog = sequelize.define('VehicleFuelLog', {
+export class VehicleFuelLog extends Model<InferAttributes<VehicleFuelLog>, InferCreationAttributes<VehicleFuelLog>> {
+  declare id: Id;
+  declare vehicleId: string;
+  declare date: string;
+  /** DECIMAL : renvoyé en chaîne par pg. */
+  declare liters: string | number;
+  declare amount: number | null;
+  declare mileage: number | null;
+  declare fullTank: CreationOptional<boolean>;
+  declare station: string | null;
+  declare attachmentPath: string | null;
+  declare createdBy: string | null;
+  declare createdByName: string | null;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleFuelLog, {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   vehicleId: { type: DataTypes.UUID, allowNull: false, field: 'vehicle_id' },
   date: { type: DataTypes.DATEONLY, allowNull: false },
@@ -117,9 +249,28 @@ export const VehicleFuelLog = sequelize.define('VehicleFuelLog', {
   createdBy: { type: DataTypes.UUID, allowNull: true, field: 'created_by' },
   createdByName: { type: DataTypes.STRING(150), allowNull: true, field: 'created_by_name' },
   tenantId,
-}, opts('vehicle_fuel_logs'));
+}, opts('VehicleFuelLog', 'vehicle_fuel_logs'));
 
-export const VehicleMaintenance = sequelize.define('VehicleMaintenance', {
+export class VehicleMaintenance extends Model<InferAttributes<VehicleMaintenance>, InferCreationAttributes<VehicleMaintenance>> {
+  declare id: Id;
+  declare vehicleId: string;
+  declare kind: string;
+  declare status: CreationOptional<string>;
+  declare date: string;
+  declare mileage: number | null;
+  declare description: string | null;
+  declare garage: string | null;
+  declare cost: number | null;
+  declare attachmentPath: string | null;
+  declare deadlineId: string | null;
+  declare checkId: string | null;
+  declare createdBy: string | null;
+  declare createdByName: string | null;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleMaintenance, {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   vehicleId: { type: DataTypes.UUID, allowNull: false, field: 'vehicle_id' },
   kind: { type: DataTypes.STRING(30), allowNull: false },
@@ -135,10 +286,33 @@ export const VehicleMaintenance = sequelize.define('VehicleMaintenance', {
   createdBy: { type: DataTypes.UUID, allowNull: true, field: 'created_by' },
   createdByName: { type: DataTypes.STRING(150), allowNull: true, field: 'created_by_name' },
   tenantId,
-}, opts('vehicle_maintenances'));
+}, opts('VehicleMaintenance', 'vehicle_maintenances'));
 
 // Inventaire hebdomadaire d'une ambulance (fiche RO SAU, lun / mer / ven)
-export const VehicleInventory = sequelize.define('VehicleInventory', {
+export class VehicleInventory extends Model<InferAttributes<VehicleInventory>, InferCreationAttributes<VehicleInventory>> {
+  declare id: Id;
+  declare vehicleId: string;
+  declare inventoryDate: string;
+  declare sections: CreationOptional<InventorySection[]>;
+  declare answers: CreationOptional<InventoryAnswer[]>;
+  declare totalItems: CreationOptional<number>;
+  declare answeredItems: CreationOptional<number>;
+  declare shortages: CreationOptional<number>;
+  declare expiring: CreationOptional<number>;
+  declare criticalAnomaly: CreationOptional<boolean>;
+  declare restock: CreationOptional<unknown[]>;
+  declare comment: string | null;
+  declare performedBy: string | null;
+  declare performedByName: string | null;
+  declare performedAt: Date;
+  declare signaturePath: string | null;
+  declare documentId: string | null;
+  declare sha256: string | null;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleInventory, {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   vehicleId: { type: DataTypes.UUID, allowNull: false, field: 'vehicle_id' },
   inventoryDate: { type: DataTypes.DATEONLY, allowNull: false, field: 'inventory_date' },
@@ -158,7 +332,7 @@ export const VehicleInventory = sequelize.define('VehicleInventory', {
   documentId: { type: DataTypes.UUID, allowNull: true, field: 'document_id' },
   sha256: { type: DataTypes.STRING(64), allowNull: true },
   tenantId,
-}, opts('vehicle_inventories'));
+}, opts('VehicleInventory', 'vehicle_inventories'));
 
 Vehicle.hasMany(VehicleInventory, { as: 'inventories', foreignKey: 'vehicleId' });
 Vehicle.hasMany(VehicleDeadline, { as: 'deadlines', foreignKey: 'vehicleId' });
