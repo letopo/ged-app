@@ -3,6 +3,11 @@ import { Server } from 'socket.io';
 import { verifySessionToken, sessionRejection } from './sessionTokens.js';
 import os from 'os';
 import { attachSignatureKiosk } from './signatureRequests.js';
+import { tenantNamespace } from '../config/database.js';
+
+// Salles des files d'attente propres à chaque établissement (noms et téléphones des patients)
+const queueRoom = (tenantId, queueType) => `queue_${tenantId}_${queueType}`;
+const positionRoom = (tenantId, queueType, positionNumber) => `position_${tenantId}_${queueType}_${positionNumber}`;
 
 let io = null;
 const userSockets = new Map(); // Map<userId, Set<socketId>>
@@ -97,7 +102,7 @@ export const initializeSocket = (server) => {
   // Rejoindre une file d'attente
   socket.on('join_queue', (queueType) => {
     if (['accueil_php', 'accueil_normal', 'caisse'].includes(queueType)) {
-      socket.join(`queue_${queueType}`);
+      socket.join(queueRoom(socket.tenantId, queueType));
       console.log(`📥 Socket ${socket.id} (User ${userId}) a rejoint queue_${queueType}`);
       
       // Confirmer la connexion
@@ -118,7 +123,7 @@ export const initializeSocket = (server) => {
 
   // Quitter une file d'attente
   socket.on('leave_queue', (queueType) => {
-    socket.leave(`queue_${queueType}`);
+    socket.leave(queueRoom(socket.tenantId, queueType));
     console.log(`📤 Socket ${socket.id} (User ${userId}) a quitté queue_${queueType}`);
     
     socket.emit('queue_left', { 
@@ -130,7 +135,7 @@ export const initializeSocket = (server) => {
 
   // Rejoindre une position (pour les agents)
   socket.on('join_position', ({ queueType, positionNumber }) => {
-    const roomName = `position_${queueType}_${positionNumber}`;
+    const roomName = positionRoom(socket.tenantId, queueType, positionNumber);
     socket.join(roomName);
     console.log(`🪑 Socket ${socket.id} (User ${userId}) a rejoint ${roomName}`);
     
@@ -144,7 +149,7 @@ export const initializeSocket = (server) => {
 
   // Quitter une position
   socket.on('leave_position', ({ queueType, positionNumber }) => {
-    const roomName = `position_${queueType}_${positionNumber}`;
+    const roomName = positionRoom(socket.tenantId, queueType, positionNumber);
     socket.leave(roomName);
     console.log(`🚪 Socket ${socket.id} (User ${userId}) a quitté ${roomName}`);
     
@@ -160,7 +165,7 @@ export const initializeSocket = (server) => {
   socket.on('request_queue_status', (queueType) => {
     console.log(`📊 User ${userId} demande le statut de ${queueType}`);
     // Le client recevra une réponse via les événements normaux
-    emitQueueUpdate(queueType);
+    emitQueueUpdate(queueType, socket.tenantId);
   });
 
   // ============================================
@@ -340,20 +345,21 @@ export default {
 /**
  * Émettre la création d'un nouveau ticket
  */
-export const emitTicketCreated = (queueType, ticket) => {
+export const emitTicketCreated = (queueType, ticket, tenantId = ticket?.tenantId ?? tenantNamespace.get('tenantId')) => {
   if (!io) {
     console.warn('⚠️ Socket.IO non initialisé');
     return;
   }
   
   console.log(`📢 Émission: ticket_created pour queue ${queueType}`);
-  io.to(`queue_${queueType}`).emit('ticket_created', ticket);
+  if (!tenantId) return;
+  io.to(queueRoom(tenantId, queueType)).emit('ticket_created', ticket);
 };
 
 /**
  * Émettre l'appel d'un ticket
  */
-export const emitTicketCalled = (queueType, ticket, positionNumber) => {
+export const emitTicketCalled = (queueType, ticket, positionNumber, tenantId = ticket?.tenantId ?? tenantNamespace.get('tenantId')) => {
   if (!io) {
     console.warn('⚠️ Socket.IO non initialisé');
     return;
@@ -362,7 +368,8 @@ export const emitTicketCalled = (queueType, ticket, positionNumber) => {
   console.log(`📢 Émission: ticket_called - ${ticket.ticketNumber} → Position ${positionNumber}`);
   
   // Émettre à toute la salle d'attente
-  io.to(`queue_${queueType}`).emit('ticket_called', {
+  if (!tenantId) return;
+  io.to(queueRoom(tenantId, queueType)).emit('ticket_called', {
     ticket,
     positionNumber,
     announcement: `${ticket.ticketNumber}, veuillez vous présenter à la position ${positionNumber}`
@@ -372,38 +379,41 @@ export const emitTicketCalled = (queueType, ticket, positionNumber) => {
 /**
  * Émettre la complétion d'un ticket
  */
-export const emitTicketCompleted = (queueType, ticket) => {
+export const emitTicketCompleted = (queueType, ticket, tenantId = ticket?.tenantId ?? tenantNamespace.get('tenantId')) => {
   if (!io) {
     console.warn('⚠️ Socket.IO non initialisé');
     return;
   }
   
   console.log(`✅ Émission: ticket_completed - ${ticket.ticketNumber}`);
-  io.to(`queue_${queueType}`).emit('ticket_completed', ticket);
+  if (!tenantId) return;
+  io.to(queueRoom(tenantId, queueType)).emit('ticket_completed', ticket);
 };
 
 /**
  * Émettre une mise à jour de la file d'attente
  */
-export const emitQueueUpdate = (queueType) => {
+export const emitQueueUpdate = (queueType, tenantId = tenantNamespace.get('tenantId')) => {
   if (!io) {
     console.warn('⚠️ Socket.IO non initialisé');
     return;
   }
   
   console.log(`🔄 Émission: queue_update pour ${queueType}`);
-  io.to(`queue_${queueType}`).emit('queue_update', { queueType, timestamp: new Date() });
+  if (!tenantId) return;
+  io.to(queueRoom(tenantId, queueType)).emit('queue_update', { queueType, timestamp: new Date() });
 };
 
 /**
  * Émettre une mise à jour des positions
  */
-export const emitPositionUpdate = (queueType, position) => {
+export const emitPositionUpdate = (queueType, position, tenantId = position?.tenantId ?? tenantNamespace.get('tenantId')) => {
   if (!io) {
     console.warn('⚠️ Socket.IO non initialisé');
     return;
   }
   
   console.log(`🔄 Émission: position_update pour ${queueType}`);
-  io.to(`queue_${queueType}`).emit('position_update', position);
+  if (!tenantId) return;
+  io.to(queueRoom(tenantId, queueType)).emit('position_update', position);
 };
