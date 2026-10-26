@@ -26,7 +26,7 @@ import License from './License.js';
 import InvoiceFolder from './InvoiceFolder.js'; // ✅ AJOUT IMPORT
 import DemandeAchat from './DemandeAchat.js'; // ✅ NOUVEL IMPORT
 import Equipement from './Equipement.js'; // ✅ GMAO
-import { Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline, VehicleFuelLog, VehicleMaintenance } from './ParcVehicules.js'; // Parc véhicules
+import { Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline, VehicleFuelLog, VehicleMaintenance, VehicleInventory } from './ParcVehicules.js'; // Parc véhicules
 import PlanMaintenance from './PlanMaintenance.js'; // ✅ GMAO
 import Intervention from './Intervention.js'; // ✅ GMAO Phase 2
 import Contrat from './Contrat.js'; // ✅ GMAO Phase 4
@@ -119,7 +119,7 @@ const db = {
   TrelloActivityLog,
   DemandeAchat, // ✅ AJOUT DANS L'OBJET DB
   Equipement, // ✅ GMAO
-  Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline, VehicleFuelLog, VehicleMaintenance, // Parc véhicules
+  Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline, VehicleFuelLog, VehicleMaintenance, VehicleInventory, // Parc véhicules
   PlanMaintenance, // ✅ GMAO
   Intervention, // ✅ GMAO Phase 2
   Contrat, PieceRechange, MouvementPiece, DemandeAcquisition, BudgetLigne, BudgetDepense, // ✅ GMAO Phase 4
@@ -266,7 +266,7 @@ db.sequelize = sequelize;
 
 export {
   Tenant,
-  Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline, VehicleFuelLog, VehicleMaintenance,
+  Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline, VehicleFuelLog, VehicleMaintenance, VehicleInventory,
   Poste,
   UserPoste,
   OrdreMissionType,

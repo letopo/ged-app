@@ -5,11 +5,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Loader, X, CheckCircle2, Circle, FileText, ArrowUpRight, ArrowDownLeft, Truck, Fuel, Gauge } from 'lucide-react';
+import { Loader, X, CheckCircle2, Circle, FileText, ArrowUpRight, ArrowDownLeft, Truck, Fuel, Gauge, ClipboardList } from 'lucide-react';
 import { FuelForm } from './fleetForms';
 import { vehiclesAPI } from '../../services/api';
 import VehicleCheckForm from './VehicleCheckForm';
-import { LEVELS, STATUS, fmtDateTime, openCheckPdf } from './fleetUi';
+import VehicleInventoryForm from './VehicleInventoryForm';
+import { LEVELS, STATUS, WEEKDAYS, fmtDateTime, fmtDay, openCheckPdf } from './fleetUi';
 
 export function ReadinessBadge({ readiness }) {
   const { t } = useTranslation();
@@ -32,15 +33,50 @@ export function StatusBadge({ status, reason }) {
   );
 }
 
+// Jours d'inventaire de la semaine en cours : fait / à faire / non fait
+export function InventoryWeek({ days, weekStart, week, today, onOpenPdf }) {
+  const { t } = useTranslation();
+  const order = [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {order.map((wd) => {
+        const d = new Date(`${weekStart}T12:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + ((wd + 6) % 7));
+        const date = d.toISOString().slice(0, 10);
+        const cell = week?.[date];
+        const bad = cell && (cell.shortages || cell.expiring);
+        const st = cell ? (bad ? { c: '#c2410c', bg: '#ffedd5', txt: cell.critical ? t('Critique') : t('{{count}} à réassortir', { count: cell.shortages + cell.expiring }) } : { c: '#15803d', bg: '#dcfce7', txt: t('Complet') })
+          : date === today ? { c: '#b45309', bg: '#fef3c7', txt: t('À faire aujourd\'hui') }
+          : date < today ? { c: '#b91c1c', bg: '#fee2e2', txt: t('Non fait') }
+          : { c: 'var(--fg-muted)', bg: 'var(--surface-2)', txt: t('À venir') };
+        return (
+          <button key={wd} type="button" disabled={!cell} onClick={() => cell && onOpenPdf?.(cell.id)} title={cell ? t('Fait par {{name}} le {{date}}', { name: cell.by, date: fmtDateTime(cell.at) }) : undefined}
+            style={{ flex: '1 1 90px', minWidth: 90, padding: '6px 8px', borderRadius: 8, border: 'none', background: st.bg, color: st.c, textAlign: 'left', cursor: cell ? 'pointer' : 'default' }}>
+            <div style={{ fontSize: 11, fontWeight: 700 }}>{t(WEEKDAYS[wd])} {fmtDay(date)}</div>
+            <div style={{ fontSize: 12, fontWeight: 700 }}>{cell ? (bad ? '⚠ ' : '✓ ') : ''}{st.txt}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // Contrôles d'une ambulance : départ / retour, une ligne par section
 function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
   const { t } = useTranslation();
   const [state, setState] = useState(null);
   const [form, setForm] = useState(null); // { phase, section, mission }
   const [fuel, setFuel] = useState(false);
+  const [inventory, setInventory] = useState(null); // semaine d'inventaire (ambulances)
+  const [inventoryOpen, setInventoryOpen] = useState(false);
 
   const load = useCallback(() => {
-    vehiclesAPI.state(vehicleId).then((r) => setState(r.data.data)).catch((err) => { toast.error(err.response?.data?.message || t('Erreur serveur.')); onClose(); });
+    vehiclesAPI.state(vehicleId).then((r) => {
+      setState(r.data.data);
+      if (r.data.data?.vehicle?.vehicleType === 'ambulance') {
+        vehiclesAPI.inventoryState(vehicleId).then((x) => setInventory(x.data.data)).catch(() => setInventory(null));
+      }
+    }).catch((err) => { toast.error(err.response?.data?.message || t('Erreur serveur.')); onClose(); });
   }, [vehicleId, onClose, t]);
   useEffect(() => { load(); }, [load]);
 
@@ -103,6 +139,11 @@ function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
   // L'écran de contrôle est rendu À CÔTÉ du panneau, pas dedans : avec les
   // portails React, un clic dans le formulaire remonterait jusqu'au fond du
   // panneau (onClick = fermer) et fermerait tout.
+  if (inventoryOpen) {
+    // Le parent n'est prévenu qu'à la fermeture : il recharge la liste et
+    // démonterait l'écran de résultat (liste de réassort).
+    return <VehicleInventoryForm vehicleId={vehicle.id} onClose={() => { setInventoryOpen(false); load(); onChanged?.(); }} />;
+  }
   if (fuel) {
     return <FuelForm vehicle={vehicle} onClose={() => setFuel(false)} onDone={() => { setFuel(false); load(); onChanged?.(); }} />;
   }
@@ -129,6 +170,22 @@ function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
           <button onClick={onClose} aria-label={t('Fermer')} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {inventory?.sections?.length > 0 && (
+            <div style={{ border: `1px solid ${inventory.today?.due ? '#fcd34d' : 'var(--border)'}`, borderRadius: 'var(--radius-3)', padding: 12, background: inventory.today?.due ? '#fffbeb' : 'transparent' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>
+                <ClipboardList size={16} color="#ea580c" /> {t('Inventaire de la semaine')}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 10 }}>
+                {t('Matériel, consommables, médicaments et DSA : quantités présentes, péremptions du mois.')}
+              </div>
+              <InventoryWeek days={inventory.days} weekStart={inventory.weekStart} week={inventory.week} today={inventory.today?.date}
+                onOpenPdf={(id) => openCheckPdf(vehiclesAPI, id, 'inventory')} />
+              <button type="button" onClick={() => setInventoryOpen(true)}
+                style={{ marginTop: 10, height: 38, padding: '0 14px', borderRadius: 8, border: inventory.today?.due ? 'none' : '1px solid var(--border)', background: inventory.today?.due ? 'var(--brand)' : 'var(--surface)', color: inventory.today?.due ? '#fff' : 'var(--fg)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                {t('Faire l\'inventaire')}
+              </button>
+            </div>
+          )}
           {phaseBlock('depart', departMission)}
           {phaseBlock('retour', retourMission)}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

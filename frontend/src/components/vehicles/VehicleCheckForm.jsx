@@ -56,7 +56,8 @@ export default function VehicleCheckForm({ vehicle, phase, section, mission, onC
 
   const setAnswer = (id, patch) => setAnswers((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   const setLevel = (it, value) => {
-    const v = value === '' ? null : Math.max(0, Math.min(100, Math.round(Number(value))));
+    const max = it.unit === 'bar' ? (it.max || 300) : 100;
+    const v = value === '' ? null : Math.max(0, Math.min(max, Math.round(Number(value))));
     setAnswer(it.id, { value: v, status: v === null ? null : v < (it.min || 0) ? 'ko' : 'ok' });
   };
 
@@ -159,18 +160,25 @@ export default function VehicleCheckForm({ vehicle, phase, section, mission, onC
 
                 {it.kind === 'level' ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    {LEVEL_PRESETS.map((p) => (
+                    {it.unit !== 'bar' && LEVEL_PRESETS.map((p) => (
                       <button key={p} type="button" onClick={() => setLevel(it, p)}
                         style={{ minWidth: 52, height: 40, borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${a.value === p ? 'var(--brand)' : 'var(--border)'}`, background: a.value === p ? 'var(--brand-soft)' : 'var(--surface)', color: 'var(--fg)' }}>
                         {p === 100 ? t('Plein') : `${p} %`}
                       </button>
                     ))}
-                    <input type="number" inputMode="numeric" min="0" max="100" value={a.value ?? ''} onChange={(e) => setLevel(it, e.target.value)} placeholder="%" aria-label={t('Niveau en %')} style={{ ...field, width: 80 }} />
+                    {it.unit === 'bar' ? (
+                      <>
+                        <input type="number" inputMode="numeric" min="0" max={it.max || 300} value={a.value ?? ''} onChange={(e) => setLevel(it, e.target.value)} placeholder="—" aria-label={t('Pression en bar')} style={{ ...field, width: 90, fontWeight: 700, textAlign: 'center' }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg-muted)' }}>bar</span>
+                      </>
+                    ) : (
+                      <input type="number" inputMode="numeric" min="0" max="100" value={a.value ?? ''} onChange={(e) => setLevel(it, e.target.value)} placeholder="%" aria-label={t('Niveau en %')} style={{ ...field, width: 80 }} />
+                    )}
                     <button type="button" onClick={() => setAnswer(it.id, { status: a.status === 'absent' ? null : 'absent', value: null })}
                       style={{ height: 40, padding: '0 12px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${a.status === 'absent' ? '#9333ea' : 'var(--border)'}`, background: a.status === 'absent' ? '#f3e8ff' : 'var(--surface)', color: a.status === 'absent' ? '#7e22ce' : 'var(--fg-muted)' }}>
                       {t('Absent')}
                     </button>
-                    {a.status === 'ko' && <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>{t('Sous le minimum ({{min}} %)', { min: it.min })}</span>}
+                    {a.status === 'ko' && <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>{it.unit === 'bar' ? t('Sous le minimum ({{min}} bar)', { min: it.min }) : t('Sous le minimum ({{min}} %)', { min: it.min })}</span>}
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>

@@ -3,6 +3,7 @@
 // sécurité logistique) quand une mission semble partie sans contrôle de départ
 // (30 min après l'heure prévue) ou rentrée sans contrôle de retour (2 h après
 // l'heure de retour prévue). Une seule alerte de chaque sorte par mission.
+// Inventaire hebdomadaire des ambulances : alerte à 14 h s'il n'est pas fait.
 // Étape 2 : rappels à l'équipage (30 min avant le départ, à l'heure de retour)
 // et annulation des missions dont l'ordre de mission est rejeté ou supprimé.
 import { Op } from 'sequelize';
@@ -10,6 +11,8 @@ import { tenantNamespace } from '../config/database.js';
 import { Tenant, Vehicle, VehicleMission, VehicleCheck, Document, VehicleDeadline } from '../models/index.js';
 import { notifyVehicleManagers, notifyCrew, sectionsForRole, templateFor } from '../controllers/vehicleController.js';
 import { deadlineStatus } from '../controllers/vehicleFleetController.js';
+import { inventoryDueToday } from '../controllers/vehicleInventoryController.js';
+import { doualaDay } from './vehicleChecklist.js';
 
 const fmt = (d) => new Date(d).toLocaleString('fr-FR', { timeZone: 'Africa/Douala', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -58,6 +61,26 @@ async function remindCrew(m, vehicle, phase, sent, key) {
   await m.update({ alertsSent: { ...sent } });
 }
 
+// Inventaire de l'ambulance (lun / mer / ven) pas fait à 14 h : une alerte
+// aux responsables par jour et par ambulance.
+async function inventoryAlerts(tenantId) {
+  const now = new Date();
+  const hour = (now.getUTCHours() + 1) % 24; // Douala, UTC+1
+  if (hour < 14) return;
+  const today = doualaDay(now).date;
+  const vehicles = await Vehicle.findAll({ where: { tenantId, isActive: true, vehicleType: 'ambulance' } });
+  for (const v of vehicles) {
+    if (v.inventoryAlerts?.missing === today) continue;
+    if (!(await inventoryDueToday(v))) continue;
+    await notifyVehicleManagers(v, {
+      title: `🧰 ${v.label} : inventaire du jour non fait`,
+      body: `${v.label} (${v.immatriculation}) — l'inventaire du matériel et des médicaments prévu aujourd'hui n'a pas encore été enregistré.`,
+      url: '/vehicules?tab=inventaires',
+    });
+    await v.update({ inventoryAlerts: { ...(v.inventoryAlerts || {}), missing: today } });
+  }
+}
+
 // Ordre de mission rejeté ou supprimé : la mission prévue n'a plus lieu
 async function cancelOrphanedMissions(tenantId) {
   const planned = await VehicleMission.findAll({ where: { tenantId, status: 'planifiee', urgent: false } });
@@ -73,6 +96,7 @@ async function checkTenant(tenantId) {
     const now = Date.now();
     await cancelOrphanedMissions(tenantId);
     await deadlineAlerts(tenantId);
+    await inventoryAlerts(tenantId);
 
     // Rappels à l'équipage
     const toRemind = await VehicleMission.findAll({

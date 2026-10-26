@@ -13,6 +13,9 @@ export const VehicleChecklistTemplate = sequelize.define('VehicleChecklistTempla
   vehicleType: { type: DataTypes.STRING(30), allowNull: false, defaultValue: 'ambulance', field: 'vehicle_type' },
   // [{ key, label, role, items: [{ id, label, kind: 'check'|'level'|'quantity', critical, expected }] }]
   sections: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+  // Inventaire hebdomadaire (ambulances) : [{ key, label, items: [{ id, label, kind: 'qty'|'level'|'check'|'yesno', required, unit, expiry, critical }] }]
+  inventorySections: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: 'inventory_sections' },
+  inventoryDays: { type: DataTypes.JSONB, allowNull: false, defaultValue: [1, 3, 5], field: 'inventory_days' }, // 1 = lundi
   isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'is_active' },
   updatedBy: { type: DataTypes.UUID, allowNull: true, field: 'updated_by' },
   tenantId,
@@ -35,6 +38,7 @@ export const Vehicle = sequelize.define('Vehicle', {
   year: { type: DataTypes.INTEGER, allowNull: true },
   fuelType: { type: DataTypes.STRING(20), allowNull: true, field: 'fuel_type' },
   vin: { type: DataTypes.STRING(40), allowNull: true },
+  inventoryAlerts: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: 'inventory_alerts' }, // { missing: 'AAAA-MM-JJ' }
   isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'is_active' },
   tenantId,
 }, opts('vehicles'));
@@ -133,6 +137,30 @@ export const VehicleMaintenance = sequelize.define('VehicleMaintenance', {
   tenantId,
 }, opts('vehicle_maintenances'));
 
+// Inventaire hebdomadaire d'une ambulance (fiche RO SAU, lun / mer / ven)
+export const VehicleInventory = sequelize.define('VehicleInventory', {
+  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  vehicleId: { type: DataTypes.UUID, allowNull: false, field: 'vehicle_id' },
+  inventoryDate: { type: DataTypes.DATEONLY, allowNull: false, field: 'inventory_date' },
+  sections: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+  answers: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] }, // [{ itemId, present, expiring, value, status, comment }]
+  totalItems: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'total_items' },
+  answeredItems: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'answered_items' },
+  shortages: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  expiring: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  criticalAnomaly: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'critical_anomaly' },
+  restock: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+  comment: { type: DataTypes.TEXT, allowNull: true },
+  performedBy: { type: DataTypes.UUID, allowNull: true, field: 'performed_by' },
+  performedByName: { type: DataTypes.STRING(150), allowNull: true, field: 'performed_by_name' },
+  performedAt: { type: DataTypes.DATE, allowNull: false, field: 'performed_at' },
+  signaturePath: { type: DataTypes.STRING(255), allowNull: true, field: 'signature_path' },
+  documentId: { type: DataTypes.UUID, allowNull: true, field: 'document_id' },
+  sha256: { type: DataTypes.STRING(64), allowNull: true },
+  tenantId,
+}, opts('vehicle_inventories'));
+
+Vehicle.hasMany(VehicleInventory, { as: 'inventories', foreignKey: 'vehicleId' });
 Vehicle.hasMany(VehicleDeadline, { as: 'deadlines', foreignKey: 'vehicleId' });
 Vehicle.hasMany(VehicleFuelLog, { as: 'fuelLogs', foreignKey: 'vehicleId' });
 Vehicle.hasMany(VehicleMaintenance, { as: 'maintenances', foreignKey: 'vehicleId' });

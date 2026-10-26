@@ -18,7 +18,7 @@ const LINE = rgb(0.85, 0.87, 0.9);
 
 const fmt = (d) => new Date(d).toLocaleString('fr-FR', { timeZone: 'Africa/Douala', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-function safe(font, text) {
+export function safe(font, text) {
   let out = '';
   for (const ch of String(text ?? '')) {
     try { font.encodeText(ch); out += ch; continue; } catch { /* hors WinAnsi */ }
@@ -29,7 +29,7 @@ function safe(font, text) {
 }
 
 // Découpe un texte en lignes tenant dans `width`
-function wrap(font, text, size, width) {
+export function wrap(font, text, size, width) {
   const words = safe(font, text).split(/\s+/).filter(Boolean);
   const lines = [];
   let line = '';
@@ -112,7 +112,7 @@ export async function buildVehicleCheckPdf({ tenantName, vehicle, mission, missi
     if (y - h < M + 20) { newPage(); header(); }
     labelLines.forEach((l, i) => text(l, M, y - i * 12, { size: 9.5 }));
     let res = a.status ? ANSWER_LABELS[a.status] : 'Non vérifié';
-    if (it.kind === 'level' && a.value !== null && a.value !== undefined) res = `${a.value} %${a.status === 'ko' ? ` (< ${it.min} %)` : ''}${a.status === 'absent' ? ' — Absent' : ''}`;
+    if (it.kind === 'level' && a.value !== null && a.value !== undefined) { const u = it.unit === 'bar' ? 'bar' : '%'; res = `${a.value} ${u}${a.status === 'ko' ? ` (< ${it.min} ${u})` : ''}${a.status === 'absent' ? ' — Absent' : ''}`; }
     const color = !a.status ? ORANGE : a.status === 'ok' ? GREEN : RED;
     text(res, colRes, y, { font: bold, size: 9.5, color });
     comLines.forEach((l, i) => text(l, colCom, y - i * 12, { font: ital, size: 8, color: MUTED }));

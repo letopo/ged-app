@@ -245,6 +245,11 @@ export const vehiclesAPI = {
   check: (id) => api.get(`/vehicles/checks/${id}`),
   checkPdf: (id) => api.get(`/vehicles/checks/${id}/pdf`, { responseType: 'blob' }),
   cancelMission: (id) => api.post(`/vehicles/missions/${id}/cancel`),
+  // Inventaire hebdomadaire des ambulances
+  inventoryState: (id) => api.get(`/vehicles/${id}/inventory`),
+  submitInventory: (id, data) => api.post(`/vehicles/${id}/inventory`, data),
+  inventories: (week) => api.get('/vehicles/inventories', { params: week ? { week } : {} }),
+  inventoryPdf: (iid) => api.get(`/vehicles/inventories/${iid}/pdf`, { responseType: 'blob' }),
   // Étape 3 : suivi du parc
   overview: () => api.get('/vehicles/overview'),
   details: (id) => api.get(`/vehicles/${id}/details`),
