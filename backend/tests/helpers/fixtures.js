@@ -19,9 +19,11 @@ export function inTenant(tenantId, fn) {
   });
 }
 
-export async function createTenant() {
+// domainSuffix : domaine accepté par CORS (ex. 'hsjmcam.net') pour les tests
+// qui envoient un en-tête Origin, comme le navigateur (connexion par passkey)
+export async function createTenant({ domainSuffix = 'test' } = {}) {
   const slug = `test-${uid()}`;
-  return Tenant.create({ name: `Hôpital ${slug}`, slug, domain: `${slug}.test` });
+  return Tenant.create({ name: `Hôpital ${slug}`, slug, domain: `${slug}.${domainSuffix}` });
 }
 
 export function makeFactory(tenant) {

@@ -3065,5 +3065,22 @@
   "Connecté le {{date}}": "Conectado el {{date}}",
   "Dernière activité : {{when}}": "Última actividad: {{when}}",
   "Déconnecter": "Desconectar",
-  "Les connexions ouvertes avant cette mise à jour n’apparaissent pas ici : « Déconnecter mes autres appareils » les ferme aussi.": "Las sesiones abiertas antes de esta actualización no aparecen aquí: «Cerrar sesión en mis otros dispositivos» también las cierra."
+  "Les connexions ouvertes avant cette mise à jour n’apparaissent pas ici : « Déconnecter mes autres appareils » les ferme aussi.": "Las sesiones abiertas antes de esta actualización no aparecen aquí: «Cerrar sesión en mis otros dispositivos» también las cierra.",
+  "Connexion par empreinte ou code PIN impossible. Utilisez votre mot de passe.": "No se pudo iniciar sesión con huella o PIN. Use su contraseña.",
+  "Empreinte, Face ID ou code PIN": "Huella, Face ID o PIN",
+  "Sans mot de passe, sur les appareils où vous l’avez activé (Paramètres › Sécurité).": "Sin contraseña, en los dispositivos donde la activó (Ajustes › Seguridad).",
+  "Connexion sans mot de passe activée sur cet appareil.": "Inicio de sesión sin contraseña activado en este dispositivo.",
+  "Cet appareil est déjà enregistré.": "Este dispositivo ya está registrado.",
+  "Activation impossible sur cet appareil.": "No se pudo activar en este dispositivo.",
+  "Appareil retiré.": "Dispositivo eliminado.",
+  "Erreur lors du retrait de l’appareil.": "Error al eliminar el dispositivo.",
+  "Connexion sans mot de passe": "Inicio de sesión sin contraseña",
+  "Facultatif : connectez-vous avec l’empreinte, Face ID ou le code PIN de votre téléphone ou de Windows. À activer sur chaque appareil ; votre mot de passe reste toujours valable.": "Opcional: inicie sesión con la huella, Face ID o el PIN de su teléfono o de Windows. Actívelo en cada dispositivo; su contraseña sigue siendo válida.",
+  "Activer sur cet appareil": "Activar en este dispositivo",
+  "Ce navigateur ne permet pas la connexion sans mot de passe.": "Este navegador no admite el inicio de sesión sin contraseña.",
+  "Pour l’activer, ouvrez la GED par son nom (ex. https://ged.hsjmcam.net) et non par une adresse IP.": "Para activarlo, abra la GED por su nombre (p. ej. https://ged.hsjmcam.net) y no por una dirección IP.",
+  "Cet ordinateur n’a ni lecteur d’empreinte ni code PIN Windows Hello configuré : vous pourrez utiliser votre téléphone (un QR code s’affiche), ou continuer avec votre mot de passe.": "Este ordenador no tiene lector de huellas ni PIN de Windows Hello configurado: puede usar su teléfono (aparece un código QR) o seguir con su contraseña.",
+  "Activé le {{date}}": "Activado el {{date}}",
+  "Dernière utilisation le {{date}}": "Último uso el {{date}}",
+  "Jamais utilisé": "Nunca usado"
 }

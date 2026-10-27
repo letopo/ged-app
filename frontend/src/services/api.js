@@ -229,6 +229,13 @@ export const authAPI = {
   logoutOtherDevices: () => api.post('/auth/logout-others'),
   getDeviceSessions: () => api.get('/auth/sessions'),
   revokeDeviceSession: (id) => api.delete(`/auth/sessions/${id}`),
+  // Connexion sans mot de passe (empreinte, Face ID, code PIN)
+  passkeyLoginOptions: () => api.post('/auth/passkeys/login/options'),
+  passkeyLoginVerify: (data) => api.post('/auth/passkeys/login/verify', data),
+  getPasskeys: () => api.get('/auth/passkeys'),
+  passkeyRegisterOptions: () => api.post('/auth/passkeys/register/options'),
+  passkeyRegisterVerify: (data) => api.post('/auth/passkeys/register/verify', data),
+  deletePasskey: (id) => api.delete(`/auth/passkeys/${id}`),
   getReleaseNotes: () => api.get('/auth/release-notes'),
   markReleaseNotesSeen: (ids) => api.post('/auth/release-notes/seen', { ids }),
 };

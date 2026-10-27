@@ -13,7 +13,11 @@ import {
   disableEmail2FA,
   resendLogin2FACode,
 } from '../controllers/twoFactorController.js';
-import { loginLimiter, twoFALimiter } from '../middleware/rateLimiter.js';
+import { loginLimiter, twoFALimiter, passkeyLimiter } from '../middleware/rateLimiter.js';
+import {
+  registrationOptions, registrationVerify, listPasskeys, deletePasskey,
+  authenticationOptions, authenticationVerify,
+} from '../controllers/passkeyController.js';
 
 const router = express.Router();
 
@@ -27,6 +31,14 @@ router.put('/profile',  protect, updateProfile);
 router.post('/logout-others', protect, logoutOtherDevices);
 router.get('/sessions', protect, listDeviceSessions);
 router.delete('/sessions/:id', protect, revokeOneDeviceSession);
+
+// ── Connexion sans mot de passe (empreinte, Face ID, code PIN) ───────────────
+router.post('/passkeys/login/options', authenticationOptions);
+router.post('/passkeys/login/verify', passkeyLimiter, authenticationVerify);
+router.get('/passkeys', protect, listPasskeys);
+router.post('/passkeys/register/options', protect, registrationOptions);
+router.post('/passkeys/register/verify', protect, registrationVerify);
+router.delete('/passkeys/:id', protect, deletePasskey);
 router.get('/release-notes',       protect, getReleaseNotesState);
 router.post('/release-notes/seen', protect, markReleaseNotesSeen);
 

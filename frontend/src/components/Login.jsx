@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
-import { LogIn, Mail, Lock, Loader, AlertCircle } from 'lucide-react';
+import { LogIn, Mail, Lock, Loader, AlertCircle, Fingerprint } from 'lucide-react';
+import { passkeySupport, loginWithPasskey, isCancelled } from '../utils/passkeys';
 import TwoFactorVerify from './TwoFactorVerify';
 
 const REMEMBER_KEY = 'ged-remember-device';
@@ -56,6 +57,24 @@ export default function Login({ onLogin }) {
       setError(err.response?.data?.error || t('Erreur lors de la connexion'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Connexion sans mot de passe : empreinte, Face ID ou code PIN de l'appareil
+  const passkeys = passkeySupport();
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const handlePasskey = async () => {
+    setError('');
+    try { localStorage.setItem(REMEMBER_KEY, remember ? '1' : '0'); } catch { /* stockage indisponible */ }
+    try {
+      setPasskeyLoading(true);
+      const data = await loginWithPasskey({ remember });
+      if (onLogin) onLogin(data.token, data.user);
+      redirectByRole(data.user.role);
+    } catch (err) {
+      if (!isCancelled(err)) setError(err.response?.data?.error || t('Connexion par empreinte ou code PIN impossible. Utilisez votre mot de passe.'));
+    } finally {
+      setPasskeyLoading(false);
     }
   };
 
@@ -162,6 +181,26 @@ export default function Login({ onLogin }) {
             >
               {loading ? <><Loader size={18} className="animate-spin" />{t('Connexion en cours...')}</> : <><LogIn size={18} />{t('Se connecter')}</>}
             </button>
+
+            {passkeys.supported && !passkeys.needsDomain && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fg-muted)', fontSize: 12 }}>
+                  <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />{t('ou')}<span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                </div>
+                <button type="button" onClick={handlePasskey} disabled={loading || passkeyLoading} style={{
+                  width: '100%', padding: '11px 16px', background: 'var(--surface)', color: 'var(--fg)',
+                  border: '1.5px solid var(--border)', borderRadius: 'var(--radius-3)', fontSize: 14, fontWeight: 600,
+                  cursor: loading || passkeyLoading ? 'not-allowed' : 'pointer', opacity: passkeyLoading ? 0.7 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}>
+                  {passkeyLoading ? <Loader size={18} className="animate-spin" /> : <Fingerprint size={18} style={{ color: 'var(--brand)' }} />}
+                  {t('Empreinte, Face ID ou code PIN')}
+                </button>
+                <p style={{ margin: '-8px 0 0', fontSize: 12, color: 'var(--fg-muted)', textAlign: 'center' }}>
+                  {t('Sans mot de passe, sur les appareils où vous l’avez activé (Paramètres › Sécurité).')}
+                </p>
+              </>
+            )}
           </form>
 
           <div style={{ marginTop: 24, textAlign: 'center' }}>

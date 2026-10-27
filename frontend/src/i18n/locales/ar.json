@@ -3065,5 +3065,22 @@
   "Connecté le {{date}}": "متصل منذ {{date}}",
   "Dernière activité : {{when}}": "آخر نشاط: {{when}}",
   "Déconnecter": "تسجيل الخروج",
-  "Les connexions ouvertes avant cette mise à jour n’apparaissent pas ici : « Déconnecter mes autres appareils » les ferme aussi.": "الجلسات المفتوحة قبل هذا التحديث لا تظهر هنا: «تسجيل الخروج من أجهزتي الأخرى» يغلقها أيضاً."
+  "Les connexions ouvertes avant cette mise à jour n’apparaissent pas ici : « Déconnecter mes autres appareils » les ferme aussi.": "الجلسات المفتوحة قبل هذا التحديث لا تظهر هنا: «تسجيل الخروج من أجهزتي الأخرى» يغلقها أيضاً.",
+  "Connexion par empreinte ou code PIN impossible. Utilisez votre mot de passe.": "تعذر تسجيل الدخول بالبصمة أو الرمز. استخدم كلمة المرور.",
+  "Empreinte, Face ID ou code PIN": "البصمة أو Face ID أو الرمز",
+  "Sans mot de passe, sur les appareils où vous l’avez activé (Paramètres › Sécurité).": "بدون كلمة مرور، على الأجهزة التي فعّلتها عليها (الإعدادات › الأمان).",
+  "Connexion sans mot de passe activée sur cet appareil.": "تم تفعيل تسجيل الدخول بدون كلمة مرور على هذا الجهاز.",
+  "Cet appareil est déjà enregistré.": "هذا الجهاز مسجل بالفعل.",
+  "Activation impossible sur cet appareil.": "تعذر التفعيل على هذا الجهاز.",
+  "Appareil retiré.": "تمت إزالة الجهاز.",
+  "Erreur lors du retrait de l’appareil.": "خطأ أثناء إزالة الجهاز.",
+  "Connexion sans mot de passe": "تسجيل الدخول بدون كلمة مرور",
+  "Facultatif : connectez-vous avec l’empreinte, Face ID ou le code PIN de votre téléphone ou de Windows. À activer sur chaque appareil ; votre mot de passe reste toujours valable.": "اختياري: سجّل الدخول ببصمة الإصبع أو Face ID أو رمز هاتفك أو Windows. فعّله على كل جهاز؛ تبقى كلمة المرور صالحة دائماً.",
+  "Activer sur cet appareil": "التفعيل على هذا الجهاز",
+  "Ce navigateur ne permet pas la connexion sans mot de passe.": "هذا المتصفح لا يدعم تسجيل الدخول بدون كلمة مرور.",
+  "Pour l’activer, ouvrez la GED par son nom (ex. https://ged.hsjmcam.net) et non par une adresse IP.": "لتفعيله، افتح النظام باسمه (مثل https://ged.hsjmcam.net) وليس بعنوان IP.",
+  "Cet ordinateur n’a ni lecteur d’empreinte ni code PIN Windows Hello configuré : vous pourrez utiliser votre téléphone (un QR code s’affiche), ou continuer avec votre mot de passe.": "لا يحتوي هذا الحاسوب على قارئ بصمة أو رمز Windows Hello: يمكنك استخدام هاتفك (يظهر رمز QR) أو متابعة استخدام كلمة المرور.",
+  "Activé le {{date}}": "مفعّل منذ {{date}}",
+  "Dernière utilisation le {{date}}": "آخر استخدام في {{date}}",
+  "Jamais utilisé": "لم يُستخدم قط"
 }
