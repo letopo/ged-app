@@ -28,10 +28,10 @@ import MissionMealRatesModal from '../components/MissionMealRatesModal';
 // Types dont le circuit de validation est construit par le serveur (postes) : la
 // fenêtre « Soumettre » affiche le circuit imposé au lieu du choix libre des validateurs.
 // Demande d'explication : cf. backend utils/posteChain.js.
-const SERVER_CHAIN_CATEGORIES = ['Ordre de mission', 'Pièce de caisse', "Demande d'explication"];
+const SERVER_CHAIN_CATEGORIES = ['Ordre de mission', 'Pièce de caisse', "Demande d'explication", 'Bon de prise en charge'];
 const isServerChainCategory = (category) => SERVER_CHAIN_CATEGORIES.includes(category);
 // Circuits imposés : les cadres de signature gardent leurs libellés de rôle
-const FIXED_LABEL_CATEGORIES = ['Pièce de caisse', 'Ordre de mission', "Demande d'explication", 'Demande de permutation'];
+const FIXED_LABEL_CATEGORIES = ['Pièce de caisse', 'Ordre de mission', "Demande d'explication", 'Demande de permutation', 'Bon de prise en charge'];
 
 const DocumentList = () => {
   const { t } = useTranslation();
@@ -191,6 +191,7 @@ const DocumentList = () => {
     'Bon de commande': '🛒',
     'Bon de commande interne': '📋',
     "Demande d'explication": '❓',
+    'Bon de prise en charge': '🩺',
     'Planning Opératoire': '🏥',
     'Attestation de départ en congé annuel': '🏖️',
     'Demande de besoin': '📝',

@@ -25,6 +25,8 @@ import { notifyValidator, createWorkflowForDocument, resolveValidatorIdsFromTemp
 import { applySignerLabels, getSignerTitleOptions, FIXED_LABEL_CATEGORIES } from '../utils/signatureLabels.js';
 import { centeredStampRect } from '../utils/stampSize.js';
 import { getTenantSettings } from '../utils/tenantSettings.js';
+import { BPC_CATEGORY, BPC_STEP_ZONES, BPC_RH_STEP, sanitizeRhFields, drawRhFields } from '../utils/bonPriseEnCharge.js';
+import { sendBpcToAccueil } from './documentTransmissionController.js';
 
 // Helper : embarquer une image dans un PDF (tente JPG puis PNG)
 async function embedImage(pdfDoc, imageBytes) {
@@ -515,7 +517,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       // ✅ CORRECTION CRITIQUE : On détermine un statut effectif
       // Si pas de statut fourni mais qu'on signe/cachette, on considère que c'est 'approved'
       let effectiveStatus = status;
-      if (!effectiveStatus && ['approve_sign_stamp', 'signature', 'stamp', 'dater'].includes(validationType)) {
+      if (!effectiveStatus && ['approve_sign_stamp', 'signature', 'stamp', 'dater', 'completer'].includes(validationType)) {
           effectiveStatus = 'approved';
       }
 
@@ -536,6 +538,37 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
 
       const document = task.document;
       const validator = await User.findByPk(userId, { transaction: t });
+      let bpcApproved = false;
+
+      // --- BON DE PRISE EN CHARGE : LE RH COMPLÈTE L'ASSURÉ (étape 2, sans signature) ---
+      // Les rubriques sont écrites sur le PDF déjà visé par le médecin.
+      const isBpc = document.category === BPC_CATEGORY;
+      const isBpcRhStep = isBpc && task.step === BPC_RH_STEP;
+      if (validationType === 'completer' && !isBpcRhStep) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Action réservée à l’étape RH d’un bon de prise en charge.' });
+      }
+      if (isBpcRhStep && effectiveStatus === 'approved' && validationType !== 'completer') {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Complétez d’abord le bon (assuré, entreprise, lien de filiation).' });
+      }
+      if (validationType === 'completer') {
+        const { fields, error } = sanitizeRhFields(req.body.bpcFields || {});
+        if (error) {
+          await t.rollback();
+          return res.status(400).json({ success: false, message: error });
+        }
+        const bytes = await drawRhFields(await fs.readFile(resolveStoredFile(document.filePath)), fields);
+        const newFileName = `${path.basename(document.fileName, path.extname(document.fileName)).replace(/_v\d+$/, '')}_v${Date.now()}${path.extname(document.fileName)}`;
+        await fs.writeFile(path.resolve(process.cwd(), `uploads/${newFileName}`), bytes);
+        await document.update({
+          filePath: `uploads/${newFileName}`,
+          fileName: newFileName,
+          fileSize: bytes.length,
+          title: `${BPC_CATEGORY} - ${document.metadata?.nomMalade || ''}${fields.nomAssure ? ` (assuré : ${fields.nomAssure})` : ''}`.slice(0, 250),
+          metadata: { ...document.metadata, ...fields, rhCompletedAt: new Date().toISOString(), rhCompletedBy: userId },
+        }, { transaction: t });
+      }
 
       // --- LOGIQUE REMPLAÇANT POUR PERMISSION ---
       // L'intérim n'est saisi qu'une fois dans le circuit : le premier validateur
@@ -623,9 +656,13 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       const isPieceDeCaisse = document.category === 'Pièce de caisse';
 
       // Vérification de la zone de signature
-      const isInSignatureRange = isPieceDeCaisse
-        ? task.step <= numberOfSignatures
-        : task.step > (totalStepsWithoutComptable - numberOfSignatures);
+      // Bon de prise en charge : médecin (étape 1) → VISA MÉDECIN, DG (étape 3) → VISA DG ;
+      // le RH (étape 2) complète le bon sans signer.
+      const isInSignatureRange = isBpc
+        ? Boolean(BPC_STEP_ZONES[task.step])
+        : isPieceDeCaisse
+          ? task.step <= numberOfSignatures
+          : task.step > (totalStepsWithoutComptable - numberOfSignatures);
 
       // Si on essaie de signer hors zone, on bloque (sauf pour dater)
       if ((validationType === 'approve_sign_stamp' || ['signature', 'stamp'].includes(validationType)) && !isInSignatureRange) {
@@ -677,9 +714,11 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         const { width, height } = targetPage.getSize();
 
         // CALCUL POSITION
-        let positionInSignatureGroup = isPieceDeCaisse
-          ? task.step
-          : task.step - (totalStepsWithoutComptable - numberOfSignatures);
+        let positionInSignatureGroup = isBpc
+          ? BPC_STEP_ZONES[task.step]
+          : isPieceDeCaisse
+            ? task.step
+            : task.step - (totalStepsWithoutComptable - numberOfSignatures);
         // Utiliser le nombre de signataires effectif pour le calcul des positions X
         const effectiveConfig = { ...signatureConfig, numberOfSignatures };
         let baseX = calculateSignatureX(positionInSignatureGroup, effectiveConfig, width);
@@ -973,6 +1012,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
             if (['Demande de besoin', "Fiche de suivi d'équipements"].includes(document.category)) {
               await reactivateLinkedWorkRequest(document, t);
             }
+            if (isBpc) bpcApproved = true;
             console.log(`🎉 Workflow terminé pour document ${document.id}`);
             // Notifier le soumetteur de l'approbation
             notifySubmitter(document, 'approved', comment);
@@ -988,6 +1028,9 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       }
 
       await t.commit();
+
+      // Bon de prise en charge visé par le DG : envoyé à l'accueil (ouverture du BPC dans Sage)
+      if (bpcApproved) sendBpcToAccueil(document.id, userId).catch(e => console.error('BPC → accueil :', e.message));
 
       // Audit validation
       const { AuditLog } = await import('../models/index.js');

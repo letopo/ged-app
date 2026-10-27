@@ -723,6 +723,18 @@ const RELEASE_NOTES = [
       'Fonctionne en ouvrant la GED par son nom : https://ged.hsjmcam.net',
     ],
   },
+  {
+    id: '2026-10-27-bon-prise-en-charge',
+    date: '2026-10-27',
+    target: 'app',
+    title: 'Bon de prise en charge du personnel',
+    // Concerne le médecin du travail, les RH, le DG et l'accueil
+    access: (user) => isAdmin(user) || ['director', 'agent_accueil_php', 'agent_accueil_normal'].includes(user?.role) || (user?.postes || []).some(p => ['medecin_travail', 'rh', 'dg'].includes(p)),
+    items: [
+      'Nouveau formulaire « Bon de prise en charge » (format A5) : le médecin du travail le crée et le vise, les RH complètent l’assuré, le DG le vise.',
+      'Une fois visé par le DG, le bon arrive automatiquement à l’accueil (Documents › Reçus) pour l’ouverture du BPC dans Sage.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

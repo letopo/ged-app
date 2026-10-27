@@ -45,6 +45,12 @@ export function makeFactory(tenant) {
       for (const u of holders) await UserPoste.create({ posteId: poste.id, userId: u.id, assignedAt: new Date() });
       return poste;
     }),
+    // Les codes de poste sont uniques dans toute la base : un fichier de test qui
+    // crée 'rh' ou 'dg' les retire à la fin pour que les suivants puissent les créer
+    dropPostes: async () => {
+      await Document.sequelize.query('DELETE FROM user_postes WHERE poste_id IN (SELECT id FROM postes WHERE tenant_id = :t)', { replacements: { t: tenant.id } });
+      await Document.sequelize.query('DELETE FROM postes WHERE tenant_id = :t', { replacements: { t: tenant.id } });
+    },
     document: (owner, attrs = {}) => run(() => Document.create({
       title: `Doc ${uid()}`, fileName: 'x.pdf', filePath: 'uploads/x.pdf', fileType: 'application/pdf',
       userId: owner.id, status: 'draft', visibility: 'personal', ...attrs,

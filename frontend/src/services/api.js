@@ -285,6 +285,8 @@ export const vehiclesAPI = {
 };
 
 export const documentsAPI = {
+  // Bon de prise en charge du personnel (bon A5 dessiné par le serveur)
+  createBonPriseEnCharge: (data) => api.post('/documents/bon-prise-en-charge', data),
   getAll: (params) => api.get('/documents', { params }),
   getById: (id) => api.get(`/documents/${id}`),
   getCategories: () => api.get('/documents/categories'),

@@ -37,6 +37,7 @@ import {
 import { Document, User, Workflow, Service } from '../models/index.js';
 import { Op } from 'sequelize'; // ✅ AJOUT IMPORTANT
 import { readableWhere } from '../utils/documentVisibility.js';
+import { createBonPriseEnCharge } from '../controllers/bonPriseEnChargeController.js';
 
 const router = express.Router();
 
@@ -208,6 +209,9 @@ router.get('/piece-de-caisse-history', protect, getPieceDeCaisseHistory);
 // @desc    Dates réelles d'approbation finale / de rejet (circuit) des documents visibles
 // @access  Private
 router.get('/recent-decisions', protect, getRecentDecisions);
+
+// Bon de prise en charge du personnel : bon A5 dessiné par le serveur
+router.post('/bon-prise-en-charge', protect, createBonPriseEnCharge);
 
 // Transmission d'un document validé à d'autres utilisateurs (avant les routes /:id)
 router.get('/transmission-recipients', protect, listRecipients);

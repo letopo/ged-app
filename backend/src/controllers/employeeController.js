@@ -365,7 +365,8 @@ export const getMissionCandidates = async (req, res, next) => {
 
     const employees = await Employee.findAll({
       where: { isActive: true, ...(serviceId ? { serviceId } : {}), ...nameSearch },
-      attributes: ['id', 'firstName', 'lastName', 'categorie', 'userId'],
+      attributes: ['id', 'firstName', 'lastName', 'categorie', 'userId', 'matricule'],
+      include: [{ model: Service, as: 'service', attributes: ['name'], required: false }],
       order: [['lastName', 'ASC'], ['firstName', 'ASC']],
       limit: 50,
     });
@@ -394,6 +395,9 @@ export const getMissionCandidates = async (req, res, next) => {
         source: 'employee',
         categorie: e.categorie || null,
         userId: e.userId || null,
+        // Bon de prise en charge : matricule et secteur de l'assuré
+        matricule: e.matricule || null,
+        service: e.service?.name || null,
       })),
       ...users
         .filter(u => !coveredUserIds.has(u.id))
