@@ -1,7 +1,7 @@
 ﻿// backend/src/routes/auth.js
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import { register, login, getProfile, updateProfile, getReleaseNotesState, markReleaseNotesSeen, logoutOtherDevices } from '../controllers/authController.js';
+import { register, login, getProfile, updateProfile, getReleaseNotesState, markReleaseNotesSeen, logoutOtherDevices, listDeviceSessions, revokeOneDeviceSession, logout } from '../controllers/authController.js';
 import {
   setup2FA,
   enable2FA,
@@ -19,12 +19,14 @@ const router = express.Router();
 
 router.post('/register', register);
 router.post('/login', loginLimiter, login);
-// Déconnexion : efface le cookie de fichiers (le jeton est retiré côté navigateur)
-router.post('/logout', (req, res) => { res.clearCookie('ged_files', { path: '/api' }); res.json({ success: true }); });
+// Déconnexion : efface le cookie de fichiers et retire l'appareil de la liste
+router.post('/logout', logout);
 router.get('/profile',  protect, getProfile);
 router.put('/profile',  protect, updateProfile);
 // « Déconnecter mes autres appareils » (sessions longues « Rester connecté »)
 router.post('/logout-others', protect, logoutOtherDevices);
+router.get('/sessions', protect, listDeviceSessions);
+router.delete('/sessions/:id', protect, revokeOneDeviceSession);
 router.get('/release-notes',       protect, getReleaseNotesState);
 router.post('/release-notes/seen', protect, markReleaseNotesSeen);
 

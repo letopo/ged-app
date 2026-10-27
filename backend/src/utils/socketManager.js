@@ -55,9 +55,10 @@ export const initializeSocket = (server) => {
       const decoded = verifySessionToken(token);
       const { User } = await import('../models/index.js');
       const user = await User.unscoped().findByPk(decoded.id, { attributes: ['id', 'email', 'isActive', 'tokenVersion', 'tenantId'] });
-      const rejection = sessionRejection(user, decoded);
+      const rejection = await sessionRejection(user, decoded);
       if (rejection) return next(new Error(`Authentication error: ${rejection}`));
       socket.userId = decoded.id;
+      socket.sessionId = decoded.sid || null;
       socket.userEmail = decoded.email;
       socket.tenantId = user.tenantId;
       
@@ -91,6 +92,8 @@ export const initializeSocket = (server) => {
 
   // Rejoindre une room personnelle basée sur l'userId
   socket.join(`user:${userId}`);
+  // Appareil : déconnecté à distance via « Appareils connectés »
+  if (socket.sessionId) socket.join(`session:${socket.sessionId}`);
 
   // Tablettes de guichet pour la signature des patients
   attachSignatureKiosk(socket, io);

@@ -8,7 +8,7 @@ declare global {
       /** Utilisateur connecté (middleware/auth.js protect, middleware/superadmin.js). */
       user?: User;
       /** Jeton de session vérifié (middleware/auth.js protect) ; rem = « Rester connecté ». */
-      session?: { id: string; rem?: boolean; tv?: number; iat?: number; exp?: number };
+      session?: { id: string; rem?: boolean; sid?: string; tv?: number; iat?: number; exp?: number };
       /** Établissement résolu depuis l'hôte ou l'utilisateur (middleware/tenant.js). */
       tenantId?: string | null;
       tenant?: { id: string; [key: string]: unknown } | null;

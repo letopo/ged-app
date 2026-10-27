@@ -14,7 +14,7 @@ export const requireSuperAdmin = async (req, res, next) => {
 
     // Charger l'utilisateur sans filtre tenant (User.unscoped())
     const user = await User.unscoped().findByPk(decoded.id);
-    if (sessionRejection(user, decoded)) {
+    if (await sessionRejection(user, decoded, req)) {
       return res.status(401).json({ success: false, error: 'Session invalide' });
     }
     if (user.role !== 'superadmin') {

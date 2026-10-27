@@ -44,9 +44,11 @@ export function isTokenExpired(token, marginMs = 30_000) {
 const LOGIN_ENDPOINTS = [/\/auth\/login$/, /\/auth\/2fa\/verify-login$/, /\/auth\/register$/];
 
 // Messages des middlewares d'authentification (backend/src/middleware/auth.js,
-// superadmin.js). Les autres 401 (ex. « Mot de passe actuel incorrect » dans le
+// superadmin.js, utils/sessionTokens.js sessionRejection : « Session expirée »
+// après une déconnexion à distance ou un changement de mot de passe, « Compte
+// désactivé »). Les autres 401 (ex. « Mot de passe actuel incorrect » dans le
 // profil) ne déconnectent pas.
-const SESSION_401_MESSAGE = /token|non autoris|non authentifi|utilisateur non trouv/i;
+const SESSION_401_MESSAGE = /token|session|compte désactiv|non autoris|non authentifi|utilisateur non trouv/i;
 
 let notified = false;
 

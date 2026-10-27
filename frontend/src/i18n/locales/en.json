@@ -3055,5 +3055,15 @@
   "Téléphone perdu, ordinateur prêté ou oublié ouvert : déconnectez tous vos autres appareils. Celui-ci reste connecté.": "Lost phone, lent computer or one left signed in: sign out all your other devices. This one stays signed in.",
   "Déconnecter mes autres appareils": "Sign out my other devices",
   "Vos autres appareils ont été déconnectés.": "Your other devices have been signed out.",
-  "Erreur lors de la déconnexion des autres appareils.": "Error while signing out your other devices."
+  "Erreur lors de la déconnexion des autres appareils.": "Error while signing out your other devices.",
+  "à l’instant": "just now",
+  "Appareil déconnecté.": "Device signed out.",
+  "Erreur lors de la déconnexion de l’appareil.": "Error while signing out the device.",
+  "Appareil inconnu": "Unknown device",
+  "Cet appareil": "This device",
+  "IP {{ip}}": "IP {{ip}}",
+  "Connecté le {{date}}": "Signed in on {{date}}",
+  "Dernière activité : {{when}}": "Last activity: {{when}}",
+  "Déconnecter": "Sign out",
+  "Les connexions ouvertes avant cette mise à jour n’apparaissent pas ici : « Déconnecter mes autres appareils » les ferme aussi.": "Sessions opened before this update are not listed here: “Sign out my other devices” closes them too."
 }

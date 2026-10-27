@@ -67,7 +67,7 @@ export function requireFileAccess(root) {
 
       const { User, Document } = await import('../models/index.js');
       const user = await User.unscoped().findByPk(decoded.id);
-      if (sessionRejection(user, decoded)) return res.status(401).json({ success: false, message: 'Session invalide.' });
+      if (await sessionRejection(user, decoded)) return res.status(401).json({ success: false, message: 'Session invalide.' });
 
       // Fichier d'un document : mêmes droits que pour l'ouvrir dans la GED
       if (root === 'uploads') {

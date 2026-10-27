@@ -692,6 +692,16 @@ const RELEASE_NOTES = [
       'Paramètres › Sécurité › « Déconnecter mes autres appareils » : en cas de téléphone perdu ou de poste resté ouvert.',
     ],
   },
+  {
+    id: '2026-10-27-appareils-connectes',
+    date: '2026-10-27',
+    target: 'app',
+    title: 'Vos appareils connectés',
+    items: [
+      'Paramètres › Sécurité › Appareils connectés : la liste des téléphones et ordinateurs où votre compte est ouvert, avec le navigateur, l’adresse IP, la date de connexion et la dernière activité.',
+      'Un appareil que vous ne reconnaissez pas ? Cliquez sur « Déconnecter » à côté : il est déconnecté immédiatement. Pensez aussi à changer votre mot de passe.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
