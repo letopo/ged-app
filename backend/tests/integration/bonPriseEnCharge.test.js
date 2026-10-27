@@ -3,7 +3,7 @@
 //  - circuit imposé Médecin du travail → RH → DG ;
 //  - le RH complète l'assuré (sans signer), sur le PDF déjà visé par le médecin ;
 //  - visas : médecin → cadre « VISA MÉDECIN », DG → cadre « VISA DG » ;
-//  - visé par le DG : envoyé aux agents d'accueil (onglet « Reçus »).
+//  - visé par le DG : envoyé à l'accueil normal (onglet « Reçus »).
 import '../helpers/env.js';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -128,15 +128,16 @@ test('circuit complet : médecin vise, RH complète, DG vise, accueil prévenu',
   assert.equal(v3.status, 200, JSON.stringify(v3.body));
   assert.equal((await Document.unscoped().findByPk(doc.id)).status, 'approved');
 
-  for (const agent of [accueilPhp, accueilNormal]) {
-    let ids = [];
-    for (let i = 0; i < 20 && !ids.includes(doc.id); i++) {
-      await new Promise(r => setTimeout(r, 100));
-      ids = (await request(app).get('/api/documents/transmissions/received').set(as(agent))).body.transmissions.map(x => x.document.id);
-    }
-    assert.ok(ids.includes(doc.id), `accueil (${agent.role}) prévenu`);
-    assert.equal((await request(app).get(`/api/documents/${doc.id}`).set(as(agent))).status, 200);
+  const received = async (agent) => (await request(app).get('/api/documents/transmissions/received').set(as(agent))).body.transmissions.map(x => x.document.id);
+  let ids = [];
+  for (let i = 0; i < 20 && !ids.includes(doc.id); i++) {
+    await new Promise(r => setTimeout(r, 100));
+    ids = await received(accueilNormal);
   }
+  assert.ok(ids.includes(doc.id), 'accueil normal prévenu');
+  assert.equal((await request(app).get(`/api/documents/${doc.id}`).set(as(accueilNormal))).status, 200);
+  // L'accueil PHP ne reçoit pas les bons du personnel
+  assert.ok(!(await received(accueilPhp)).includes(doc.id), 'accueil PHP non prévenu');
   // Un utilisateur sans rôle dans le circuit ne voit pas le bon (diagnostic médical)
   assert.equal((await request(app).get(`/api/documents/${doc.id}`).set(as(someone))).status, 403);
 });
