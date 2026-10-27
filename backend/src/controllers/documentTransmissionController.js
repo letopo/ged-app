@@ -49,11 +49,12 @@ async function transmitToRecipients(document, senderId, recipients, message) {
   }
 }
 
-// Agents d'accueil : ils ouvrent le dossier de facturation (BPC dans Sage)
-export const ACCUEIL_ROLES = ['agent_accueil_php', 'agent_accueil_normal'];
+// Accueil normal : il ouvre le dossier de facturation (BPC dans Sage).
+// L'accueil PHP ne reçoit pas les bons du personnel.
+export const ACCUEIL_ROLES = ['agent_accueil_normal'];
 
 /**
- * Bon de prise en charge visé par le DG : envoyé à tous les agents d'accueil
+ * Bon de prise en charge visé par le DG : envoyé aux agents de l'accueil normal
  * actifs de l'établissement (onglet « Reçus » + notification).
  */
 export async function sendBpcToAccueil(documentId, senderId) {
