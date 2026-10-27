@@ -68,6 +68,7 @@ import SuperAdminPage from './pages/SuperAdminPage';
 import OfflineBanner from './components/OfflineBanner';
 import SessionWarning from './components/SessionWarning';
 import useSessionTimeout from './hooks/useSessionTimeout';
+import { isRememberedSession } from './utils/authSession';
 import { SyncProvider } from './contexts/SyncContext';
 
 // ✅ NOUVEAUX DASHBOARDS
@@ -249,9 +250,10 @@ const PageWrapper = ({ children }) => {
 };
 
 function App() {
-  const { user, login, logout, isAuthenticated } = useAuth();
+  const { user, token, login, logout, isAuthenticated } = useAuth();
   useNotifications();
-  const { showWarning, remainingSeconds, extendSession, handleLogout } = useSessionTimeout(isAuthenticated, logout);
+  // « Rester connecté sur cet appareil » : pas de déconnexion pour inactivité
+  const { showWarning, remainingSeconds, extendSession, handleLogout } = useSessionTimeout(isAuthenticated && !isRememberedSession(token), logout);
 
   return (
     <SyncProvider isAuthenticated={isAuthenticated}>

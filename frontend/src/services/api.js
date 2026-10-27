@@ -43,12 +43,12 @@ api.interceptors.request.use(
 );
 
 // Session expirée ou jeton invalide : AuthContext déconnecte et renvoie au login.
-// Mot de passe changé : le serveur révoque les anciennes sessions et rend un
-// nouveau jeton à la personne qui a fait le changement (son propre compte).
+// Mot de passe changé ou « Déconnecter mes autres appareils » : le serveur
+// révoque les anciennes sessions et rend un nouveau jeton à cet appareil.
 api.interceptors.response.use(
   (response) => {
     const token = response.data?.token;
-    if (token && /\/reset-password$|\/auth\/profile$/.test(response.config?.url || '')) {
+    if (token && /\/reset-password$|\/auth\/profile$|\/auth\/logout-others$/.test(response.config?.url || '')) {
       try { localStorage.setItem('token', token); } catch { /* stockage indisponible */ }
       window.dispatchEvent(new CustomEvent(SESSION_RENEWED_EVENT, { detail: token }));
     }
@@ -226,6 +226,7 @@ export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
   getProfile: () => api.get('/auth/profile'),
   updateProfile: (data) => api.put('/auth/profile', data),
+  logoutOtherDevices: () => api.post('/auth/logout-others'),
   getReleaseNotes: () => api.get('/auth/release-notes'),
   markReleaseNotesSeen: (ids) => api.post('/auth/release-notes/seen', { ids }),
 };

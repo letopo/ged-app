@@ -10,6 +10,7 @@ export const TENANT_SETTINGS_DEFAULTS = {
   lateDays: 2,
   sessionIdleMinutes: 30,
   sessionMaxDays: 7,
+  rememberMeDays: 30,
   maxUploadMb: 50,
   stampRealSize: true,
 };

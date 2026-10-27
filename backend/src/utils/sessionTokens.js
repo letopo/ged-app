@@ -7,13 +7,15 @@
 //  - tv (version des jetons) doit égaler users.token_version : l'incrémenter
 //    invalide toutes les sessions du compte.
 //  - Un compte désactivé (isActive = false) est refusé.
+//  - rem : session « Rester connecté sur cet appareil » (plus longue, sans
+//    déconnexion pour inactivité dans le navigateur).
 import jwt from 'jsonwebtoken';
 
 const ALGORITHMS = ['HS256'];
 
-export function signSessionToken(user, expiresIn) {
+export function signSessionToken(user, expiresIn, { remember = false } = {}) {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role, type: 'session', tv: user.tokenVersion || 0 },
+    { id: user.id, email: user.email, role: user.role, type: 'session', tv: user.tokenVersion || 0, ...(remember ? { rem: true } : {}) },
     process.env.JWT_SECRET,
     { expiresIn, algorithm: 'HS256' },
   );

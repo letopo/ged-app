@@ -13,6 +13,8 @@ export const TENANT_SETTINGS = {
   lateDays:             { default: 2,  min: 1, max: 30 },
   sessionIdleMinutes:   { default: 30, min: 5, max: 480 },
   sessionMaxDays:       { default: 7,  min: 1, max: 30 },
+  // « Rester connecté sur cet appareil » : durée de la session ; 0 = option désactivée
+  rememberMeDays:       { default: 30, min: 0, max: 90 },
   maxUploadMb:          { default: 50, min: 1, max: 200 },
   // Cachet apposé à sa taille réelle (mm) ; false = ancien calcul (ajusté au cadre)
   stampRealSize:        { default: true, boolean: true },

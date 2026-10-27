@@ -13,10 +13,12 @@ import { sendEmailOtp, EmailOtpError, maskEmail } from '../utils/emailOtp.js';
 import { signSessionToken, revokeSessions } from '../utils/sessionTokens.js';
 import { setFileCookie } from '../utils/fileAccess.js';
 
-// Durée de session réglée par tenant (Paramètres › Délais et session, 7 j par défaut)
-export const generateToken = async (user) => {
-  const { sessionMaxDays } = await getTenantSettings(user.tenantId);
-  return signSessionToken(user, `${sessionMaxDays}d`);
+// Durée de session réglée par tenant (Paramètres › Délais et session) : 7 j par
+// défaut, 30 j avec « Rester connecté sur cet appareil » (sauf option désactivée).
+export const generateToken = async (user, { remember = false } = {}) => {
+  const { sessionMaxDays, rememberMeDays } = await getTenantSettings(user.tenantId);
+  const rem = remember === true && rememberMeDays > 0;
+  return signSessionToken(user, `${rem ? rememberMeDays : sessionMaxDays}d`, { remember: rem });
 };
 
 export const register = async (req, res, next) => {
@@ -59,7 +61,8 @@ export const register = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const { username, password } = req.body;
-    
+    const remember = req.body.remember === true;
+
     if (!username || !password) {
       return res.status(400).json({ success: false, error: 'Identifiant et mot de passe requis' });
     }
@@ -101,7 +104,7 @@ export const login = async (req, res, next) => {
         }
       }
       const tempToken = jwt.sign(
-        { id: user.id, type: '2fa_pending' },
+        { id: user.id, type: '2fa_pending', ...(remember ? { rem: true } : {}) },
         process.env.JWT_SECRET,
         { expiresIn: user.emailOtpEnabled ? '10m' : '5m' }
       );
@@ -117,7 +120,7 @@ export const login = async (req, res, next) => {
     }
 
     await user.update({ lastLogin: new Date() });
-    const token = await generateToken(user);
+    const token = await generateToken(user, { remember });
     setFileCookie(req, res, token, jwt.decode(token));
     const userResult = user.toJSON();
     delete userResult.password;
@@ -219,8 +222,25 @@ export const updateProfile = async (req, res, next) => {
         delete updatedUser.password;
         delete updatedUser.tokenVersion;
     
-        res.json({ success: true, message: 'Profil mis à jour', user: updatedUser, ...(newPassword ? { token: await generateToken(user) } : {}) });
+        res.json({ success: true, message: 'Profil mis à jour', user: updatedUser, ...(newPassword ? { token: await generateToken(user, { remember: req.session?.rem === true }) } : {}) });
     } catch (error) {
         next(error);
     }
+};
+
+// « Déconnecter mes autres appareils » : toutes les sessions du compte sont
+// révoquées ; cet appareil reçoit un nouveau jeton (même durée qu'avant).
+export const logoutOtherDevices = async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    await revokeSessions(user);
+    await user.save();
+    const token = await generateToken(user, { remember: req.session?.rem === true });
+    setFileCookie(req, res, token, jwt.decode(token));
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'LOGOUT_OTHER_DEVICES', 'auth', user.id, {});
+    res.json({ success: true, message: 'Vos autres appareils ont été déconnectés.', token });
+  } catch (error) {
+    next(error);
+  }
 };

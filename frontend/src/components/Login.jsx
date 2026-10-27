@@ -7,10 +7,16 @@ import { authAPI } from '../services/api';
 import { LogIn, Mail, Lock, Loader, AlertCircle } from 'lucide-react';
 import TwoFactorVerify from './TwoFactorVerify';
 
+const REMEMBER_KEY = 'ged-remember-device';
+
 export default function Login({ onLogin }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ username: '', password: '' });
+  // « Rester connecté sur cet appareil » : choix retenu par le navigateur
+  const [remember, setRemember] = useState(() => {
+    try { return localStorage.getItem(REMEMBER_KEY) === '1'; } catch { return false; }
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [show2FA, setShow2FA] = useState(false);
@@ -33,7 +39,8 @@ export default function Login({ onLogin }) {
 
     try {
       setLoading(true);
-      const response = await authAPI.login(formData);
+      try { localStorage.setItem(REMEMBER_KEY, remember ? '1' : '0'); } catch { /* stockage indisponible */ }
+      const response = await authAPI.login({ ...formData, remember });
       const data = response.data;
 
       if (data.requires2FA) {
@@ -116,7 +123,7 @@ export default function Login({ onLogin }) {
               <label style={labelStyle}>{t("Nom d'utilisateur")}</label>
               <div style={{ position: 'relative' }}>
                 <Mail size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
-                <input type="text" name="username" value={formData.username} onChange={handleChange}
+                <input type="text" name="username" autoComplete="username" autoCapitalize="none" value={formData.username} onChange={handleChange}
                   style={inputStyle} placeholder={t("Entrez votre nom d'utilisateur")} disabled={loading} />
               </div>
             </div>
@@ -125,10 +132,21 @@ export default function Login({ onLogin }) {
               <label style={labelStyle}>{t('Mot de passe')}</label>
               <div style={{ position: 'relative' }}>
                 <Lock size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
-                <input type="password" name="password" value={formData.password} onChange={handleChange}
+                <input type="password" name="password" autoComplete="current-password" value={formData.password} onChange={handleChange}
                   style={inputStyle} placeholder={t('Entrez votre mot de passe')} disabled={loading} />
               </div>
             </div>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: 'var(--fg)' }}>
+              <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} disabled={loading}
+                style={{ width: 16, height: 16, marginTop: 1, accentColor: 'var(--brand)', flexShrink: 0 }} />
+              <span>
+                {t('Rester connecté sur cet appareil')}
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>
+                  {t('Pas de déconnexion automatique. À ne pas cocher sur un ordinateur partagé.')}
+                </span>
+              </span>
+            </label>
 
             <button type="submit" disabled={loading} style={{
               width: '100%', padding: '12px 16px',
