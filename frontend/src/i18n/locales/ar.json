@@ -3042,5 +3042,18 @@
   "Dimanche": "الأحد",
   "Tablette non autorisée": "جهاز لوحي غير مصرح به",
   "Ce compte ne peut pas servir de tablette de signature.": "لا يمكن استخدام هذا الحساب كجهاز لوحي للتوقيع.",
-  "Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.": "لا يمكن استخدام هذا الحساب كجهاز لوحي للتوقيع. سجّل دخول الجهاز بحساب شباك (الصندوق، الاستقبال) أو اطلب من المسؤول منصب «محطة التوقيع»."
+  "Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.": "لا يمكن استخدام هذا الحساب كجهاز لوحي للتوقيع. سجّل دخول الجهاز بحساب شباك (الصندوق، الاستقبال) أو اطلب من المسؤول منصب «محطة التوقيع».",
+  "Un avertissement s’affiche 2 minutes avant. Sauf pour les appareils où « Rester connecté » a été coché.": "يظهر تنبيه قبل دقيقتين. باستثناء الأجهزة التي تم فيها اختيار «البقاء متصلاً».",
+  "Avec « Rester connecté sur cet appareil », reconnexion au bout de": "مع «البقاء متصلاً على هذا الجهاز»، إعادة تسجيل الدخول بعد",
+  "Case proposée sur la page de connexion, pour les appareils personnels : pas de déconnexion après inactivité. 0 = option désactivée.": "خانة تظهر في صفحة تسجيل الدخول، للأجهزة الشخصية: لا تسجيل خروج بعد عدم النشاط. 0 = الخيار معطل.",
+  "Rester connecté sur cet appareil": "البقاء متصلاً على هذا الجهاز",
+  "Pas de déconnexion automatique. À ne pas cocher sur un ordinateur partagé.": "لا تسجيل خروج تلقائي. لا تحدد هذا الخيار على حاسوب مشترك.",
+  "Appareils connectés": "الأجهزة المتصلة",
+  "Cet appareil reste connecté (« Rester connecté sur cet appareil »).": "يبقى هذا الجهاز متصلاً («البقاء متصلاً على هذا الجهاز»).",
+  "Cet appareil se déconnecte après une période d’inactivité.": "يتم تسجيل خروج هذا الجهاز بعد فترة من عدم النشاط.",
+  "Reconnexion demandée le {{date}}.": "ستُطلب إعادة تسجيل الدخول في {{date}}.",
+  "Téléphone perdu, ordinateur prêté ou oublié ouvert : déconnectez tous vos autres appareils. Celui-ci reste connecté.": "هاتف مفقود أو حاسوب معار أو تُرك مفتوحاً: سجّل الخروج من جميع أجهزتك الأخرى. يبقى هذا الجهاز متصلاً.",
+  "Déconnecter mes autres appareils": "تسجيل الخروج من أجهزتي الأخرى",
+  "Vos autres appareils ont été déconnectés.": "تم تسجيل الخروج من أجهزتك الأخرى.",
+  "Erreur lors de la déconnexion des autres appareils.": "خطأ أثناء تسجيل الخروج من الأجهزة الأخرى."
 }

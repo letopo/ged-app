@@ -13,6 +13,7 @@ class TenantSettings extends Model<InferAttributes<TenantSettings>, InferCreatio
   declare lateDays: CreationOptional<number>;
   declare sessionIdleMinutes: CreationOptional<number>;
   declare sessionMaxDays: CreationOptional<number>;
+  declare rememberMeDays: CreationOptional<number>;
   declare maxUploadMb: CreationOptional<number>;
   declare stampRealSize: CreationOptional<boolean>;
   /** Codes de postes autorisés à voir « BL PHP en attente ». */
@@ -30,6 +31,8 @@ initModel(TenantSettings, {
   lateDays:             { type: DataTypes.INTEGER, allowNull: false, defaultValue: 2 },
   sessionIdleMinutes:   { type: DataTypes.INTEGER, allowNull: false, defaultValue: 30 },
   sessionMaxDays:       { type: DataTypes.INTEGER, allowNull: false, defaultValue: 7 },
+  // « Rester connecté sur cet appareil » (jours) ; 0 = option désactivée
+  rememberMeDays:       { type: DataTypes.INTEGER, allowNull: false, defaultValue: 30 },
   maxUploadMb:          { type: DataTypes.INTEGER, allowNull: false, defaultValue: 50 },
   stampRealSize:        { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
   // Postes autorisés à voir « BL PHP en attente » (le superadmin y a toujours accès)

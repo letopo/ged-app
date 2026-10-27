@@ -21,6 +21,16 @@ export function getTokenExpiry(token) {
   }
 }
 
+// Session « Rester connecté sur cet appareil » (marque rem du jeton) : pas de
+// déconnexion pour inactivité.
+export function isRememberedSession(token) {
+  try {
+    return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).rem === true;
+  } catch {
+    return false;
+  }
+}
+
 // Un jeton illisible est considéré comme expiré ; sans `exp`, on laisse le
 // serveur trancher. Marge de 30 s pour ne pas démarrer sur un jeton mourant.
 export function isTokenExpired(token, marginMs = 30_000) {

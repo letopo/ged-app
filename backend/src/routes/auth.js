@@ -1,7 +1,7 @@
 ﻿// backend/src/routes/auth.js
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import { register, login, getProfile, updateProfile, getReleaseNotesState, markReleaseNotesSeen } from '../controllers/authController.js';
+import { register, login, getProfile, updateProfile, getReleaseNotesState, markReleaseNotesSeen, logoutOtherDevices } from '../controllers/authController.js';
 import {
   setup2FA,
   enable2FA,
@@ -23,6 +23,8 @@ router.post('/login', loginLimiter, login);
 router.post('/logout', (req, res) => { res.clearCookie('ged_files', { path: '/api' }); res.json({ success: true }); });
 router.get('/profile',  protect, getProfile);
 router.put('/profile',  protect, updateProfile);
+// « Déconnecter mes autres appareils » (sessions longues « Rester connecté »)
+router.post('/logout-others', protect, logoutOtherDevices);
 router.get('/release-notes',       protect, getReleaseNotesState);
 router.post('/release-notes/seen', protect, markReleaseNotesSeen);
 

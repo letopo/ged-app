@@ -681,6 +681,17 @@ const RELEASE_NOTES = [
       'Un document approuvé est verrouillé, comme un document signé.',
     ],
   },
+  {
+    id: '2026-10-27-rester-connecte',
+    date: '2026-10-27',
+    target: 'app',
+    title: 'Moins de mots de passe à taper',
+    items: [
+      'Sur votre téléphone ou votre poste personnel, cochez « Rester connecté sur cet appareil » à la connexion : la GED ne vous déconnecte plus après une pause (reconnexion tous les 30 jours). Ne la cochez pas sur un ordinateur partagé.',
+      'Votre navigateur peut désormais retenir votre identifiant et votre mot de passe GED.',
+      'Paramètres › Sécurité › « Déconnecter mes autres appareils » : en cas de téléphone perdu ou de poste resté ouvert.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

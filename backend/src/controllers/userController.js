@@ -213,7 +213,7 @@ export const resetUserPassword = async (req, res, next) => {
             success: true,
             message: `Le mot de passe pour ${user.username} a été réinitialisé.`,
             newPassword: finalPassword,
-            ...(user.id === req.user.id ? { token: await generateToken(user) } : {}),
+            ...(user.id === req.user.id ? { token: await generateToken(user, { remember: req.session?.rem === true }) } : {}),
         });
     } catch (error) {
         next(error);

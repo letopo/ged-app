@@ -40,8 +40,9 @@ export const protect = async (req, res, next) => {
     // envoyé par le navigateur avec les images, liens et la visionneuse PDF
     setFileCookie(req, res, token, decoded);
 
-    // Ajouter l'utilisateur à la requête
+    // Ajouter l'utilisateur (et sa session : rem…) à la requête
     req.user = user;
+    req.session = decoded;
     next();
 
   } catch (error) {

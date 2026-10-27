@@ -3042,5 +3042,18 @@
   "Dimanche": "Domingo",
   "Tablette non autorisée": "Tableta no autorizada",
   "Ce compte ne peut pas servir de tablette de signature.": "Esta cuenta no puede servir como tableta de firma.",
-  "Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.": "Esta cuenta no puede servir como tableta de firma. Conecte la tableta con una cuenta de ventanilla (caja, recepción) o pida a un administrador el puesto «Terminal de firma»."
+  "Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.": "Esta cuenta no puede servir como tableta de firma. Conecte la tableta con una cuenta de ventanilla (caja, recepción) o pida a un administrador el puesto «Terminal de firma».",
+  "Un avertissement s’affiche 2 minutes avant. Sauf pour les appareils où « Rester connecté » a été coché.": "Se muestra un aviso 2 minutos antes. Salvo en los dispositivos donde se marcó «Mantener la sesión iniciada».",
+  "Avec « Rester connecté sur cet appareil », reconnexion au bout de": "Con «Mantener la sesión iniciada en este dispositivo», volver a iniciar sesión tras",
+  "Case proposée sur la page de connexion, pour les appareils personnels : pas de déconnexion après inactivité. 0 = option désactivée.": "Casilla ofrecida en la página de inicio de sesión, para dispositivos personales: sin cierre de sesión por inactividad. 0 = opción desactivada.",
+  "Rester connecté sur cet appareil": "Mantener la sesión iniciada en este dispositivo",
+  "Pas de déconnexion automatique. À ne pas cocher sur un ordinateur partagé.": "Sin cierre de sesión automático. No marcar en un ordenador compartido.",
+  "Appareils connectés": "Dispositivos conectados",
+  "Cet appareil reste connecté (« Rester connecté sur cet appareil »).": "Este dispositivo mantiene la sesión iniciada («Mantener la sesión iniciada en este dispositivo»).",
+  "Cet appareil se déconnecte après une période d’inactivité.": "Este dispositivo cierra la sesión tras un periodo de inactividad.",
+  "Reconnexion demandée le {{date}}.": "Se pedirá iniciar sesión de nuevo el {{date}}.",
+  "Téléphone perdu, ordinateur prêté ou oublié ouvert : déconnectez tous vos autres appareils. Celui-ci reste connecté.": "Teléfono perdido, ordenador prestado u olvidado abierto: cierre la sesión en todos sus otros dispositivos. Este sigue conectado.",
+  "Déconnecter mes autres appareils": "Cerrar sesión en mis otros dispositivos",
+  "Vos autres appareils ont été déconnectés.": "Se ha cerrado la sesión en sus otros dispositivos.",
+  "Erreur lors de la déconnexion des autres appareils.": "Error al cerrar la sesión en los otros dispositivos."
 }

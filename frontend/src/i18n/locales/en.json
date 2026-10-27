@@ -3042,5 +3042,18 @@
   "Dimanche": "Sunday",
   "Tablette non autorisée": "Tablet not authorised",
   "Ce compte ne peut pas servir de tablette de signature.": "This account cannot be used as a signature tablet.",
-  "Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.": "This account cannot be used as a signature tablet. Sign the tablet in with a counter account (cash desk, reception) or ask an administrator for the “Signature kiosk” position."
+  "Ce compte ne peut pas servir de tablette de signature. Connectez la tablette avec un compte de guichet (caisse, accueil) ou demandez le poste « Borne de signature » à un administrateur.": "This account cannot be used as a signature tablet. Sign the tablet in with a counter account (cash desk, reception) or ask an administrator for the “Signature kiosk” position.",
+  "Un avertissement s’affiche 2 minutes avant. Sauf pour les appareils où « Rester connecté » a été coché.": "A warning appears 2 minutes before. Except on devices where “Stay signed in” was checked.",
+  "Avec « Rester connecté sur cet appareil », reconnexion au bout de": "With “Stay signed in on this device”, sign in again after",
+  "Case proposée sur la page de connexion, pour les appareils personnels : pas de déconnexion après inactivité. 0 = option désactivée.": "Checkbox offered on the sign-in page, for personal devices: no sign-out after inactivity. 0 = option disabled.",
+  "Rester connecté sur cet appareil": "Stay signed in on this device",
+  "Pas de déconnexion automatique. À ne pas cocher sur un ordinateur partagé.": "No automatic sign-out. Do not check on a shared computer.",
+  "Appareils connectés": "Signed-in devices",
+  "Cet appareil reste connecté (« Rester connecté sur cet appareil »).": "This device stays signed in (“Stay signed in on this device”).",
+  "Cet appareil se déconnecte après une période d’inactivité.": "This device signs out after a period of inactivity.",
+  "Reconnexion demandée le {{date}}.": "Sign-in required again on {{date}}.",
+  "Téléphone perdu, ordinateur prêté ou oublié ouvert : déconnectez tous vos autres appareils. Celui-ci reste connecté.": "Lost phone, lent computer or one left signed in: sign out all your other devices. This one stays signed in.",
+  "Déconnecter mes autres appareils": "Sign out my other devices",
+  "Vos autres appareils ont été déconnectés.": "Your other devices have been signed out.",
+  "Erreur lors de la déconnexion des autres appareils.": "Error while signing out your other devices."
 }

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import LicenseManager from '../components/LicenseManager';
 import TwoFactorSetup from '../components/TwoFactorSetup';
+import DeviceSessionsPanel from '../components/DeviceSessionsPanel';
 import NotificationSettings from './NotificationSettings';
 import UserManagement from './UserManagement';
 import MailSettingsPanel from '../components/MailSettingsPanel';
@@ -471,6 +472,7 @@ export default function Settings() {
 
             {/* ── 2FA ─────────────────────────────────────────────────────── */}
             <TwoFactorSetup />
+            <DeviceSessionsPanel />
             </>
           )}
 
