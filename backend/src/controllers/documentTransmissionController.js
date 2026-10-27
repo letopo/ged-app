@@ -37,6 +37,40 @@ async function notifyRecipient(recipient, document, sender, message) {
   }
 }
 
+// Enregistre la transmission (une ligne par destinataire) et prévient chacun.
+// Retransmettre au même destinataire : on actualise (nouveau message, à relire).
+async function transmitToRecipients(document, senderId, recipients, message) {
+  const sender = await User.findByPk(senderId, { attributes: ['id', 'firstName', 'lastName', 'email'] });
+  for (const recipient of recipients) {
+    const existing = await DocumentTransmission.findOne({ where: { documentId: document.id, toUserId: recipient.id } });
+    if (existing) await existing.update({ fromUserId: senderId, message, readAt: null });
+    else await DocumentTransmission.create({ documentId: document.id, fromUserId: senderId, toUserId: recipient.id, message, tenantId: document.tenantId });
+    notifyRecipient(recipient, document, sender, message);
+  }
+}
+
+// Agents d'accueil : ils ouvrent le dossier de facturation (BPC dans Sage)
+export const ACCUEIL_ROLES = ['agent_accueil_php', 'agent_accueil_normal'];
+
+/**
+ * Bon de prise en charge visé par le DG : envoyé à tous les agents d'accueil
+ * actifs de l'établissement (onglet « Reçus » + notification).
+ */
+export async function sendBpcToAccueil(documentId, senderId) {
+  const document = await Document.unscoped().findByPk(documentId);
+  if (!document) return [];
+  const recipients = await User.unscoped().findAll({
+    where: { role: { [Op.in]: ACCUEIL_ROLES }, isActive: true, tenantId: document.tenantId },
+    attributes: ['id', 'firstName', 'lastName', 'email'],
+  });
+  if (!recipients.length) {
+    console.warn(`BPC ${document.id} visé : aucun agent d'accueil actif à prévenir.`);
+    return [];
+  }
+  await transmitToRecipients(document, senderId, recipients, 'Bon de prise en charge visé par le DG : à ouvrir dans Sage.');
+  return recipients.map(r => r.id);
+}
+
 // GET /api/documents/transmission-recipients?q= — utilisateurs actifs à qui transmettre
 export const listRecipients = async (req, res) => {
   try {
@@ -73,14 +107,7 @@ export const transmitDocument = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Destinataire inconnu ou désactivé.' });
     }
 
-    const sender = await User.findByPk(req.user.id, { attributes: ['id', 'firstName', 'lastName', 'email'] });
-    for (const recipient of recipients) {
-      // Retransmettre au même destinataire : on actualise (nouveau message, à relire)
-      const existing = await DocumentTransmission.findOne({ where: { documentId: document.id, toUserId: recipient.id } });
-      if (existing) await existing.update({ fromUserId: req.user.id, message, readAt: null });
-      else await DocumentTransmission.create({ documentId: document.id, fromUserId: req.user.id, toUserId: recipient.id, message });
-      notifyRecipient(recipient, document, sender, message);
-    }
+    await transmitToRecipients(document, req.user.id, recipients, message);
     res.json({ success: true, message: `Document transmis à ${recipients.length} personne(s).`, recipients: recipients.map(fullName) });
   } catch (error) {
     console.error('Erreur transmission document:', error);

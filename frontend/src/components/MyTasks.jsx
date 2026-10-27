@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import BpcCompletionForm, { BPC_CATEGORY } from './BpcCompletionForm';
 import ReactDOM from 'react-dom';
 import { workflowAPI, listsAPI, documentsAPI, missionMealAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -279,6 +280,9 @@ const MyTasks = () => {
   const hasPoste = (code) => (user?.postes || []).includes(code);
   const isComptable = () => hasPoste('comptable');
   const isCaissier = () => user?.role === 'caissier';
+  // Bon de prise en charge, étape RH (2) : compléter l'assuré, sans signer
+  const needsBpcCompletion = (task) =>
+    task.status === 'pending' && task.document?.category === BPC_CATEGORY && task.step === 2;
   const needsPayerAction = (task) =>
     task.status === 'pending' && isCaissier() && task.document?.category === 'Pièce de caisse';
   const isBeneficiaireOfPC = (task) =>
@@ -394,7 +398,7 @@ const MyTasks = () => {
     loadTasks(1);
   };
 
-  const handleAction = async (action) => {
+  const handleAction = async (action, bpcFields) => {
     if (!taskToProcess) return;
     if (action === 'reject' && !comment.trim()) {
       toast(t('Un commentaire est requis pour rejeter.'));
@@ -450,6 +454,10 @@ const MyTasks = () => {
       } else if (action === 'payer') {
         payload.status = 'approved';
         payload.validationType = 'payer';
+      } else if (action === 'completer') {
+        payload.status = 'approved';
+        payload.validationType = 'completer';
+        payload.bpcFields = bpcFields;
       }
       
       const response = await workflowAPI.validateTask(taskToProcess.id, payload);
@@ -470,6 +478,9 @@ const MyTasks = () => {
         closeProcessingModal();
       } else if (['reject', 'simple_approve'].includes(action) || action === 'dater') {
         toast(t('Tâche traitée avec succès !'));
+        closeProcessingModal();
+      } else if (action === 'completer') {
+        toast.success(t('Bon complété et envoyé au DG.'));
         closeProcessingModal();
       } else if (action === 'approve') {
         toast(t('Document signé avec succès !'));
@@ -1154,7 +1165,11 @@ const MyTasks = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                 <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>{t('Actions')}</p>
 
-                {canUseCombinedAction() && taskToProcess.document.fileType === 'application/pdf' && (
+                {needsBpcCompletion(taskToProcess) && (
+                  <BpcCompletionForm document={taskToProcess.document} loading={actionLoading === 'completer'} onSubmit={(fields) => handleAction('completer', fields)} />
+                )}
+
+                {!needsBpcCompletion(taskToProcess) && canUseCombinedAction() && taskToProcess.document.fileType === 'application/pdf' && (
                   <>
                     <button
                       onClick={() => handleAction('approve_sign_stamp')}
@@ -1179,7 +1194,7 @@ const MyTasks = () => {
                   </>
                 )}
 
-                {!needsPieceDeCaisse(taskToProcess) && !needsPayerAction(taskToProcess) && (
+                {!needsPieceDeCaisse(taskToProcess) && !needsPayerAction(taskToProcess) && !needsBpcCompletion(taskToProcess) && (
                   <>
                     <button
                       onClick={() => handleAction('simple_approve')}

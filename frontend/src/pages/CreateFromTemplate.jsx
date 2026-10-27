@@ -23,6 +23,7 @@ import CertificatAptitude from './templates/CertificatAptitude';
 import AttestationConge from './templates/AttestationConge';
 import DemandeBesoin from './templates/DemandeBesoin';
 import DemandeExplication from './templates/DemandeExplication';
+import BonPriseEnCharge from './templates/BonPriseEnCharge';
 
 import { PermissionPdfDocument, PERMISSION_SIGNATURE_ZONES } from '../pdf-templates/PermissionPdf';
 import toast from 'react-hot-toast';
@@ -197,6 +198,12 @@ const templates = {
             date_document: new Date().toISOString().split('T')[0],
         }
     },
+    // Bon A5 dessiné par le serveur (pas de capture de la page)
+    'Bon de prise en charge': {
+        type: "server",
+        component: BonPriseEnCharge,
+        initialState: { nomMalade: '', typeSoins: '', dateSoins: new Date().toISOString().split('T')[0], diagnostic: '' },
+    },
     "Demande d'explication": {
         type: "manual",
         component: DemandeExplication,
@@ -259,6 +266,29 @@ const CreateFromTemplate = () => {
             setError(t('Une permission se demande au moins 2 jours ouvrables à l\'avance : première date possible le {{date}}.', { date: earliest.split('-').reverse().join('/') }));
             return;
         }
+    }
+
+    // Bon de prise en charge : le serveur dessine le bon, puis le circuit
+    // Médecin du travail → RH → DG démarre (comme la Pièce de caisse)
+    if (template.type === 'server') {
+        setLoading(true);
+        setError('');
+        try {
+            const res = await documentsAPI.createBonPriseEnCharge(formData);
+            try {
+                await workflowAPI.create({ documentId: res.data.data.id });
+                toast.success(t('Bon de prise en charge créé et envoyé pour visa.'));
+            } catch (wfErr) {
+                toast(t('Bon créé mais circuit non démarré : {{message}}. Utilisez « Soumettre » depuis Documents.', { message: wfErr.response?.data?.message || t('erreur inconnue') }), { icon: '⚠️' });
+            }
+            clearDraft();
+            navigate('/documents');
+        } catch (err) {
+            setError(err.response?.data?.message || t('Erreur lors de la création du bon.'));
+        } finally {
+            setLoading(false);
+        }
+        return;
     }
 
     setLoading(true);

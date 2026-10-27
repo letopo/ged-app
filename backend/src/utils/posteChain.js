@@ -14,6 +14,13 @@ export const FIXED_POSTE_CHAINS = {
   "Demande d'explication": [
     { key: 'dg', code: 'dg', label: 'Directeur Général' },
   ],
+  // Bon de prise en charge du personnel (utils/bonPriseEnCharge.js) : le médecin
+  // du travail vise, le RH complète l'assuré, le DG vise ; puis envoi à l'accueil.
+  'Bon de prise en charge': [
+    { key: 'medecin_travail', code: 'medecin_travail', label: 'Médecin du travail' },
+    { key: 'rh', code: 'rh', label: 'Ressources Humaines' },
+    { key: 'dg', code: 'dg', label: 'Directeur Général' },
+  ],
 };
 
 export const hasFixedPosteChain = (category) => Boolean(FIXED_POSTE_CHAINS[category]);

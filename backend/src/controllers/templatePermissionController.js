@@ -4,10 +4,37 @@ import { User, Document } from '../models/index.js';
 import sequelize from '../config/database.js';
 import { getUserPosteCodes } from '../utils/posteResolver.js';
 
-// Templates liés à un poste : leurs titulaires y ont accès, quel que soit l'individu.
+// Templates liés à des postes : leurs titulaires y ont accès, quel que soit l'individu.
 const TEMPLATE_POSTES = {
-  'Pièce de caisse': 'comptable',
+  'Pièce de caisse': ['comptable'],
+  // Diagnostic médical : réservé au médecin du travail et au RH (et aux admins)
+  'Bon de prise en charge': ['medecin_travail', 'rh'],
 };
+
+// Accès d'un utilisateur à un template (même règle que la liste « Mes templates »)
+function templateAccess(data, user, userPostes) {
+  if (['admin', 'superadmin'].includes(user.role)) return true;
+  if (!data.isRestricted) return true;
+  // Accès si : rôle autorisé, OU utilisateur explicitement autorisé,
+  // OU titulaire d'un poste lié au template (ex: comptable → Pièce de caisse)
+  const roleOk = data.allowedRoles?.length > 0 && data.allowedRoles.includes(user.role);
+  const userOk = data.allowedUserIds?.length > 0 && data.allowedUserIds.includes(user.id);
+  const posteOk = (TEMPLATE_POSTES[data.templateName] || []).some(code => userPostes.includes(code));
+  return roleOk || userOk || posteOk;
+}
+
+/**
+ * L'utilisateur peut-il créer un document de ce template ? Sans ligne de
+ * permission : réservé aux admins et aux postes liés si le template en a.
+ */
+export async function canUseTemplate(user, templateName) {
+  if (['admin', 'superadmin'].includes(user.role)) return true;
+  const userPostes = await getUserPosteCodes(user.id);
+  const row = await TemplatePermission.findOne({ where: { templateName } });
+  if (row) return templateAccess(row.toJSON(), user, userPostes);
+  const postes = TEMPLATE_POSTES[templateName];
+  return postes ? postes.some(code => userPostes.includes(code)) : true;
+}
 
 // Liste de TOUS les templates avec leurs permissions
 export const getAll = async (req, res) => {
@@ -32,23 +59,7 @@ export const getMyTemplates = async (req, res) => {
     // Tous les templates définis
     const result = permissions.map(p => {
       const data = p.toJSON();
-      // Un admin voit tout
-      if (['admin','superadmin'].includes(user.role)) {
-        data.hasAccess = true;
-        return data;
-      }
-      // Template non restreint → tout le monde y accède
-      if (!data.isRestricted) {
-        data.hasAccess = true;
-        return data;
-      }
-      // Accès si : rôle autorisé, OU utilisateur explicitement autorisé,
-      // OU titulaire du poste lié au template (ex: comptable → Pièce de caisse)
-      const roleOk = data.allowedRoles?.length > 0 && data.allowedRoles.includes(user.role);
-      const userOk = data.allowedUserIds?.length > 0 && data.allowedUserIds.includes(user.id);
-      const posteCode = TEMPLATE_POSTES[data.templateName];
-      const posteOk = posteCode ? userPostes.includes(posteCode) : false;
-      data.hasAccess = roleOk || userOk || posteOk;
+      data.hasAccess = templateAccess(data, user, userPostes);
       return data;
     });
 
@@ -122,6 +133,7 @@ export const seed = async (req, res) => {
       'Ordre de mission', 'Demande de permutation', 'Bon de sortie',
       "Certificat d'aptitude", 'Bon de commande', 'Bon de commande interne',
       "Demande d'explication", 'Planning Opératoire', 'Attestation de départ en congé annuel',
+      'Bon de prise en charge',
     ];
 
     // Fusionner : toutes les catégories existantes + les defaults
@@ -135,10 +147,11 @@ export const seed = async (req, res) => {
       .filter(name => !existingSet.has(name))
       .map(name => ({
         templateName: name,
-        isRestricted: false,
+        // Templates liés à des postes (BPC : diagnostic médical) : restreints d'emblée
+        isRestricted: name === 'Bon de prise en charge',
         allowedRoles: [],
         allowedUserIds: [],
-        description: 'Accessible à tous',
+        description: name === 'Bon de prise en charge' ? 'Médecin du travail, RH et administrateurs' : 'Accessible à tous',
         defaultVisibility: 'personal',
       }));
 

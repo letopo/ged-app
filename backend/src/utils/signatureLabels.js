@@ -20,7 +20,7 @@ import { currentCycleSteps } from './workflowEngine.js';
 
 // Circuits imposés : leurs cadres désignent un rôle dans le document (Visa
 // Bénéficiaire…), leurs libellés restent ceux du formulaire.
-export const FIXED_LABEL_CATEGORIES = ['Pièce de caisse', 'Ordre de mission', "Demande d'explication", 'Demande de permutation'];
+export const FIXED_LABEL_CATEGORIES = ['Pièce de caisse', 'Ordre de mission', "Demande d'explication", 'Demande de permutation', 'Bon de prise en charge'];
 
 const ROLE_TITLES = { superadmin: 'Administrateur', admin: 'Administrateur', director: 'Directeur', validator: 'Validateur', user: 'Agent' };
 
