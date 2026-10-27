@@ -1,10 +1,50 @@
-﻿// backend/src/models/Document.js - VERSION FINALE COMPLÈTE ET CORRIGÉE
+// backend/src/models/Document.ts
 
-import { DataTypes } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
+import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 import sequelize from '../config/database.js';
 import { isSafeStoredPath } from '../utils/storedFiles.js';
+import type { DocumentMetadata } from '../types/metadata.js';
+import { initModel } from './types.js';
+import type { ModelRegistry } from './types.js';
 
-const Document = sequelize.define('Document', {
+class Document extends Model<InferAttributes<Document>, InferCreationAttributes<Document>> {
+  declare id: CreationOptional<string>;
+  declare title: string;
+  declare fileName: string;
+  declare originalName: string | null;
+  declare filePath: string;
+  declare fileSize: number | null;
+  declare fileType: string | null;
+  declare userId: string;
+  declare category: string | null;
+  declare linkedDocumentId: string | null;
+  declare dateDebut: Date | null;
+  declare dateFin: Date | null;
+  declare status: CreationOptional<string>;
+  declare metadata: DocumentMetadata | null;
+  declare extractedText: string | null;
+  declare invoiceFolderId: string | null;
+  declare archived: CreationOptional<boolean>;
+  /** 'personal' (auteur + validateurs) ou 'service' (membres actifs du service). */
+  declare visibility: CreationOptional<'personal' | 'service'>;
+  declare serviceId: string | null;
+  /** Posé par le hook global beforeCreate (config/database.js). */
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+
+  static associate(models: ModelRegistry) {
+    this.belongsTo(models.User, { foreignKey: 'userId', as: 'uploadedBy' });
+    this.hasMany(models.Workflow, { foreignKey: 'documentId', as: 'workflows' });
+    this.belongsTo(models.Document, { foreignKey: 'linkedDocumentId', as: 'linkedDocument' });
+    this.hasMany(models.Document, { foreignKey: 'linkedDocumentId', as: 'dependentDocuments' });
+    this.belongsTo(models.InvoiceFolder, { foreignKey: 'invoiceFolderId', as: 'folder' });
+    this.belongsTo(models.Service, { foreignKey: 'serviceId', as: 'service' });
+  }
+}
+
+initModel(Document, {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -108,6 +148,8 @@ const Document = sequelize.define('Document', {
     allowNull: false
   },
 }, {
+  sequelize,
+  modelName: 'Document',
   tableName: 'documents',
   timestamps: true,
   underscored: true,
@@ -123,14 +165,5 @@ const Document = sequelize.define('Document', {
     { fields: ['visibility'] },
   ],
 });
-
-Document.associate = function(models) {
-  this.belongsTo(models.User, { foreignKey: 'userId', as: 'uploadedBy' });
-  this.hasMany(models.Workflow, { foreignKey: 'documentId', as: 'workflows' });
-  this.belongsTo(models.Document, { foreignKey: 'linkedDocumentId', as: 'linkedDocument' });
-  this.hasMany(models.Document, { foreignKey: 'linkedDocumentId', as: 'dependentDocuments' });
-  this.belongsTo(models.InvoiceFolder, { foreignKey: 'invoiceFolderId', as: 'folder' });
-  this.belongsTo(models.Service, { foreignKey: 'serviceId', as: 'service' });
-};
 
 export default Document;

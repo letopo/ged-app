@@ -1,10 +1,62 @@
-﻿// backend/src/models/User.js
+﻿// backend/src/models/User.ts
 
-import { DataTypes } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
+import type { CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize';
 import sequelize from '../config/database.js';
 import bcrypt from 'bcryptjs';
+import { initModel } from './types.js';
+import type { ModelRegistry } from './types.js';
 
-const User = sequelize.define('User', {
+export type UserRole =
+  | 'user' | 'validator' | 'director' | 'admin' | 'gardien'
+  | 'agent_accueil_PHP' | 'agent_accueil_normal' | 'chef_de_service' | 'caissier' | 'superadmin';
+
+class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
+  declare id: CreationOptional<string>;
+  declare email: string;
+  /** Exclu par le defaultScope : lire avec User.scope('withPassword') ou unscoped(). */
+  declare password: string;
+  declare firstName: string;
+  declare lastName: string;
+  declare username: string;
+  declare role: CreationOptional<UserRole>;
+  declare signaturePath: string | null;
+  declare stampPath: string | null;
+  /** Largeur physique du tampon (mm), renvoyée en nombre. */
+  declare stampWidthMm: CreationOptional<number>;
+  declare stampHeightMm: CreationOptional<number>;
+  declare isActive: CreationOptional<boolean>;
+  /** L'incrémenter révoque toutes les sessions (utils/sessionTokens.js). */
+  declare tokenVersion: CreationOptional<number>;
+  declare lastLogin: Date | null;
+  declare tenantId: CreationOptional<string>;
+  declare totpSecret: string | null;
+  declare totpEnabled: CreationOptional<boolean>;
+  declare emailOtpEnabled: CreationOptional<boolean>;
+  declare emailOtpHash: string | null;
+  declare emailOtpExpiresAt: Date | null;
+  declare emailOtpAttempts: CreationOptional<number>;
+  declare emailOtpSentAt: Date | null;
+  declare isAbsent: CreationOptional<boolean>;
+  declare substituteId: string | null;
+  declare lang: CreationOptional<string>;
+  declare seenReleaseNotes: CreationOptional<string[]>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+
+  async comparePassword(enteredPassword: string): Promise<boolean> {
+    return await bcrypt.compare(enteredPassword, this.password);
+  }
+
+  static associate(models: ModelRegistry) {
+    this.hasMany(models.Document, { foreignKey: 'userId', as: 'documents' });
+    this.hasMany(models.Workflow, { foreignKey: 'validatorId', as: 'tasks' });
+    this.hasMany(models.ServiceMember, { foreignKey: 'userId', as: 'serviceMemberships' });
+    this.belongsTo(models.User, { foreignKey: 'substituteId', as: 'substitute' });
+  }
+}
+
+initModel(User, {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -127,6 +179,8 @@ const User = sequelize.define('User', {
     field: 'seen_release_notes',
   },
 }, {
+  sequelize,
+  modelName: 'User',
   tableName: 'users',
   timestamps: true,
   underscored: true,
@@ -141,7 +195,7 @@ const User = sequelize.define('User', {
     }
   },
   hooks: {
-    beforeSave: async (user) => {
+    beforeSave: async (user: User) => {
       if (user.changed('password')) {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
@@ -149,16 +203,5 @@ const User = sequelize.define('User', {
     }
   }
 });
-
-User.prototype.comparePassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
-
-User.associate = function(models) {
-  this.hasMany(models.Document, { foreignKey: 'userId', as: 'documents' });
-  this.hasMany(models.Workflow, { foreignKey: 'validatorId', as: 'tasks' });
-  this.hasMany(models.ServiceMember, { foreignKey: 'userId', as: 'serviceMemberships' });
-  this.belongsTo(models.User, { foreignKey: 'substituteId', as: 'substitute' });
-};
 
 export default User;
