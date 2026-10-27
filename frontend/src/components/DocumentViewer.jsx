@@ -512,11 +512,10 @@ const DocumentViewer = ({
               <Link2 size={13} /> <span className="dv-btn-label">{t('Créer un document lié')}</span>
             </button>
           )}
-          {doc.status === 'approved' && (
-            <button onClick={() => setShowTransmit(true)} title={t('Transmettre à un utilisateur')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              <Share2 size={13} /> <span className="dv-btn-label">{t('Transmettre')}</span>
-            </button>
-          )}
+          {/* Transmettre : tout document consultable, signé ou non (ex. facture → comptabilité) */}
+          <button onClick={() => setShowTransmit(true)} title={t('Transmettre à un utilisateur')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            <Share2 size={13} /> <span className="dv-btn-label">{t('Transmettre')}</span>
+          </button>
           {showActions && (
             <button onClick={handleValidate} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 16px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--success)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               <Check size={13} /> {t('Approuver')}

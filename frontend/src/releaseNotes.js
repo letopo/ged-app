@@ -702,6 +702,16 @@ const RELEASE_NOTES = [
       'Un appareil que vous ne reconnaissez pas ? Cliquez sur « Déconnecter » à côté : il est déconnecté immédiatement. Pensez aussi à changer votre mot de passe.',
     ],
   },
+  {
+    id: '2026-10-27-transmettre-tout-document',
+    date: '2026-10-27',
+    target: 'app',
+    title: 'Transmettre un document non signé',
+    items: [
+      'Le bouton « Transmettre » est maintenant proposé sur tous les documents, signés ou non : par exemple une facture déposée à votre niveau, à transmettre à la comptabilité.',
+      'Un document reçu peut lui aussi être transmis à quelqu’un d’autre.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

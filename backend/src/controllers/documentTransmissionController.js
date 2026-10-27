@@ -1,6 +1,7 @@
 // backend/src/controllers/documentTransmissionController.js
-// Transmettre un document validé à d'autres utilisateurs (ex. demande d'achat
-// signée → acheteur, qui prépare ensuite le bon de commande à partir d'elle).
+// Transmettre un document à d'autres utilisateurs, quel que soit son statut :
+// demande d'achat signée → acheteur, facture déposée (non signée ou signée à la
+// main) → comptabilité… Seule condition : pouvoir lire le document.
 // Le destinataire obtient le droit de lecture (cf. utils/documentVisibility.js)
 // et retrouve le document dans l'onglet « Reçus » de la page Documents.
 import { Op } from 'sequelize';
@@ -59,9 +60,6 @@ export const transmitDocument = async (req, res) => {
     if (!document) return res.status(404).json({ success: false, message: 'Document introuvable.' });
     if (!(await hasDocumentReadAccess(document, req.user))) {
       return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
-    }
-    if (document.status !== 'approved') {
-      return res.status(400).json({ success: false, message: 'Seul un document validé peut être transmis.' });
     }
 
     const userIds = [...new Set((Array.isArray(req.body?.userIds) ? req.body.userIds : []).filter(id => typeof id === 'string'))]
