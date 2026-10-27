@@ -712,6 +712,17 @@ const RELEASE_NOTES = [
       'Un document reçu peut lui aussi être transmis à quelqu’un d’autre.',
     ],
   },
+  {
+    id: '2026-10-27-connexion-sans-mot-de-passe',
+    date: '2026-10-27',
+    target: 'app',
+    title: 'Connexion avec l’empreinte ou le code PIN',
+    items: [
+      'Facultatif : dans Paramètres › Sécurité, cliquez sur « Activer sur cet appareil » pour vous connecter ensuite avec l’empreinte, Face ID ou le code PIN de votre téléphone ou de Windows, sans taper de mot de passe.',
+      'À activer sur chaque appareil. Votre mot de passe reste toujours valable.',
+      'Fonctionne en ouvrant la GED par son nom : https://ged.hsjmcam.net',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

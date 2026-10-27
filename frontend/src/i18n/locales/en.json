@@ -3065,5 +3065,22 @@
   "Connecté le {{date}}": "Signed in on {{date}}",
   "Dernière activité : {{when}}": "Last activity: {{when}}",
   "Déconnecter": "Sign out",
-  "Les connexions ouvertes avant cette mise à jour n’apparaissent pas ici : « Déconnecter mes autres appareils » les ferme aussi.": "Sessions opened before this update are not listed here: “Sign out my other devices” closes them too."
+  "Les connexions ouvertes avant cette mise à jour n’apparaissent pas ici : « Déconnecter mes autres appareils » les ferme aussi.": "Sessions opened before this update are not listed here: “Sign out my other devices” closes them too.",
+  "Connexion par empreinte ou code PIN impossible. Utilisez votre mot de passe.": "Sign-in with fingerprint or PIN failed. Use your password.",
+  "Empreinte, Face ID ou code PIN": "Fingerprint, Face ID or PIN",
+  "Sans mot de passe, sur les appareils où vous l’avez activé (Paramètres › Sécurité).": "Without a password, on devices where you enabled it (Settings › Security).",
+  "Connexion sans mot de passe activée sur cet appareil.": "Passwordless sign-in enabled on this device.",
+  "Cet appareil est déjà enregistré.": "This device is already registered.",
+  "Activation impossible sur cet appareil.": "Could not enable it on this device.",
+  "Appareil retiré.": "Device removed.",
+  "Erreur lors du retrait de l’appareil.": "Error while removing the device.",
+  "Connexion sans mot de passe": "Passwordless sign-in",
+  "Facultatif : connectez-vous avec l’empreinte, Face ID ou le code PIN de votre téléphone ou de Windows. À activer sur chaque appareil ; votre mot de passe reste toujours valable.": "Optional: sign in with the fingerprint, Face ID or PIN of your phone or Windows. Enable it on each device; your password always remains valid.",
+  "Activer sur cet appareil": "Enable on this device",
+  "Ce navigateur ne permet pas la connexion sans mot de passe.": "This browser does not support passwordless sign-in.",
+  "Pour l’activer, ouvrez la GED par son nom (ex. https://ged.hsjmcam.net) et non par une adresse IP.": "To enable it, open the DMS by its name (e.g. https://ged.hsjmcam.net), not by an IP address.",
+  "Cet ordinateur n’a ni lecteur d’empreinte ni code PIN Windows Hello configuré : vous pourrez utiliser votre téléphone (un QR code s’affiche), ou continuer avec votre mot de passe.": "This computer has no fingerprint reader or Windows Hello PIN set up: you can use your phone (a QR code appears), or keep using your password.",
+  "Activé le {{date}}": "Enabled on {{date}}",
+  "Dernière utilisation le {{date}}": "Last used on {{date}}",
+  "Jamais utilisé": "Never used"
 }

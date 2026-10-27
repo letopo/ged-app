@@ -41,7 +41,7 @@ export function isTokenExpired(token, marginMs = 30_000) {
 
 // Étapes de connexion : leurs 401 (mauvais identifiants, code 2FA faux,
 // jeton 2FA temporaire périmé) ne concernent pas la session en cours.
-const LOGIN_ENDPOINTS = [/\/auth\/login$/, /\/auth\/2fa\/verify-login$/, /\/auth\/register$/];
+const LOGIN_ENDPOINTS = [/\/auth\/login$/, /\/auth\/2fa\/verify-login$/, /\/auth\/register$/, /\/auth\/passkeys\/login\//];
 
 // Messages des middlewares d'authentification (backend/src/middleware/auth.js,
 // superadmin.js, utils/sessionTokens.js sessionRejection : « Session expirée »

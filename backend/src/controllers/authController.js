@@ -125,26 +125,35 @@ export const login = async (req, res, next) => {
       });
     }
 
-    await user.update({ lastLogin: new Date() });
-    const token = await generateToken(user, { remember, req });
-    setFileCookie(req, res, token, jwt.decode(token));
-    const userResult = user.toJSON();
-    delete userResult.password;
-    delete userResult.totpSecret;
-    delete userResult.emailOtpHash;
-    userResult.postes = await getUserPosteCodes(user.id);
-    userResult.canSeeSageBl = await canAccessSageBl(userResult, req.tenantId);
-    userResult.fleet = await fleetFlagsSafe(user);
-
-    // Audit login
-    const { AuditLog } = await import('../models/index.js');
-    AuditLog.log(req, 'LOGIN', 'auth', user.id, { email: user.email });
-
-    res.json({ success: true, message: 'Connexion réussie', token, user: userResult });
+    await completeLogin(req, res, user, { remember });
   } catch (error) {
     next(error);
   }
 };
+
+/**
+ * Fin d'une connexion réussie (mot de passe, ou empreinte / Face ID / code PIN
+ * de l'appareil) : session, cookie des fichiers, profil, journal d'audit.
+ */
+export async function completeLogin(req, res, user, { remember = false, method = 'password' } = {}) {
+  await user.update({ lastLogin: new Date() });
+  const token = await generateToken(user, { remember, req });
+  setFileCookie(req, res, token, jwt.decode(token));
+  const userResult = user.toJSON();
+  delete userResult.password;
+  delete userResult.totpSecret;
+  delete userResult.emailOtpHash;
+  delete userResult.tokenVersion;
+  userResult.postes = await getUserPosteCodes(user.id);
+  userResult.canSeeSageBl = await canAccessSageBl(userResult, req.tenantId);
+  userResult.fleet = await fleetFlagsSafe(user);
+
+  // Audit login
+  const { AuditLog } = await import('../models/index.js');
+  AuditLog.log(req, 'LOGIN', 'auth', user.id, { email: user.email, ...(method !== 'password' ? { method } : {}) });
+
+  res.json({ success: true, message: 'Connexion réussie', token, user: userResult });
+}
 
 // ... gardez les autres fonctions (getProfile, updateProfile) telles quelles.
 // Le reste du fichier est correct.

@@ -36,6 +36,25 @@ export const twoFALimiter = rateLimit({
   }
 });
 
+// ── Connexion par empreinte / code PIN : 10 échecs / 15 min par IP ───────────
+// Compteur séparé : des essais ratés ne bloquent pas la connexion par mot de passe
+export const passkeyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: {
+    success: false,
+    error: 'Trop de tentatives. Réessayez dans 15 minutes ou connectez-vous avec votre mot de passe.',
+    retryAfter: 15
+  },
+  handler: (req, res, next, options) => {
+    console.warn(`[RATE LIMIT] Passkey bloqué — IP: ${req.ip} | ${new Date().toISOString()}`);
+    res.status(429).json(options.message);
+  }
+});
+
 // ── API globale : 200 req / min par IP (anti-scraping) ───────────────────────
 export const globalLimiter = rateLimit({
   windowMs: 60 * 1000,

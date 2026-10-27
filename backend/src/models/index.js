@@ -54,6 +54,7 @@ import DocumentTransmission from './DocumentTransmission.js'; // ✅ Documents t
 import TenantMailSettings from './TenantMailSettings.js'; // ✅ Messagerie (SMTP) par tenant
 import TenantSettings from './TenantSettings.js'; // ✅ Délais et session par tenant
 import UserSession from './UserSession.js'; // Appareils connectés
+import UserPasskey from './UserPasskey.js'; // Connexion sans mot de passe
 import TenantIntegration from './TenantIntegration.js'; // ✅ Intégrations (IA, Sage) par tenant
 import CategoryAccessRule from './CategoryAccessRule.js'; // ✅ Confidentialité par type de document
 import ComptaDoc from './ComptaDoc.js';   // ✅ Module Comptabilité (pièces de caisse)
@@ -142,6 +143,7 @@ const db = {
   TenantMailSettings,
   TenantSettings,
   UserSession,
+  UserPasskey,
   TenantIntegration,
   CategoryAccessRule,
   ComptaDoc,
@@ -326,6 +328,7 @@ export {
   TenantMailSettings,
   TenantSettings,
   UserSession,
+  UserPasskey,
   TenantIntegration,
   CategoryAccessRule,
   ComptaDoc,
