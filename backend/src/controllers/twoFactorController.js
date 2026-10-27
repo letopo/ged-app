@@ -149,7 +149,7 @@ export const verifyLogin2FA = async (req, res, next) => {
 
     // Émettre le vrai JWT
     // Durée selon « Rester connecté » (choix fait avec le mot de passe)
-    const token = await generateToken(user, { remember: decoded.rem === true });
+    const token = await generateToken(user, { remember: decoded.rem === true, req });
     setFileCookie(req, res, token, jwt.decode(token));
 
     await user.update({ lastLogin: new Date() });

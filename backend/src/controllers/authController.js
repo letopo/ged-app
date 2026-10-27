@@ -10,15 +10,21 @@ import { fleetModuleFlags } from './vehicleController.js';
 const fleetFlagsSafe = (user) => fleetModuleFlags(user).catch(() => ({ hasModule: false }));
 import { getTenantSettings } from '../utils/tenantSettings.js';
 import { sendEmailOtp, EmailOtpError, maskEmail } from '../utils/emailOtp.js';
-import { signSessionToken, revokeSessions } from '../utils/sessionTokens.js';
+import { signSessionToken, revokeSessions, recordDeviceSession, revokeDeviceSession } from '../utils/sessionTokens.js';
+import { describeDevice } from '../utils/deviceLabel.js';
+import UserSession from '../models/UserSession.js';
 import { setFileCookie } from '../utils/fileAccess.js';
 
 // Durée de session réglée par tenant (Paramètres › Délais et session) : 7 j par
 // défaut, 30 j avec « Rester connecté sur cet appareil » (sauf option désactivée).
-export const generateToken = async (user, { remember = false } = {}) => {
+// Chaque connexion (req) devient un appareil connecté ; `sid` : nouveau jeton
+// pour un appareil déjà connu (changement de mot de passe…).
+export const generateToken = async (user, { remember = false, req, sid } = {}) => {
   const { sessionMaxDays, rememberMeDays } = await getTenantSettings(user.tenantId);
   const rem = remember === true && rememberMeDays > 0;
-  return signSessionToken(user, `${rem ? rememberMeDays : sessionMaxDays}d`, { remember: rem });
+  const days = rem ? rememberMeDays : sessionMaxDays;
+  const deviceSid = await recordDeviceSession(user, { req, sid, remember: rem, days });
+  return signSessionToken(user, `${days}d`, { remember: rem, sid: deviceSid });
 };
 
 export const register = async (req, res, next) => {
@@ -48,7 +54,7 @@ export const register = async (req, res, next) => {
       email, password, firstName, lastName, username, role: 'user'
     });
     
-    const token = await generateToken(user);
+    const token = await generateToken(user, { req });
     const userResult = user.toJSON();
     delete userResult.password;
 
@@ -120,7 +126,7 @@ export const login = async (req, res, next) => {
     }
 
     await user.update({ lastLogin: new Date() });
-    const token = await generateToken(user, { remember });
+    const token = await generateToken(user, { remember, req });
     setFileCookie(req, res, token, jwt.decode(token));
     const userResult = user.toJSON();
     delete userResult.password;
@@ -213,7 +219,7 @@ export const updateProfile = async (req, res, next) => {
             // Le hook `beforeSave` s'occupera de hacher le nouveau mot de passe
             user.password = newPassword;
             // Les autres sessions (autres appareils) sont révoquées ; un nouveau jeton est rendu
-            await revokeSessions(user);
+            await revokeSessions(user, { keepSid: req.session?.sid });
         }
     
         await user.save();
@@ -222,7 +228,7 @@ export const updateProfile = async (req, res, next) => {
         delete updatedUser.password;
         delete updatedUser.tokenVersion;
     
-        res.json({ success: true, message: 'Profil mis à jour', user: updatedUser, ...(newPassword ? { token: await generateToken(user, { remember: req.session?.rem === true }) } : {}) });
+        res.json({ success: true, message: 'Profil mis à jour', user: updatedUser, ...(newPassword ? { token: await generateToken(user, { remember: req.session?.rem === true, sid: req.session?.sid }) } : {}) });
     } catch (error) {
         next(error);
     }
@@ -233,9 +239,9 @@ export const updateProfile = async (req, res, next) => {
 export const logoutOtherDevices = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.user.id);
-    await revokeSessions(user);
+    await revokeSessions(user, { keepSid: req.session?.sid });
     await user.save();
-    const token = await generateToken(user, { remember: req.session?.rem === true });
+    const token = await generateToken(user, { remember: req.session?.rem === true, sid: req.session?.sid });
     setFileCookie(req, res, token, jwt.decode(token));
     const { AuditLog } = await import('../models/index.js');
     AuditLog.log(req, 'LOGOUT_OTHER_DEVICES', 'auth', user.id, {});
@@ -243,4 +249,50 @@ export const logoutOtherDevices = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+// Appareils connectés du compte (Paramètres › Sécurité), le plus récent d'abord
+export const listDeviceSessions = async (req, res, next) => {
+  try {
+    const rows = await UserSession.findAll({
+      where: { userId: req.user.id, revokedAt: null, expiresAt: { [Op.gt]: new Date() } },
+      order: [['lastSeenAt', 'DESC']],
+    });
+    const sessions = rows.map(r => ({
+      id: r.id, ...describeDevice(r.userAgent), ip: r.ip, remember: r.remember,
+      createdAt: r.createdAt, lastSeenAt: r.lastSeenAt, expiresAt: r.expiresAt,
+      current: r.id === req.session?.sid,
+    }));
+    res.json({ success: true, sessions, currentKnown: Boolean(req.session?.sid) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Déconnecter un appareil (le sien uniquement)
+export const revokeOneDeviceSession = async (req, res, next) => {
+  try {
+    const valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id);
+    if (!valid || !(await revokeDeviceSession(req.user.id, req.params.id))) {
+      return res.status(404).json({ success: false, error: 'Appareil introuvable ou déjà déconnecté.' });
+    }
+    const { AuditLog } = await import('../models/index.js');
+    AuditLog.log(req, 'LOGOUT_DEVICE', 'auth', req.user.id, { sessionId: req.params.id });
+    res.json({ success: true, message: 'Appareil déconnecté.', current: req.params.id === req.session?.sid });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Déconnexion : l'appareil quitte la liste (jeton facultatif, jamais d'erreur)
+export const logout = async (req, res) => {
+  res.clearCookie('ged_files', { path: '/api' });
+  try {
+    const header = req.headers.authorization;
+    if (header?.startsWith('Bearer ')) {
+      const decoded = jwt.verify(header.slice(7), process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      if (decoded.sid && decoded.type === 'session') await revokeDeviceSession(decoded.id, decoded.sid);
+    }
+  } catch { /* jeton expiré ou invalide : rien à fermer */ }
+  res.json({ success: true });
 };

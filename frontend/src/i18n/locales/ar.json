@@ -3055,5 +3055,15 @@
   "Téléphone perdu, ordinateur prêté ou oublié ouvert : déconnectez tous vos autres appareils. Celui-ci reste connecté.": "هاتف مفقود أو حاسوب معار أو تُرك مفتوحاً: سجّل الخروج من جميع أجهزتك الأخرى. يبقى هذا الجهاز متصلاً.",
   "Déconnecter mes autres appareils": "تسجيل الخروج من أجهزتي الأخرى",
   "Vos autres appareils ont été déconnectés.": "تم تسجيل الخروج من أجهزتك الأخرى.",
-  "Erreur lors de la déconnexion des autres appareils.": "خطأ أثناء تسجيل الخروج من الأجهزة الأخرى."
+  "Erreur lors de la déconnexion des autres appareils.": "خطأ أثناء تسجيل الخروج من الأجهزة الأخرى.",
+  "à l’instant": "الآن",
+  "Appareil déconnecté.": "تم تسجيل خروج الجهاز.",
+  "Erreur lors de la déconnexion de l’appareil.": "خطأ أثناء تسجيل خروج الجهاز.",
+  "Appareil inconnu": "جهاز غير معروف",
+  "Cet appareil": "هذا الجهاز",
+  "IP {{ip}}": "IP {{ip}}",
+  "Connecté le {{date}}": "متصل منذ {{date}}",
+  "Dernière activité : {{when}}": "آخر نشاط: {{when}}",
+  "Déconnecter": "تسجيل الخروج",
+  "Les connexions ouvertes avant cette mise à jour n’apparaissent pas ici : « Déconnecter mes autres appareils » les ferme aussi.": "الجلسات المفتوحة قبل هذا التحديث لا تظهر هنا: «تسجيل الخروج من أجهزتي الأخرى» يغلقها أيضاً."
 }

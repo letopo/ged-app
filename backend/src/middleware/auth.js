@@ -31,7 +31,7 @@ export const protect = async (req, res, next) => {
     });
 
     // Compte inexistant, désactivé ou sessions révoquées
-    const rejection = sessionRejection(user, decoded);
+    const rejection = await sessionRejection(user, decoded, req);
     if (rejection) {
       return res.status(401).json({ message: rejection });
     }

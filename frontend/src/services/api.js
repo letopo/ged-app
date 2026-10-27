@@ -227,6 +227,8 @@ export const authAPI = {
   getProfile: () => api.get('/auth/profile'),
   updateProfile: (data) => api.put('/auth/profile', data),
   logoutOtherDevices: () => api.post('/auth/logout-others'),
+  getDeviceSessions: () => api.get('/auth/sessions'),
+  revokeDeviceSession: (id) => api.delete(`/auth/sessions/${id}`),
   getReleaseNotes: () => api.get('/auth/release-notes'),
   markReleaseNotesSeen: (ids) => api.post('/auth/release-notes/seen', { ids }),
 };

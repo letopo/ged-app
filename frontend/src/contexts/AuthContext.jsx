@@ -62,8 +62,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    // Efface aussi le cookie de session des fichiers (/api/uploads)
-    fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/logout`, { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    // Efface aussi le cookie de session des fichiers (/api/uploads) et retire
+    // cet appareil de la liste « Appareils connectés »
+    let current = null;
+    try { current = localStorage.getItem('token'); } catch { /* stockage indisponible */ }
+    fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/logout`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: current ? { Authorization: `Bearer ${current}` } : {},
+    }).catch(() => {});
     try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch { /* ignore */ }
     setToken(null);
     setUser(null);

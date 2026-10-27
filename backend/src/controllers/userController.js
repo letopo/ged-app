@@ -204,7 +204,7 @@ export const resetUserPassword = async (req, res, next) => {
         }
 
         user.password = finalPassword; // Le hook Sequelize hachera ce mot de passe
-        await revokeSessions(user); // anciennes sessions révoquées
+        await revokeSessions(user, user.id === req.user.id ? { keepSid: req.session?.sid } : {}); // anciennes sessions révoquées
         await user.save();
 
         // On renvoie le mot de passe EN CLAIR pour qu'il soit affiché à l'admin ;
@@ -213,7 +213,7 @@ export const resetUserPassword = async (req, res, next) => {
             success: true,
             message: `Le mot de passe pour ${user.username} a été réinitialisé.`,
             newPassword: finalPassword,
-            ...(user.id === req.user.id ? { token: await generateToken(user, { remember: req.session?.rem === true }) } : {}),
+            ...(user.id === req.user.id ? { token: await generateToken(user, { remember: req.session?.rem === true, sid: req.session?.sid }) } : {}),
         });
     } catch (error) {
         next(error);

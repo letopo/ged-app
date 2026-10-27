@@ -3055,5 +3055,15 @@
   "Téléphone perdu, ordinateur prêté ou oublié ouvert : déconnectez tous vos autres appareils. Celui-ci reste connecté.": "Teléfono perdido, ordenador prestado u olvidado abierto: cierre la sesión en todos sus otros dispositivos. Este sigue conectado.",
   "Déconnecter mes autres appareils": "Cerrar sesión en mis otros dispositivos",
   "Vos autres appareils ont été déconnectés.": "Se ha cerrado la sesión en sus otros dispositivos.",
-  "Erreur lors de la déconnexion des autres appareils.": "Error al cerrar la sesión en los otros dispositivos."
+  "Erreur lors de la déconnexion des autres appareils.": "Error al cerrar la sesión en los otros dispositivos.",
+  "à l’instant": "ahora mismo",
+  "Appareil déconnecté.": "Dispositivo desconectado.",
+  "Erreur lors de la déconnexion de l’appareil.": "Error al desconectar el dispositivo.",
+  "Appareil inconnu": "Dispositivo desconocido",
+  "Cet appareil": "Este dispositivo",
+  "IP {{ip}}": "IP {{ip}}",
+  "Connecté le {{date}}": "Conectado el {{date}}",
+  "Dernière activité : {{when}}": "Última actividad: {{when}}",
+  "Déconnecter": "Desconectar",
+  "Les connexions ouvertes avant cette mise à jour n’apparaissent pas ici : « Déconnecter mes autres appareils » les ferme aussi.": "Las sesiones abiertas antes de esta actualización no aparecen aquí: «Cerrar sesión en mis otros dispositivos» también las cierra."
 }
