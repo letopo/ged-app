@@ -1,5 +1,5 @@
 // frontend/src/components/TransmitDocumentModal.jsx
-// Transmettre un document validé à une ou plusieurs personnes (ex. demande d'achat
+// Transmettre un document (signé ou non) à une ou plusieurs personnes (ex. demande d'achat
 // signée → acheteur). Le destinataire le retrouve dans Documents › Reçus.
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
