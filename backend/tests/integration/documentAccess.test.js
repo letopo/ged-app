@@ -1,5 +1,6 @@
 // Droits de lecture des documents : personnel / service / validateur /
-// transmis, administrateurs, documents des RH cachés aux directeurs.
+// transmis, administrateurs, documents des RH cachés aux directeurs (sauf ceux
+// qu'on leur demande de valider ou qu'on leur a transmis).
 // hasDocumentReadAccess (un document) et buildDocumentAccessWhere (les listes)
 // doivent toujours donner la même réponse.
 import '../helpers/env.js';
@@ -32,9 +33,13 @@ before(async () => {
     validated: await f.document(owner),
     transmitted: await f.document(owner),
     rh: await f.document(rhAgent),
+    rhToSign: await f.document(rhAgent),
+    rhTransmitted: await f.document(rhAgent),
   };
   await f.validator(d.validated, validatorUser);
   await f.transmit(d.transmitted, owner, recipient);
+  await f.validator(d.rhToSign, director);
+  await f.transmit(d.rhTransmitted, rhAgent, director);
 });
 after(() => sequelize.close());
 
@@ -46,9 +51,10 @@ const EXPECTED = {
   outsider: [],
   validatorUser: ['validated'],
   recipient: ['transmitted'],
-  rhAgent: ['rh'],
-  admin: ['personal', 'service', 'validated', 'transmitted', 'rh'],
-  director: ['personal', 'service', 'validated', 'transmitted'], // pas les documents des RH
+  rhAgent: ['rh', 'rhToSign', 'rhTransmitted'],
+  admin: ['personal', 'service', 'validated', 'transmitted', 'rh', 'rhToSign', 'rhTransmitted'],
+  // pas les documents des RH, sauf ceux à valider ou transmis
+  director: ['personal', 'service', 'validated', 'transmitted', 'rhToSign', 'rhTransmitted'],
 };
 
 for (const [who, expected] of Object.entries(EXPECTED)) {
