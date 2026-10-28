@@ -132,7 +132,7 @@ const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
       </div>
 
       {/* Prévisualisation PDF - FORMAT PAYSAGE */}
-      <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', width: '297mm', minHeight: '210mm' }}>
+      <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', width: '297mm', minHeight: '210mm' }}>
         {/* En-tête */}
         <div style={{ textAlign: 'center', marginBottom: 24, paddingBottom: 16, borderBottom: '2px solid #000' }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>

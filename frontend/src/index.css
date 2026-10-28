@@ -296,7 +296,9 @@
 
 .dark body { color-scheme: dark; }
 
-/* Documents / aperçus — toujours mode clair */
+/* Documents / aperçus — toujours mode clair (feuille blanche des modèles :
+   className="ged-doc-preview" ; sans couleur propre, le texte hériterait de
+   l'encre claire du mode nuit, et le PDF généré aussi) */
 .ged-doc-preview,
 .dark .bg-white {
   color: #111827;

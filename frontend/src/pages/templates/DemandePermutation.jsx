@@ -89,7 +89,7 @@ const DemandePermutation = ({ formData, setFormData, pdfContainerRef }) => {
     }
 
     return (
-        <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', position: 'relative', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif', fontSize: '15px' }}>
+        <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', position: 'relative', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif', fontSize: '15px' }}>
 
             <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

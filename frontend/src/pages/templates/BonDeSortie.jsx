@@ -32,7 +32,7 @@ const BonDeSortie = ({ formData, setFormData, pdfContainerRef }) => {
   const cellIn = { background: 'none', border: 'none', outline: 'none', width: '100%', padding: 4, fontSize: 12 };
 
   return (
-    <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
+    <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
 
       {/* En-tête */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>

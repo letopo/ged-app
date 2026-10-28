@@ -138,7 +138,7 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
             )}
 
             {/* Template Pièce de Caisse */}
-            <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', display: 'flex', flexDirection: 'column', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
+            <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', display: 'flex', flexDirection: 'column', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
                 <div style={{ flex: 1 }}>
                     <h1 style={{ textAlign: 'center', fontWeight: 700, fontSize: 18, marginBottom: 8 }}>{t('HOPITAL SAINT JEAN DE MALTE')}</h1>
                     <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: 15, marginBottom: 32 }}>{t('PIECE DE CAISSE N° {{num}}', { num: formData.numero || '...' })}</h2>
