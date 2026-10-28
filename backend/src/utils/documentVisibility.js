@@ -21,6 +21,23 @@ export const isAdminOrDirector = (user) =>
 // règles réglées par tenant dans Paramètres › Confidentialité (utils/categoryAccess.js).
 export { buildCategoryRestrictionWhere } from './categoryAccess.js';
 
+// Documents où l'utilisateur figure dans le circuit de validation ou qu'on lui a transmis
+async function getInvolvedDocumentIds(userId) {
+  const [validatorRows, receivedRows] = await Promise.all([
+    Workflow.findAll({ where: { validatorId: userId }, attributes: ['documentId'] }),
+    DocumentTransmission.findAll({ where: { toUserId: userId }, attributes: ['documentId'] }),
+  ]);
+  return [...new Set([...validatorRows, ...receivedRows].map(r => r.documentId))];
+}
+
+async function isInvolvedInDocument(documentId, userId) {
+  const [asValidator, asRecipient] = await Promise.all([
+    Workflow.findOne({ where: { documentId, validatorId: userId }, attributes: ['id'] }),
+    DocumentTransmission.findOne({ where: { documentId, toUserId: userId }, attributes: ['id'] }),
+  ]);
+  return Boolean(asValidator || asRecipient);
+}
+
 // Fragment Sequelize (à combiner via Op.and avec le reste du where, jamais un 2e Op.or
 // directement sur le même objet) qui filtre les documents qu'un utilisateur peut lister.
 // Retourne `null` si aucune restriction n'est nécessaire (admin/superadmin sans exclusion HR).
@@ -29,7 +46,10 @@ export async function buildDocumentAccessWhere(user) {
     if (canViewHRDocuments(user)) return null;
     const hrUserIds = await getHRUserIds();
     if (!hrUserIds.length) return null;
-    return { userId: { [Op.notIn]: hrUserIds } };
+    // Un document RH reste visible quand on m'a demandé de le valider ou qu'on me l'a transmis
+    const involvedDocIds = await getInvolvedDocumentIds(user.id);
+    const notHR = { userId: { [Op.notIn]: hrUserIds } };
+    return involvedDocIds.length ? { [Op.or]: [notHR, { id: { [Op.in]: involvedDocIds } }] } : notHR;
   }
 
   const memberships = await ServiceMember.findAll({
@@ -74,7 +94,8 @@ export async function readableWhere(user, where = {}) {
 export async function hasDocumentReadAccess(document, user) {
   if (isAdminOrDirector(user)) {
     const hrUserIds = await getHRUserIds();
-    if (hrUserIds.includes(document.userId) && !canViewHRDocuments(user) && document.userId !== user.id) {
+    if (hrUserIds.includes(document.userId) && !canViewHRDocuments(user) && document.userId !== user.id
+        && !(await isInvolvedInDocument(document.id, user.id))) {
       return false;
     }
   } else {
