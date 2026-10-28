@@ -130,6 +130,7 @@ const makeCanAccess = (user) => (item) => {
   if (item.accueilOnly)     return isAdmin || ['agent_accueil_php','agent_accueil_normal'].includes(user.role);
   if (item.caisseOnly)      return isAdmin || user.role === 'caissier';
   if (item.managementOnly)  return isAdmin || ['director','dds','medical_chief'].includes(user.role);
+  if (item.planningOnly)    return isAdmin || ['director','dds','medical_chief'].includes(user.role) || (user.postes || []).some(p => ['planning','rh'].includes(p));
   if (item.demandeAchatOnly) return isAdmin || ['achat','user'].includes(user.role);
   if (item.gmaoOnly)        return isAdmin || (user.postes || []).includes('gmao');
   if (item.phpOnly)         return isAdmin || user.role === 'agent_accueil_php';
@@ -153,7 +154,7 @@ const buildOrgGroups = (t, user) => {
     ]},
     { id: 'rh', color: '#0D9488', icon: Users, label: t('Ressources humaines'), items: [
       { path: '/employees',          icon: Users,       label: t('Employés'),           rhOrAdminOnly: true },
-      { path: '/schedules',          icon: Calendar,    label: t('Plannings'),          managementOnly: true },
+      { path: '/schedules',          icon: Calendar,    label: t('Plannings'),          planningOnly: true },
     ]},
     { id: 'parametrage', color: '#8B5CF6', icon: LayoutGrid, label: t('Paramétrage'), items: [
       { path: '/workflow-templates', icon: LayoutGrid,    label: t('Modèles workflow'), adminOnly: true },

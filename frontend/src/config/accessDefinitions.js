@@ -28,6 +28,7 @@ export const POSTES_STATIC = [
   { code: 'rh',            label: 'Responsable RH',       color: '#f472b6', description: 'Gestion des employés + docs RH confidentiels' },
   { code: 'gmao',          label: 'Responsable GMAO',     color: '#f97316', description: 'Accès au module de maintenance des équipements' },
   { code: 'kanban',        label: 'Suivi Technique',      color: '#8b5cf6', description: 'Accès au tableau de suivi MG/Informatique/Biomédical' },
+  { code: 'planning',      label: 'Rédacteur des plannings', color: '#0d9488', description: 'Création et saisie des plannings (validation par la direction)' },
   { code: 'dg',            label: 'Dir. Général',         color: '#7c3aed', description: 'Validation en dernier recours des workflows' },
   { code: 'dds',           label: 'Dir. des Soins (F)',   color: '#d946ef', description: 'Validation circuit soins' },
   { code: 'ds',            label: 'Dir. des Services',    color: '#0891b2', description: 'Validation circuit services' },
@@ -139,7 +140,7 @@ export const MODULES = [
     id: 'plannings', category: 'Gestion', label: 'Plannings',
     path: '/schedules', description: 'Gestion des plannings de travail et gardes',
     roles: ['superadmin','admin','director','dds','medical_chief'],
-    postes: [],
+    postes: ['planning','rh'],
   },
   {
     id: 'gmao', category: 'Gestion', label: 'GMAO — Maintenance',
