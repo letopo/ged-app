@@ -2,6 +2,7 @@
 
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
+import { getUserPosteCodes } from '../utils/posteResolver.js';
 import {
   createSchedule,
   getSchedules,
@@ -17,6 +18,17 @@ const router = express.Router();
 
 // Toutes les routes nécessitent une authentification
 router.use(protect);
+
+// Rédaction des plannings : rôles de direction OU titulaires des postes
+// « planning » / « rh » (attribués dans Postes & Fonctions).
+const PLANNING_ROLES = ['admin', 'superadmin', 'director', 'dds', 'medical_chief'];
+const PLANNING_POSTES = ['planning', 'rh'];
+const canEditPlannings = async (req, res, next) => {
+  if (PLANNING_ROLES.includes(req.user.role)) return next();
+  const postes = await getUserPosteCodes(req.user.id);
+  if (postes.some(p => PLANNING_POSTES.includes(p))) return next();
+  return res.status(403).json({ message: 'Accès aux plannings non autorisé' });
+};
 
 /**
  * @route   GET /api/schedules
@@ -47,7 +59,7 @@ router.get('/:id/changes-log', getScheduleChangesLog);
  */
 router.post(
   '/',
-  authorize('admin', 'director', 'dds', 'medical_chief'),
+  canEditPlannings,
   createSchedule
 );
 
@@ -58,7 +70,7 @@ router.post(
  */
 router.post(
   '/:scheduleId/assignments',
-  authorize('admin', 'director', 'dds', 'medical_chief'),
+  canEditPlannings,
   bulkUpsertAssignments
 );
 
@@ -69,7 +81,7 @@ router.post(
  */
 router.post(
   '/:id/submit',
-  authorize('admin', 'director', 'dds', 'medical_chief'),
+  canEditPlannings,
   submitForValidation
 );
 

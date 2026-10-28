@@ -159,7 +159,7 @@ export default function Navbar({ onLogout }) {
       { path: '/chat', icon: MessageSquare, label: t('Discussion'), desc: t('Canaux, messages directs, discussions') },
     ],
     gestion: [
-      { path: '/schedules', icon: Calendar, label: t('Plannings'), desc: t('Gérer les plannings'), managementOnly: true },
+      { path: '/schedules', icon: Calendar, label: t('Plannings'), desc: t('Gérer les plannings'), planningOnly: true },
       { path: '/employees', icon: Users, label: t('Employés'), desc: t('Fiches des employés'), rhOrAdminOnly: true },
       { path: '/user-management', icon: Users, label: t('Utilisateurs'), desc: t('Comptes & rôles'), adminOnly: true },
       { path: '/services', icon: LayoutGrid, label: t('Services'), desc: t("Structure de l'hôpital"), adminOnly: true },
@@ -202,6 +202,7 @@ export default function Navbar({ onLogout }) {
     if (item.accueilOnly)     return user?.role === 'admin' || ['agent_accueil_php', 'agent_accueil_normal'].includes((user?.role || '').toLowerCase());
     if (item.caisseOnly)      return user?.role === 'admin' || user?.role === 'caissier';
     if (item.managementOnly)  return ['admin', 'director', 'dds', 'medical_chief'].includes(user?.role);
+    if (item.planningOnly)    return ['admin', 'director', 'dds', 'medical_chief'].includes(user?.role) || (user?.postes || []).some(p => ['planning', 'rh'].includes(p));
     if (item.demandeAchatOnly) return user?.role === 'admin' || user?.role === 'achat' || user?.role === 'user';
     if (item.gmaoOnly)        return user?.role === 'admin' || (user?.postes || []).includes('gmao');
     if (item.phpOnly)         return user?.role === 'admin' || (user?.role || '').toLowerCase() === 'agent_accueil_php';

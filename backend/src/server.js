@@ -947,11 +947,12 @@ const startServer = async () => {
           INSERT INTO postes (id, code, label, description, tenant_id, created_at, updated_at)
           VALUES
             (gen_random_uuid(), 'gmao',   'Responsable GMAO',    'Accès au module de maintenance préventive des équipements', :tenantId, NOW(), NOW()),
-            (gen_random_uuid(), 'kanban', 'Suivi Technique',     'Accès au tableau de suivi technique (MG, Informatique, Biomédical)', :tenantId, NOW(), NOW())
+            (gen_random_uuid(), 'kanban', 'Suivi Technique',     'Accès au tableau de suivi technique (MG, Informatique, Biomédical)', :tenantId, NOW(), NOW()),
+            (gen_random_uuid(), 'planning', 'Rédacteur des plannings', 'Création et saisie des plannings de travail et de garde', :tenantId, NOW(), NOW())
           ON CONFLICT DO NOTHING;
         `, { replacements: { tenantId: t.id } });
       }
-      console.log('✅ Postes gmao/kanban vérifiés.');
+      console.log('✅ Postes gmao/kanban/planning vérifiés.');
     } catch (e) { console.warn('⚠️ postes gmao/kanban:', e.message); }
 
     // 3️⃣ Créer l'utilisateur admin par défaut

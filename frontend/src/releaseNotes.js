@@ -735,6 +735,16 @@ const RELEASE_NOTES = [
       'Une fois visé par le DG, le bon arrive automatiquement à l’accueil (Documents › Reçus) pour l’ouverture du BPC dans Sage.',
     ],
   },
+  {
+    id: '2026-10-28-acces-plannings',
+    date: '2026-10-28',
+    target: 'app',
+    title: 'Plannings ouverts aux RH',
+    access: (user) => (user?.postes || []).some(p => ['planning', 'rh'].includes(p)),
+    items: [
+      'Le menu Ressources humaines › Plannings vous est désormais accessible : vous pouvez créer et remplir les plannings de travail et de garde, puis les soumettre à la validation de la direction.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
