@@ -43,7 +43,7 @@ const CertificatAptitude = ({ formData, setFormData, pdfContainerRef }) => {
     };
 
     return (
-        <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', position: 'relative', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#000000' }}>
+        <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', position: 'relative', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#000000' }}>
 
             {/* EN-TÊTE */}
             <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>

@@ -271,7 +271,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
       </div>
 
       {/* Prévisualisation PDF */}
-      <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: compact ? '24px 32px' : 32, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', width: '210mm', minHeight: '297mm' }}>
+      <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', padding: compact ? '24px 32px' : 32, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', width: '210mm', minHeight: '297mm' }}>
         {/* En-tête */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: compact ? 16 : 24, paddingBottom: compact ? 12 : 16, borderBottom: '2px solid #1f2937' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

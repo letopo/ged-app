@@ -174,7 +174,7 @@ const DemandeExplication = ({ formData, setFormData, pdfContainerRef }) => {
       </div>
 
       {/* Aperçu PDF */}
-      <div ref={pdfContainerRef} style={{ background: '#ffffff', position: 'relative', width: '210mm', minHeight: '297mm', padding: '18mm 18mm 20mm 18mm', boxSizing: 'border-box', color: '#000000' }}>
+      <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', position: 'relative', width: '210mm', minHeight: '297mm', padding: '18mm 18mm 20mm 18mm', boxSizing: 'border-box', color: '#000000' }}>
 
         {/* En-tête */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>

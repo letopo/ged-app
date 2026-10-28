@@ -745,6 +745,15 @@ const RELEASE_NOTES = [
       'Le menu Ressources humaines › Plannings vous est désormais accessible : vous pouvez créer et remplir les plannings de travail et de garde, puis les soumettre à la validation de la direction.',
     ],
   },
+  {
+    id: '2026-10-28-documents-mode-nuit',
+    date: '2026-10-28',
+    target: 'app',
+    title: 'Documents lisibles en mode nuit',
+    items: [
+      'En mode nuit, les formulaires (Bon de sortie, Demande de besoin, Pièce de caisse…) gardent une écriture noire sur la feuille blanche, à l’écran comme dans le PDF généré.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

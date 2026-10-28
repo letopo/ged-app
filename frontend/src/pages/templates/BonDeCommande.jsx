@@ -71,7 +71,7 @@ const BonDeCommande = ({ formData, setFormData, pdfContainerRef }) => {
   const cellIn = { background: 'none', border: 'none', outline: 'none', width: '100%', fontSize: 12 };
 
   return (
-    <div ref={pdfContainerRef} style={{ background: '#ffffff', padding: 32, margin: '0 auto', display: 'flex', flexDirection: 'column', fontSize: 13, width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
+    <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', padding: 32, margin: '0 auto', display: 'flex', flexDirection: 'column', fontSize: 13, width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}>
 
       {/* EN-TÊTE */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '2px solid #000', paddingBottom: 16 }}>
