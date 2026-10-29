@@ -1,144 +1,96 @@
 // frontend/src/pages/templates/CertificatAptitude.jsx
+// Certificat d'aptitude : saisie du médecin, puis aperçu A5 paysage identique au
+// PDF produit (utils/certificatAptitudePdf.js), sur le modèle du Bon de prise en charge.
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usersAPI, servicesAPI } from '../../services/api';
+import { servicesAPI } from '../../services/api';
 import logo from '../../assets/logo-ordre-malte.png';
-import { useAuth } from '../../contexts/AuthContext';
-import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 
-const CertificatAptitude = ({ formData, setFormData, pdfContainerRef }) => {
-    const { user } = useAuth();
-    const { t } = useTranslation();
-    const [services, setServices] = useState([]);
-    const [loading, setLoading] = useState(true);
+const input = {
+  width: '100%', padding: '6px 10px', borderRadius: 'var(--radius-2)', border: '1.5px solid var(--border)',
+  background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, outline: 'none', boxSizing: 'border-box',
+};
+const label = { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 4 };
 
-    useEffect(() => {
-        const initData = async () => {
-            try {
-                const servicesRes = await servicesAPI.getAll();
-                setServices(servicesRes.data.data || []);
-            } catch (error) {
-                console.error("Erreur chargement services:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        initData();
-    }, []);
+// Aperçu du certificat (fond blanc, comme le papier)
+const row = { display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 13, color: '#111', margin: '9px 0' };
+const dots = { flex: 1, borderBottom: '1px dotted #777', minHeight: 16, color: '#0d2a8c', fontWeight: 700, paddingLeft: 4 };
+const box = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, border: '1px solid #111', fontSize: 10, color: '#0d2a8c', fontWeight: 700 };
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
+const frDate = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 
-    const inputCls = {
-        width: '100%', padding: '6px 8px', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-2)', background: 'var(--surface)',
-        color: 'var(--fg)', fontSize: 13, outline: 'none',
-    };
-    const selectCls = { ...inputCls, appearance: 'none' };
-    const staticFieldStyle = {
-        borderBottom: '2px dotted #9CA3AF', padding: '4px 8px',
-        fontWeight: '600', color: '#000000', display: 'inline-block', minWidth: '250px'
-    };
+const CertificatAptitude = ({ formData, setFormData }) => {
+  const { t } = useTranslation();
+  const [services, setServices] = useState([]);
+  const set = (k, v) => setFormData(f => ({ ...f, [k]: v }));
 
-    return (
-        <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', padding: 48, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', margin: '0 auto', position: 'relative', width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#000000' }}>
+  useEffect(() => {
+    servicesAPI.getAll()
+      .then(res => setServices(res.data.data || []))
+      .catch(err => console.error('Erreur chargement services:', err));
+  }, []);
 
-            {/* EN-TÊTE */}
-            <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <img src={logo} alt="Logo Ordre de Malte" style={{ width: '70px' }} />
-                    <div>
-                        <span style={{ fontSize: '16px', fontWeight: 'bold', display: 'block' }}>{t('ORDRE DE MALTE')}</span>
-                        <span style={{ fontSize: '13px', color: '#DC2626', fontWeight: '600' }}>{t('HÔPITAL SAINT JEAN DE MALTE')}</span>
-                    </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                    <input type="date" name="date_certificat" value={formData.date_certificat || ''} onChange={handleChange} className="not-printable" style={{ ...inputCls, width: 200, textAlign: 'right' }} />
-                    <div className="print-only" style={{ fontSize: '15px' }}>
-                        {t('Nyombé, le')} <span style={{ fontWeight: '600' }}>
-                            {formData.date_certificat
-                                ? new Date(formData.date_certificat).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                                : '......................'}
-                        </span>
-                    </div>
-                </div>
-            </header>
-
-            {/* TITRE */}
-            <div style={{ textAlign: 'center', margin: '48px 0' }}>
-                <h1 style={{ fontSize: '28px', fontWeight: 'bold', textDecoration: 'underline', textUnderlineOffset: '6px', letterSpacing: '1px', margin: 0 }}>
-                    {t("CERTIFICAT D'APTITUDE")}
-                </h1>
-            </div>
-
-            {/* CORPS */}
-            <div style={{ lineHeight: '2.2', fontSize: '16px' }}>
-                <p>
-                    {t('Je soussigné, Docteur')}{' '}
-                    <input name="nom_docteur" value={formData.nom_docteur || ''} onChange={handleChange} placeholder={t('Nom du docteur')} className="not-printable" style={{ ...inputCls, width: 350, display: 'inline-block' }} />
-                    <span className="print-only" style={staticFieldStyle}>{formData.nom_docteur || ''}</span>
-                </p>
-
-                <p style={{ marginTop: 16 }}>
-                    {t('Certifie avoir examiné ce jour')}{' '}
-                    <input name="nom_employe" value={formData.nom_employe || ''} onChange={handleChange} placeholder={t("Noms et prénoms de l'employé")} className="not-printable" style={{ ...inputCls, width: 350, display: 'inline-block' }} />
-                    <span className="print-only" style={staticFieldStyle}>{formData.nom_employe || ''}</span>
-                </p>
-
-                <p style={{ marginTop: 16 }}>
-                    {t('travaillant au service')}{' '}
-                    <select name="service" value={formData.service || ''} onChange={handleChange} className="not-printable" style={{ ...selectCls, width: 300, display: 'inline-block' }}>
-                        <option value="">{t('-- Sélectionner le service --')}</option>
-                        {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                    </select>
-                    <span className="print-only" style={staticFieldStyle}>{formData.service || ''}</span>
-                </p>
-
-                <p style={{ marginTop: 32 }}>{t('et le (la) déclare :')}</p>
-
-                {/* Sélecteur Apte/Inapte - écran */}
-                <div className="not-printable" style={{ marginTop: 8, marginBottom: 16, marginLeft: 60 }}>
-                    <select name="declaration" value={formData.declaration || ''} onChange={handleChange} style={{ ...selectCls, width: 250 }}>
-                        <option value="">{t('-- Choisir --')}</option>
-                        <option value="Apte">✅ {t('Apte')}</option>
-                        <option value="Inapte">❌ {t('Inapte')}</option>
-                    </select>
-                </div>
-
-                {/* Cases à cocher PDF */}
-                <div className="print-only" style={{ marginLeft: 120, marginTop: 16 }}>
-                    {['Apte', 'Inapte'].map((val) => (
-                        <div key={val} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, fontSize: '17px' }}>
-                            <div style={{ width: 22, height: 22, border: '2px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 'bold' }}>
-                                {formData.declaration === val ? '✓' : ''}
-                            </div>
-                            <span style={{ fontWeight: '500' }}>{t(val)}</span>
-                        </div>
-                    ))}
-                </div>
-
-                <p style={{ marginTop: 32, fontSize: '16px' }}>{t('à son poste de travail')}</p>
-            </div>
-
-            {/* SIGNATURE */}
-            <div style={{ marginTop: 64, display: 'flex', justifyContent: 'flex-end', marginRight: 40 }}>
-                <div style={{ minWidth: 200 }}>
-                    <SignatureFrame fixedLabel label={t('Le Médecin')} signatureUrl={getImageUrl(user?.signaturePath)} stampUrl={getImageUrl(user?.stampPath)} zoneIndex={1} />
-                </div>
-            </div>
-
-            {/* PIED DE PAGE */}
-            <div style={{ position: 'absolute', bottom: 32, left: 0, right: 0, textAlign: 'center', fontSize: 11, color: '#333', lineHeight: 1.6 }}>
-                <p style={{ fontWeight: 'bold', margin: '0 0 2px' }}>{t('Hôpital Saint-Jean de Malte')}</p>
-                <p style={{ margin: '0 0 2px' }}>{t('BP 56 – Njombé-Cameroun')}</p>
-                <p style={{ margin: '0 0 2px' }}>{t('Tél. : {{tel}} - e-mail : {{email}}', { tel: '00 (237) 657 56 91 03', email: 'hopitalcameroun@ordredemaltefrance.org' })}</p>
-                <p style={{ fontSize: 10, marginTop: 4 }}>{t("Dépendant des Œuvres Hospitalières Françaises de l'Ordre de Malte, association reconnue d'utilité publique")}</p>
-                <p style={{ fontSize: 10 }}>{t('en partenariat avec le Ministère de la Santé Publique, et avec les plantations du groupe PHP')}</p>
-            </div>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <label><span style={label}>{t('Docteur')}</span>
+          <input style={input} value={formData.nom_docteur || ''} maxLength={120} placeholder={t('Nom du docteur')} onChange={e => set('nom_docteur', e.target.value)} />
+        </label>
+        <label><span style={label}>{t("Noms et prénoms de l'employé")}</span>
+          <input style={input} value={formData.nom_employe || ''} maxLength={120} onChange={e => set('nom_employe', e.target.value)} />
+        </label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          <label style={{ flex: '1 1 240px' }}><span style={label}>{t('Service')}</span>
+            <select style={input} value={formData.service || ''} onChange={e => set('service', e.target.value)}>
+              <option value="">{t('-- Sélectionner le service --')}</option>
+              {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+            </select>
+          </label>
+          <label style={{ flex: '0 1 200px' }}><span style={label}>{t('Date')}</span>
+            <input type="date" style={input} value={formData.date_certificat || ''} onChange={e => set('date_certificat', e.target.value)} />
+          </label>
         </div>
-    );
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+          {['Apte', 'Inapte'].map(val => (
+            <label key={val} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', color: 'var(--fg)' }}>
+              <input type="radio" name="certificat-declaration" checked={formData.declaration === val} onChange={() => set('declaration', val)} style={{ accentColor: 'var(--brand)' }} />
+              {t(val)}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Aperçu A5 paysage */}
+      <div style={{ background: '#fff', color: '#111', border: '1px solid #ddd', borderRadius: 4, padding: '18px 22px', aspectRatio: '1.414', maxWidth: 720, width: '100%', margin: '0 auto', boxSizing: 'border-box', fontFamily: 'Helvetica, Arial, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <img src={logo} alt="" style={{ width: '34%', minWidth: 120 }} />
+          <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 700, color: '#333', lineHeight: 1.35 }}>
+            HÔPITAL SAINT-JEAN DE MALTE<br />BP.: 56 NJOMBE - CAMEROUN<br />Tél.: (237) 697 09 29 92<br />233 21 10 22
+          </div>
+        </div>
+        <div style={{ textAlign: 'center', fontFamily: 'Times New Roman, serif', fontWeight: 700, fontSize: 'clamp(16px, 3.4vw, 24px)', margin: '6px 0 10px' }}>CERTIFICAT D'APTITUDE</div>
+        <div style={row}>Je soussigné(e), Docteur <span style={dots}>{formData.nom_docteur}</span></div>
+        <div style={row}>Certifie avoir examiné ce jour <span style={dots}>{formData.nom_employe}</span></div>
+        <div style={row}>travaillant au service <span style={dots}>{formData.service}</span></div>
+        <div style={{ ...row, gap: 12, flexWrap: 'wrap' }}>
+          et le (la) déclare :
+          {['Apte', 'Inapte'].map(val => (
+            <span key={val} style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}><span style={box}>{formData.declaration === val ? 'X' : ''}</span>{val}</span>
+          ))}
+          à son poste de travail.
+        </div>
+        <div style={{ ...row, marginLeft: '50%' }}>Njombé le <span style={dots}>{frDate(formData.date_certificat)}</span></div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 13, marginTop: 14, paddingRight: '22%' }}><span>LE MÉDECIN</span></div>
+        <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 'clamp(6px, 1.1vw, 8px)', color: '#333', lineHeight: 1.35 }}>
+          <div style={{ fontWeight: 700 }}>Hôpital Saint-Jean de Malte</div>
+          <div>BP 56 – Njombé-Cameroun</div>
+          <div>Tél. : 00 (237) 657 56 91 03 - e-mail : hopitalcameroun@ordredemaltefrance.org</div>
+          <div>Dépendant des Œuvres Hospitalières Françaises de l'Ordre de Malte, association reconnue d'utilité publique</div>
+          <div>en partenariat avec le Ministère de la Santé Publique, et avec les plantations du groupe PHP</div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default CertificatAptitude;
