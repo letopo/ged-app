@@ -49,10 +49,24 @@ const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
     }
   };
 
+  // Programme commun à tous les services (page Bloc opératoire) : les lignes
+  // viennent de la saisie partagée, on ne les modifie pas ici.
+  const fromBloc = !!formData.blocWeekStart;
+  const withService = (formData.lignes || []).some(l => l.service);
+  const headers = ['JOUR DE LA\nSEMAINE', ...(withService ? ['SERVICE'] : []), 'NOM/PRÉNOM DU PATIENT OU\nDE LA PATIENTE', 'ÂGE', 'NATURE DE L\'INTERVENTION CHIRURGICALE', 'INTERVENANT', 'N° SALLE'];
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      {fromBloc && (
+        <div className="not-printable" style={{
+          background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-3)',
+          padding: '14px 18px', marginBottom: 24, fontSize: 13, color: 'var(--fg)',
+        }}>
+          {t('Programme commun à tous les services : {{count}} intervention(s). Pour corriger une ligne, rouvrez la semaine depuis Bloc opératoire.', { count: (formData.lignes || []).length })}
+        </div>
+      )}
       {/* Formulaire de saisie */}
-      <div className="not-printable" style={{
+      {!fromBloc && <div className="not-printable" style={{
         background: 'var(--surface)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius-3)', padding: 24, marginBottom: 24,
         boxShadow: 'var(--shadow-1)',
@@ -129,7 +143,7 @@ const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
             ))}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Prévisualisation PDF - FORMAT PAYSAGE */}
       <div ref={pdfContainerRef} className="ged-doc-preview" style={{ background: '#ffffff', padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', width: '297mm', minHeight: '210mm' }}>
@@ -145,7 +159,7 @@ const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
         <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid #000', fontSize: 11 }}>
           <thead>
             <tr style={{ background: '#ffffff' }}>
-              {['JOUR DE LA\nSEMAINE', 'NOM/PRÉNOM DU PATIENT OU\nDE LA PATIENTE', 'ÂGE', 'NATURE DE L\'INTERVENTION CHIRURGICALE', 'INTERVENANT', 'N° SALLE'].map((h, i) => (
+              {headers.map((h, i) => (
                 <th key={i} style={{ border: '2px solid #000', padding: 8, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', whiteSpace: 'pre-line' }}>{t(h)}</th>
               ))}
             </tr>
@@ -157,6 +171,7 @@ const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
               return (
                 <tr key={index} style={{ background: isYellow ? '#fef08a' : '#ffffff' }}>
                   <td style={{ border: '2px solid #000', padding: 8, textAlign: 'center', verticalAlign: 'top', fontWeight: 700 }}>{ligne.jour ? t(ligne.jour) : ''}</td>
+                  {withService && <td style={{ border: '2px solid #000', padding: 8, textAlign: 'center', verticalAlign: 'top', textTransform: 'uppercase' }}>{ligne.service || ''}</td>}
                   <td style={{ border: '2px solid #000', padding: 8, verticalAlign: 'top', textTransform: 'uppercase' }}>{ligne.nomPatient || ''}</td>
                   <td style={{ border: '2px solid #000', padding: 8, textAlign: 'center', verticalAlign: 'top' }}>{ligne.age || ''}</td>
                   <td style={{ border: '2px solid #000', padding: 8, verticalAlign: 'top', textTransform: 'uppercase' }}>{ligne.natureIntervention || ''}</td>
@@ -167,7 +182,7 @@ const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
             })}
             {(formData.lignes || []).length < 10 && Array.from({ length: 10 - (formData.lignes || []).length }).map((_, i) => (
               <tr key={`empty-${i}`} style={{ background: '#ffffff' }}>
-                {[...Array(6)].map((__, j) => <td key={j} style={{ border: '2px solid #000', padding: 8, height: 48 }}>&nbsp;</td>)}
+                {headers.map((__, j) => <td key={j} style={{ border: '2px solid #000', padding: 8, height: 48 }}>&nbsp;</td>)}
               </tr>
             ))}
           </tbody>
@@ -175,8 +190,8 @@ const PlanningOperatoire = ({ formData, setFormData, pdfContainerRef }) => {
 
         {/* Signatures */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 32, marginTop: 48, fontSize: 13 }}>
-          <SignatureFrame label={t('Médecin Chef')} zoneIndex={1} height="112px" />
-          <SignatureFrame label={t('Directeur Général')} zoneIndex={2} height="112px" />
+          <SignatureFrame label={t('Médecin Chef')} zoneIndex={1} height="112px" fixedLabel />
+          <SignatureFrame label={t('Directeur Général')} zoneIndex={2} height="112px" fixedLabel />
         </div>
       </div>
     </div>

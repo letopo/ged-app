@@ -21,6 +21,12 @@ export const FIXED_POSTE_CHAINS = {
     { key: 'rh', code: 'rh', label: 'Ressources Humaines' },
     { key: 'dg', code: 'dg', label: 'Directeur Général' },
   ],
+  // Programme opératoire de la semaine (tous services, page Bloc opératoire) :
+  // cadres « Médecin Chef » puis « Directeur Général » du document.
+  'Planning Opératoire': [
+    { key: 'medecin_chef', code: 'medecin_chef', label: 'Médecin Chef' },
+    { key: 'dg', code: 'dg', label: 'Directeur Général' },
+  ],
 };
 
 export const hasFixedPosteChain = (category) => Boolean(FIXED_POSTE_CHAINS[category]);

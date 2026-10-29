@@ -27,11 +27,11 @@ import MissionMealRatesModal from '../components/MissionMealRatesModal';
 
 // Types dont le circuit de validation est construit par le serveur (postes) : la
 // fenêtre « Soumettre » affiche le circuit imposé au lieu du choix libre des validateurs.
-// Demande d'explication : cf. backend utils/posteChain.js.
-const SERVER_CHAIN_CATEGORIES = ['Ordre de mission', 'Pièce de caisse', "Demande d'explication", 'Bon de prise en charge'];
+// Demande d'explication, Planning Opératoire : cf. backend utils/posteChain.js.
+const SERVER_CHAIN_CATEGORIES = ['Ordre de mission', 'Pièce de caisse', "Demande d'explication", 'Bon de prise en charge', 'Planning Opératoire'];
 const isServerChainCategory = (category) => SERVER_CHAIN_CATEGORIES.includes(category);
 // Circuits imposés : les cadres de signature gardent leurs libellés de rôle
-const FIXED_LABEL_CATEGORIES = ['Pièce de caisse', 'Ordre de mission', "Demande d'explication", 'Demande de permutation', 'Bon de prise en charge'];
+const FIXED_LABEL_CATEGORIES = ['Pièce de caisse', 'Ordre de mission', "Demande d'explication", 'Demande de permutation', 'Bon de prise en charge', 'Planning Opératoire'];
 
 const DocumentList = () => {
   const { t } = useTranslation();
@@ -234,6 +234,17 @@ const DocumentList = () => {
     // ?status=… (liens des cartes de l'Accueil : En validation, Approuvés, rejetés)
     const status = searchParams.get('status');
     if (['draft', 'pending_validation', 'approved', 'rejected'].includes(status)) setFilterStatus(status);
+  }, [searchParams]);
+
+  // ?soumettre=<id> : ouvre directement la fenêtre « Soumettre » de ce document
+  // (programme opératoire dont le circuit demande de choisir un titulaire)
+  useEffect(() => {
+    const id = searchParams.get('soumettre');
+    if (!id) return;
+    documentsAPI.getById(id)
+      .then(r => { const doc = r.data?.data || r.data; if (doc?.id && doc.status === 'draft') handleOpenSubmitModal(doc); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Debounce recherche : attendre 400ms apres la derniere frappe

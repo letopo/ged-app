@@ -243,6 +243,17 @@ export const authAPI = {
 // ============================================
 // API pour les Documents
 // ============================================
+// Programme opératoire de la semaine (rempli par tous les services)
+export const blocAPI = {
+  me: () => api.get('/bloc/me'),
+  week: (weekStart) => api.get(`/bloc/semaines/${weekStart}`),
+  add: (weekStart, data) => api.post(`/bloc/semaines/${weekStart}/interventions`, data),
+  update: (id, data) => api.put(`/bloc/interventions/${id}`, data),
+  remove: (id) => api.delete(`/bloc/interventions/${id}`),
+  setStatus: (weekStart, status, documentId) => api.post(`/bloc/semaines/${weekStart}/statut`, { status, documentId }),
+  updateServices: (services) => api.put('/bloc/services', { services }),
+};
+
 // Parc véhicules (ambulances RO SAU)
 export const vehiclesAPI = {
   me: () => api.get('/vehicles/me'),

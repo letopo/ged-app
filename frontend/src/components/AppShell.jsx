@@ -8,7 +8,7 @@ import {
   Home, FileText, Upload, CheckSquare, BarChart3, LogOut,
   Bell, Users, LayoutGrid, UserPlus, DoorOpen, DollarSign,
   Settings, ChevronDown, Calendar, Kanban, Receipt,
-  ShoppingCart, Wrench, Stethoscope, Shield, Archive,
+  ShoppingCart, Wrench, Stethoscope, Shield, Archive, Scissors,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
   MessageSquare, FileSpreadsheet, Sparkles, Ambulance,
@@ -139,6 +139,7 @@ const makeCanAccess = (user) => (item) => {
   if (item.comptaOnly)      return isAdmin || (user.postes || []).includes('comptable');
   if (item.sageBlOnly)      return user.role === 'superadmin' || !!user.canSeeSageBl;
   if (item.fleetOnly)       return !!user.fleet?.hasModule;
+  if (item.blocOnly)        return isAdmin || ['director','dds','medical_chief'].includes(user.role) || (user.postes || []).some(p => ['bloc_saisie','bloc_responsable'].includes(p));
   return true;
 };
 
@@ -174,6 +175,9 @@ const buildOrgGroups = (t, user) => {
       { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
       { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageBlOnly: true },
       { path: '/sage-bl-php',        icon: ClipboardList,   label: t('BL PHP en attente'),   sageBlOnly: true },
+    ]},
+    { id: 'bloc', color: '#0F766E', icon: Scissors, label: t('Bloc opératoire'), items: [
+      { path: '/bloc-operatoire',    icon: Scissors,    label: t('Programme opératoire'), blocOnly: true },
     ]},
     { id: 'php', color: '#DC2626', icon: Stethoscope, label: t('Module PHP'), items: [
       { path: '/php',                icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
@@ -412,6 +416,7 @@ const ROUTE_CRUMBS = {
   '/statistiques':        ['Statistiques'],
   '/user-management':     ['Organisation', 'Utilisateurs'],
   '/schedules':           ['Organisation', 'Plannings'],
+  '/bloc-operatoire':     ['Bloc opératoire', 'Programme opératoire'],
   '/employees':           ['Organisation', 'Employés'],
   '/services':            ['Organisation', 'Services'],
   '/audit-log':           ['Organisation', "Journal d'audit"],
