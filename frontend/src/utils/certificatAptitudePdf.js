@@ -2,7 +2,8 @@
 // Certificat d'aptitude dessiné en A5 paysage, sur le modèle du Bon de prise en
 // charge (backend utils/bonPriseEnCharge.js) : texte vectoriel net, rubriques
 // remplies en bleu « stylo » sur pointillés, au lieu d'une capture A4 de la page.
-// Cadre 1 = LE MÉDECIN (à droite) ; le coin bas droit reste libre pour le QR code.
+// Cadre 1 = LE MÉDECIN (à droite), pied de page de l'hôpital ; le coin bas droit
+// reste libre pour le QR code.
 import jsPDF from 'jspdf';
 import logoUrl from '../assets/logo-ordre-malte.png';
 
@@ -16,6 +17,13 @@ const VISA_LABEL_Y = ROWS.lieuDate + 30;
 const ZONE = { width: 190, height: 72 };
 const QR_SPACE = 60;
 const INK = [13, 38, 140];
+const FOOTER = [
+  ['Hôpital Saint-Jean de Malte', 7.5, true],
+  ['BP 56 – Njombé-Cameroun', 7],
+  ['Tél. : 00 (237) 657 56 91 03 - e-mail : hopitalcameroun@ordredemaltefrance.org', 7],
+  ["Dépendant des Œuvres Hospitalières Françaises de l'Ordre de Malte, association reconnue d'utilité publique", 6.5],
+  ['en partenariat avec le Ministère de la Santé Publique, et avec les plantations du groupe PHP', 6.5],
+];
 
 // Cadre de signature en points pdf-lib (origine en bas à gauche)
 export const CERTIFICAT_SIGNATURE_ZONES = [
@@ -114,6 +122,15 @@ export async function buildCertificatAptitudePdf(formData) {
   doc.setFontSize(12.5);
   doc.setTextColor(0, 0, 0);
   doc.text('LE MÉDECIN', z.x + z.width / 2, VISA_LABEL_Y, { align: 'center' });
+
+  // Pied de page de l'hôpital, centré (entre le cadre de signature et le bas de page,
+  // à gauche de l'emplacement du QR code)
+  doc.setTextColor(51, 51, 51);
+  FOOTER.forEach(([text, size, bold], i) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(size);
+    doc.text(text, W / 2, H - 50 + i * 8.6, { align: 'center' });
+  });
 
   return { blob: doc.output('blob'), signatureZones: CERTIFICAT_SIGNATURE_ZONES.map(zone => ({ ...zone })) };
 }

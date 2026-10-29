@@ -61,7 +61,7 @@ const CertificatAptitude = ({ formData, setFormData }) => {
       </div>
 
       {/* Aperçu A5 paysage */}
-      <div style={{ background: '#fff', color: '#111', border: '1px solid #ddd', borderRadius: 4, padding: '18px 22px', aspectRatio: '1.414', maxWidth: 720, width: '100%', margin: '0 auto', boxSizing: 'border-box', fontFamily: 'Helvetica, Arial, sans-serif', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', color: '#111', border: '1px solid #ddd', borderRadius: 4, padding: '18px 22px', aspectRatio: '1.414', maxWidth: 720, width: '100%', margin: '0 auto', boxSizing: 'border-box', fontFamily: 'Helvetica, Arial, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <img src={logo} alt="" style={{ width: '34%', minWidth: 120 }} />
           <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 700, color: '#333', lineHeight: 1.35 }}>
@@ -81,6 +81,13 @@ const CertificatAptitude = ({ formData, setFormData }) => {
         </div>
         <div style={{ ...row, marginLeft: '50%' }}>Njombé le <span style={dots}>{frDate(formData.date_certificat)}</span></div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 13, marginTop: 14, paddingRight: '22%' }}><span>LE MÉDECIN</span></div>
+        <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 'clamp(6px, 1.1vw, 8px)', color: '#333', lineHeight: 1.35 }}>
+          <div style={{ fontWeight: 700 }}>Hôpital Saint-Jean de Malte</div>
+          <div>BP 56 – Njombé-Cameroun</div>
+          <div>Tél. : 00 (237) 657 56 91 03 - e-mail : hopitalcameroun@ordredemaltefrance.org</div>
+          <div>Dépendant des Œuvres Hospitalières Françaises de l'Ordre de Malte, association reconnue d'utilité publique</div>
+          <div>en partenariat avec le Ministère de la Santé Publique, et avec les plantations du groupe PHP</div>
+        </div>
       </div>
     </div>
   );
