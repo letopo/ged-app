@@ -19,6 +19,8 @@ class TenantSettings extends Model<InferAttributes<TenantSettings>, InferCreatio
   /** Codes de postes autorisés à voir « BL PHP en attente ». */
   declare sageBlAccessPostes: CreationOptional<string[]>;
   declare fleetAdminAccess: CreationOptional<boolean>;
+  /** Services qui remplissent le programme opératoire de la semaine. */
+  declare blocServices: CreationOptional<string[]>;
   declare updatedBy: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -39,6 +41,8 @@ initModel(TenantSettings, {
   sageBlAccessPostes:   { type: DataTypes.JSONB, allowNull: false, defaultValue: ['facturation', 'dg', 'ccg'] },
   // Parc véhicules ouvert aux administrateurs (décidé par le superadmin)
   fleetAdminAccess:     { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'fleet_admin_access' },
+  // Services qui remplissent le programme opératoire de la semaine
+  blocServices:         { type: DataTypes.JSONB, allowNull: false, defaultValue: ['Chirurgie', 'Gynécologie', 'Pédiatrie', 'Médecine', 'ORL', 'Ophtalmologie'] },
   updatedBy:            { type: DataTypes.UUID, allowNull: true },
 }, {
   sequelize,

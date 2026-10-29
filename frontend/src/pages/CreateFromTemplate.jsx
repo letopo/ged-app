@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { documentsAPI, postesAPI, workflowAPI } from '../services/api';
+import { documentsAPI, postesAPI, workflowAPI, blocAPI } from '../services/api';
 import { Loader, Send, Save, RotateCcw, X, Link2 } from 'lucide-react';
 import useDraftAutoSave from '../hooks/useDraftAutoSave';
 import html2canvas from 'html2canvas';
@@ -227,8 +227,11 @@ const CreateFromTemplate = () => {
     // joint en tête du PDF (liasse) et le lien enregistré (chaîne documentaire).
     const linkedDocument = location.state?.linkedDocument || null;
 
+    // Programme opératoire commun (page Bloc opératoire) : lignes saisies par tous les services
+    const blocPrefill = templateName === 'Planning Opératoire' ? location.state?.blocPrefill || null : null;
+
     const template = templates[templateName] || templates["Demande de permission"];
-    const [formData, setFormData] = useState(template.initialState);
+    const [formData, setFormData] = useState(blocPrefill || template.initialState);
     const pdfContainerRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [visibility, setVisibility, visibilityContext] = useDocumentVisibility(templateName);
@@ -247,7 +250,7 @@ const CreateFromTemplate = () => {
 
     // Auto-save brouillon
     const { draftStatus, hasDraft, restoreDraft, dismissDraft, clearDraft, getDraftAge } = useDraftAutoSave(
-        templateName, formData, setFormData, template.initialState
+        blocPrefill ? null : templateName, formData, setFormData, template.initialState
     );
 
     const handleSubmit = async () => {
@@ -514,6 +517,23 @@ const CreateFromTemplate = () => {
             } catch (wfErr) {
                 toast(t('⚠️ Pièce de caisse créée mais circuit non démarré : {{message}}. Utilisez "Soumettre" depuis Documents.', { message: wfErr.response?.data?.message || t('erreur inconnue') }), { icon: '⚠️' });
             }
+        }
+
+        // Programme opératoire commun : circuit Médecin Chef → DG démarré d'office,
+        // puis la semaine passe à « envoyé à la signature »
+        if (blocPrefill && response.data.data?.id) {
+            const documentId = response.data.data.id;
+            await blocAPI.setStatus(blocPrefill.blocWeekStart, 'envoye', documentId).catch(() => {});
+            try {
+                await workflowAPI.create({ documentId });
+                toast.success(t('Programme opératoire envoyé au Médecin Chef puis au DG.'));
+                navigate(`/bloc-operatoire?semaine=${blocPrefill.blocWeekStart}`);
+            } catch (wfErr) {
+                // Plusieurs titulaires (ex. deux DG) : choisir le signataire dans « Soumettre »
+                toast(t('Choisissez le signataire puis validez l\'envoi : {{message}}', { message: wfErr.response?.data?.message || t('erreur inconnue') }), { icon: '✍️' });
+                navigate(`/documents?soumettre=${documentId}`);
+            }
+            return;
         }
 
         clearDraft();

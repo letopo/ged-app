@@ -768,6 +768,19 @@ const RELEASE_NOTES = [
       'Pour retirer le décor : Paramètres › Profil › Décor de fêtes.',
     ],
   },
+  {
+    id: '2026-10-29-programme-operatoire',
+    date: '2026-10-29',
+    target: 'app',
+    title: 'Programme opératoire commun à tous les services',
+    access: (user) => isAdmin(user) || ['director', 'dds', 'medical_chief'].includes(user?.role)
+      || (user?.postes || []).some(p => ['bloc_saisie', 'bloc_responsable'].includes(p)),
+    items: [
+      'Nouveau menu Bloc opératoire › Programme opératoire : chaque service (Chirurgie, Gynécologie, Pédiatrie, Médecine…) ajoute ses interventions de la semaine en même temps que les autres, et chacun voit les lignes des autres services apparaître en direct.',
+      'La saisie de la semaine suivante est ouverte jusqu\'au vendredi 12 h ; ensuite, seul le responsable du programme peut encore corriger.',
+      'Le responsable clôture la semaine puis génère un seul document, avec une colonne « Service », envoyé automatiquement au Médecin Chef puis au DG pour signature.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

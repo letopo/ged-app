@@ -7,6 +7,7 @@ import { tenantNamespace } from '../config/database.js';
 
 // Salles des files d'attente propres à chaque établissement (noms et téléphones des patients)
 const queueRoom = (tenantId, queueType) => `queue_${tenantId}_${queueType}`;
+const blocRoom = (tenantId) => `bloc_${tenantId}`;
 const positionRoom = (tenantId, queueType, positionNumber) => `position_${tenantId}_${queueType}_${positionNumber}`;
 
 let io = null;
@@ -94,6 +95,9 @@ export const initializeSocket = (server) => {
   socket.join(`user:${userId}`);
   // Appareil : déconnecté à distance via « Appareils connectés »
   if (socket.sessionId) socket.join(`session:${socket.sessionId}`);
+  // Programme opératoire : les pages ouvertes se rafraîchissent quand un service saisit
+  socket.on('join_bloc', () => socket.join(blocRoom(socket.tenantId)));
+  socket.on('leave_bloc', () => socket.leave(blocRoom(socket.tenantId)));
 
   // Tablettes de guichet pour la signature des patients
   attachSignatureKiosk(socket, io);
@@ -327,6 +331,12 @@ export const getSocketStats = () => {
 };
 
 export const getIO = () => io;
+
+/** Programme opératoire modifié (weekStart = lundi AAAA-MM-JJ) : les pages ouvertes rechargent. */
+export const emitBlocChanged = (weekStart, byUserId, tenantId = tenantNamespace.get('tenantId')) => {
+  if (!io || !tenantId) return;
+  io.to(blocRoom(tenantId)).emit('bloc:changed', { weekStart, by: byUserId });
+};
 
 /**
  * Notifie un utilisateur que ses droits d'accès ont changé.
