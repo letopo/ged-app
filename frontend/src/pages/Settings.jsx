@@ -21,6 +21,7 @@ import AiSettingsPanel from '../components/AiSettingsPanel';
 import SageSettingsPanel from '../components/SageSettingsPanel';
 import ConfidentialityPanel from '../components/ConfidentialityPanel';
 import toast from 'react-hot-toast';
+import { useFestive, setFestiveEnabled } from '../components/Festive';
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 const NAV = [
@@ -102,6 +103,7 @@ export default function Settings() {
   const { t } = useTranslation();
   const { user, updateUser } = useAuth();
   const { setLang } = useLanguage();
+  const festive = useFestive();
   const [activeTab, setActiveTab] = useState('profile');
   // Messagerie : super-administrateur, ou administrateur autorisé par lui
   const [mailAccess, setMailAccess] = useState(user?.role === 'superadmin');
@@ -367,6 +369,17 @@ export default function Settings() {
                   ))}
                 </div>
               </div>
+
+              {/* Décor de fêtes (affiché seulement pendant la saison) */}
+              {festive.season && (
+                <div style={{ marginBottom:20 }}>
+                  <label style={{ fontSize:12, fontWeight:500, color:'var(--fg)', display:'block', marginBottom:8 }}>{t('Décor de fêtes')}</label>
+                  <label style={{ display:'inline-flex', alignItems:'center', gap:8, fontSize:13, color:'var(--fg-muted)', cursor:'pointer' }}>
+                    <input type="checkbox" checked={festive.enabled} onChange={e => setFestiveEnabled(e.target.checked)} />
+                    {t('Neige, guirlande et bonnet de Noël sur l’interface')}
+                  </label>
+                </div>
+              )}
 
               {/* Signature + Cachet */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:28 }}>

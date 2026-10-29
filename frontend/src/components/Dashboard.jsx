@@ -9,6 +9,7 @@ import i18n from '../i18n/config';
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import PendingVehicleChecks from './vehicles/PendingVehicleChecks';
+import { useFestive, festiveGreeting } from './Festive';
 import {
   Clock, CheckCircle, FileText, TrendingDown, TrendingUp,
   Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader, Hourglass,
@@ -645,6 +646,7 @@ function ActivityFeed({ documents }) {
 
 const Dashboard = () => {
   const { t } = useTranslation();
+  const festive = useFestive();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { lateDays } = useTenantSettings();
@@ -772,6 +774,9 @@ const Dashboard = () => {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: 0, letterSpacing: '-0.3px' }}>
             {getGreeting()}, {user?.firstName || user?.username}.
           </h1>
+          {festive.active && (
+            <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 6 }}>{festiveGreeting(t)}</div>
+          )}
         </div>
         <button onClick={loadData}
           style={{

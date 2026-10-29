@@ -3104,5 +3104,10 @@
   "complété par les RH": "تكمله الموارد البشرية",
   "Bon de prise en charge créé et envoyé pour visa.": "تم إنشاء سند التكفل وإرساله للتأشير.",
   "Bon créé mais circuit non démarré : {{message}}. Utilisez « Soumettre » depuis Documents.": "تم إنشاء السند لكن المسار لم يبدأ: {{message}}. استخدم «إرسال» من المستندات.",
-  "Erreur lors de la création du bon.": "خطأ أثناء إنشاء السند."
+  "Erreur lors de la création du bon.": "خطأ أثناء إنشاء السند.",
+  "Joyeux Noël !": "عيد ميلاد مجيد!",
+  "Bonne année {{year}} !": "سنة سعيدة {{year}}!",
+  "Joyeuses fêtes de fin d’année !": "أعياد سعيدة!",
+  "Décor de fêtes": "زينة الأعياد",
+  "Neige, guirlande et bonnet de Noël sur l’interface": "الثلج والزينة وقبعة بابا نويل على الواجهة"
 }
