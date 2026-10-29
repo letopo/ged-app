@@ -20,7 +20,7 @@ import { sendNewTaskPushNotification } from '../services/pushNotificationService
 import { mergePDFs } from '../utils/pdfMerger.js';
 import { PDFExtract } from 'pdf.js-extract';
 import { computeDeadline } from '../utils/workflowAutoExpire.js';
-import { generateVerificationHash, generateQRCodeBuffer, buildVerificationUrl } from '../utils/qrVerification.js';
+import { generateVerificationHash, generateQRCodeBuffer, buildVerificationUrl, resolveAppUrl } from '../utils/qrVerification.js';
 import { notifyValidator, createWorkflowForDocument, resolveValidatorIdsFromTemplate, currentCycleSteps } from '../utils/workflowEngine.js';
 import { applySignerLabels, getSignerTitleOptions, FIXED_LABEL_CATEGORIES } from '../utils/signatureLabels.js';
 import { centeredStampRect } from '../utils/stampSize.js';
@@ -941,7 +941,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
           } else {
             // FIN DU WORKFLOW - Ajouter QR code de verification
             const verificationHash = generateVerificationHash(document.id, task.step, task.validatorId);
-            const verificationUrl = buildVerificationUrl(verificationHash);
+            const verificationUrl = buildVerificationUrl(verificationHash, await resolveAppUrl(document.tenantId));
 
             try {
               const currentFilePath = resolveStoredFile(document.filePath);
@@ -1293,7 +1293,7 @@ export const bulkValidateTask = async (req, res) => {
           } else {
             // FIN DU WORKFLOW (bulk) - Ajouter QR code
             const vHash = generateVerificationHash(document.id, task.step, task.validatorId);
-            const vUrl = buildVerificationUrl(vHash);
+            const vUrl = buildVerificationUrl(vHash, await resolveAppUrl(document.tenantId));
             try {
               const curPath = resolveStoredFile(document.filePath);
               const curBytes = await fs.readFile(curPath);

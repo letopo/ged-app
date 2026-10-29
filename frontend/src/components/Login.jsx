@@ -210,6 +210,11 @@ export default function Login({ onLogin }) {
                 {t('Créer un compte')}
               </Link>
             </p>
+            <p style={{ color: 'var(--fg-muted)', fontSize: 13, marginTop: 8 }}>
+              <Link to="/verify" style={{ color: 'var(--brand)', fontWeight: 500, textDecoration: 'none' }}>
+                {t('Vérifier un document signé')}
+              </Link>
+            </p>
           </div>
         </div>
       </div>
