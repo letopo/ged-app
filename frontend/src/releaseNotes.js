@@ -781,6 +781,16 @@ const RELEASE_NOTES = [
       'Le responsable clôture la semaine puis génère un seul document, avec une colonne « Service », envoyé automatiquement au Médecin Chef puis au DG pour signature.',
     ],
   },
+  {
+    id: '2026-10-29-certificat-aptitude-a5',
+    date: '2026-10-29',
+    target: 'app',
+    title: 'Certificat d\'aptitude au format du Bon de prise en charge',
+    items: [
+      'Le certificat d\'aptitude sort maintenant en A5 paysage, avec la même présentation que le Bon de prise en charge : texte net, rubriques remplies en bleu sur pointillés, cadre « Le Médecin » pour la signature et le cachet.',
+      'L\'écran de saisie montre un aperçu identique au document produit.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

@@ -20,6 +20,7 @@ import PlanningOperatoire from './templates/PlanningOperatoire'; // ✅ NOUVEAU
 import BonDeCommande from './templates/BonDeCommande';
 import BonDeCommandeInterne from './templates/BonDeCommandeInterne';
 import CertificatAptitude from './templates/CertificatAptitude';
+import { buildCertificatAptitudePdf } from '../utils/certificatAptitudePdf';
 import AttestationConge from './templates/AttestationConge';
 import DemandeBesoin from './templates/DemandeBesoin';
 import DemandeExplication from './templates/DemandeExplication';
@@ -271,6 +272,11 @@ const CreateFromTemplate = () => {
         }
     }
 
+    if (templateName === "Certificat d'aptitude" && (!formData.nom_docteur?.trim() || !formData.nom_employe?.trim() || !formData.declaration)) {
+        setError(t("Renseignez le docteur, l'employé et cochez « Apte » ou « Inapte »."));
+        return;
+    }
+
     // Bon de prise en charge : le serveur dessine le bon, puis le circuit
     // Médecin du travail → RH → DG démarre (comme la Pièce de caisse)
     if (template.type === 'server') {
@@ -326,6 +332,20 @@ const CreateFromTemplate = () => {
         } catch (pdfError) {
             console.error('❌ Erreur de génération PDF Natif:', pdfError);
             setError(t("Erreur critique lors de la génération PDF natif. Veuillez vérifier la console."));
+            setLoading(false);
+            setGenStep('');
+            return;
+        }
+
+    } else if (templateName === "Certificat d'aptitude") {
+        // A5 paysage dessiné en texte (même présentation que le Bon de prise en charge)
+        try {
+            setGenStep(t('Génération PDF…'));
+            ({ blob: pdfBlob, signatureZones } = await buildCertificatAptitudePdf(formData));
+            finalTitle = `Certificat d'aptitude - ${formData.nom_employe || t('Inconnu')}`;
+        } catch (pdfError) {
+            console.error('❌ Erreur de génération du certificat:', pdfError);
+            setError(t('Erreur lors de la génération du certificat.'));
             setLoading(false);
             setGenStep('');
             return;
