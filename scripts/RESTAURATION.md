@@ -20,7 +20,7 @@ Chaque dossier du jour est une copie **complète**. Les fichiers qui n'ont pas c
 
 Cela fait 17 points de restauration une fois le cycle complet.
 
-**Vérification :** chaque nuit, l'archive de la base est relue et le nombre de fichiers copiés est comparé à l'original. Le résultat est écrit dans `/home/ged/ged-app/backup-status/status.json`. En cas d'échec, de sauvegarde manquante depuis plus de 26 h ou de disque plein à plus de 85 %, **les administrateurs voient une alerte rouge sur l'Accueil de la GED**.
+**Vérification :** chaque nuit, l'archive de la base est relue et le nombre de fichiers copiés est comparé à l'original. Le résultat est écrit dans `/home/ged/ged-app/backup-status/status.json`. En cas d'échec, de sauvegarde manquante depuis plus de 26 h ou de disque plein à plus de 80 % (critique à 90 %), **les administrateurs voient une alerte sur l'Accueil de la GED** ; le disque y est mesuré en direct. Les superadministrateurs reçoivent aussi un e-mail et ont le détail dans **Super Admin › État du serveur** (seuils réglables).
 
 > ⚠️ Les sauvegardes sont sur le **même disque** que la GED. Elles protègent contre les erreurs, les suppressions et les corruptions, mais **pas** contre la perte du disque ou de la machine. Une copie hors du serveur reste à mettre en place.
 

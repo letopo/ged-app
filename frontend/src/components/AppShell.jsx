@@ -11,7 +11,7 @@ import {
   ShoppingCart, Wrench, Stethoscope, Shield, Archive, Scissors,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
-  MessageSquare, FileSpreadsheet, Sparkles, Ambulance,
+  MessageSquare, FileSpreadsheet, Sparkles, Ambulance, HardDrive,
 } from 'lucide-react';
 import { workflowAPI, tenantBrandingAPI, usersAPI, authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -273,6 +273,7 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
 
   const superAdminItems = [
     { path: '/super-admin', icon: Shield, label: t('Clients SaaS'), superAdminOnly: true },
+    { path: '/etat-serveur', icon: HardDrive, label: t('État du serveur'), superAdminOnly: true },
   ].filter(canAccess);
 
   const initials = ((user?.firstName?.[0] || user?.username?.[0] || '?') + (user?.lastName?.[0] || '')).toUpperCase();
@@ -421,6 +422,7 @@ const ROUTE_CRUMBS = {
   '/services':            ['Organisation', 'Services'],
   '/audit-log':           ['Organisation', "Journal d'audit"],
   '/admin/droits-acces':  ['Administration', "Droits d'accès"],
+  '/etat-serveur':        ['Super Admin', 'État du serveur'],
   '/workflow-templates':  ['Organisation', 'Modèles workflow'],
   '/forms':               ['Organisation', 'Formulaires'],
   '/portail':             ['Applications', 'Portail'],
