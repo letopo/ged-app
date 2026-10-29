@@ -912,5 +912,6 @@ a.kpi-card:active { transform: scale(0.98); }
 }
 /* Pas de décor à l'impression */
 @media print {
-  .festive-snow, .festive-garland, .festive-hat { display: none !important; }
+  .festive-snow, .festive-garland, .festive-hat,
+  .campaign-banner, .campaign-badge, .campaign-confetti { display: none !important; }
 }
