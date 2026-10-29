@@ -66,6 +66,7 @@ import ComptaDocuments from './pages/ComptaDocuments';
 import AccessControlPage from './pages/AccessControlPage';
 import ChatPage from './pages/ChatPage';
 import SuperAdminPage from './pages/SuperAdminPage';
+import EtatServeur from './pages/EtatServeur';
 import OfflineBanner from './components/OfflineBanner';
 import SessionWarning from './components/SessionWarning';
 import useSessionTimeout from './hooks/useSessionTimeout';
@@ -381,6 +382,7 @@ function App() {
           <Route path="/chat/:convId" element={<ChatPage />} />
           {/* Super Admin */}
           <Route path="/super-admin" element={<SuperAdminRoute><PageWrapper><SuperAdminPage /></PageWrapper></SuperAdminRoute>} />
+          <Route path="/etat-serveur" element={<SuperAdminRoute><PageWrapper><EtatServeur /></PageWrapper></SuperAdminRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />

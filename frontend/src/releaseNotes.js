@@ -782,6 +782,29 @@ const RELEASE_NOTES = [
     ],
   },
   {
+    id: '2026-10-29-alerte-disque-en-direct',
+    date: '2026-10-29',
+    target: 'app',
+    title: 'Alerte « Sauvegarde du serveur » à jour en direct',
+    access: isAdmin,
+    items: [
+      'L\'occupation du disque est maintenant mesurée en direct : l\'alerte de l\'Accueil disparaît dès que le disque repasse sous le seuil et apparaît en cours de journée s\'il le dépasse, sans attendre la sauvegarde de minuit.',
+      'Seuils par défaut : avertissement à 80 %, critique à 90 % ; alerte aussi si la dernière sauvegarde a échoué ou date de plus de 26 h.',
+    ],
+  },
+  {
+    id: '2026-10-29-etat-serveur',
+    date: '2026-10-29',
+    target: 'app',
+    title: 'Panneau « État du serveur »',
+    access: (user) => user?.role === 'superadmin',
+    items: [
+      'Nouveau menu Super Admin › État du serveur : disque en direct, dernière sauvegarde (résultat, durée, journal), points de restauration, taille des documents, de la base et des sauvegardes.',
+      'Tendance sur 30 jours et estimation du nombre de mois avant que le disque soit plein, à partir d\'une mesure par jour.',
+      'E-mail aux superadministrateurs au passage des seuils et en cas d\'échec de sauvegarde, puis un e-mail de retour à la normale (jamais en boucle). Seuils réglables depuis le panneau.',
+    ],
+  },
+  {
     id: '2026-10-29-certificat-aptitude-a5',
     date: '2026-10-29',
     target: 'app',

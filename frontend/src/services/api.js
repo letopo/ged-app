@@ -766,9 +766,12 @@ export const tenantSettingsAPI = {
   save: (data) => api.put('/tenant-settings', data),
 };
 
-// État du serveur (administrateurs)
+// État du serveur (alerte sauvegarde : administrateurs ; panneau : superadministrateur)
 export const systemAPI = {
   getBackupStatus: () => api.get('/system/backup-status'),
+  getServerHealth: () => api.get('/system/server-health'),
+  getBackupLog:    (day) => api.get(`/system/server-health/journal/${day}`),
+  saveThresholds:  (data) => api.put('/system/server-health/seuils', data),
 };
 
 export default api;

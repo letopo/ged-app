@@ -26,7 +26,7 @@ import workflowRoutes from './routes/workflow.js';
 import notificationRoutes from './routes/notifications.js';
 import calendarRoutes from './routes/calendar.js';
 import healthRouter from './routes/health.js';
-import systemRouter from './routes/system.js'; // État des sauvegardes (administrateurs)
+import systemRouter from './routes/system.js'; // État des sauvegardes et du serveur
 import mailSettingsRouter from './routes/mailSettings.js'; // Paramètres › Messagerie (SMTP par tenant)
 import tenantSettingsRouter from './routes/tenantSettings.js'; // Paramètres › Délais et session
 import integrationsRouter from './routes/integrations.js'; // Paramètres › IA · OCR et › Intégrations (Sage)
@@ -65,6 +65,7 @@ import verificationRoutes from './routes/verificationRoutes.js';
 import signaturePublicRoutes from './routes/signaturePublic.js';
 import vehicleRoutes from './routes/vehicles.js';
 import { startVehicleAlertsScheduler } from './utils/vehicleAlerts.js';
+import { startServerHealthScheduler } from './utils/serverHealth.js';
 import onlyofficeRoutes from './routes/onlyoffice.js';
 import formRoutes from './routes/forms.js'; // ✅ Form Builder
 import postesRoutes from './routes/postes.js'; // ✅ Postes organisationnels
@@ -975,6 +976,8 @@ const startServer = async () => {
     await expireOverdueWorkflows();
     startWorkflowExpireScheduler();
     startVehicleAlertsScheduler();
+    // Disque et sauvegardes : alertes e-mail aux superadministrateurs + mesure quotidienne
+    startServerHealthScheduler();
 
     // 4c-bis. Sage : import automatique périodique des factures PHP (no-op si SAGE_* absent)
     startSageFactureSync();
