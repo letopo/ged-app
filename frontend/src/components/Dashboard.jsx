@@ -10,6 +10,7 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import PendingVehicleChecks from './vehicles/PendingVehicleChecks';
 import { useFestive, festiveGreeting } from './Festive';
+import { CampaignBanner } from './Campaign';
 import {
   Clock, CheckCircle, FileText, TrendingDown, TrendingUp,
   Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader, Hourglass,
@@ -790,6 +791,9 @@ const Dashboard = () => {
           {t('Actualiser')}
         </button>
       </div>
+
+      {/* Événement de l'établissement (anniversaire, campagne… cf. campaigns.js) */}
+      <CampaignBanner user={user} />
 
       {/* Contrôles d'ambulance à faire (équipage) */}
       <PendingVehicleChecks style={{ marginBottom: 20 }} />

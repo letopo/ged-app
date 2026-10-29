@@ -22,6 +22,7 @@ import GlobalChatBubble from './GlobalChatBubble';
 import useChatUnread from '../hooks/useChatUnread';
 import { ReleaseNotesProvider } from './ReleaseNotes';
 import { useFestive, Snowfall, Garland, SantaHat } from './Festive';
+import { CampaignBadge, CampaignConfetti } from './Campaign';
 import toast from 'react-hot-toast';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
@@ -295,6 +296,7 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
           {festive.active && <SantaHat size={22} />}
         </span>
         <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.3px', color: 'var(--fg)', lineHeight: 1 }}>GED</div>
+        <CampaignBadge user={user} />
         <div style={{ marginLeft: 'auto' }}>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 3,
@@ -862,6 +864,7 @@ export default function AppShell({ onLogout }) {
   return (
     <ReleaseNotesProvider>
     {festive.active && <Snowfall />}
+    <CampaignConfetti user={user} />
     <div style={{
       display: 'flex', height: '100vh',
       background: 'var(--bg)',
