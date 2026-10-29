@@ -303,6 +303,7 @@ function App() {
         {/* ── Routes publiques ──────────────────────────────── */}
         <Route path="/login"         element={<Login onLogin={login} />} />
         <Route path="/register"      element={<Register />} />
+        <Route path="/verify"        element={<VerifyDocument />} />
         <Route path="/verify/:hash"  element={<VerifyDocument />} />
         <Route path="/display"       element={<PublicDisplay />} />
         {/* Signature du patient sur une tablette (jeton du QR code, sans connexion) */}

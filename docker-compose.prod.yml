@@ -53,6 +53,9 @@ services:
       SMTP_PASS: ${SMTP_PASS}
       # 🔒 IMPORTANT : Mettre HTTPS dans CORS_ORIGIN
       CORS_ORIGIN: ${CORS_ORIGIN:-https://192.168.1.186}
+      # Adresse publique de la GED : QR de vérification des documents signés,
+      # liens des e-mails et de la Discussion (jamais localhost en production)
+      APP_URL: ${APP_URL:-https://ged.hsjmcam.net}
       WORKFLOW_ENABLE_NOTIFICATIONS: ${WORKFLOW_ENABLE_NOTIFICATIONS:-false}
       WORKFLOW_DEFAULT_TIMEOUT_DAYS: ${WORKFLOW_DEFAULT_TIMEOUT_DAYS:-7}
     volumes:

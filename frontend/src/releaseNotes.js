@@ -814,6 +814,16 @@ const RELEASE_NOTES = [
       'L\'écran de saisie montre un aperçu identique au document produit.',
     ],
   },
+  {
+    id: '2026-10-29-qr-adresse-ged',
+    date: '2026-10-29',
+    target: 'app',
+    title: 'QR code des documents signés : bonne adresse',
+    items: [
+      'Le QR code posé à la fin du circuit de signature renvoie maintenant vers ged.hsjmcam.net (il renvoyait par erreur vers « localhost »). Les documents déjà signés ont reçu un QR corrigé, avec le même code de vérification.',
+      'Nouveau : « Vérifier un document signé » depuis l\'écran de connexion — saisissez le code de 16 caractères imprimé sous le QR (utile pour les copies papier déjà imprimées).',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

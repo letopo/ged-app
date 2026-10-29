@@ -1,8 +1,8 @@
 // frontend/src/pages/VerifyDocument.jsx
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, ShieldX, Loader, FileText, Calendar, User, CheckCircle } from 'lucide-react';
+import { ShieldCheck, ShieldX, Loader, FileText, Calendar, User, CheckCircle, Search } from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -16,17 +16,49 @@ const STATUS_LABELS = {
   draft:              'Brouillon',
 };
 
+// Saisie du code imprimé sous le QR (16 caractères) : copies papier, ou QR
+// illisible / dont l'adresse est fausse (anciens documents signés vers localhost).
+function CodeForm({ autoFocus = false }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [code, setCode] = useState('');
+  const clean = code.toLowerCase().replace(/[^0-9a-f]/g, '');
+  const submit = (e) => {
+    e.preventDefault();
+    if (clean.length === 16) navigate(`/verify/${clean}`);
+  };
+  return (
+    <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <label htmlFor="verify-code" style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)' }}>
+        {t('Code imprimé sous le QR code (16 caractères)')}
+      </label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input id="verify-code" value={code} onChange={e => setCode(e.target.value)} autoFocus={autoFocus}
+          placeholder="ex. 3f9a1c0b7d2e4a68" autoComplete="off" spellCheck={false}
+          style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 'var(--radius-2)', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 14, fontFamily: 'var(--font-mono)', outline: 'none' }} />
+        <button type="submit" disabled={clean.length !== 16}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 'var(--radius-2)', border: 'none', background: clean.length === 16 ? 'var(--brand)' : 'var(--fg-subtle)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: clean.length === 16 ? 'pointer' : 'default' }}>
+          <Search size={14} /> {t('Vérifier')}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function VerifyDocument() {
   const { t } = useTranslation();
   const { lang } = useLanguage();
   const locale = BCP47_LOCALES[lang] || 'fr-FR';
   const { hash } = useParams();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!hash);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     const verify = async () => {
+      setLoading(true);
+      setError(false);
+      setResult(null);
       try {
         const res = await api.get(`/verify/${hash}`);
         setResult(res.data);
@@ -38,6 +70,22 @@ export default function VerifyDocument() {
     };
     if (hash) verify();
   }, [hash]);
+
+  /* ── Saisie du code (lien /verify sans code) ── */
+  if (!hash) return (
+    <div style={{ minHeight: '100vh', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-5)', boxShadow: 'var(--shadow-3)', maxWidth: 440, width: '100%', padding: '28px 24px' }}>
+        <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--brand-soft)', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ShieldCheck size={26} color="var(--brand)" />
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--fg)', textAlign: 'center', marginBottom: 6 }}>{t('Vérifier un document')}</div>
+        <div style={{ fontSize: 13, color: 'var(--fg-muted)', textAlign: 'center', marginBottom: 18 }}>
+          {t('Scannez le QR code du document, ou saisissez le code imprimé juste en dessous.')}
+        </div>
+        <CodeForm autoFocus />
+      </div>
+    </div>
+  );
 
   /* ── Loading ── */
   if (loading) return (
@@ -59,7 +107,8 @@ export default function VerifyDocument() {
           <ShieldX size={26} color="var(--danger)" />
         </div>
         <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 8 }}>{t('Erreur de vérification')}</div>
-        <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{t('Impossible de vérifier ce document. Le lien est peut-être invalide.')}</div>
+        <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 18 }}>{t('Impossible de vérifier ce document. Le lien est peut-être invalide.')}</div>
+        <div style={{ textAlign: 'left' }}><CodeForm /></div>
       </div>
     </div>
   );
@@ -99,6 +148,10 @@ export default function VerifyDocument() {
               : result.message || t("Ce document n'a pas pu être vérifié.")}
           </div>
         </div>
+
+        {!verified && (
+          <div style={{ padding: '18px 24px' }}><CodeForm /></div>
+        )}
 
         {/* Details */}
         {verified && data && (
