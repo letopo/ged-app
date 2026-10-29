@@ -21,6 +21,7 @@ import GlobalSearch from './GlobalSearch';
 import GlobalChatBubble from './GlobalChatBubble';
 import useChatUnread from '../hooks/useChatUnread';
 import { ReleaseNotesProvider } from './ReleaseNotes';
+import { useFestive, Snowfall, Garland, SantaHat } from './Festive';
 import toast from 'react-hot-toast';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
@@ -253,6 +254,7 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
     location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path + '/'));
 
   const canAccess = makeCanAccess(user);
+  const festive = useFestive();
 
   const orgName = user?.Service?.name
     ? user.Service.name.substring(0, 4).toUpperCase()
@@ -288,7 +290,10 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
         borderBottom: '1px solid var(--border)',
         marginBottom: 6, flexShrink: 0,
       }}>
-        <GedMark size={26} />
+        <span style={{ position: 'relative', lineHeight: 0 }}>
+          <GedMark size={26} />
+          {festive.active && <SantaHat size={22} />}
+        </span>
         <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.3px', color: 'var(--fg)', lineHeight: 1 }}>GED</div>
         <div style={{ marginLeft: 'auto' }}>
           <div style={{
@@ -443,6 +448,7 @@ const Topbar = ({ onToggleSidebar, largeTitle }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState([]);
   const [togglingAbsence, setTogglingAbsence] = useState(false);
+  const festive = useFestive();
   const notifRef = useRef(null);
 
   const handleToggleMyAbsence = async () => {
@@ -681,6 +687,7 @@ const Topbar = ({ onToggleSidebar, largeTitle }) => {
           </div>
         )}
       </div>
+      {festive.active && <Garland />}
     </header>
   );
 };
@@ -772,6 +779,7 @@ const MoreSheet = ({ onClose, user }) => {
 
 export default function AppShell({ onLogout }) {
   const { user, updateUser } = useAuth();
+  const festive = useFestive();
 
   // Droits d'affichage du menu (postes, BL Sage, parc véhicules) calculés par le
   // serveur : rafraîchis à l'ouverture, sinon un accès donné depuis la
@@ -853,6 +861,7 @@ export default function AppShell({ onLogout }) {
 
   return (
     <ReleaseNotesProvider>
+    {festive.active && <Snowfall />}
     <div style={{
       display: 'flex', height: '100vh',
       background: 'var(--bg)',

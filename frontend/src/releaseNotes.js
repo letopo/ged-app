@@ -17,6 +17,8 @@
 //
 // Les notes sont affichées de la plus ancienne à la plus récente.
 
+import { isFestiveSeason } from './components/Festive';
+
 const isAdmin = (user) => ['admin', 'superadmin'].includes(user?.role);
 
 const RELEASE_NOTES = [
@@ -752,6 +754,18 @@ const RELEASE_NOTES = [
     title: 'Documents lisibles en mode nuit',
     items: [
       'En mode nuit, les formulaires (Bon de sortie, Demande de besoin, Pièce de caisse…) gardent une écriture noire sur la feuille blanche, à l’écran comme dans le PDF généré.',
+    ],
+  },
+  {
+    id: '2026-12-decor-fetes',
+    date: '2026-10-29',
+    target: 'app',
+    title: 'La GED se met à l’heure des fêtes 🎄',
+    // Ne s'affiche qu'à partir du 1er décembre (pas de surprise gâchée)
+    access: () => isFestiveSeason(),
+    items: [
+      'Jusqu’au 6 janvier, la GED se pare de neige, d’une guirlande et d’un bonnet de Noël. Joyeuses fêtes !',
+      'Pour retirer le décor : Paramètres › Profil › Décor de fêtes.',
     ],
   },
 ];
