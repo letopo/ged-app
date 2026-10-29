@@ -219,11 +219,13 @@ function DailySummary({ tasks, own, lateDays }) {
 
 // ── Alerte sauvegarde (administrateurs) ─────────────────────────────────────────
 // Même présentation que la Synthèse du jour. N'apparaît qu'en cas de problème
-// sur la sauvegarde nocturne du serveur (voir scripts/backup-nightly.sh).
+// sur la sauvegarde nocturne (voir scripts/backup-nightly.sh) ou de disque
+// presque plein : le disque est mesuré en direct, l'alerte disparaît dès qu'il
+// repasse sous le seuil. Détails : page État du serveur (superadministrateur).
 
-function BackupAlert({ report }) {
+function BackupAlert({ report, isSuperAdmin }) {
   const { t } = useTranslation();
-  if (!report?.available || report.level === 'ok') return null;
+  if (!report || report.level === 'ok' || !report.problems?.length) return null;
   const color = report.level === 'error' ? 'var(--danger)' : 'var(--warning)';
   const s = report.status || {};
   const lines = report.problems.map(p => {
@@ -234,9 +236,12 @@ function BackupAlert({ report }) {
     if (p.code === 'disk') return t('Le disque du serveur est plein à {{percent}} % : les prochaines sauvegardes risquent d\'échouer.', { percent: p.percent });
     return t('L\'état de la sauvegarde est illisible.');
   });
-  const headline = report.level === 'error'
+  const backupProblem = report.problems.some(p => p.code !== 'disk');
+  const headline = backupProblem && report.level === 'error'
     ? t('Les données de la GED ne sont plus sauvegardées correctement.')
-    : t('La sauvegarde du serveur demande votre attention.');
+    : !backupProblem && report.level === 'error'
+      ? t('Le disque du serveur est presque plein.')
+      : t('La sauvegarde du serveur demande votre attention.');
   return (
     <div className="ged-card dash-summary" style={{ '--summary-color': color }} role="alert">
       <div className="dash-summary-label"><DatabaseBackup size={14} strokeWidth={2.2} /> {t('Sauvegarde du serveur')}</div>
@@ -245,7 +250,9 @@ function BackupAlert({ report }) {
       {s.oldestRestorePoint && (
         <p className="dash-summary-line">{t('{{count}} point(s) de restauration disponibles, le plus ancien du {{date}}.', { count: s.restorePoints, date: s.oldestRestorePoint })}</p>
       )}
-      <p className="dash-summary-line">{t('Prévenez l\'administrateur du serveur (journal : {{log}}).', { log: s.log || '/home/ged/backups' })}</p>
+      {isSuperAdmin
+        ? <p className="dash-summary-line"><Link to="/etat-serveur" style={{ color: 'inherit', fontWeight: 600 }}>{t('Voir l\'état du serveur')}</Link></p>
+        : <p className="dash-summary-line">{t('Prévenez l\'administrateur du serveur (journal : {{log}}).', { log: s.log || '/home/ged/backups' })}</p>}
     </div>
   );
 }
@@ -799,7 +806,7 @@ const Dashboard = () => {
       <PendingVehicleChecks style={{ marginBottom: 20 }} />
 
       {/* Alerte sauvegarde (administrateurs, seulement en cas de problème) */}
-      {isAdmin && <BackupAlert report={backupReport} />}
+      {isAdmin && <BackupAlert report={backupReport} isSuperAdmin={user?.role === 'superadmin'} />}
 
       {/* Synthèse du jour */}
       {!loading && <DailySummary tasks={myTasks} own={ownWeek} lateDays={lateDays} />}
