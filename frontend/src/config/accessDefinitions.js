@@ -28,6 +28,7 @@ export const POSTES_STATIC = [
   { code: 'rh',            label: 'Responsable RH',       color: '#f472b6', description: 'Gestion des employés + docs RH confidentiels' },
   { code: 'gmao',          label: 'Responsable GMAO',     color: '#f97316', description: 'Accès au module de maintenance des équipements' },
   { code: 'kanban',        label: 'Suivi Technique',      color: '#8b5cf6', description: 'Accès au tableau de suivi MG/Informatique/Biomédical' },
+  { code: 'finances',      label: 'Finances',             color: '#059669', description: 'Accès aux pages Factures PHP (Sage) et BL PHP en attente (sans signer les pièces de caisse)' },
   { code: 'planning',      label: 'Rédacteur des plannings', color: '#0d9488', description: 'Création et saisie des plannings (validation par la direction)' },
   { code: 'bloc_saisie',   label: 'Saisie du programme opératoire', color: '#0f766e', description: 'Ajoute les interventions de son service au programme opératoire de la semaine' },
   { code: 'bloc_responsable', label: 'Responsable du programme opératoire', color: '#115e59', description: 'Clôt le programme opératoire et l\'envoie au Médecin Chef puis au DG' },
@@ -111,7 +112,13 @@ export const MODULES = [
     id: 'sage_factures_php', category: 'Applications', label: 'PHP — Factures Sage',
     path: '/sage-factures-php', description: 'Supervision des factures patient PHP importées depuis Sage + export fichier de paiement',
     roles: ['superadmin','admin'],
-    postes: [],
+    postes: ['finances','facturation','dg','ccg'],
+  },
+  {
+    id: 'sage_bl_php', category: 'Applications', label: 'PHP — BL en attente',
+    path: '/sage-bl-php', description: 'Bons de livraison PHP en attente de facturation (lecture directe de Sage), relevés',
+    roles: ['superadmin'],
+    postes: ['finances','facturation','dg','ccg'],
   },
   {
     id: 'portail', category: 'Applications', label: 'Portail Gardien',
