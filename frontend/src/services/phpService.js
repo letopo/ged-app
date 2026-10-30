@@ -121,7 +121,7 @@ export const phpImportAPI = {
   importExcel: (file, apply = false) => {
     const fd = new FormData();
     fd.append('file', file);
-    return api.post(`/php/import-excel${apply ? '?apply=1' : ''}`, fd, { timeout: 10 * 60 * 1000 });
+    return api.post(`/php/import-excel${apply ? '?apply=1' : ''}`, fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 10 * 60 * 1000 });
   },
 };
 
