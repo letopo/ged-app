@@ -175,6 +175,15 @@ const ComptaRoute = ({ children }) => {
     ? children : <Navigate to="/dashboard" replace />;
 };
 
+// Factures : mêmes rôles que le serveur (routes/invoices.js) et que le menu
+const ManagementRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <RouteLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return (isAdminOrSuper(user?.role) || ['director', 'dds', 'medical_chief'].includes(user?.role))
+    ? children : <Navigate to="/dashboard" replace />;
+};
+
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 import { useEffect, useState } from 'react';
 
@@ -335,7 +344,7 @@ function App() {
           <Route path="/create-from-template" element={<PageWrapper><CreateFromTemplate /></PageWrapper>} />
           <Route path="/create-work-request"  element={<PageWrapper><CreateWorkRequest /></PageWrapper>} />
           <Route path="/demandes-achat"       element={<PageWrapper><DemandeAchatDashboard /></PageWrapper>} />
-          <Route path="/invoices"             element={<PageWrapper><InvoiceDashboard /></PageWrapper>} />
+          <Route path="/invoices"             element={<ManagementRoute><PageWrapper><InvoiceDashboard /></PageWrapper></ManagementRoute>} />
           <Route path="/kanban/:serviceType"  element={<KanbanRoute><PageWrapper><TrelloBoard /></PageWrapper></KanbanRoute>} />
           <Route path="/settings"             element={<PageWrapper><Settings /></PageWrapper>} />
           <Route path="/parametres/notifications" element={<PageWrapper><NotificationSettings /></PageWrapper>} />

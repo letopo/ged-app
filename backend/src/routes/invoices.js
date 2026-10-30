@@ -1,13 +1,14 @@
-// backend/src/routes/invoices.js - VERSION CORRIGÉE
-
+// backend/src/routes/invoices.js — Factures (dossiers de classement des factures fournisseurs)
 import express from 'express';
 import { getBoard, createFolder, updateFolder, deleteFolder, moveDocument } from '../controllers/invoiceController.js';
-import { protect } from '../middleware/auth.js'; // ✅ Correction ici : on importe "protect"
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Appliquer le middleware d'authentification à toutes les routes
-router.use(protect); // ✅ Correction ici : on utilise "protect"
+// Réservé aux mêmes personnes que l'entrée « Finances › Factures » du menu
+// (AppShell, managementOnly) : administrateurs + direction. Avant, seule la
+// connexion était vérifiée : tout utilisateur pouvait lire et déplacer les factures.
+router.use(protect, authorize('admin', 'director', 'dds', 'medical_chief'));
 
 router.get('/board', getBoard);
 router.post('/folders', createFolder);
