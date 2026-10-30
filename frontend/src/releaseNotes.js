@@ -824,6 +824,17 @@ const RELEASE_NOTES = [
       'Nouveau : « Vérifier un document signé » depuis l\'écran de connexion — saisissez le code de 16 caractères imprimé sous le QR (utile pour les copies papier déjà imprimées).',
     ],
   },
+  {
+    id: '2026-10-30-poste-finances',
+    date: '2026-10-30',
+    target: 'app',
+    title: 'Poste « Finances » : accès aux factures et BL PHP',
+    access: isAdmin,
+    items: [
+      'Nouveau poste « Finances » dans Admin › Postes & Fonctions : il donne accès aux pages Finances › Factures PHP (Sage) et BL PHP en attente (consultation et modification), sans rendre la personne signataire des pièces de caisse.',
+      'L\'entrée « Factures PHP (Sage) » n\'apparaît plus qu\'aux personnes qui peuvent réellement l\'ouvrir.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

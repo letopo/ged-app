@@ -1,7 +1,7 @@
 // backend/src/controllers/sageBlController.js
 // « BL PHP en attente de facturation » : lecture directe de Sage (rien n'est importé).
-// Accès : superadmin + titulaires des postes autorisés (liste réglable par le
-// superadmin, défaut : Service Facturation, DG, CCG).
+// Accès : superadmin + poste « Finances » + titulaires des postes autorisés
+// (liste réglable par le superadmin, défaut : Service Facturation, DG, CCG).
 import fs from 'fs/promises';
 import path from 'path';
 import { TenantIntegration, TenantSettings, Poste, AuditLog, SageFactureImport, Document, Workflow, User, WorkflowTemplate } from '../models/index.js';
@@ -17,6 +17,8 @@ import { createWorkflowFromTemplate } from '../utils/workflowEngine.js';
 import { getUserPosteCodes } from '../utils/posteResolver.js';
 
 export const DEFAULT_BL_ACCESS_POSTES = ['facturation', 'dg', 'ccg'];
+// Poste attribuable dans Postes & Fonctions : toujours autorisé, en plus de la liste réglable
+export const FINANCES_POSTE = 'finances';
 const CACHE_MS = 60_000;
 const cache = new Map(); // tenantId → { at, data }
 
@@ -30,7 +32,7 @@ export async function canAccessSageBl(user, tenantId) {
   if (user.role === 'superadmin') return true;
   const allowed = await getBlAccessPostes(tenantId);
   const mine = await getUserPosteCodes(user.id);
-  return mine.some(c => allowed.includes(c));
+  return mine.includes(FINANCES_POSTE) || mine.some(c => allowed.includes(c));
 }
 
 const guard = (fn) => async (req, res) => {

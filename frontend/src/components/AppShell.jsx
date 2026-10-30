@@ -138,6 +138,8 @@ const makeCanAccess = (user) => (item) => {
   if (item.phpOnly)         return isAdmin || user.role === 'agent_accueil_php';
   if (item.comptaOnly)      return isAdmin || (user.postes || []).includes('comptable');
   if (item.sageBlOnly)      return user.role === 'superadmin' || !!user.canSeeSageBl;
+  // Même règle que le serveur (routes/sageFactures.js) : admins + poste Finances + postes BL
+  if (item.sageFacturesOnly) return isAdmin || !!user.canSeeSageBl;
   if (item.fleetOnly)       return !!user.fleet?.hasModule;
   if (item.blocOnly)        return isAdmin || ['director','dds','medical_chief'].includes(user.role) || (user.postes || []).some(p => ['bloc_saisie','bloc_responsable'].includes(p));
   return true;
@@ -173,7 +175,7 @@ const buildOrgGroups = (t, user) => {
       { path: '/demandes-achat',     icon: ShoppingCart,    label: t("Demandes d'achat"),    demandeAchatOnly: true },
       { path: '/compta',             icon: Calculator,      label: t('Comptabilité'),        comptaOnly: true },
       { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
-      { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageBlOnly: true },
+      { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageFacturesOnly: true },
       { path: '/sage-bl-php',        icon: ClipboardList,   label: t('BL PHP en attente'),   sageBlOnly: true },
     ]},
     { id: 'bloc', color: '#0F766E', icon: Scissors, label: t('Bloc opératoire'), items: [
