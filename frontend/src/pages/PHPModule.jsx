@@ -63,10 +63,14 @@ export default function PHPModule() {
     }
   }, []);
 
-  const loadData = useCallback(async () => {
+  // silent : mise à jour automatique en arrière-plan, sans repasser les blocs en
+  // « chargement » (sinon la page semblait s'actualiser toute seule toutes les 30 s)
+  const loadData = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
       const [dashRes, jourRes] = await Promise.all([
         phpStatsAPI.getDashboard(),
         phpStatsAPI.getStatsDuJour()
@@ -75,16 +79,23 @@ export default function PHPModule() {
       setStatsJour(jourRes.data.data);
     } catch (err) {
       console.error('Erreur chargement PHP dashboard:', err);
-      setError(t('Impossible de charger le tableau de bord PHP'));
+      if (!silent) setError(t('Impossible de charger le tableau de bord PHP'));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
+  // Premier chargement, puis mise à jour discrète toutes les 30 s (onglet visible
+  // seulement) et au retour sur l'onglet
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
+    const refresh = () => { if (!document.hidden) loadData({ silent: true }); };
+    const interval = setInterval(refresh, 30000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, [loadData]);
 
   const handleSearchMatricule = async (e) => {
@@ -159,7 +170,7 @@ export default function PHPModule() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={loadData}
+            onClick={() => loadData()}
             className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}
           >
@@ -460,7 +471,7 @@ export default function PHPModule() {
       </div>
 
       {/* Modales */}
-      {showImport && <PHPImportExcel onClose={() => setShowImport(false)} onDone={loadData} />}
+      {showImport && <PHPImportExcel onClose={() => setShowImport(false)} onDone={() => loadData()} />}
       {showRegistration && (
         <PHPPatientRegistration
           onClose={() => setShowRegistration(false)}

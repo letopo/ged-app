@@ -847,6 +847,16 @@ const RELEASE_NOTES = [
       'Nouveau bouton « Importer l\'Excel » dans le module PHP : analyse du fichier, puis import des patients, consultations, hospitalisations, opérations et repos. Réimportable à chaque mise à jour du fichier, sans doublon.',
     ],
   },
+  {
+    id: '2026-10-30-php-sans-clignotement',
+    date: '2026-10-30',
+    target: 'app',
+    title: 'Module PHP : plus d\'actualisation visible toutes les 30 secondes',
+    access: (user) => ['admin', 'superadmin', 'agent_accueil_php'].includes(user?.role),
+    items: [
+      'L\'accueil du module PHP se met à jour en arrière-plan : les chiffres changent sans que la page clignote comme si elle avait été actualisée.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
