@@ -63,6 +63,12 @@ const DecesTransfertPHP = sequelize.define('DecesTransfertPHP', {
       key: 'id'
     }
   },
+  // Ligne d'origine dans HSJM_Gestion_v3.xlsm (import sans doublons, utils/phpExcelImport.js)
+  excelRef: {
+    type: DataTypes.STRING(80),
+    allowNull: true,
+    field: 'excel_ref'
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true

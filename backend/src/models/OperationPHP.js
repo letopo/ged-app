@@ -64,6 +64,12 @@ const OperationPHP = sequelize.define('OperationPHP', {
     field: 'compte_rendu',
     comment: 'Compte rendu opératoire'
   },
+  // Ligne d'origine dans HSJM_Gestion_v3.xlsm (import sans doublons, utils/phpExcelImport.js)
+  excelRef: {
+    type: DataTypes.STRING(80),
+    allowNull: true,
+    field: 'excel_ref'
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true

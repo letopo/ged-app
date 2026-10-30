@@ -10,7 +10,7 @@ import {
   Calendar, Building2, User, ClipboardList, Timer
 } from 'lucide-react';
 import { phpConsultationAPI, phpReferenceAPI, phpRendezVousAPI } from '../services/phpService';
-import PHPConsultationForm from '../components/php/PHPConsultationForm';
+import PHPConsultationForm, { TYPES_VISITE } from '../components/php/PHPConsultationForm';
 import toast from 'react-hot-toast';
 import Pagination, { usePageSize } from '../components/Pagination';
 import i18n from '../i18n/config';
@@ -69,6 +69,9 @@ function formatMinutes(min) {
   return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
 }
 
+// Couleurs des types de visite (CS / RDV / AUTRE)
+const TYPE_COLORS = { CS: '#2563EB', RDV: '#7C3AED', AUTRE: '#B45309' };
+
 export default function PHPConsultations() {
   const { t } = useTranslation();
   const RESULTATS = getResultats(t);
@@ -84,6 +87,7 @@ export default function PHPConsultations() {
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterResultat, setFilterResultat] = useState('');
   const [filterInfirmerie, setFilterInfirmerie] = useState('');
+  const [filterType, setFilterType] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize('phpConsultations', 25);
 
@@ -101,6 +105,7 @@ export default function PHPConsultations() {
         date: filterDate || undefined,
         resultat: filterResultat || undefined,
         infirmerieId: filterInfirmerie || undefined,
+        typeVisite: filterType || undefined,
         page,
         limit: pageSize,
       });
@@ -112,7 +117,7 @@ export default function PHPConsultations() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterDate, filterResultat, filterInfirmerie, page, pageSize]);
+  }, [search, filterDate, filterResultat, filterInfirmerie, filterType, page, pageSize]);
 
   useEffect(() => { loadConsultations(); }, [loadConsultations]);
   useEffect(() => {
@@ -190,7 +195,7 @@ export default function PHPConsultations() {
 
       {/* Filtres */}
       <div className="rounded-xl p-3 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Recherche */}
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--fg-subtle)' }} />
@@ -228,6 +233,15 @@ export default function PHPConsultations() {
           >
             <option value="">{t('Toutes les infirmeries')}</option>
             {infirmeries.map(i => <option key={i.id} value={i.id}>{i.nom}</option>)}
+          </select>
+          {/* Type de visite */}
+          <select
+            value={filterType}
+            onChange={(e) => { setFilterType(e.target.value); setPage(1); }}
+            style={inputStyle}
+          >
+            <option value="">{t('CS, RDV et AUTRE')}</option>
+            {TYPES_VISITE.map(([code, label]) => <option key={code} value={code}>{code} · {t(label)}</option>)}
           </select>
         </div>
         {/* Raccourcis date */}
@@ -273,9 +287,11 @@ export default function PHPConsultations() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                    <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('N°')}</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Patient')}</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Infirmerie')}</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Service')}</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Type')}</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Date')}</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Attente')}</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Résultat')}</th>
@@ -291,6 +307,9 @@ export default function PHPConsultations() {
                         background: i % 2 === 1 ? 'var(--surface-2)' : 'var(--surface)',
                       }}
                     >
+                      <td className="px-4 py-3 text-center text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>
+                        {c.numeroOrdre ?? '–'}
+                      </td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-sm" style={{ color: 'var(--fg)' }}>
                           {c.patient?.nom} {c.patient?.prenom || ''}
@@ -303,10 +322,22 @@ export default function PHPConsultations() {
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--fg-muted)' }}>
                         {c.serviceName || '–'}
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        {c.typeVisite ? (
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: TYPE_COLORS[c.typeVisite], background: `color-mix(in srgb, ${TYPE_COLORS[c.typeVisite]} 14%, transparent)` }}>
+                            {c.typeVisite}
+                          </span>
+                        ) : <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>–</span>}
+                      </td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--fg-muted)' }}>
                         {c.dateConsultation
-                          ? new Date(c.dateConsultation).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          ? new Date(c.dateConsultation + 'T12:00:00').toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
                           : '–'}
+                        {(c.heureArrivee || c.heureDebutConsultation) && (
+                          <div style={{ color: 'var(--fg-subtle)', marginTop: 2 }} title={t('Arrivée → prise en charge')}>
+                            {c.heureArrivee?.slice(0, 5) || '?'} → {c.heureDebutConsultation?.slice(0, 5) || '…'}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {c.dureeAttenteMinutes > 0 ? (

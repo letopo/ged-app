@@ -116,4 +116,13 @@ export const sageBlAPI = {
   createReleve: (date, force) => api.post('/sage-bl/releve', { date, force }),
 };
 
+// Import du classeur Excel du Point Focal (apply=false : simulation)
+export const phpImportAPI = {
+  importExcel: (file, apply = false) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post(`/php/import-excel${apply ? '?apply=1' : ''}`, fd, { timeout: 10 * 60 * 1000 });
+  },
+};
+
 export default { phpReferenceAPI, phpPatientAPI, phpConsultationAPI, phpStatsAPI, phpRendezVousAPI, phpFactureAPI };

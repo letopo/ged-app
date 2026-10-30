@@ -835,6 +835,18 @@ const RELEASE_NOTES = [
       'L\'entrée « Factures PHP (Sage) » n\'apparaît plus qu\'aux personnes qui peuvent réellement l\'ouvrir.',
     ],
   },
+  {
+    id: '2026-10-30-php-type-visite-import',
+    date: '2026-10-30',
+    target: 'app',
+    title: 'Module PHP : type de visite et import du fichier Excel',
+    access: (user) => ['admin', 'superadmin', 'agent_accueil_php'].includes(user?.role),
+    items: [
+      'Chaque consultation a désormais un type de visite, comme dans l\'Excel du Point Focal : CS (consultation), RDV (rendez-vous de suivi) ou AUTRE (pharmacie, laboratoire, bilans…). Il se choisit à l\'enregistrement et sert de filtre dans la liste.',
+      'La liste des consultations affiche le n° d\'ordre du jour et les heures d\'arrivée et de prise en charge.',
+      'Nouveau bouton « Importer l\'Excel » dans le module PHP : analyse du fichier, puis import des patients, consultations, hospitalisations, opérations et repos. Réimportable à chaque mise à jour du fichier, sans doublon.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

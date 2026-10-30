@@ -12,6 +12,9 @@ const inputStyle = {
   border: '1.5px solid var(--border)', borderRadius: 'var(--radius-2)',
   background: 'var(--surface)', color: 'var(--fg)', outline: 'none', boxSizing: 'border-box',
 };
+// Type de visite (colonne CS / RDV / AUTRE de l'Excel du Point Focal)
+export const TYPES_VISITE = [['CS', 'Consultation'], ['RDV', 'Rendez-vous de suivi'], ['AUTRE', 'Pharmacie, labo, bilans…']];
+
 const labelStyle = { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 4 };
 
 export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
@@ -28,6 +31,7 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
   const [form, setForm] = useState({
     heureArrivee: heureActuelle,
     serviceName:  '',
+    typeVisite:   'CS',
     motif:        '',
     notes:        '',
   });
@@ -52,6 +56,7 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
         dateConsultation:    today,
         heureArrivee:        form.heureArrivee,
         serviceName:         form.serviceName,
+        typeVisite:          form.typeVisite,
         motif:               form.motif,
         notes:               form.notes,
       });
@@ -138,6 +143,25 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
                       <option key={s.code || s.nom} value={s.nom}>{s.nom}</option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Type de visite, comme dans l'Excel du Point Focal */}
+              <div>
+                <label style={labelStyle}>{t('Type de visite')}</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {TYPES_VISITE.map(([code, label]) => (
+                    <button key={code} type="button" onClick={() => setForm(f => ({ ...f, typeVisite: code }))}
+                      aria-pressed={form.typeVisite === code}
+                      style={{
+                        padding: '6px 12px', borderRadius: 'var(--radius-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        border: `1.5px solid ${form.typeVisite === code ? 'var(--brand)' : 'var(--border)'}`,
+                        background: form.typeVisite === code ? 'var(--brand-soft)' : 'var(--surface)',
+                        color: form.typeVisite === code ? 'var(--brand)' : 'var(--fg)',
+                      }}>
+                      {code} <span style={{ fontWeight: 400, color: 'var(--fg-muted)' }}>· {t(label)}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
