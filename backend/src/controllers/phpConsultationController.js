@@ -11,16 +11,20 @@ import { sequelize } from '../models/index.js';
 // ============================================
 // LISTER LES CONSULTATIONS
 // ============================================
+// Types de visite de l'Excel du Point Focal (colonne CS / RDV / AUTRE)
+export const TYPES_VISITE = ['CS', 'RDV', 'AUTRE'];
+
 export const getConsultations = async (req, res) => {
   try {
     const {
-      date, dateDebut, dateFin, resultat, serviceName,
+      date, dateDebut, dateFin, resultat, serviceName, typeVisite, infirmerieId,
       patientId, page = 1, limit = 50
     } = req.query;
 
     const where = {};
     if (patientId) where.patientId = patientId;
     if (resultat) where.resultat = resultat;
+    if (TYPES_VISITE.includes(typeVisite)) where.typeVisite = typeVisite;
     if (serviceName) where.serviceName = { [Op.iLike]: `%${serviceName}%` };
 
     if (date) {
@@ -39,6 +43,8 @@ export const getConsultations = async (req, res) => {
         {
           model: PatientPHP,
           as: 'patient',
+          // Filtre infirmerie (le filtre de la liste était envoyé mais ignoré)
+          ...(infirmerieId ? { where: { infirmerieId }, required: true } : {}),
           include: [
             { model: Infirmerie, as: 'infirmerie', attributes: ['id', 'code', 'nom'] },
             { model: Secteur, as: 'secteur', attributes: ['id', 'code', 'nom'] }
@@ -51,7 +57,7 @@ export const getConsultations = async (req, res) => {
         { model: ReposPHP, as: 'repos', required: false },
         { model: OperationPHP, as: 'operation', required: false }
       ],
-      order: [['dateConsultation', 'DESC'], ['heureArrivee', 'ASC']],
+      order: [['dateConsultation', 'DESC'], ['numeroOrdre', 'ASC NULLS LAST'], ['heureArrivee', 'ASC']],
       limit: parseInt(limit),
       offset
     });
@@ -76,8 +82,13 @@ export const createConsultation = async (req, res) => {
     const {
       patientId, bonPriseEnChargeId, dateConsultation, heureArrivee,
       heureDebutConsultation, heureFinConsultation,
-      serviceName, medecinId, medecinNom, motif, notes
+      serviceName, medecinId, medecinNom, motif, notes, typeVisite
     } = req.body;
+
+    if (typeVisite && !TYPES_VISITE.includes(typeVisite)) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: 'Type de visite invalide (CS, RDV ou AUTRE).' });
+    }
 
     if (!patientId) {
       await t.rollback();
@@ -100,11 +111,16 @@ export const createConsultation = async (req, res) => {
     }
 
     const today = new Date().toISOString().split('T')[0];
+    const jour = dateConsultation || today;
+    // N° d'ordre du jour : à la suite des patients déjà enregistrés ce jour-là
+    const dernier = await ConsultationPHP.max('numeroOrdre', { where: { dateConsultation: jour }, transaction: t });
 
     const consultation = await ConsultationPHP.create({
       patientId,
       bonPriseEnChargeId,
-      dateConsultation: dateConsultation || today,
+      dateConsultation: jour,
+      typeVisite: typeVisite || 'CS',
+      numeroOrdre: (dernier || 0) + 1,
       heureArrivee,
       heureDebutConsultation,
       heureFinConsultation,

@@ -69,6 +69,12 @@ const HospitalisationPHP = sequelize.define('HospitalisationPHP', {
     allowNull: true,
     comment: 'Diagnostic principal ayant conduit à l\'hospitalisation'
   },
+  // Ligne d'origine dans HSJM_Gestion_v3.xlsm (import sans doublons, utils/phpExcelImport.js)
+  excelRef: {
+    type: DataTypes.STRING(80),
+    allowNull: true,
+    field: 'excel_ref'
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true

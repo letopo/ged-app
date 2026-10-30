@@ -7,7 +7,7 @@ import {
   Users, UserPlus, FileText, Activity, Clock, Hospital,
   BedDouble, Stethoscope, TrendingUp, Search, Plus,
   RefreshCw, AlertCircle, CheckCircle, ChevronRight,
-  ClipboardList, BarChart3, Timer, ArrowRight, CalendarDays, X, Trash2, Receipt
+  ClipboardList, BarChart3, Timer, ArrowRight, CalendarDays, X, Trash2, Receipt, FileSpreadsheet
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,6 +15,7 @@ import { phpStatsAPI, phpPatientAPI, phpRendezVousAPI } from '../services/phpSer
 import PHPPatientRegistration from '../components/php/PHPPatientRegistration';
 import PHPConsultationForm from '../components/php/PHPConsultationForm';
 import PHPBonPrint from '../components/php/PHPBonPrint';
+import PHPImportExcel from '../components/php/PHPImportExcel';
 import i18n from '../i18n/config';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
@@ -22,6 +23,9 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 export default function PHPModule() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  // Import du classeur Excel : mêmes droits que le serveur (routes/phpImport.js)
+  const canImport = ['admin', 'superadmin', 'agent_accueil_php'].includes(user?.role);
+  const [showImport, setShowImport] = useState(false);
 
   const [dashboard, setDashboard] = useState(null);
   const [statsJour, setStatsJour] = useState(null);
@@ -162,6 +166,16 @@ export default function PHPModule() {
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
             {t('Actualiser')}
           </button>
+          {canImport && (
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}
+            >
+              <FileSpreadsheet size={15} />
+              {t('Importer l\'Excel')}
+            </button>
+          )}
           <button
             onClick={() => setShowRegistration(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors font-medium"
@@ -446,6 +460,7 @@ export default function PHPModule() {
       </div>
 
       {/* Modales */}
+      {showImport && <PHPImportExcel onClose={() => setShowImport(false)} onDone={loadData} />}
       {showRegistration && (
         <PHPPatientRegistration
           onClose={() => setShowRegistration(false)}

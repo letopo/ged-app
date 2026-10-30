@@ -136,6 +136,26 @@ const ConsultationPHP = sequelize.define('ConsultationPHP', {
       key: 'id'
     }
   },
+  // Type de visite, comme la colonne de l'Excel du Point Focal : CS (consultation),
+  // RDV (rendez-vous de suivi), AUTRE (pharmacie, laboratoire, bilans…)
+  typeVisite: {
+    type: DataTypes.STRING(10),
+    allowNull: true,
+    field: 'type_visite',
+    validate: { isIn: [['CS', 'RDV', 'AUTRE']] }
+  },
+  // N° d'ordre du patient dans la journée (ordre d'arrivée)
+  numeroOrdre: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'numero_ordre'
+  },
+  // Ligne d'origine dans HSJM_Gestion_v3.xlsm (import sans doublons, utils/phpExcelImport.js)
+  excelRef: {
+    type: DataTypes.STRING(80),
+    allowNull: true,
+    field: 'excel_ref'
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true

@@ -53,6 +53,7 @@ import phpConsultationsRoutes from './routes/phpConsultations.js';
 import phpStatsRoutes from './routes/phpStats.js';
 import phpRendezVousRoutes from './routes/phpRendezVous.js';
 import phpFacturesRoutes from './routes/phpFactures.js'; // ✅ Module factures PHP
+import phpImportRoutes from './routes/phpImport.js';
 import sageFacturesRoutes from './routes/sageFactures.js'; // ✅ Import auto factures PHP depuis Sage
 import sageBlRoutes from './routes/sageBl.js'; // ✅ BL PHP en attente de facturation (lecture Sage)
 import comptaRoutes from './routes/compta.js';           // ✅ Module Comptabilité
@@ -258,6 +259,7 @@ app.use('/api/php/consultations', phpConsultationsRoutes);
 app.use('/api/php/stats', phpStatsRoutes);
 app.use('/api/php/rendez-vous', phpRendezVousRoutes);
 app.use('/api/php/factures', phpFacturesRoutes); // ✅ Factures prestataires (OCR)
+app.use('/api/php/import-excel', phpImportRoutes); // Import du classeur Excel du Point Focal
 app.use('/api/sage-factures', sageFacturesRoutes); // ✅ Import auto factures PHP depuis Sage
 app.use('/api/sage-bl', sageBlRoutes); // ✅ BL PHP en attente de facturation (lecture Sage)
 app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
