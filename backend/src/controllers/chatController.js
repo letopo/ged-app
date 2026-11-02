@@ -260,9 +260,27 @@ const MESSAGE_SELECT = `
            FROM chat_reactions r JOIN users ru ON r.user_id = ru.id
            WHERE r.message_id = m.id
            GROUP BY r.emoji
-         ) x) as reactions
+         ) x) as reactions,
+        -- Réponse : aperçu du message cité (sans le titre d'un document de la GED)
+        m.reply_to_id,
+        ru2.first_name AS reply_author_first_name,
+        ru2.last_name  AS reply_author_last_name,
+        CASE WHEN rm.is_deleted THEN NULL ELSE LEFT(rm.content, 300) END AS reply_content,
+        COALESCE(rm.is_deleted, false) AS reply_deleted,
+        CASE WHEN rm.is_deleted THEN NULL WHEN rm.attachment_document_id IS NOT NULL THEN 'document'
+             WHEN rm.attachment_path IS NOT NULL THEN 'file' END AS reply_kind,
+        CASE WHEN rm.is_deleted OR rm.attachment_document_id IS NOT NULL THEN NULL ELSE rm.attachment_name END AS reply_attachment_name
       FROM chat_messages m
-      LEFT JOIN users u ON m.author_id = u.id`;
+      LEFT JOIN users u ON m.author_id = u.id
+      LEFT JOIN chat_messages rm ON rm.id = m.reply_to_id
+      LEFT JOIN users ru2 ON ru2.id = rm.author_id`;
+
+// Message cité : seulement un message de la même conversation (sinon ignoré)
+async function resolveReplyTo(conversationId, raw) {
+  if (typeof raw !== 'string' || !UUID_RE.test(raw)) return null;
+  const target = await ChatMessage.findOne({ where: { id: raw, conversationId }, attributes: ['id'] });
+  return target?.id || null;
+}
 
 // Documents de la GED partagés dans les messages : ouverts seulement par qui a
 // déjà le droit de les lire (sinon « Accès réservé », sans titre ni contenu).
@@ -326,8 +344,15 @@ export const getMessage = async (req, res, next) => {
 async function publishMessage(req, res, conversationId, fields) {
   const userId = req.user.id;
   const id = conversationId;
-  const message = await ChatMessage.create({ conversationId: id, authorId: userId, ...fields });
+  const replyToId = await resolveReplyTo(id, req.body?.replyToId);
+  const message = await ChatMessage.create({ conversationId: id, authorId: userId, ...fields, replyToId });
   await Conversation.update({ lastMessageAt: new Date() }, { where: { id } });
+  // Aperçu du message cité, diffusé avec le message (mêmes champs que la liste)
+  let reply = {};
+  if (replyToId) {
+    const [row] = await sequelize.query(`${MESSAGE_SELECT} WHERE m.id = :id`, { replacements: { id: message.id }, type: QueryTypes.SELECT });
+    if (row) reply = Object.fromEntries(Object.entries(row).filter(([k]) => k.startsWith('reply_')));
+  }
   let mentionIds = req.body?.mentionUserIds;
   if (typeof mentionIds === 'string') { try { mentionIds = JSON.parse(mentionIds); } catch { mentionIds = []; } }
   const added = await addMentionedToDocumentThread(req, id, message.content, mentionIds);
@@ -352,6 +377,7 @@ async function publishMessage(req, res, conversationId, fields) {
     authorLastName: u.lastName,
     authorUsername: u.username,
     authorRole: u.role,
+    ...reply,
   };
 
   // Document de la GED : le titre n'est pas diffusé, chaque membre redemande le
@@ -776,6 +802,39 @@ export const markAsRead = async (req, res, next) => {
     // Accusés de lecture : les autres participants voient ✓✓ en direct
     if (count) getIO()?.to(`conv:${id}`).emit('chat:read', { conversationId: id, userId, readAt });
     res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/chat/search?q= — messages contenant ce texte, dans mes conversations
+// seulement (ni supprimés ni automatiques ; nom de fichier joint aussi, sauf
+// pour un document de la GED dont le titre n'est montré qu'à ses lecteurs)
+export const searchMessages = async (req, res, next) => {
+  try {
+    const q = String(req.query.q || '').trim().slice(0, 100);
+    if (q.length < 2) return res.json({ success: true, data: [] });
+    const pattern = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const rows = await sequelize.query(`
+      SELECT m.id, m.conversation_id, LEFT(m.content, 400) AS content, m.attachment_name, m.created_at,
+             u.first_name AS author_first_name, u.last_name AS author_last_name,
+             c.type AS conversation_type, c.name AS conversation_name,
+             ou.first_name AS other_first_name, ou.last_name AS other_last_name
+      FROM chat_messages m
+      JOIN chat_conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = :userId
+      JOIN chat_conversations c ON c.id = m.conversation_id AND c.is_archived = false
+      LEFT JOIN users u ON u.id = m.author_id
+      LEFT JOIN LATERAL (
+        SELECT u2.first_name, u2.last_name FROM chat_conversation_members ocm JOIN users u2 ON u2.id = ocm.user_id
+        WHERE ocm.conversation_id = c.id AND ocm.user_id != :userId LIMIT 1
+      ) ou ON c.type = 'direct'
+      WHERE m.is_deleted = false AND m.is_system = false
+        AND (m.content ILIKE :pattern ESCAPE '\\'
+             OR (m.attachment_document_id IS NULL AND m.attachment_name ILIKE :pattern ESCAPE '\\'))
+      ORDER BY m.created_at DESC
+      LIMIT 30
+    `, { replacements: { userId: req.user.id, pattern }, type: QueryTypes.SELECT });
+    res.json({ success: true, data: rows });
   } catch (error) {
     next(error);
   }

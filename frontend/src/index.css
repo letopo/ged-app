@@ -26,6 +26,8 @@
   --chat-meta:          #6B7280;
   --chat-system-bg:     #FFF6D6;
   --chat-read:          #1D8CF0;
+  --chat-quote-bg:      rgba(15, 23, 42, 0.05);
+  --chat-highlight:     rgba(250, 204, 21, 0.22);
   --chat-bubble-shadow: 0 1px 1px rgba(15, 23, 42, 0.10);
   --brand-muted:     #5B89D6;
   --brand-fg:        #1B3A6B;
@@ -105,6 +107,8 @@
   --chat-meta:          #9AA6B8;
   --chat-system-bg:     #2E2A1C;
   --chat-read:          #53BDEB;
+  --chat-quote-bg:      rgba(255, 255, 255, 0.06);
+  --chat-highlight:     rgba(250, 204, 21, 0.16);
   --chat-bubble-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
   --brand-hover:     #6E99DE;
   --brand-soft:      #1A2845;

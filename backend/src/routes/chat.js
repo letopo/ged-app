@@ -23,6 +23,7 @@ import {
   getMentionCandidates,
   getConversationDocument,
   setMuted,
+  searchMessages,
 } from '../controllers/chatController.js';
 import { chatUpload } from '../utils/chatAttachments.js';
 import { fixUploadEncoding } from '../middleware/upload.js';
@@ -35,6 +36,7 @@ router.get('/messages/:id/attachment',              downloadAttachment);
 router.use(authenticate);
 
 router.get('/unread-count',                         getUnreadCount);
+router.get('/search',                               searchMessages);
 router.get('/conversations',                        listConversations);
 router.post('/conversations',                       createConversation);
 router.get('/conversations/document/:documentId',   getOrCreateDocumentThread);

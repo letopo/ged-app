@@ -13,13 +13,13 @@ import chatService from '../services/chatService';
 import i18n from '../i18n/config';
 import {
   fmt, fmtDay, convName, convIcon, avatarColor, Avatar, MessageBubble, MessageInput,
-  useReadTracking, readReceipt, SeenLine,
+  useReadTracking, readReceipt, SeenLine, useJumpToMessage, quoteOf,
 } from '../components/chat/ChatMessages';
 import DocumentBanner from '../components/chat/DocumentBanner';
 
 // ─── Thread de messages ───────────────────────────────────────────────────────
 
-const MessageThread = ({ conv, user, onBack, onlineUsers, onMutedChange }) => {
+const MessageThread = ({ conv, user, onBack, onlineUsers, onMutedChange, focusMessageId }) => {
   const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,12 +117,14 @@ const MessageThread = ({ conv, user, onBack, onlineUsers, onMutedChange }) => {
     };
   }, [socket, conv?.id, user?.id, members]);
 
+  // Renvoie false quand il n'y a plus de messages plus anciens
   const loadMore = async () => {
-    if (loadingMore || !hasMore || messages.length === 0) return;
+    if (!hasMore || messages.length === 0) return false;
+    if (loadingMore) return undefined;
     const oldest = messages[0];
     setLoadingMore(true);
     const prev = await chatService.getMessages(conv.id, oldest.id).catch(() => []);
-    if (prev.length === 0) { setHasMore(false); }
+    if (prev.length === 0) { setHasMore(false); setLoadingMore(false); return false; }
     else {
       const scrollEl = listRef.current;
       const prevHeight = scrollEl?.scrollHeight || 0;
@@ -133,6 +135,16 @@ const MessageThread = ({ conv, user, onBack, onlineUsers, onMutedChange }) => {
     }
     setLoadingMore(false);
   };
+
+  // Répondre à un message, aller à un message (citation, résultat de recherche)
+  const [replyTo, setReplyTo] = useState(null);
+  const { jumpTo, highlightId } = useJumpToMessage(listRef, messages, loadMore);
+  const jumpedFor = useRef(null);
+  useEffect(() => {
+    if (loading || !focusMessageId || jumpedFor.current === focusMessageId) return;
+    jumpedFor.current = focusMessageId;
+    setTimeout(() => jumpTo(focusMessageId), 150); // après le défilement initial vers le bas
+  }, [loading, focusMessageId, jumpTo]);
 
   const handleSend = async (data) => {
     const sent = await chatService.sendMessage(conv.id, data);
@@ -291,6 +303,9 @@ const MessageThread = ({ conv, user, onBack, onlineUsers, onMutedChange }) => {
                   onlineUsers={onlineUsers}
                   currentUserId={user?.id}
                   receipt={(item.msg.author_id || item.msg.authorId) === user?.id ? readReceipt(item.msg, members, user?.id) : null}
+                  onReply={(m) => setReplyTo(quoteOf(m))}
+                  onJump={jumpTo}
+                  highlighted={item.msg.id === highlightId}
                 />
               ))
             )}
@@ -310,7 +325,8 @@ const MessageThread = ({ conv, user, onBack, onlineUsers, onMutedChange }) => {
             <div ref={bottomRef} />
           </div>
 
-          <MessageInput onSend={handleSend} convId={conv.id} disabled={loading} members={members} droppedFiles={droppedFiles} mentionSearch={mentionSearch} />
+          <MessageInput onSend={handleSend} convId={conv.id} disabled={loading} members={members} droppedFiles={droppedFiles} mentionSearch={mentionSearch}
+            replyTo={replyTo} onCancelReply={() => setReplyTo(null)} />
         </div>
 
         {/* Panel membres */}
@@ -346,6 +362,21 @@ const MessageThread = ({ conv, user, onBack, onlineUsers, onMutedChange }) => {
 };
 
 // ─── Élément de conversation dans la liste ────────────────────────────────────
+
+// Texte trouvé mis en évidence dans un résultat de recherche
+const highlightText = (text, q) => {
+  if (!q) return text;
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return text;
+  const start = Math.max(0, i - 40);
+  return (
+    <>
+      {start > 0 && '…'}{text.slice(start, i)}
+      <mark style={{ background: 'var(--chat-highlight)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>{text.slice(i, i + q.length)}</mark>
+      {text.slice(i + q.length)}
+    </>
+  );
+};
 
 const ConvItem = ({ conv, active, onClick, user, onlineUsers = new Set() }) => {
   const { t } = useTranslation();
@@ -608,6 +639,10 @@ const ChatPage = () => {
   const [selectedId, setSelectedId] = useState(convId || null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // Recherche dans les messages (2 caractères au moins) et message à afficher
+  const [msgResults, setMsgResults] = useState([]);
+  const [msgSearching, setMsgSearching] = useState(false);
+  const [focus, setFocus] = useState(null); // { convId, messageId }
   const [showNewModal, setShowNewModal] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [onlineUsers, setOnlineUsers] = useState(new Set());
@@ -672,6 +707,21 @@ const ChatPage = () => {
 
   const selectedConv = conversations.find(c => c.id === selectedId) || null;
 
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) { setMsgResults([]); setMsgSearching(false); return undefined; }
+    setMsgSearching(true);
+    const timer = setTimeout(() => {
+      chatService.searchMessages(q).then(setMsgResults).catch(() => setMsgResults([])).finally(() => setMsgSearching(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const openResult = (r) => {
+    setFocus({ convId: r.conversation_id, messageId: r.id });
+    selectConv(r.conversation_id);
+  };
+
   const selectConv = (id) => {
     setSelectedId(id);
     navigate(`/chat/${id}`, { replace: true });
@@ -734,7 +784,7 @@ const ChatPage = () => {
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-muted)' }} />
             <input
-              placeholder={t('Rechercher…')}
+              placeholder={t('Rechercher une conversation ou un message…')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
@@ -770,7 +820,7 @@ const ChatPage = () => {
             <div style={{ textAlign: 'center', padding: 24 }}>
               <Loader size={20} style={{ color: 'var(--brand)' }} />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : filtered.length === 0 && !(search.trim().length >= 2 && (msgResults.length || msgSearching)) ? (
             <div style={{ textAlign: 'center', padding: 24, color: 'var(--fg-muted)', fontSize: 13 }}>
               {search ? t('Aucun résultat') : t('Aucune conversation')}
             </div>
@@ -785,6 +835,35 @@ const ChatPage = () => {
                 onlineUsers={onlineUsers}
               />
             ))
+          )}
+
+          {/* Messages trouvés */}
+          {search.trim().length >= 2 && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '6px 4px' }}>
+                {t('Messages')} {msgSearching && <Loader size={11} className="animate-spin" style={{ verticalAlign: '-1px' }} />}
+              </div>
+              {!msgSearching && msgResults.length === 0 && (
+                <div style={{ fontSize: 12.5, color: 'var(--fg-muted)', padding: '2px 4px 8px' }}>{t('Aucun message ne contient « {{q}} ».', { q: search.trim() })}</div>
+              )}
+              {msgResults.map(r => (
+                <button key={r.id} type="button" onClick={() => openResult(r)}
+                  style={{ width: '100%', textAlign: 'left', border: 'none', background: focus?.messageId === r.id ? 'var(--surface-2)' : 'transparent', borderRadius: 6, padding: '7px 8px', cursor: 'pointer', display: 'block' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-2)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = focus?.messageId === r.id ? 'var(--surface-2)' : 'transparent'; }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, color: 'var(--fg-muted)' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--fg)' }}>
+                      {r.conversation_type === 'direct' ? `${r.other_first_name || ''} ${r.other_last_name || ''}`.trim() : `${r.conversation_type === 'document' ? '📄 ' : '#'}${r.conversation_name || ''}`}
+                    </span>
+                    <span style={{ flexShrink: 0 }}>{fmt(r.created_at)}</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: 'var(--fg)', marginTop: 2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', wordBreak: 'break-word' }}>
+                    <span style={{ color: 'var(--fg-muted)' }}>{r.author_first_name}: </span>
+                    {highlightText(r.content || (r.attachment_name ? `📎 ${r.attachment_name}` : ''), search.trim())}
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -815,6 +894,7 @@ const ChatPage = () => {
             onBack={() => setSelectedId(null)}
             onlineUsers={onlineUsers}
             onMutedChange={(id, m) => setConversations(prev => prev.map(c => (c.id === id ? { ...c, muted: m } : c)))}
+            focusMessageId={focus?.convId === selectedConv.id ? focus.messageId : null}
           />
         ) : (
           <div style={{

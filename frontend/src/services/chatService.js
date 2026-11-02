@@ -37,20 +37,24 @@ const chatService = {
   // Bandeau de la discussion d'un document : { accessible, title, status, workflow… }
   getConversationDocument: (id) => get(`${BASE}/conversations/${id}/document`).then(r => r.data || null),
 
+  // Messages contenant ce texte, dans mes conversations
+  searchMessages: (q) => get(`${BASE}/search?q=${encodeURIComponent(q)}`).then(r => r.data || []),
+
   getMentionCandidates: (id, q = '') =>
     get(`${BASE}/conversations/${id}/mention-candidates?q=${encodeURIComponent(q)}`).then(r => r.data || []),
 
   // Document de la GED partagé dans la conversation (refusé si on ne peut pas le lire)
-  shareDocument: (id, documentId, content = '', mentionUserIds = []) =>
-    post(`${BASE}/conversations/${id}/messages`, { documentId, content, mentionUserIds }).then(r => {
+  shareDocument: (id, documentId, content = '', mentionUserIds = [], replyToId) =>
+    post(`${BASE}/conversations/${id}/messages`, { documentId, content, mentionUserIds, ...(replyToId ? { replyToId } : {}) }).then(r => {
       if (!r.success) throw new Error(r.error || r.message || 'Partage impossible');
       return { ...r.data, added: r.added };
     }),
 
   // Fichier de l'ordinateur ou du téléphone ; onProgress(0..1) pendant l'envoi
-  uploadAttachment: (id, file, content = '', onProgress, mentionUserIds = []) => new Promise((resolve, reject) => {
+  uploadAttachment: (id, file, content = '', onProgress, mentionUserIds = [], replyToId) => new Promise((resolve, reject) => {
     const form = new FormData();
     form.append('content', content);
+    if (replyToId) form.append('replyToId', replyToId);
     if (mentionUserIds.length) form.append('mentionUserIds', JSON.stringify(mentionUserIds));
     form.append('file', file);
     const xhr = new XMLHttpRequest();
