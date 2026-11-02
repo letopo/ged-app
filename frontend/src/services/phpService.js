@@ -130,4 +130,17 @@ export const phpImportAPI = {
   },
 };
 
+// ============================================
+// REGISTRE DE PHARMACIE
+// ============================================
+export const phpPharmacieAPI = {
+  getLignes: (params) => api.get('/php/pharmacie', { params }),
+  getStats: (params) => api.get('/php/pharmacie/stats', { params }),
+  getProduits: (q) => api.get('/php/pharmacie/produits', { params: { q } }),
+  getConsultationsDuJour: (patientId, date) => api.get('/php/pharmacie/consultations', { params: { patientId, date } }),
+  create: (data) => api.post('/php/pharmacie', data),
+  update: (id, data) => api.put(`/php/pharmacie/${id}`, data),
+  remove: (id) => api.delete(`/php/pharmacie/${id}`),
+};
+
 export default { phpReferenceAPI, phpPatientAPI, phpConsultationAPI, phpStatsAPI, phpRendezVousAPI, phpFactureAPI };

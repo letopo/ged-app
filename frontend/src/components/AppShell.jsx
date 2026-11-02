@@ -8,7 +8,7 @@ import {
   Home, FileText, Upload, CheckSquare, BarChart3, LogOut,
   Bell, Users, LayoutGrid, UserPlus, DoorOpen, DollarSign,
   Settings, ChevronDown, Calendar, Kanban, Receipt,
-  ShoppingCart, Wrench, Stethoscope, Shield, Archive, Scissors,
+  ShoppingCart, Wrench, Stethoscope, Pill, Shield, Archive, Scissors,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
   MessageSquare, FileSpreadsheet, Sparkles, Ambulance, HardDrive,
@@ -185,6 +185,7 @@ const buildOrgGroups = (t, user) => {
     { id: 'php', color: '#DC2626', icon: Stethoscope, label: t('Module PHP'), items: [
       { path: '/php',                icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
       { path: '/php/factures',       icon: Receipt,     label: t('Factures PHP'),       phpOnly: true },
+      { path: '/php/pharmacie',      icon: Pill,        label: t('Pharmacie PHP'),      phpOnly: true },
     ]},
     { id: 'logistique', color: '#0284C7', icon: Ambulance, label: t('Logistique'), items: [
       { path: '/vehicules',          icon: Ambulance,   label: t('Parc véhicules'),     fleetOnly: true },
@@ -270,9 +271,9 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
 
   const orgGroups = buildOrgGroups(t, user);
 
-  // /php est un préfixe de /php/factures : on ne surligne que l'entrée la plus précise
+  // /php est un préfixe de /php/factures et /php/pharmacie : on ne surligne que l'entrée la plus précise
   const isActiveItem = (path) =>
-    isActive(path) && !(path === '/php' && location.pathname.startsWith('/php/factures'));
+    isActive(path) && !(path === '/php' && /^\/php\/(factures|pharmacie)/.test(location.pathname));
 
   const superAdminItems = [
     { path: '/super-admin', icon: Shield, label: t('Clients SaaS'), superAdminOnly: true },
@@ -438,6 +439,7 @@ const ROUTE_CRUMBS = {
   '/vehicules':           ['Logistique', 'Parc véhicules'],
   '/php':                 ['Module PHP'],
   '/php/factures':        ['Module PHP', 'Factures PHP'],
+  '/php/pharmacie':       ['Module PHP', 'Registre de pharmacie'],
   '/sage-factures-php':   ['Factures PHP (Sage)'],
   '/sage-bl-php':         ['Finances', 'BL PHP en attente'],
 };

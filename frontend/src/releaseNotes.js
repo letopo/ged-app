@@ -966,6 +966,18 @@ const RELEASE_NOTES = [
       'Chaque visite garde désormais l\'infirmerie et le secteur du jour où elle a eu lieu, comme sur la ligne de l\'Excel. Export Excel identique à l\'écran, une feuille par tableau.',
     ],
   },
+  {
+    id: '2026-11-03-php-registre-pharmacie',
+    date: '2026-11-03',
+    target: '/php',
+    title: 'Module PHP : registre de pharmacie',
+    access: (user) => phpAccess(user).read,
+    items: [
+      'Nouveau « Registre de pharmacie » (lien « Pharmacie » de l\'accueil du module PHP) : les produits prescrits à chaque patient, par source (pharmacie HSJM, hôpital extérieur, médecin du travail), avec la quantité, le nombre servi et le reste à servir — comme la feuille PHARMACIE de l\'Excel.',
+      '« Nouvelle ordonnance » : le patient est retrouvé par son matricule et rattaché à sa consultation du jour ; les produits déjà saisis sont proposés pendant la frappe. « Servir » complète une ligne restée à servir.',
+      'Onglet « Consommation par produit » sur la période choisie, export Excel identique à l\'écran. L\'import du fichier Excel reprend aussi la feuille PHARMACIE.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

@@ -3,6 +3,8 @@
 //    n° d'ordre / type CS-RDV-AUTRE / heures depuis avril) ;
 //  - simulation sans écriture, puis import, puis réimport sans doublon ;
 //  - infirmeries mal saisies ramenées à la liste, dates jour/mois inversées corrigées ;
+//  - feuille PHARMACIE : source, quantité écrite dans la cellule du produit,
+//    servi / reste, faute sur l'année, lien à la consultation du jour ;
 //  - route réservée aux administrateurs et au Point Focal PHP.
 import '../helpers/env.js';
 import { test, before, after } from 'node:test';
@@ -11,7 +13,7 @@ import ExcelJS from 'exceljs';
 import request from 'supertest';
 import sequelize from '../../src/config/database.js';
 import {
-  toTime, toTypeVisite, normalizeService, normalizeInfirmerie, fixSwappedDay, importPhpExcel,
+  toTime, toTypeVisite, normalizeService, normalizeInfirmerie, fixSwappedDay, fixTypoDay, splitProduit, importPhpExcel,
 } from '../../src/utils/phpExcelImport.js';
 import { createTenant, makeFactory, authHeaders } from '../helpers/fixtures.js';
 
@@ -61,6 +63,17 @@ async function workbook() {
   sheet('Repos', ['N°', 'ID_Consultation', 'Matricule', 'Nom', 'Secteur', 'Infirmerie', 'Service', 'Diagnostic', 'Date Debut', 'Nb Jours', 'Date Fin', 'Date RDV', 'Statut', 'Nb Prolongations', 'Total Jours Cumules', 'Historique Periodes'], [
     [99001, 990001, M1, 'TESTIMPORT JEAN PAUL', SEC, INF, 'MEDECINE', 'PALUDISME', d('2026-02-10'), 3, d('2026-02-13'), null, 'CLOTURE', 0, 3, '10/02/2026 > 13/02/2026 (3j)'],
   ]);
+  // PHARMACIE : titre en ligne 1, en-tête en ligne 4, données dès la ligne 5
+  const pharma = wb.addWorksheet('PHARMACIE');
+  pharma.getRow(1).getCell(1).value = 'REGISTRE DE PHARMACIE';
+  pharma.getRow(4).values = ['No', 'DATE', 'MATRICULE', 'NOM ET PRENOM', 'SECTEUR', 'HSJM', 'QTE', 'HOPITAL EXT', 'QTE', 'MEDECIN DU TRAVAIL', 'QTE', 'NBRE SERVI', 'RESTE'];
+  [
+    [1, d('2026-10-29'), Number(M1), 'TESTIMPORT JEAN PAUL', SEC, 'TESTPHARMA ANTALGEX-T                  1', null, null, null, null, null, 1, 0],
+    [1, d('2026-10-29'), Number(M1), 'TESTIMPORT JEAN PAUL', SEC, 'TESTPHARMA OMEPRAZOLE 20', 2, null, null, null, null, 1, 1],
+    // 2025 saisi pour 2026 ; médecin du travail, rien de servi
+    [2, d('2025-10-30'), Number(M2), 'TESTIMPORT MARIE', SEC, null, null, null, null, 'TESTPHARMA REVITAL', 2, null, null],
+    [3, d('2026-10-30'), Number(M2), 'TESTIMPORT MARIE', SEC],
+  ].forEach((r, i) => { pharma.getRow(5 + i).values = r; });
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
@@ -109,6 +122,14 @@ test('lecture des cellules : heures, types, services, infirmeries, dates invers�
   assert.deepEqual(fixSwappedDay('2026-01-05', '2025-12-10', '2026-10-30'), { day: '2026-01-05' });
   // Date future sans inversion possible : ignorée
   assert.deepEqual(fixSwappedDay('2026-12-25', null, '2026-10-30'), { day: null });
+  // Registre pharmacie : faute sur l'année ou le mois, ramenée à côté de la ligne précédente
+  assert.deepEqual(fixTypoDay('2025-07-30', '2026-07-29', '2026-10-30'), { day: '2026-07-30', fixed: true });
+  assert.deepEqual(fixTypoDay('2026-01-31', '2026-07-30', '2026-10-30'), { day: '2026-07-31', fixed: true });
+  assert.deepEqual(fixTypoDay('2026-08-03', '2026-07-30', '2026-10-30'), { day: '2026-08-03' });
+  // Quantité écrite après le produit (grands espaces) ; un dosage collé au nom reste dans le nom
+  assert.deepEqual(splitProduit('ANTALGEX-T                  1   '), { produit: 'ANTALGEX-T', quantite: 1 });
+  assert.deepEqual(splitProduit('VIT  B  DENK                                    1'), { produit: 'VIT B DENK', quantite: 1 });
+  assert.deepEqual(splitProduit('omeprazole 20'), { produit: 'OMEPRAZOLE 20', quantite: null });
 });
 
 test('simulation, import, puis réimport sans doublon', async () => {
@@ -124,7 +145,7 @@ test('simulation, import, puis réimport sans doublon', async () => {
   const done = await importPhpExcel(buf, { ...ctx, apply: true });
   assert.equal(done.consultations.created, 7);
   assert.equal(done.patients.created, 2);
-  assert.deepEqual(done.datesCorrigees.map(c => [c.n, c.corrige]), [[990004, '2026-06-11'], [990012, '2026-07-01']]);
+  assert.deepEqual(done.datesCorrigees.filter(c => c.feuille === 'Consultations').map(c => [c.n, c.corrige]), [[990004, '2026-06-11'], [990012, '2026-07-01']]);
 
   const [rows] = await sequelize.query(`
     SELECT excel_ref, date_consultation::text d, type_visite, numero_ordre, service_name, resultat,
@@ -155,8 +176,22 @@ test('simulation, import, puis réimport sans doublon', async () => {
   const [[hosp]] = await sequelize.query("SELECT numero_chambre, status FROM php_hospitalisations WHERE excel_ref = 'H:99001'");
   assert.deepEqual(hosp, { numero_chambre: null, status: 'sorti' }, 'texte d\'aide « Chambre/Lit » non repris');
 
+  // Pharmacie : 3 produits, la ligne sans produit ignorée
+  assert.equal(done.pharmacie.created, 3);
+  assert.equal(done.ignores.Pharmacie['produit absent'], 1);
+  assert.ok(done.datesCorrigees.some(c => c.feuille === 'Pharmacie' && c.lu === '2025-10-30' && c.corrige === '2026-10-30'));
+  const [pharma] = await sequelize.query(`
+    SELECT l.produit, l.source, l.date_prescription::text d, l.quantite_prescrite q, l.quantite_servie s, c.excel_ref AS consultation, l.tenant_id = :t AS tenant
+    FROM php_pharmacie_lignes l LEFT JOIN php_consultations c ON c.id = l.consultation_id
+    WHERE l.produit LIKE 'TESTPHARMA%' ORDER BY l.produit`, { replacements: { t: f.tenant.id } });
+  assert.deepEqual(pharma.map(r => [r.produit, r.source, r.d, r.q, r.s, r.consultation, r.tenant]), [
+    ['TESTPHARMA ANTALGEX-T', 'hsjm', '2026-10-29', 1, 1, 'C:990003', true],
+    ['TESTPHARMA OMEPRAZOLE 20', 'hsjm', '2026-10-29', 2, 1, 'C:990003', true],
+    ['TESTPHARMA REVITAL', 'medecin_travail', '2026-10-30', 2, 0, null, true],
+  ]);
+
   const again = await importPhpExcel(buf, { ...ctx, apply: true });
-  for (const k of ['patients', 'consultations', 'hospitalisations', 'repos']) {
+  for (const k of ['patients', 'consultations', 'hospitalisations', 'repos', 'pharmacie']) {
     assert.equal(again[k].created, 0, `${k} : aucun doublon`);
     assert.equal(again[k].updated, 0, `${k} : rien à modifier`);
   }
