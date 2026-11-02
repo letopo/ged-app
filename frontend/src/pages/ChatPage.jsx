@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   MessageSquare, Hash, User, Users, Plus, Search, Send, X,
   ChevronDown, Trash2, Edit2, Check, FileText, Lock, Loader,
-  MoreVertical, UserPlus, LogOut, Paperclip,
+  MoreVertical, UserPlus, LogOut, Paperclip, Copy,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../services/api';
@@ -121,108 +121,141 @@ const Avatar = ({ firstName, lastName, size = 32, isOnline = false }) => {
 
 // ─── Bulle de message ─────────────────────────────────────────────────────────
 
-const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onlineUsers = new Set(), currentUserId }) => {
+// Bulle façon messagerie (WhatsApp / Telegram) : mes messages à droite en
+// couleur, ceux des autres à gauche ; heure dans la bulle ; nom et avatar
+// seulement dans les groupes. Actions (réagir, modifier, supprimer) au survol
+// sur ordinateur, par appui long sur téléphone.
+const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDelete, onReact, onlineUsers = new Set(), currentUserId }) => {
   const { t } = useTranslation();
-  const [hover, setHover] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false); // appui long (écran tactile)
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState(msg.content);
   const [showPicker, setShowPicker] = useState(false);
   const inputRef = useRef(null);
+  const rowRef = useRef(null);
+  const pressTimer = useRef(null);
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
   }, [editing]);
+
+  // Appui long ouvert : un toucher ailleurs le referme
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const close = (e) => { if (!rowRef.current?.contains(e.target)) { setActionsOpen(false); setShowPicker(false); } };
+    document.addEventListener('touchstart', close);
+    document.addEventListener('mousedown', close);
+    return () => { document.removeEventListener('touchstart', close); document.removeEventListener('mousedown', close); };
+  }, [actionsOpen]);
 
   const submitEdit = () => {
     if (editVal.trim() && editVal.trim() !== msg.content) onEdit(msg.id, editVal.trim());
     setEditing(false);
   };
 
-  if (msg.isDeleted) {
-    return (
-      <div style={{ padding: '2px 12px 2px 52px', color: 'var(--fg-muted)', fontStyle: 'italic', fontSize: 13 }}>
-{t('[Message supprimé]')}
-      </div>
-    );
-  }
+  const deleted = msg.isDeleted || msg.is_deleted;
+  const authorFirst = msg.author_first_name || msg.authorFirstName;
+  const authorLast = msg.author_last_name || msg.authorLastName;
+  const showAvatar = isGroup && !isMine;
+  const time = fmtFull(msg.created_at || msg.createdAt);
+  const edited = msg.editedAt || msg.edited_at;
+  // Survol : géré en CSS (.chat-row:hover .chat-actions), jamais bloqué
+  const actionsVisible = !editing && !deleted;
+
+  // Coin « queue » sur la première bulle d'une série
+  const radius = 12;
+  const bubbleRadius = showHeader
+    ? (isMine ? `${radius}px 4px ${radius}px ${radius}px` : `4px ${radius}px ${radius}px ${radius}px`)
+    : `${radius}px`;
+
+  const meta = (
+    <span style={{ float: 'right', marginLeft: 10, marginTop: 6, marginBottom: -3, fontSize: 11, lineHeight: '14px', color: 'var(--chat-meta)', whiteSpace: 'nowrap', userSelect: 'none' }}>
+      {edited && !deleted && <>{t('modifié')} · </>}{time}
+    </span>
+  );
 
   return (
     <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      ref={rowRef}
+      className={`chat-row${actionsOpen || showPicker ? ' is-open' : ''}`}
+      onMouseLeave={() => setShowPicker(false)}
+      onTouchStart={() => { pressTimer.current = setTimeout(() => setActionsOpen(true), 450); }}
+      onTouchEnd={() => clearTimeout(pressTimer.current)}
+      onTouchMove={() => clearTimeout(pressTimer.current)}
+      onContextMenu={e => { if (window.matchMedia('(pointer: coarse)').matches) e.preventDefault(); }}
       style={{
-        position: 'relative', padding: showHeader ? '8px 12px 2px' : '1px 12px',
-        background: hover ? 'var(--surface-2)' : 'transparent',
-        transition: 'background 0.1s',
+        position: 'relative', display: 'flex', alignItems: 'flex-end', gap: 6,
+        flexDirection: isMine ? 'row-reverse' : 'row',
+        padding: `${showHeader ? 8 : 2}px 12px 0`,
       }}
     >
-      {showHeader && (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 2 }}>
-          <Avatar
-            firstName={msg.author_first_name || msg.authorFirstName}
-            lastName={msg.author_last_name || msg.authorLastName}
-            size={32}
-            isOnline={onlineUsers.has(msg.author_id || msg.authorId)}
-          />
-          <div>
-            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--fg)' }}>
-              {msg.author_first_name || msg.authorFirstName} {msg.author_last_name || msg.authorLastName}
-            </span>
-            <span style={{ fontSize: 11, color: 'var(--fg-muted)', marginLeft: 8 }}>
-              {fmtFull(msg.created_at || msg.createdAt)}
-            </span>
-            {msg.editedAt && (
-              <span style={{ fontSize: 10, color: 'var(--fg-subtle)', marginLeft: 6 }}>({t('modifié')})</span>
-            )}
-          </div>
+      {showAvatar && (
+        <div style={{ width: 30, flexShrink: 0, alignSelf: 'flex-start' }}>
+          {showHeader && <Avatar firstName={authorFirst} lastName={authorLast} size={30} isOnline={onlineUsers.has(msg.author_id || msg.authorId)} />}
         </div>
       )}
 
-      <div style={{ paddingLeft: showHeader ? 42 : 42 }}>
-        {!showHeader && hover && (
-          <span style={{ fontSize: 10, color: 'var(--fg-muted)', position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}>
-            {fmtFull(msg.created_at || msg.createdAt)}
-          </span>
-        )}
-
-        {editing ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <textarea
-              ref={inputRef}
-              value={editVal}
-              onChange={e => setEditVal(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(); }
-                if (e.key === 'Escape') setEditing(false);
-              }}
-              style={{
-                width: '100%', padding: '6px 8px', borderRadius: 6,
-                border: '1px solid var(--brand)', background: 'var(--surface)',
-                color: 'var(--fg)', fontSize: 14, resize: 'none', minHeight: 60,
-                fontFamily: 'inherit', outline: 'none',
-              }}
-            />
-            <div style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--fg-muted)' }}>
-              <button onClick={submitEdit} style={{ background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: 12 }}>
-                {t('Enregistrer')}
-              </button>
-              <button onClick={() => setEditing(false)} style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: 12 }}>
-                {t('Annuler')}
-              </button>
-              <span style={{ alignSelf: 'center' }}>{t('Échap pour annuler, Entrée pour enregistrer')}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: 'min(78%, 560px)', minWidth: 0 }}>
+        <div style={{
+          position: 'relative', padding: '6px 9px 5px', borderRadius: bubbleRadius,
+          background: isMine ? 'var(--chat-mine-bg)' : 'var(--chat-other-bg)',
+          color: 'var(--fg)', boxShadow: 'var(--chat-bubble-shadow)',
+          minWidth: 60, maxWidth: '100%', boxSizing: 'border-box',
+          outline: actionsOpen ? '2px solid var(--brand)' : 'none',
+        }}>
+          {isGroup && !isMine && showHeader && (
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: avatarColor(`${authorFirst}${authorLast}`), marginBottom: 2 }}>
+              {authorFirst} {authorLast}
             </div>
-          </div>
-        ) : (
-          <div style={{ fontSize: 14, color: 'var(--fg)', lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-            {renderMentions(msg.content)}
-          </div>
-        )}
+          )}
 
-        <ChatAttachment msg={msg} />
+          {deleted ? (
+            <div style={{ fontSize: 14, fontStyle: 'italic', color: 'var(--fg-muted)', lineHeight: 1.45 }}>
+              🚫 {t('Message supprimé')}{meta}
+            </div>
+          ) : editing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 'min(320px, 70vw)' }}>
+              <textarea
+                ref={inputRef}
+                value={editVal}
+                onChange={e => setEditVal(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(); }
+                  if (e.key === 'Escape') setEditing(false);
+                }}
+                style={{
+                  width: '100%', padding: '6px 8px', borderRadius: 6,
+                  border: '1px solid var(--brand)', background: 'var(--surface)',
+                  color: 'var(--fg)', fontSize: 14, resize: 'none', minHeight: 60,
+                  fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--fg-muted)', flexWrap: 'wrap' }}>
+                <button onClick={submitEdit} style={{ background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: 12 }}>
+                  {t('Enregistrer')}
+                </button>
+                <button onClick={() => setEditing(false)} style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: 12 }}>
+                  {t('Annuler')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <ChatAttachment msg={msg} />
+              {msg.content ? (
+                <div style={{ fontSize: 14.5, lineHeight: 1.45, wordBreak: 'break-word', whiteSpace: 'pre-wrap', marginTop: (msg.has_file || msg.hasFile || msg.attachment_document_id || msg.attachmentDocumentId) ? 4 : 0 }}>
+                  {renderMentions(msg.content)}{meta}
+                </div>
+              ) : (
+                <div style={{ overflow: 'hidden' }}>{meta}</div>
+              )}
+            </>
+          )}
+        </div>
 
-        {/* Réactions */}
-        {msg.reactions && msg.reactions.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+        {/* Réactions, accrochées sous la bulle */}
+        {!deleted && msg.reactions && msg.reactions.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: -4, padding: '0 6px', position: 'relative', zIndex: 1 }}>
             {msg.reactions.map(r => {
               const reacted = r.users?.some(u => u.id === currentUserId);
               const names = r.users?.map(u => `${u.firstName || u.first_name} ${u.lastName || u.last_name}`).join(', ');
@@ -233,13 +266,13 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
                   onClick={() => onReact && onReact(msg.id, r.emoji)}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 3,
-                    padding: '2px 7px', borderRadius: 12, fontSize: 13, cursor: 'pointer',
+                    padding: '1px 7px', borderRadius: 12, fontSize: 13, cursor: 'pointer',
                     border: `1px solid ${reacted ? 'var(--brand)' : 'var(--border)'}`,
-                    background: reacted ? 'color-mix(in srgb, var(--brand) 10%, transparent)' : 'var(--surface-2)',
-                    color: 'var(--fg)',
+                    background: reacted ? 'color-mix(in srgb, var(--brand) 14%, var(--surface))' : 'var(--surface)',
+                    color: 'var(--fg)', boxShadow: 'var(--chat-bubble-shadow)',
                   }}
                 >
-                  {r.emoji} <span style={{ fontSize: 11, fontWeight: 600 }}>{r.users?.length || 0}</span>
+                  {r.emoji} {r.users?.length > 1 && <span style={{ fontSize: 11, fontWeight: 600 }}>{r.users.length}</span>}
                 </button>
               );
             })}
@@ -247,13 +280,9 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
         )}
       </div>
 
-      {/* Barre d'actions au survol */}
-      {hover && !editing && (
-        <div style={{
-          position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-          display: 'flex', gap: 4,
-        }}>
-          {/* Emoji picker toggle */}
+      {/* Actions à côté de la bulle */}
+      {actionsVisible && (
+        <div className="chat-actions" style={{ gap: 4, alignSelf: 'center', position: 'relative' }}>
           <div style={{ position: 'relative' }}>
             <ActionBtn
               icon={<span style={{ fontSize: 13 }}>😊</span>}
@@ -263,17 +292,16 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
             {showPicker && (
               <div
                 style={{
-                  position: 'absolute', bottom: 30, right: 0,
+                  position: 'absolute', bottom: 30, [isMine ? 'right' : 'left']: 0,
                   background: 'var(--surface)', border: '1px solid var(--border)',
-                  borderRadius: 10, padding: '6px 8px', display: 'flex', gap: 4,
+                  borderRadius: 20, padding: '4px 6px', display: 'flex', gap: 2,
                   boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 50, whiteSpace: 'nowrap',
                 }}
-                onMouseLeave={() => setShowPicker(false)}
               >
                 {QUICK_EMOJIS.map(e => (
                   <button
                     key={e}
-                    onClick={() => { onReact && onReact(msg.id, e); setShowPicker(false); }}
+                    onClick={() => { onReact && onReact(msg.id, e); setShowPicker(false); setActionsOpen(false); }}
                     style={{
                       fontSize: 20, border: 'none', background: 'transparent',
                       cursor: 'pointer', padding: '2px 3px', borderRadius: 6,
@@ -288,10 +316,14 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
               </div>
             )}
           </div>
+          {msg.content && (
+            <ActionBtn icon={<Copy size={13} />} title={t('Copier le texte')}
+              onClick={() => { navigator.clipboard?.writeText(msg.content).catch(() => {}); setActionsOpen(false); }} />
+          )}
           {isMine && (
             <>
-              <ActionBtn icon={<Edit2 size={13} />} title={t('Modifier')} onClick={() => { setEditVal(msg.content); setEditing(true); setShowPicker(false); }} />
-              <ActionBtn icon={<Trash2 size={13} />} title={t('Supprimer')} onClick={() => onDelete(msg.id)} danger />
+              <ActionBtn icon={<Edit2 size={13} />} title={t('Modifier')} onClick={() => { setEditVal(msg.content); setEditing(true); setShowPicker(false); setActionsOpen(false); }} />
+              <ActionBtn icon={<Trash2 size={13} />} title={t('Supprimer')} onClick={() => { setActionsOpen(false); onDelete(msg.id); }} danger />
             </>
           )}
         </div>
@@ -303,9 +335,10 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
 const ActionBtn = ({ icon, title, onClick, danger }) => (
   <button
     title={title}
+    aria-label={title}
     onClick={onClick}
     style={{
-      padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4,
+      padding: '5px 7px', border: '1px solid var(--border)', borderRadius: 999,
       background: 'var(--surface)', color: danger ? 'var(--danger)' : 'var(--fg-muted)',
       cursor: 'pointer', display: 'flex', alignItems: 'center',
     }}
@@ -546,11 +579,11 @@ const MessageInput = ({ onSend, convId, disabled, members = [], droppedFiles }) 
       <div style={{
         display: 'flex', alignItems: 'flex-end', gap: 8,
         background: 'var(--surface-2)', border: '1px solid var(--border)',
-        borderRadius: 8, padding: '8px 12px',
+        borderRadius: 22, padding: '6px 6px 6px 10px',
       }}>
         <button type="button" onClick={() => setAttachMenu(o => !o)} disabled={disabled || sending}
           title={t('Joindre un fichier ou un document de la GED')} aria-label={t('Joindre un fichier ou un document de la GED')}
-          style={{ padding: '6px 4px', border: 'none', background: 'transparent', color: attachMenu ? 'var(--brand)' : 'var(--fg-muted)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
+          style={{ padding: '9px 4px', border: 'none', background: 'transparent', color: attachMenu ? 'var(--brand)' : 'var(--fg-muted)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
           <Paperclip size={18} />
         </button>
         <textarea
@@ -564,7 +597,7 @@ const MessageInput = ({ onSend, convId, disabled, members = [], droppedFiles }) 
           rows={1}
           style={{
             flex: 1, border: 'none', background: 'transparent', color: 'var(--fg)',
-            fontSize: 14, resize: 'none', outline: 'none', fontFamily: 'inherit',
+            fontSize: 15, resize: 'none', outline: 'none', fontFamily: 'inherit', padding: '7px 0',
             maxHeight: 160, overflowY: 'auto', lineHeight: 1.5,
           }}
           onInput={e => {
@@ -577,7 +610,7 @@ const MessageInput = ({ onSend, convId, disabled, members = [], droppedFiles }) 
           disabled={(!text.trim() && !pending.length) || sending}
           aria-label={t('Envoyer')}
           style={{
-            padding: '6px 14px', borderRadius: 6, border: 'none',
+            width: 36, height: 36, justifyContent: 'center', borderRadius: '50%', border: 'none',
             background: text.trim() || pending.length ? 'var(--brand)' : 'var(--border)',
             color: text.trim() || pending.length ? '#fff' : 'var(--fg-muted)',
             cursor: text.trim() || pending.length ? 'pointer' : 'default',
@@ -588,7 +621,7 @@ const MessageInput = ({ onSend, convId, disabled, members = [], droppedFiles }) 
           {sending ? <Loader size={14} className="spin" /> : <Send size={14} />}
         </button>
       </div>
-      <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 4, paddingLeft: 2 }}>
+      <div className="chat-hint" style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 4, paddingLeft: 12 }}>
         {t('@ pour mentionner · Maj+Entrée pour retour à la ligne · 📎 ou glisser un fichier pour le joindre')}
       </div>
     </div>
@@ -800,7 +833,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
           )}
           <div
             ref={listRef}
-            style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}
+            style={{ flex: 1, overflowY: 'auto', padding: '8px 0 12px', background: 'var(--chat-wall)' }}
             onScroll={e => { if (e.target.scrollTop < 80) loadMore(); }}
           >
             {loadingMore && (
@@ -826,13 +859,8 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
               </div>
             ) : (
               grouped.map(item => item.type === 'divider' ? (
-                <div key={item.key} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 16px', margin: '4px 0',
-                }}>
-                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>{item.label}</span>
-                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                <div key={item.key} style={{ display: 'flex', justifyContent: 'center', padding: '10px 16px 4px', position: 'sticky', top: 0, zIndex: 2 }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--fg-muted)', whiteSpace: 'nowrap', padding: '4px 12px', borderRadius: 999, background: 'var(--chat-other-bg)', boxShadow: 'var(--chat-bubble-shadow)' }}>{item.label}</span>
                 </div>
               ) : (
                 <MessageBubble
@@ -840,6 +868,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
                   msg={item.msg}
                   isMine={(item.msg.author_id || item.msg.authorId) === user?.id}
                   showHeader={item.showHeader}
+                  isGroup={conv.type !== 'direct'}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onReact={handleReact}
@@ -850,7 +879,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
             )}
 
             {typingNames.length > 0 && (
-              <div style={{ padding: '4px 16px 4px 54px', fontSize: 12, color: 'var(--fg-muted)', fontStyle: 'italic' }}>
+              <div style={{ padding: '6px 16px 0', fontSize: 12, color: 'var(--fg-muted)', fontStyle: 'italic' }}>
                 {typingNames.join(', ')} {typingNames.length === 1 ? t("est en train d'écrire…") : t("sont en train d'écrire…")}
               </div>
             )}

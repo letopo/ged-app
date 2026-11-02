@@ -18,6 +18,13 @@
   --brand-soft:      #E8EEF7;
   --brand-soft-2:    #DCE5F2;
   --brand-soft-hover:#D9E5F2;
+
+  /* ── Discussion (bulles façon messagerie) ───────────── */
+  --chat-wall:          #EEF1F5;
+  --chat-mine-bg:       #D6E4F7;
+  --chat-other-bg:      #FFFFFF;
+  --chat-meta:          #6B7280;
+  --chat-bubble-shadow: 0 1px 1px rgba(15, 23, 42, 0.10);
   --brand-muted:     #5B89D6;
   --brand-fg:        #1B3A6B;
 
@@ -90,6 +97,11 @@
 /* ── Dark mode ──────────────────────────────────────────── */
 [data-theme="dark"], .dark {
   --brand:           #5B89D6;
+  --chat-wall:          #0E1522;
+  --chat-mine-bg:       #234470;
+  --chat-other-bg:      #1C2433;
+  --chat-meta:          #9AA6B8;
+  --chat-bubble-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
   --brand-hover:     #6E99DE;
   --brand-soft:      #1A2845;
   --brand-soft-hover:#1E3050;
@@ -471,6 +483,11 @@
 
 /* Discussion : bouton retour réservé au mobile */
 .chat-back { display: none; }
+.chat-actions { display: none; }
+.chat-row.is-open .chat-actions { display: flex; }
+@media (hover: hover) { .chat-row:hover .chat-actions { display: flex; } }
+/* Téléphone : l'appui long ouvre les actions (dont « Copier ») au lieu de sélectionner le texte */
+@media (pointer: coarse) { .chat-row { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } }
 
 /* Barre de validation en masse (Mes tâches) */
 .bulk-bar { bottom: 24px; max-width: calc(100vw - 24px); }
@@ -723,6 +740,7 @@ a.kpi-card:active { transform: scale(0.98); }
   .chat-root.has-selection .chat-list { display: none !important; }
   .chat-root:not(.has-selection) .chat-thread { display: none !important; }
   .chat-back { display: inline-flex; }
+  .chat-hint { display: none; }
   .chat-body { position: relative; }
   .chat-members { position: absolute; inset: 0; z-index: 5; width: auto !important; border-left: none !important; }
   .chat-new-modal { padding: 18px !important; max-height: calc(100dvh - 32px) !important; }
