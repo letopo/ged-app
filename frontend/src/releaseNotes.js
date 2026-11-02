@@ -18,6 +18,7 @@
 // Les notes sont affichées de la plus ancienne à la plus récente.
 
 import { isFestiveSeason } from './components/Festive';
+import { phpAccess } from './utils/phpAccess';
 
 const isAdmin = (user) => ['admin', 'superadmin'].includes(user?.role);
 
@@ -877,6 +878,17 @@ const RELEASE_NOTES = [
     items: [
       'Deux nouveaux postes dans Admin › Postes & Fonctions : « Module PHP » (utilisation complète, comme le Point Focal) et « Module PHP — consultation » (listes, statistiques et exports, sans saisie).',
       'Les données du module PHP (patients, diagnostics, statistiques) ne sont plus lisibles que par les administrateurs, le Point Focal PHP et les titulaires de ces postes : le contrôle est fait par le serveur.',
+    ],
+  },
+  {
+    id: '2026-11-02-php-recherche-matricule',
+    date: '2026-11-02',
+    target: 'app',
+    title: 'PHP : recherche du patient par matricule',
+    access: (user) => phpAccess(user).write,
+    items: [
+      'Dans « Enregistrer un patient PHP », un bouton « Rechercher » (ou la touche Entrée) retrouve le patient à partir du matricule et affiche ses informations : genre, date de naissance, téléphone, secteur et infirmerie.',
+      'Un patient déjà enregistré n\'est plus ressaisi : vous le mettez directement en consultation ou lui faites un nouveau bon.',
     ],
   },
 ];

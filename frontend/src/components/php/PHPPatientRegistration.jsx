@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   X, UserPlus, AlertCircle, CheckCircle, FileText,
-  Loader, Stethoscope, UserCheck, RefreshCw
+  Loader, Stethoscope, UserCheck, RefreshCw, Search
 } from 'lucide-react';
 import { phpPatientAPI, phpReferenceAPI } from '../../services/phpService';
 import PHPConsultationForm from './PHPConsultationForm';
@@ -23,6 +23,7 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
   const [patientTrouve, setPatientTrouve]   = useState(null);
   const [searchError,   setSearchError]     = useState(null);
   const debounceRef = useRef(null);
+  const searchSeq = useRef(0); // ignore les réponses d'une recherche dépassée
 
   const [secteurs,    setSecteurs]    = useState([]);
   const [servicesMed, setServicesMed] = useState([]);
@@ -46,25 +47,37 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
       }).catch(console.error);
   }, []);
 
+  // Recherche du matricule dans la liste des patients : remplit la fiche si trouvé
+  const runSearch = async (v) => {
+    clearTimeout(debounceRef.current);
+    if (!v) return;
+    const seq = ++searchSeq.current;
+    setSearchStatus('searching');
+    setSearchError(null);
+    try {
+      const res = await phpPatientAPI.searchByMatricule(encodeURIComponent(v));
+      if (seq !== searchSeq.current) return;
+      const patient = res.data.data;
+      if (patient) { setPatientTrouve(patient); setSearchStatus('found'); autoFillForm(patient); }
+      else { setPatientTrouve(null); setSearchStatus('not_found'); }
+    } catch (err) {
+      if (seq !== searchSeq.current) return;
+      if (err.response?.status === 404) { setPatientTrouve(null); setSearchStatus('not_found'); }
+      else { setSearchStatus('idle'); setSearchError(err.response?.data?.message || t('Erreur réseau lors de la recherche')); }
+    }
+  };
+
   const handleMatriculeChange = (val) => {
-    const v = val.toUpperCase().trim();
+    const v = val.toUpperCase().replace(/\s+/g, '');
     setForm(f => ({ ...f, matricule: v }));
     setSearchError(null);
-    if (!v) { setSearchStatus('idle'); setPatientTrouve(null); resetForm(v); return; }
-    if (v.length < 3) { setSearchStatus('idle'); return; }
     clearTimeout(debounceRef.current);
-    setSearchStatus('searching');
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await phpPatientAPI.searchByMatricule(v);
-        const patient = res.data.data;
-        if (patient) { setPatientTrouve(patient); setSearchStatus('found'); autoFillForm(patient); }
-        else { setPatientTrouve(null); setSearchStatus('not_found'); }
-      } catch (err) {
-        if (err.response?.status === 404) { setPatientTrouve(null); setSearchStatus('not_found'); }
-        else { setSearchStatus('idle'); setSearchError(t('Erreur réseau lors de la recherche')); }
-      }
-    }, 600);
+    searchSeq.current++;
+    if (patientTrouve) { setPatientTrouve(null); resetForm(v); }
+    if (!v) { setSearchStatus('idle'); return; }
+    if (v.length < 3) { setSearchStatus('idle'); return; }
+    setSearchStatus('typing');
+    debounceRef.current = setTimeout(() => runSearch(v), 800);
   };
 
   const autoFillForm = (p) => {
@@ -106,7 +119,7 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
 
   const isFound    = searchStatus === 'found';
   const isNotFound = searchStatus === 'not_found';
-  const isSearching= searchStatus === 'searching';
+  const isSearching= searchStatus === 'searching' || searchStatus === 'typing';
   const readOnly   = isFound;
 
   return (
@@ -137,11 +150,14 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
           {/* Champ matricule */}
           <div>
             <label style={labelStyle}>{t('Matricule')} <span style={{ color: 'var(--danger)' }}>*</span></label>
-            <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ position: 'relative', flex: 1 }}>
               <input
                 type="text"
+                inputMode="numeric"
                 value={form.matricule}
                 onChange={e => handleMatriculeChange(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); runSearch(form.matricule); } }}
                 placeholder={t('Ex: 100049')}
                 autoFocus
                 style={{ ...inputStyle({ fontFamily: 'var(--font-mono)', paddingRight: 36, border: `1.5px solid ${isFound ? 'var(--success)' : isNotFound ? 'var(--brand)' : 'var(--border)'}`, background: isFound ? 'var(--success-soft)' : 'var(--surface)' }) }}
@@ -151,6 +167,14 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
                 {isFound     && <CheckCircle size={15} style={{ color: 'var(--success)' }} />}
                 {isNotFound  && <UserPlus   size={15} style={{ color: 'var(--brand)' }} />}
               </div>
+            </div>
+            <button type="button" onClick={() => runSearch(form.matricule)} disabled={!form.matricule || isSearching}
+              title={t('Rechercher ce matricule dans la liste des patients')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', fontSize: 13, fontWeight: 600, background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: !form.matricule || isSearching ? 'not-allowed' : 'pointer', opacity: !form.matricule || isSearching ? 0.5 : 1, flexShrink: 0 }}
+            >
+              {isSearching ? <Loader size={14} className="animate-spin" /> : <Search size={14} />}
+              {t('Rechercher')}
+            </button>
             </div>
             {searchError && (
               <p style={{ fontSize: 11, color: 'var(--danger)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -192,6 +216,22 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
                 </button>
               </div>
 
+              {/* Informations déjà connues du patient */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 12, padding: 10, background: 'var(--surface)', borderRadius: 'var(--radius-2)' }}>
+                {[
+                  [t('Genre'), patientTrouve.genre === 'M' ? t('Masculin') : patientTrouve.genre === 'F' ? t('Féminin') : null],
+                  [t('Date de naissance'), patientTrouve.dateNaissance ? patientTrouve.dateNaissance.slice(0, 10).split('-').reverse().join('/') : null],
+                  [t('Téléphone'), patientTrouve.telephone],
+                  [t('Secteur de travail'), patientTrouve.secteur?.nom],
+                  [t('Infirmerie'), patientTrouve.infirmerie?.nom],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <p style={{ fontSize: 11, color: 'var(--fg-muted)', margin: 0 }}>{label}</p>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: value ? 'var(--fg)' : 'var(--fg-subtle)', margin: 0 }}>{value || '—'}</p>
+                  </div>
+                ))}
+              </div>
+
               <button type="button" onClick={() => { setPatientPourConsult(patientTrouve); setModeConsult(true); }}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 16px', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: 'var(--radius-3)', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
                 onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
@@ -204,7 +244,7 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
                 <button type="button" disabled={loading}
                   onClick={async () => {
-                    try { setLoading(true); const res = await phpPatientAPI.genererBon(patientTrouve.id, { serviceDestination: form.serviceDestination, motif: form.motifVisite }); onSuccess(patientTrouve, res.data.data); }
+                    try { setLoading(true); const res = await phpPatientAPI.genererBon(patientTrouve.id, { serviceDestination: form.serviceDestination, motifVisite: form.motifVisite }); onSuccess(patientTrouve, res.data.data); }
                     catch (err) { setFormError(err.response?.data?.message || t('Erreur bon')); }
                     finally { setLoading(false); }
                   }}
@@ -337,17 +377,17 @@ export default function PHPPatientRegistration({ onClose, onSuccess }) {
                 >
                   {t('Annuler')}
                 </button>
-                <button type="submit" disabled={loading || searchStatus === 'idle'}
+                <button type="submit" disabled={loading || searchStatus !== 'not_found'}
                   onClick={e => handleSubmit(e, false)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 16px', fontSize: 13, border: '1px solid var(--brand)', color: 'var(--brand)', background: 'transparent', borderRadius: 'var(--radius-2)', cursor: (loading || searchStatus === 'idle') ? 'not-allowed' : 'pointer', opacity: (loading || searchStatus === 'idle') ? 0.4 : 1, fontWeight: 500 }}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 16px', fontSize: 13, border: '1px solid var(--brand)', color: 'var(--brand)', background: 'transparent', borderRadius: 'var(--radius-2)', cursor: (loading || searchStatus !== 'not_found') ? 'not-allowed' : 'pointer', opacity: (loading || searchStatus !== 'not_found') ? 0.4 : 1, fontWeight: 500 }}
                 >
                   {loading ? <Loader size={14} className="animate-spin" /> : <UserPlus size={14} />}
                   {t('Enregistrer')}
                 </button>
-                <button type="button" disabled={loading || searchStatus === 'idle'}
+                <button type="button" disabled={loading || searchStatus !== 'not_found'}
                   onClick={e => handleSubmit(e, true)}
-                  style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 16px', fontSize: 13, background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: (loading || searchStatus === 'idle') ? 'not-allowed' : 'pointer', opacity: (loading || searchStatus === 'idle') ? 0.4 : 1, fontWeight: 600 }}
-                  onMouseEnter={e => { if (!loading && searchStatus !== 'idle') e.currentTarget.style.background = 'var(--brand-active)'; }}
+                  style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 16px', fontSize: 13, background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: (loading || searchStatus !== 'not_found') ? 'not-allowed' : 'pointer', opacity: (loading || searchStatus !== 'not_found') ? 0.4 : 1, fontWeight: 600 }}
+                  onMouseEnter={e => { if (!loading && searchStatus === 'not_found') e.currentTarget.style.background = 'var(--brand-active)'; }}
                   onMouseLeave={e => e.currentTarget.style.background = 'var(--brand)'}
                 >
                   {loading ? <Loader size={14} className="animate-spin" /> : <Stethoscope size={14} />}
