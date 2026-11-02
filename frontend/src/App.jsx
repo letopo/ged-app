@@ -6,6 +6,7 @@ const Router = window.electronAPI?.isElectron ? HashRouter : BrowserRouter;
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './contexts/AuthContext';
 import useNotifications from './hooks/useNotifications';
+import ChatNotifier from './components/chat/ChatNotifier';
 
 import AppShell from './components/AppShell';
 import Login from './components/Login';
@@ -269,6 +270,7 @@ function App() {
   return (
     <SyncProvider isAuthenticated={isAuthenticated}>
     <Router>
+      <ChatNotifier />
       <Toaster
         position="top-right"
         gutter={8}

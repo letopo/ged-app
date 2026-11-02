@@ -193,6 +193,18 @@ export const initializeSocket = (server) => {
     } catch { /* identifiant invalide : ignoré */ }
   });
 
+  // Présence pour les notifications de la discussion : application visible à
+  // l'écran ? conversation affichée ? (cf. chatPresence)
+  socket.data.visible = true;
+  socket.data.viewing = null;
+  socket.on('app:visibility', (visible) => {
+    socket.data.visible = visible !== false;
+    if (!socket.data.visible) socket.data.viewing = null;
+  });
+  socket.on('chat:viewing', (conversationId) => {
+    socket.data.viewing = typeof conversationId === 'string' && socket.rooms.has(`conv:${conversationId}`) ? conversationId : null;
+  });
+
   socket.on('chat:leave', (conversationId) => {
     if (typeof conversationId === 'string') {
       socket.leave(`conv:${conversationId}`);
@@ -304,6 +316,22 @@ export const emitTaskUpdateNotification = (validatorId, updateData) => {
 /**
  * Vérifie si un utilisateur est connecté
  */
+/**
+ * Où en est l'utilisateur pour une conversation : `active` = l'application est
+ * visible sur au moins un appareil ; `viewing` = cette conversation y est affichée.
+ */
+export const chatPresence = (userId, conversationId) => {
+  let active = false;
+  let viewing = false;
+  for (const id of userSockets.get(userId) || []) {
+    const s = io?.sockets?.sockets?.get(id);
+    if (!s?.data?.visible) continue;
+    active = true;
+    if (s.data.viewing === conversationId) viewing = true;
+  }
+  return { active, viewing };
+};
+
 export const isUserConnected = (userId) => {
   return userSockets.has(userId) && userSockets.get(userId).size > 0;
 };

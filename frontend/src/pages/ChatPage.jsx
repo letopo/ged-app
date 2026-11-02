@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   MessageSquare, Hash, User, Users, Plus, Search, Send, X,
   ChevronDown, Trash2, Edit2, Check, FileText, Lock, Loader,
-  MoreVertical, UserPlus, LogOut, Paperclip, Copy,
+  MoreVertical, UserPlus, LogOut, Paperclip, Copy, Bell, BellOff,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../services/api';
@@ -13,12 +13,13 @@ import chatService from '../services/chatService';
 import i18n from '../i18n/config';
 import {
   fmt, fmtDay, convName, convIcon, avatarColor, Avatar, MessageBubble, MessageInput,
+  useReadTracking, readReceipt, SeenLine,
 } from '../components/chat/ChatMessages';
 import DocumentBanner from '../components/chat/DocumentBanner';
 
 // ─── Thread de messages ───────────────────────────────────────────────────────
 
-const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
+const MessageThread = ({ conv, user, onBack, onlineUsers, onMutedChange }) => {
   const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +29,15 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
   const [members, setMembers] = useState([]);
   const [showMembers, setShowMembers] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [muted, setMuted] = useState(!!conv.muted);
+  // Conversation affichée : lue seulement si l'écran est visible ; ✓✓ en direct
+  const markRead = useReadTracking(conv.id, setMembers);
+  const toggleMute = async () => {
+    const next = !muted;
+    setMuted(next);
+    const ok = await chatService.setMuted(conv.id, next).catch(() => null);
+    if (ok === null) setMuted(!next); else onMutedChange?.(conv.id, next);
+  };
   const [droppedFiles, setDroppedFiles] = useState(null);
   const bottomRef = useRef(null);
   const listRef = useRef(null);
@@ -46,7 +56,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }), 50);
     }).catch(() => setLoading(false));
 
-    chatService.markAsRead(conv.id);
+    markRead();
     chatService.getMembers(conv.id).then(setMembers).catch(() => {});
 
     if (socket) socket.emit('chat:join', conv.id);
@@ -65,7 +75,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
           if (full) setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...full } : m));
         }).catch(() => {});
       }
-      chatService.markAsRead(conv.id);
+      markRead();
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     };
 
@@ -200,6 +210,18 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
           )}
         </div>
         <button
+          onClick={toggleMute}
+          title={muted ? t('Réactiver les notifications') : t('Mettre en sourdine (plus de notifications)')}
+          aria-label={muted ? t('Réactiver les notifications') : t('Mettre en sourdine')}
+          style={{
+            padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', marginRight: 6,
+            background: muted ? 'var(--surface-2)' : 'transparent',
+            color: muted ? 'var(--warning, var(--fg-muted))' : 'var(--fg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center',
+          }}
+        >
+          {muted ? <BellOff size={14} /> : <Bell size={14} />}
+        </button>
+        <button
           onClick={() => setShowMembers(v => !v)}
           title={t('Membres')}
           style={{
@@ -268,9 +290,17 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
                   onReact={handleReact}
                   onlineUsers={onlineUsers}
                   currentUserId={user?.id}
+                  receipt={(item.msg.author_id || item.msg.authorId) === user?.id ? readReceipt(item.msg, members, user?.id) : null}
                 />
               ))
             )}
+
+            {/* « Vu à… » / « Vu par… » sous mon dernier message */}
+            {(() => {
+              const last = messages[messages.length - 1];
+              if (!last || (last.author_id || last.authorId) !== user?.id || last.is_system || last.isSystem) return null;
+              return <SeenLine receipt={readReceipt(last, members, user?.id)} isGroup={conv.type !== 'direct'} />;
+            })()}
 
             {typingNames.length > 0 && (
               <div style={{ padding: '6px 16px 0', fontSize: 12, color: 'var(--fg-muted)', fontStyle: 'italic' }}>
@@ -373,6 +403,8 @@ const ConvItem = ({ conv, active, onClick, user, onlineUsers = new Set() }) => {
             color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             maxWidth: '70%',
           }}>{name}</span>
+          {conv.muted && <BellOff size={12} style={{ color: 'var(--fg-subtle)', flexShrink: 0, marginLeft: 4 }} aria-label={t('En sourdine')} />}
+          <span style={{ flex: 1 }} />
           {conv.last_at && (
             <span style={{ fontSize: 11, color: 'var(--fg-muted)', flexShrink: 0 }}>{fmt(conv.last_at)}</span>
           )}
@@ -782,6 +814,7 @@ const ChatPage = () => {
             user={user}
             onBack={() => setSelectedId(null)}
             onlineUsers={onlineUsers}
+            onMutedChange={(id, m) => setConversations(prev => prev.map(c => (c.id === id ? { ...c, muted: m } : c)))}
           />
         ) : (
           <div style={{

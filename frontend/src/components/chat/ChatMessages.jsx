@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  User, Hash, Send, X, Trash2, Edit2, FileText, Loader, Paperclip, Copy,
+  User, Hash, Send, X, Trash2, Edit2, FileText, Loader, Paperclip, Copy, Check, CheckCheck,
 } from 'lucide-react';
 import { getSocket } from '../../services/api';
 import chatService from '../../services/chatService';
@@ -121,11 +121,80 @@ export const Avatar = ({ firstName, lastName, size = 32, isOnline = false }) => 
 
 // ─── Bulle de message ─────────────────────────────────────────────────────────
 
+// ─── Accusés de lecture ───────────────────────────────────────────────────────
+
+/**
+ * Lecture d'une conversation affichée : annonce au serveur qu'on la lit (pas
+ * de notification pendant ce temps), ne la marque lue que si l'écran est
+ * réellement visible, et tient à jour l'heure de lecture des participants
+ * (événement chat:read). Renvoie markRead() à appeler à chaque message reçu.
+ */
+export function useReadTracking(convId, setMembers, enabled = true) {
+  const markRead = useCallback(() => {
+    if (convId && document.visibilityState === 'visible') chatService.markAsRead(convId);
+  }, [convId]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!convId || !enabled || !socket) return undefined;
+    const announce = () => socket.emit('chat:viewing', document.visibilityState === 'visible' ? convId : null);
+    // La salle de la conversation est rejointe juste avant (vérification serveur) : on annonce un peu après
+    const timers = [setTimeout(announce, 400), setTimeout(announce, 1500)];
+    const onVisibility = () => { announce(); if (document.visibilityState === 'visible') markRead(); };
+    // Reconnexion (réseau, mise en veille) : on rejoint la salle et on se réannonce
+    const onConnect = () => { socket.emit('chat:join', convId); timers.push(setTimeout(announce, 400)); markRead(); };
+    const onRead = ({ conversationId, userId, readAt }) => {
+      if (conversationId === convId) setMembers(prev => prev.map(m => (m.user_id === userId ? { ...m, last_read_at: readAt } : m)));
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    socket.on('connect', onConnect);
+    socket.on('chat:read', onRead);
+    return () => {
+      timers.forEach(clearTimeout);
+      document.removeEventListener('visibilitychange', onVisibility);
+      socket.off('connect', onConnect);
+      socket.off('chat:read', onRead);
+      socket.emit('chat:viewing', null);
+    };
+  }, [convId, enabled, markRead]);
+
+  return markRead;
+}
+
+/** Qui a lu un message : participants (hors soi) dont l'heure de lecture est postérieure. */
+export function readReceipt(msg, members, myId) {
+  const others = members.filter(m => m.user_id !== myId && m.is_active !== false);
+  if (!others.length) return null;
+  const at = new Date(msg.created_at || msg.createdAt).getTime();
+  const readers = others.filter(m => m.last_read_at && new Date(m.last_read_at).getTime() >= at);
+  return { readers, others, all: readers.length === others.length };
+}
+
+const memberName = (m) => `${m.first_name || ''} ${m.last_name || ''}`.trim();
+
+/** « Vu à 14:52 » (message direct) / « Vu par Maeva, Franck » / « Vu par tous » sous mon dernier message. */
+export const SeenLine = ({ receipt, isGroup }) => {
+  const { t } = useTranslation();
+  if (!receipt?.readers.length) return null;
+  const last = receipt.readers.reduce((a, b) => (new Date(a.last_read_at) > new Date(b.last_read_at) ? a : b));
+  const label = !isGroup
+    ? t('Vu à {{time}}', { time: fmtFull(last.last_read_at) })
+    : receipt.all && receipt.others.length > 1
+      ? t('Vu par tous')
+      : t('Vu par {{names}}', { names: receipt.readers.map(m => memberName(m).split(' ')[0]).join(', ') });
+  return (
+    <div style={{ textAlign: 'right', padding: '2px 16px 0', fontSize: 11, color: 'var(--chat-meta)' }}
+      title={receipt.readers.map(m => `${memberName(m)} — ${fmtFull(m.last_read_at)}`).join('\n')}>
+      {label}
+    </div>
+  );
+};
+
 // Bulle façon messagerie (WhatsApp / Telegram) : mes messages à droite en
 // couleur, ceux des autres à gauche ; heure dans la bulle ; nom et avatar
 // seulement dans les groupes. Actions (réagir, modifier, supprimer) au survol
 // sur ordinateur, par appui long sur téléphone.
-export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDelete, onReact, onlineUsers = new Set(), currentUserId }) => {
+export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDelete, onReact, onlineUsers = new Set(), currentUserId, receipt }) => {
   const { t } = useTranslation();
   const [actionsOpen, setActionsOpen] = useState(false); // appui long (écran tactile)
   const [editing, setEditing] = useState(false);
@@ -183,6 +252,12 @@ export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDele
   const meta = (
     <span style={{ float: 'right', marginLeft: 10, marginTop: 6, marginBottom: -3, fontSize: 11, lineHeight: '14px', color: 'var(--chat-meta)', whiteSpace: 'nowrap', userSelect: 'none' }}>
       {edited && !deleted && <>{t('modifié')} · </>}{time}
+      {isMine && !deleted && receipt && (
+        <span title={receipt.all ? t('Lu') : receipt.readers.length ? t('Lu par {{n}} sur {{total}}', { n: receipt.readers.length, total: receipt.others.length }) : t('Envoyé')}
+          style={{ display: 'inline-flex', verticalAlign: '-3px', marginLeft: 3, color: receipt.all ? 'var(--chat-read)' : 'var(--chat-meta)' }}>
+          {receipt.readers.length ? <CheckCheck size={15} /> : <Check size={15} />}
+        </span>
+      )}
     </span>
   );
 

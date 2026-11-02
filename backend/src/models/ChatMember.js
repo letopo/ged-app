@@ -21,6 +21,11 @@ const ChatMember = sequelize.define('ChatMember', {
     type: DataTypes.STRING(20),
     defaultValue: 'member',
   },
+  // Conversation en sourdine : pas de notification (alerte ni push)
+  muted: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
   lastReadAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,

@@ -10,7 +10,7 @@ import { MessageSquare, X, Loader, Hash } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
-import { MessageBubble, MessageInput, fmtDay } from './chat/ChatMessages';
+import { MessageBubble, MessageInput, fmtDay, useReadTracking, readReceipt, SeenLine } from './chat/ChatMessages';
 
 const DocumentDiscussion = ({ documentId, documentTitle }) => {
   const { t } = useTranslation();
@@ -23,6 +23,8 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
   const [unread, setUnread] = useState(0);
   const bottomRef = useRef(null);
   const socket = getSocket();
+  // Panneau ouvert = conversation affichée (pas de notification, ✓✓ en direct)
+  const markRead = useReadTracking(conv?.id, setMembers, open);
 
   const loadThread = useCallback(async () => {
     if (!documentId) return;
@@ -33,7 +35,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
       const [msgs, mem] = await Promise.all([chatService.getMessages(c.id), chatService.getMembers(c.id).catch(() => [])]);
       setMessages(msgs);
       setMembers(mem);
-      await chatService.markAsRead(c.id);
+      if (document.visibilityState === 'visible') await chatService.markAsRead(c.id);
       setUnread(0);
       if (socket) socket.emit('chat:join', c.id);
     } catch (_) {}
@@ -62,7 +64,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
         }).catch(() => {});
       }
       if (open) {
-        chatService.markAsRead(conv.id);
+        markRead();
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       } else {
         setUnread(u => u + 1);
@@ -82,7 +84,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
       socket.off('chat:message_deleted', handleDelete);
       socket.off('chat:reaction', handleReaction);
     };
-  }, [socket, conv?.id, open]);
+  }, [socket, conv?.id, open, markRead]);
 
   useEffect(() => {
     if (open && messages.length > 0) {
@@ -209,9 +211,15 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
                   onDelete={handleDelete}
                   onReact={handleReact}
                   currentUserId={user?.id}
+                  receipt={(item.msg.author_id || item.msg.authorId) === user?.id ? readReceipt(item.msg, members, user?.id) : null}
                 />
               ))
             )}
+            {(() => {
+              const last = messages[messages.length - 1];
+              if (!last || (last.author_id || last.authorId) !== user?.id || last.is_system || last.isSystem) return null;
+              return <SeenLine receipt={readReceipt(last, members, user?.id)} isGroup />;
+            })()}
             <div ref={bottomRef} />
           </div>
 
