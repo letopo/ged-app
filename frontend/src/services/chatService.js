@@ -29,20 +29,26 @@ const chatService = {
     return get(url.toString()).then(r => r.data || []);
   },
 
+  // Réponse : le message, plus `added` (personnes mentionnées ajoutées à la
+  // discussion d'un document, et à qui il a été transmis)
   sendMessage: (id, data) =>
-    post(`${BASE}/conversations/${id}/messages`, data).then(r => r.data),
+    post(`${BASE}/conversations/${id}/messages`, data).then(r => (r.data ? { ...r.data, added: r.added } : r.data)),
+
+  getMentionCandidates: (id, q = '') =>
+    get(`${BASE}/conversations/${id}/mention-candidates?q=${encodeURIComponent(q)}`).then(r => r.data || []),
 
   // Document de la GED partagé dans la conversation (refusé si on ne peut pas le lire)
-  shareDocument: (id, documentId, content = '') =>
-    post(`${BASE}/conversations/${id}/messages`, { documentId, content }).then(r => {
+  shareDocument: (id, documentId, content = '', mentionUserIds = []) =>
+    post(`${BASE}/conversations/${id}/messages`, { documentId, content, mentionUserIds }).then(r => {
       if (!r.success) throw new Error(r.error || r.message || 'Partage impossible');
-      return r.data;
+      return { ...r.data, added: r.added };
     }),
 
   // Fichier de l'ordinateur ou du téléphone ; onProgress(0..1) pendant l'envoi
-  uploadAttachment: (id, file, content = '', onProgress) => new Promise((resolve, reject) => {
+  uploadAttachment: (id, file, content = '', onProgress, mentionUserIds = []) => new Promise((resolve, reject) => {
     const form = new FormData();
     form.append('content', content);
+    if (mentionUserIds.length) form.append('mentionUserIds', JSON.stringify(mentionUserIds));
     form.append('file', file);
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${BASE}/conversations/${id}/attachments`);
@@ -51,7 +57,7 @@ const chatService = {
     xhr.onload = () => {
       let body = {};
       try { body = JSON.parse(xhr.responseText); } catch { /* réponse non JSON */ }
-      if (xhr.status >= 200 && xhr.status < 300) resolve(body.data);
+      if (xhr.status >= 200 && xhr.status < 300) resolve({ ...body.data, added: body.added });
       else reject(new Error(body.message || body.error || (xhr.status === 413 ? 'Fichier trop volumineux' : 'Envoi impossible')));
     };
     xhr.onerror = () => reject(new Error('Réseau indisponible'));

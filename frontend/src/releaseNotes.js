@@ -913,6 +913,16 @@ const RELEASE_NOTES = [
       'Les réactions restent affichées quand on rouvre une conversation.',
     ],
   },
+  {
+    id: '2026-11-03-chat-mention-document',
+    date: '2026-11-03',
+    target: 'app',
+    title: 'Discussion d\'un document : inviter un collègue avec @',
+    items: [
+      'Sur un document ouvert, dans la discussion (bouton rond en bas à droite), tapez @ puis le nom d\'un collègue : il rejoint la discussion et, s\'il ne pouvait pas encore lire le document, il le reçoit (onglet « Reçus » et notification), comme avec « Transmettre ».',
+      'La liste signale « recevra le document » pour les personnes qui n\'y ont pas encore accès. Le panneau a aussi les bulles, les réactions et les pièces jointes de la page Discussion.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

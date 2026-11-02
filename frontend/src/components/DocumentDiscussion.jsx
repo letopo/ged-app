@@ -1,48 +1,25 @@
 // frontend/src/components/DocumentDiscussion.jsx
-// Composant embarquable dans les pages document pour ouvrir la discussion associée
+// Composant embarquable dans les pages document pour ouvrir la discussion associée.
+// Mêmes bulles et même zone de saisie que la page Discussion (chat/ChatMessages) :
+// pièces jointes, réactions, et @mention de tout collègue — la personne
+// mentionnée rejoint la discussion et reçoit le document si elle ne pouvait
+// pas le lire (règles de « Transmettre », vérifiées par le serveur).
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Send, X, Loader, Hash } from 'lucide-react';
+import { MessageSquare, X, Loader, Hash } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
-import ChatAttachment from './chat/ChatAttachment';
-
-const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
-
-const avatarColor = (str = '') => {
-  const colors = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
-  let h = 0;
-  for (const c of str) h = c.charCodeAt(0) + ((h << 5) - h);
-  return colors[Math.abs(h) % colors.length];
-};
-
-const Avatar = ({ fn, ln, size = 26 }) => (
-  <div style={{
-    width: size, height: size, borderRadius: '50%',
-    background: avatarColor(`${fn}${ln}`), color: '#fff',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: size * 0.38, fontWeight: 700, flexShrink: 0, userSelect: 'none',
-  }}>
-    {(fn?.[0] || '')}{ (ln?.[0] || '')}
-  </div>
-);
+import { MessageBubble, MessageInput, fmtDay } from './chat/ChatMessages';
 
 const DocumentDiscussion = ({ documentId, documentTitle }) => {
   const { t } = useTranslation();
-  const { lang } = useLanguage();
-  const fmtTime = (date) => {
-    if (!date) return '';
-    return new Date(date).toLocaleTimeString(BCP47_LOCALES[lang] || 'fr-FR', { hour: '2-digit', minute: '2-digit' });
-  };
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [conv, setConv] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [text, setText] = useState('');
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
   const [unread, setUnread] = useState(0);
   const bottomRef = useRef(null);
   const socket = getSocket();
@@ -53,8 +30,9 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
     try {
       const c = await chatService.getOrCreateDocumentThread(documentId);
       setConv(c);
-      const msgs = await chatService.getMessages(c.id);
+      const [msgs, mem] = await Promise.all([chatService.getMessages(c.id), chatService.getMembers(c.id).catch(() => [])]);
       setMessages(msgs);
+      setMembers(mem);
       await chatService.markAsRead(c.id);
       setUnread(0);
       if (socket) socket.emit('chat:join', c.id);
@@ -90,9 +68,20 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
         setUnread(u => u + 1);
       }
     };
+    const handleEdit = ({ id, content, editedAt }) => setMessages(prev => prev.map(m => m.id === id ? { ...m, content, editedAt } : m));
+    const handleDelete = ({ id }) => setMessages(prev => prev.map(m => m.id === id ? { ...m, isDeleted: true, content: '' } : m));
+    const handleReaction = ({ messageId, reactions }) => setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions } : m));
 
     socket.on('chat:message', handleMsg);
-    return () => socket.off('chat:message', handleMsg);
+    socket.on('chat:message_edited', handleEdit);
+    socket.on('chat:message_deleted', handleDelete);
+    socket.on('chat:reaction', handleReaction);
+    return () => {
+      socket.off('chat:message', handleMsg);
+      socket.off('chat:message_edited', handleEdit);
+      socket.off('chat:message_deleted', handleDelete);
+      socket.off('chat:reaction', handleReaction);
+    };
   }, [socket, conv?.id, open]);
 
   useEffect(() => {
@@ -101,16 +90,37 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
     }
   }, [open, messages.length]);
 
-  const handleSend = async () => {
-    if (!text.trim() || sending || !conv) return;
-    const content = text.trim();
-    setSending(true);
-    setText('');
-    try {
-      await chatService.sendMessage(conv.id, { content });
-    } catch (_) {}
-    setSending(false);
+  const handleSend = async (data) => {
+    if (!conv) return null;
+    const sent = await chatService.sendMessage(conv.id, data);
+    if (sent?.added?.some(a => a.joined)) chatService.getMembers(conv.id).then(setMembers).catch(() => {});
+    return sent;
   };
+  const handleEdit = async (id, content) => {
+    const updated = await chatService.editMessage(id, content).catch(() => null);
+    if (updated) setMessages(prev => prev.map(m => m.id === id ? { ...m, content: updated.content, editedAt: updated.editedAt } : m));
+  };
+  const handleDelete = async (id) => {
+    if (!confirm(t('Supprimer ce message ?'))) return;
+    await chatService.deleteMessage(id).catch(() => null);
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, isDeleted: true, content: '' } : m));
+  };
+  const handleReact = async (messageId, emoji) => {
+    const result = await chatService.toggleReaction(conv.id, messageId, emoji).catch(() => null);
+    if (result) setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions: result } : m));
+  };
+
+  // Séparateurs de jour et début de série (même auteur à moins de 5 min)
+  const items = [];
+  let lastDay = null; let lastAuthor = null; let lastTime = 0;
+  for (const msg of messages) {
+    const day = fmtDay(msg.created_at || msg.createdAt);
+    if (day !== lastDay) { items.push({ type: 'divider', label: day, key: `d-${day}` }); lastDay = day; lastAuthor = null; }
+    const author = msg.author_id || msg.authorId;
+    const time = new Date(msg.created_at || msg.createdAt).getTime();
+    items.push({ type: 'msg', msg, showHeader: author !== lastAuthor || time - lastTime > 5 * 60_000, key: msg.id });
+    lastAuthor = author; lastTime = time;
+  }
 
   return (
     <>
@@ -145,7 +155,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
       {open && (
         <div className="doc-disc-panel" style={{
           position: 'fixed', bottom: 84, right: 24, zIndex: 9100,
-          width: 360, height: 480, borderRadius: 12,
+          width: 400, height: 540, borderRadius: 12,
           boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
           background: 'var(--surface)', border: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
@@ -162,15 +172,17 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
               <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {documentTitle || t('Discussion du document')}
               </div>
-              <div style={{ fontSize: 11, opacity: 0.8 }}>{t('Discussion')}</div>
+              <div style={{ fontSize: 11, opacity: 0.85 }}>
+                {members.length > 0 ? t('{{count}} participant(s) · @ pour inviter un collègue', { count: members.length }) : t('Discussion')}
+              </div>
             </div>
-            <button onClick={() => setOpen(false)} style={{ padding: 4, border: 'none', background: 'rgba(255,255,255,0.2)', borderRadius: 4, color: '#fff', cursor: 'pointer' }}>
+            <button onClick={() => setOpen(false)} aria-label={t('Fermer')} style={{ padding: 4, border: 'none', background: 'rgba(255,255,255,0.2)', borderRadius: 4, color: '#fff', cursor: 'pointer' }}>
               <X size={14} />
             </button>
           </div>
 
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0 10px', background: 'var(--chat-wall)' }}>
             {loading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
                 <Loader size={20} style={{ color: 'var(--brand)' }} />
@@ -179,82 +191,39 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
               <div style={{ textAlign: 'center', padding: 32, color: 'var(--fg-muted)' }}>
                 <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
                 <div style={{ fontSize: 13 }}>{t('Aucun message')}</div>
-                <div style={{ fontSize: 12, marginTop: 4 }}>{t('Démarrez la discussion sur ce document')}</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>{t('Démarrez la discussion sur ce document. Tapez @ pour inviter un collègue : il recevra le document.')}</div>
               </div>
             ) : (
-              messages.map((msg, i) => {
-                const isMine = (msg.author_id || msg.authorId) === user?.id;
-                const prev = messages[i - 1];
-                const sameAuthor = prev && (prev.author_id || prev.authorId) === (msg.author_id || msg.authorId);
-                const fn = msg.author_first_name || msg.authorFirstName || '';
-                const ln = msg.author_last_name || msg.authorLastName || '';
-
-                return (
-                  <div key={msg.id} style={{ marginBottom: 2 }}>
-                    {!sameAuthor && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, marginBottom: 2 }}>
-                        <Avatar fn={fn} ln={ln} size={24} />
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg)' }}>
-                          {isMine ? t('Vous') : `${fn} ${ln}`}
-                        </span>
-                        <span style={{ fontSize: 10, color: 'var(--fg-muted)' }}>
-                          {fmtTime(msg.created_at || msg.createdAt)}
-                        </span>
-                      </div>
-                    )}
-                    <div style={{
-                      marginLeft: 31, fontSize: 13, color: 'var(--fg)',
-                      lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap',
-                      fontStyle: msg.isDeleted ? 'italic' : 'normal',
-                      color: msg.isDeleted ? 'var(--fg-muted)' : 'var(--fg)',
-                    }}>
-                      {msg.isDeleted ? t('[Message supprimé]') : msg.content}
-                    </div>
-                    <div style={{ marginLeft: 31 }}><ChatAttachment msg={msg} /></div>
-                  </div>
-                );
-              })
+              items.map(item => item.type === 'divider' ? (
+                <div key={item.key} style={{ display: 'flex', justifyContent: 'center', padding: '10px 12px 2px' }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', padding: '3px 10px', borderRadius: 999, background: 'var(--chat-other-bg)', boxShadow: 'var(--chat-bubble-shadow)' }}>{item.label}</span>
+                </div>
+              ) : (
+                <MessageBubble
+                  key={item.key}
+                  msg={item.msg}
+                  isMine={(item.msg.author_id || item.msg.authorId) === user?.id}
+                  showHeader={item.showHeader}
+                  isGroup
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onReact={handleReact}
+                  currentUserId={user?.id}
+                />
+              ))
             )}
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
-          <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
-              <textarea
-                value={text}
-                onChange={e => setText(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-                }}
-                placeholder={t('Écrire un message…')}
-                rows={1}
-                style={{
-                  flex: 1, padding: '7px 10px', borderRadius: 7, fontFamily: 'inherit',
-                  border: '1px solid var(--border)', background: 'var(--surface-2)',
-                  color: 'var(--fg)', fontSize: 13, resize: 'none', outline: 'none',
-                  maxHeight: 90, overflowY: 'auto',
-                }}
-                onInput={e => {
-                  e.target.style.height = 'auto';
-                  e.target.style.height = Math.min(e.target.scrollHeight, 90) + 'px';
-                }}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!text.trim() || sending}
-                style={{
-                  width: 34, height: 34, borderRadius: 7, border: 'none',
-                  background: text.trim() ? 'var(--brand)' : 'var(--border)',
-                  color: text.trim() ? '#fff' : 'var(--fg-muted)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: text.trim() ? 'pointer' : 'default', flexShrink: 0,
-                }}
-              >
-                {sending ? <Loader size={14} /> : <Send size={14} />}
-              </button>
-            </div>
-          </div>
+          {conv && (
+            <MessageInput
+              onSend={handleSend}
+              convId={conv.id}
+              disabled={loading}
+              members={members}
+              mentionSearch={(q) => chatService.getMentionCandidates(conv.id, q)}
+            />
+          )}
         </div>
       )}
 
