@@ -11,7 +11,7 @@
 import { Tenant, TenantMailSettings, AuditLog } from '../models/index.js';
 import { MAIL_SECURITY_MODES } from '../models/TenantMailSettings.js';
 import { encryptSecret, decryptSecret } from '../utils/secretBox.js';
-import { transportOptions, sendTestEmail } from '../utils/mailer.js';
+import { transportOptions, sendTestEmail, mailRedirect } from '../utils/mailer.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TEST_LIMIT = 5;             // e-mails de test par utilisateur…
@@ -67,6 +67,8 @@ async function view(tenantId, user, settings) {
     tenant: { id: tenant.id, name: tenant.name, domain: tenant.domain },
     canManage: true,
     canDelegate: isSuperAdmin(user),
+    // Installation de développement : e-mails bloqués ou détournés (MAIL_REDIRECT_TO)
+    devRedirect: mailRedirect(),
     settings: publicView(settings),
     source: settings ? 'tenant' : 'server',
     server: serverFallback(),
@@ -161,7 +163,8 @@ async function test(req, tenantId, settings) {
     });
     await record({ lastTestAt: new Date(), lastTestOk: true, lastTestError: null });
     await audit(req, tenantId, 'MAIL_SETTINGS_TESTED', { ok: true, to });
-    return { status: 200, body: { success: true, message: `E-mail de test envoyé à ${to}. Vérifiez la boîte de réception (et les spams).` } };
+    const sentTo = mailRedirect()?.to || to;
+    return { status: 200, body: { success: true, message: `E-mail de test envoyé à ${sentTo}${sentTo !== to ? ` (au lieu de ${to} : installation de développement)` : ''}. Vérifiez la boîte de réception (et les spams).` } };
   } catch (err) {
     console.warn('Test messagerie échoué :', err.raw || err.message);
     await record({ lastTestAt: new Date(), lastTestOk: false, lastTestError: err.message });

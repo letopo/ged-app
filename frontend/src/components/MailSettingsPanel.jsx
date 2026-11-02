@@ -87,7 +87,16 @@ export default function MailSettingsPanel({ tenantId = null, onAccessChange }) {
         {t('Compte utilisé pour envoyer les notifications par e-mail de {{org}} (tâches de validation, documents reçus…).', { org: data.tenant?.name })}
       </p>
 
-      {/* État actuel */}
+      {/* Installation de développement : e-mails bloqués ou détournés */}
+      {data.devRedirect && (
+        <Notice tone="error" icon={AlertCircle} style={{ marginBottom: 12 }}>
+          {data.devRedirect.mode === 'off'
+            ? t('Installation de développement : aucun e-mail ne part (MAIL_REDIRECT_TO=off). Ils sont seulement écrits dans le journal du serveur.')
+            : t('Installation de développement : tous les e-mails partent vers {{to}}, jamais vers les vrais destinataires (MAIL_REDIRECT_TO).', { to: data.devRedirect.to })}
+        </Notice>
+      )}
+
+            {/* État actuel */}
       {data.source === 'server' ? (
         <Notice tone="info" icon={Info}>
           {data.server.enabled && data.server.configured
