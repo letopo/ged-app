@@ -902,6 +902,17 @@ const RELEASE_NOTES = [
       'Un document de la GED partagé ne s\'ouvre que pour les membres qui ont déjà le droit de le lire : les autres voient « accès réservé » et peuvent demander à son auteur de le leur transmettre.',
     ],
   },
+  {
+    id: '2026-11-03-chat-bulles',
+    date: '2026-11-03',
+    target: '/chat',
+    title: 'Discussion : affichage façon messagerie',
+    items: [
+      'Vos messages s\'affichent à droite dans une bulle bleue, ceux de vos interlocuteurs à gauche, avec l\'heure dans la bulle — comme sur WhatsApp ou Telegram. Dans un canal, le nom et l\'avatar de chacun restent affichés.',
+      'Sur téléphone, un appui long sur un message permet de réagir, copier le texte, modifier ou supprimer.',
+      'Les réactions restent affichées quand on rouvre une conversation.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

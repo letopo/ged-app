@@ -213,7 +213,14 @@ const MESSAGE_SELECT = `
         u.first_name  as author_first_name,
         u.last_name   as author_last_name,
         u.username    as author_username,
-        u.role        as author_role
+        u.role        as author_role,
+        (SELECT json_agg(x ORDER BY x.first_at) FROM (
+           SELECT r.emoji, MIN(r.created_at) AS first_at,
+                  json_agg(json_build_object('id', ru.id, 'username', ru.username, 'firstName', ru.first_name, 'lastName', ru.last_name)) AS users
+           FROM chat_reactions r JOIN users ru ON r.user_id = ru.id
+           WHERE r.message_id = m.id
+           GROUP BY r.emoji
+         ) x) as reactions
       FROM chat_messages m
       LEFT JOIN users u ON m.author_id = u.id`;
 
