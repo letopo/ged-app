@@ -933,6 +933,17 @@ const RELEASE_NOTES = [
       'La discussion raconte la vie du document : soumission, validations, signatures, rejet, approbation finale et transmissions s\'y affichent automatiquement.',
     ],
   },
+  {
+    id: '2026-11-03-chat-lu-notifications',
+    date: '2026-11-03',
+    target: 'app',
+    title: 'Discussion : accusés de lecture et notifications',
+    items: [
+      'Sous vos messages : ✓ envoyé, ✓✓ bleu lu — et « Vu à 14:52 » (ou « Vu par… » dans un canal) sous votre dernier message.',
+      'Un nouveau message vous prévient : une alerte en haut de l\'écran si la GED est ouverte (un clic ouvre la conversation), une notification sur le téléphone ou l\'ordinateur sinon.',
+      'Trop de messages dans un canal ? La cloche en haut de la conversation la met en sourdine.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

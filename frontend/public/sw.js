@@ -145,14 +145,26 @@ self.addEventListener('push', (event) => {
     icon: '/icons/icon-192.png',
     badge: '/favicon.ico',
     tag: data.tag || 'default',
+    // Nouveau message dans une conversation déjà notifiée : la notification est remplacée et resonne
+    renotify: !!data.renotify,
     data: data.data || { url: '/my-tasks' },
   }));
 });
 
+// Clic : réutilise une fenêtre de la GED déjà ouverte (sinon en ouvre une)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const urlToOpen = event.notification.data?.url || '/my-tasks';
-  event.waitUntil(clients.openWindow(urlToOpen));
+  event.waitUntil((async () => {
+    const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const win = wins.find((w) => new URL(w.url).origin === self.location.origin);
+    if (win) {
+      await win.focus();
+      if ('navigate' in win) return win.navigate(urlToOpen).catch(() => clients.openWindow(urlToOpen));
+      return undefined;
+    }
+    return clients.openWindow(urlToOpen);
+  })());
 });
 
 // ─── MESSAGE depuis l'app ──────────────────────────────────────────────────

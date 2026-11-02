@@ -6,7 +6,9 @@ import ChatMessage from '../models/ChatMessage.js';
 import ChatMember from '../models/ChatMember.js';
 import { User, Document, Workflow } from '../models/index.js';
 import { hasDocumentReadAccess } from '../utils/documentVisibility.js';
-import { getIO, isUserConnected } from '../utils/socketManager.js';
+import { getIO, isUserConnected, chatPresence } from '../utils/socketManager.js';
+import { sendPushNotification } from '../services/pushNotificationService.js';
+import { NotificationPreference } from '../models/index.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
 import fs from 'fs';
 import path from 'path';
@@ -61,7 +63,7 @@ export const listConversations = async (req, res, next) => {
       SELECT
         c.id, c.type, c.name, c.description, c.document_id, c.is_archived,
         c.last_message_at, c.created_at,
-        cm.last_read_at, cm.role as member_role,
+        cm.last_read_at, cm.role as member_role, cm.muted,
         CASE WHEN lm.content = '' AND lm.attachment_name IS NOT NULL AND NOT lm.is_deleted
              THEN '📎 ' || lm.attachment_name ELSE lm.content END as last_content,
         lm.created_at    as last_at,
@@ -369,6 +371,34 @@ async function publishMessage(req, res, conversationId, fields) {
       const conv = await Conversation.findByPk(id, { attributes: ['name', 'type'] });
       const convName = conv?.name || 'Discussion';
 
+      // ── 0. Nouveau message → chaque participant qui ne lit pas déjà la
+      // conversation : alerte dans l'application si elle est à l'écran,
+      // sinon notification sur l'appareil (push). Sauf conversation en sourdine
+      // ou notifications push désactivées dans ses préférences.
+      const others = await ChatMember.findAll({ where: { conversationId: id, userId: { [Op.ne]: userId } }, attributes: ['userId', 'muted'] });
+      const title = conv?.type === 'direct' ? senderName : `${senderName} · ${conv?.type === 'document' ? '📄 ' : '#'}${convName}`;
+      for (const m of others) {
+        if (m.muted) continue;
+        const { active, viewing } = chatPresence(m.userId, id);
+        if (viewing) continue;
+        if (active) {
+          io?.to(`user:${m.userId}`).emit('chat:notify', { conversationId: id, title, body: excerpt, messageId: message.id });
+          continue;
+        }
+        const prefs = await NotificationPreference.findOne({ where: { userId: m.userId }, attributes: ['pushEnabled'] });
+        if (prefs?.pushEnabled === false) continue;
+        sendPushNotification(m.userId, {
+          type: 'chat_message',
+          title: `💬 ${title}`,
+          body: excerpt || 'Nouveau message',
+          icon: '/icons/icon-192.png',
+          badge: '/favicon.ico',
+          tag: `chat-${id}`,
+          renotify: true,
+          data: { url: `/chat/${id}`, conversationId: id },
+        }).catch(() => {});
+      }
+
       // ── 1. Message direct → email au destinataire si hors-ligne ──────────
       if (conv?.type === 'direct') {
         const otherMembers = await sequelize.query(`
@@ -433,6 +463,18 @@ async function publishMessage(req, res, conversationId, fields) {
 
   res.status(201).json({ success: true, data: messageData, added });
 }
+
+// PUT /api/chat/conversations/:id/mute { muted } — mettre une conversation en
+// sourdine (plus de notifications ; les non-lus restent comptés)
+export const setMuted = async (req, res, next) => {
+  try {
+    const [count] = await ChatMember.update({ muted: req.body?.muted === true }, { where: { conversationId: req.params.id, userId: req.user.id } });
+    if (!count) return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+    res.json({ success: true, muted: req.body?.muted === true });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // GET /api/chat/conversations/:id/document — bandeau épinglé de la discussion
 // d'un document : titre, type, statut, étape de validation en cours. Réservé à
@@ -729,7 +771,10 @@ export const markAsRead = async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    await ChatMember.update({ lastReadAt: new Date() }, { where: { conversationId: id, userId } });
+    const readAt = new Date();
+    const [count] = await ChatMember.update({ lastReadAt: readAt }, { where: { conversationId: id, userId } });
+    // Accusés de lecture : les autres participants voient ✓✓ en direct
+    if (count) getIO()?.to(`conv:${id}`).emit('chat:read', { conversationId: id, userId, readAt });
     res.json({ success: true });
   } catch (error) {
     next(error);

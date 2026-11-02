@@ -79,6 +79,9 @@ const chatService = {
 
   deleteMessage: (id) => del(`${BASE}/messages/${id}`),
 
+  setMuted: (id, muted) =>
+    put(`${BASE}/conversations/${id}/mute`, { muted }).then(r => { if (!r.success) throw new Error(r.error); return r.muted; }),
+
   markAsRead: (id) => post(`${BASE}/conversations/${id}/read`, {}).catch(() => null),
 
   getUnreadCount: () => get(`${BASE}/unread-count`).then(r => r.count || 0),
