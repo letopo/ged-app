@@ -11,6 +11,9 @@ import {
 import { Link } from 'react-router-dom';
 import { phpStatsAPI } from '../services/phpService';
 import { exportTablesToExcel } from '../utils/tableToExcel';
+import { TabTableauDuJour, TabIndicateurs } from '../components/php/PHPTableauxPointFocal';
+import { useAuth } from '../contexts/AuthContext';
+import { phpAccess } from '../utils/phpAccess';
 import toast from 'react-hot-toast';
 import i18n from '../i18n/config';
 
@@ -693,6 +696,8 @@ function TabPathologies({ data, loading, onRefresh }) {
 
 // ─── Composant principal ───────────────────────────────────────────────────────
 const getTabs = (t) => [
+  { key: 'jour',         label: t('Tableau du jour')       },
+  { key: 'indicateurs',  label: t('Indicateurs')           },
   { key: 'journalier',   label: t('Rapport journalier')  },
   { key: 'synthese',     label: t('Synthèse mensuelle')   },
   { key: 'trimestriel',  label: t('Trimestriel')           },
@@ -706,7 +711,12 @@ export default function PHPStatistiques() {
   const TABS = getTabs(t);
   const MOIS = getMois(t);
   const now = new Date();
-  const [activeTab,  setActiveTab]  = useState('journalier');
+  const [activeTab,  setActiveTab]  = useState('jour');
+  const { user } = useAuth();
+  // Onglets de l'Excel du Point Focal : leur propre période (jour, ou du/au)
+  const ownPeriodTab = activeTab === 'jour' || activeTab === 'indicateurs';
+  const [tabPeriod, setTabPeriod] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
   const [month,      setMonth]      = useState(now.getMonth() + 1);
   const [year,       setYear]       = useState(now.getFullYear());
   const [trimestre,  setTrimestre]  = useState(Math.ceil((now.getMonth() + 1) / 3));
@@ -782,7 +792,7 @@ export default function PHPStatistiques() {
   };
 
   const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
-  const loadingCurrent = activeTab === 'trimestriel' ? loadingTrim : loadingMens;
+  const loadingCurrent = ownPeriodTab ? false : activeTab === 'trimestriel' ? loadingTrim : loadingMens;
 
   const TRIMESTRE_LABELS = { 1: t('T1 Jan–Mar'), 2: t('T2 Avr–Jun'), 3: t('T3 Jul–Sep'), 4: t('T4 Oct–Déc') };
 
@@ -791,7 +801,7 @@ export default function PHPStatistiques() {
   const [exporting, setExporting] = useState(false);
   const exportExcel = async () => {
     const tab = TABS.find(tb => tb.key === activeTab);
-    const periode = activeTab === 'trimestriel' ? `${TRIMESTRE_LABELS[trimestre]} ${trimYear}` : `${MOIS[month]} ${year}`;
+    const periode = ownPeriodTab ? tabPeriod : activeTab === 'trimestriel' ? `${TRIMESTRE_LABELS[trimestre]} ${trimYear}` : `${MOIS[month]} ${year}`;
     setExporting(true);
     try {
       const n = await exportTablesToExcel(contentRef.current, {
@@ -838,7 +848,7 @@ export default function PHPStatistiques() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={activeTab === 'trimestriel' ? loadTrimestriel : loadMensuel}
+            onClick={ownPeriodTab ? () => setRefreshKey((k) => k + 1) : activeTab === 'trimestriel' ? loadTrimestriel : loadMensuel}
             className="flex items-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}
           >
@@ -873,7 +883,7 @@ export default function PHPStatistiques() {
       </div>
 
       {/* Sélecteur de période */}
-      {activeTab !== 'trimestriel' ? (
+      {ownPeriodTab ? null : activeTab !== 'trimestriel' ? (
         <div className="flex items-center gap-3 mb-4">
           <button onClick={prevMonth} style={navBtnStyle}>
             <ChevronLeft size={16} />
@@ -908,6 +918,8 @@ export default function PHPStatistiques() {
 
       {/* Contenu des onglets (exporté tel quel en Excel) */}
       <div ref={contentRef}>
+      {activeTab === 'jour'        && <TabTableauDuJour refreshKey={refreshKey} onPeriod={setTabPeriod} />}
+      {activeTab === 'indicateurs' && <TabIndicateurs refreshKey={refreshKey} onPeriod={setTabPeriod} canWrite={phpAccess(user).write} />}
       {activeTab === 'journalier'  && <TabJournalier data={rapportMensuel} loading={loadingMens} />}
       {activeTab === 'synthese'    && <TabSyntheseMensuelle data={rapportMensuel} loading={loadingMens} />}
       {activeTab === 'trimestriel' && <TabTrimestriel data={rapportTrimestriel} loading={loadingTrim} />}

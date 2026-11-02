@@ -144,6 +144,18 @@ const ConsultationPHP = sequelize.define('ConsultationPHP', {
     field: 'type_visite',
     validate: { isIn: [['CS', 'RDV', 'AUTRE']] }
   },
+  // Infirmerie et secteur du patient au moment de la visite (comme la ligne de
+  // l'Excel du Point Focal) : le tableau du jour et les indicateurs s'en servent
+  infirmerieId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'infirmerie_id'
+  },
+  secteurId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'secteur_id'
+  },
   // N° d'ordre du patient dans la journée (ordre d'arrivée)
   numeroOrdre: {
     type: DataTypes.INTEGER,

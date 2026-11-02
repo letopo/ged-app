@@ -451,6 +451,12 @@ export async function importPhpExcel(buffer, { apply = false, userId, tenantId }
       build: (r, pid) => ({
         patientId: pid, dateConsultation: r.day, serviceName: r.service, diagnostic: r.diagnostic,
         typeVisite: r.typeVisite, numeroOrdre: r.numeroOrdre,
+        // Infirmerie et secteur saisis sur la ligne (sinon ceux de la fiche du patient)
+        ...(() => {
+          const place = placeOf(r);
+          const p = existingPatients.get(r.matricule);
+          return { infirmerieId: place.infirmerieId || p?.infirmerieId || null, secteurId: place.secteurId || p?.secteurId || null };
+        })(),
         heureArrivee: r.heureArrivee, heureDebutConsultation: r.heurePassage, dureeAttenteMinutes: r.dureeAttenteMinutes,
         resultat: r.resultat,
       }),
