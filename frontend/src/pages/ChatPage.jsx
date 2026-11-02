@@ -14,6 +14,7 @@ import i18n from '../i18n/config';
 import {
   fmt, fmtDay, convName, convIcon, avatarColor, Avatar, MessageBubble, MessageInput,
 } from '../components/chat/ChatMessages';
+import DocumentBanner from '../components/chat/DocumentBanner';
 
 // ─── Thread de messages ───────────────────────────────────────────────────────
 
@@ -210,6 +211,8 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
           <Users size={14} /> {members.length}
         </button>
       </div>
+
+      {conv.type === 'document' && conv.document_id && <DocumentBanner conversationId={conv.id} />}
 
       <div className="chat-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Messages (un fichier glissé ici est ajouté au message en cours) */}

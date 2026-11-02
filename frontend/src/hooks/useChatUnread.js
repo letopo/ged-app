@@ -5,7 +5,7 @@ import chatService from '../services/chatService';
 import { useAuth } from '../contexts/AuthContext';
 
 const useChatUnread = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const intervalRef = useRef(null);
 
@@ -27,14 +27,18 @@ const useChatUnread = () => {
 
     // Écouter les nouveaux messages via socket pour màj immédiate
     const socket = getSocket();
-    const handler = () => setUnreadCount(c => c + 1);
+    // Ni ses propres messages ni les messages automatiques (comme le compteur du serveur)
+    const handler = (msg) => {
+      if (msg?.isSystem || (msg?.authorId && msg.authorId === user?.id)) return;
+      setUnreadCount(c => c + 1);
+    };
     if (socket) socket.on('chat:message', handler);
 
     return () => {
       clearInterval(intervalRef.current);
       if (socket) socket.off('chat:message', handler);
     };
-  }, [isAuthenticated, refresh]);
+  }, [isAuthenticated, refresh, user?.id]);
 
   const markAllRead = useCallback(() => setUnreadCount(0), []);
 

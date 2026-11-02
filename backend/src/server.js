@@ -917,6 +917,7 @@ const startServer = async () => {
         CREATE INDEX IF NOT EXISTS idx_chat_messages_conv_id ON chat_messages(conversation_id, created_at);
         ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_size INTEGER;
         ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_document_id UUID;
+        ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS is_system BOOLEAN NOT NULL DEFAULT false;
         CREATE TABLE IF NOT EXISTS chat_conversation_members (
           id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           conversation_id UUID NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,

@@ -43,6 +43,12 @@ const ChatMessage = sequelize.define('ChatMessage', {
     allowNull: true,
     field: 'attachment_document_id',
   },
+  // Message automatique (discussion d'un document : validation, transmission…)
+  isSystem: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_system',
+  },
   isDeleted: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,

@@ -153,6 +153,18 @@ export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDele
     setEditing(false);
   };
 
+  // Message automatique (validation, signature, transmission…) : pastille centrée
+  if (msg.is_system || msg.isSystem) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 16px 0' }}>
+        <div style={{ maxWidth: 'min(90%, 520px)', padding: '5px 12px', borderRadius: 10, background: 'var(--chat-system-bg)', color: 'var(--fg)', fontSize: 12.5, lineHeight: 1.45, textAlign: 'center', boxShadow: 'var(--chat-bubble-shadow)', wordBreak: 'break-word' }}>
+          {msg.content}
+          <span style={{ marginLeft: 8, fontSize: 10.5, color: 'var(--chat-meta)', whiteSpace: 'nowrap' }}>{fmtFull(msg.created_at || msg.createdAt)}</span>
+        </div>
+      </div>
+    );
+  }
+
   const deleted = msg.isDeleted || msg.is_deleted;
   const authorFirst = msg.author_first_name || msg.authorFirstName;
   const authorLast = msg.author_last_name || msg.authorLastName;

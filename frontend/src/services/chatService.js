@@ -34,6 +34,9 @@ const chatService = {
   sendMessage: (id, data) =>
     post(`${BASE}/conversations/${id}/messages`, data).then(r => (r.data ? { ...r.data, added: r.added } : r.data)),
 
+  // Bandeau de la discussion d'un document : { accessible, title, status, workflow… }
+  getConversationDocument: (id) => get(`${BASE}/conversations/${id}/document`).then(r => r.data || null),
+
   getMentionCandidates: (id, q = '') =>
     get(`${BASE}/conversations/${id}/mention-candidates?q=${encodeURIComponent(q)}`).then(r => r.data || []),
 

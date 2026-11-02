@@ -1,6 +1,7 @@
 // backend/src/controllers/workflowController.js - VERSION COMPLÈTE AVEC SOCKET.IO
 
 import { Workflow, Document, User, InvoiceFolder, NotificationPreference, WorkflowComment } from '../models/index.js';
+import { postDocumentEvent, personName } from '../utils/documentChatEvents.js';
 import { resolveStoredFile } from '../utils/storedFiles.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
@@ -46,6 +47,32 @@ async function embedImage(pdfDoc, imageBytes) {
 // ============================================
 // FONCTION HELPER : Notifier le soumetteur (approbation/rejet)
 // ============================================
+// Discussion du document : message automatique après une décision de validation
+const VALIDATION_VERBS = {
+  approve_sign_stamp: 'a signé et validé', signature: 'a signé', stamp: 'a apposé son cachet sur',
+  dater: 'a daté', completer: 'a complété',
+};
+async function postValidationEvent(document, actor, { status, validationType, step, comment }) {
+  const steps = await Workflow.findAll({ where: { documentId: document.id }, attributes: ['step', 'status', 'validatorId'], order: [['step', 'ASC']] });
+  const total = steps.length;
+  const name = personName(actor);
+  const note = comment ? ` — « ${String(comment).replace(/^\[VALIDATION EN MASSE\]\s*/, '').slice(0, 300)} »` : '';
+  const lines = [];
+  if (status === 'rejected') {
+    lines.push(`❌ ${name} a rejeté le document${note || '.'}`);
+  } else if (status === 'approved') {
+    lines.push(`✅ ${name} ${VALIDATION_VERBS[validationType] || 'a validé'} le document (étape ${step}/${total})${note}`);
+    const fresh = await Document.findByPk(document.id, { attributes: ['id', 'status'] });
+    if (fresh?.status === 'approved') lines.push('🎉 Document approuvé : circuit de validation terminé.');
+    else {
+      const next = steps.find((w) => w.status === 'pending');
+      const nextUser = next && await User.findByPk(next.validatorId, { attributes: ['firstName', 'lastName'] });
+      if (nextUser) lines.push(`⏳ Au tour de ${personName(nextUser)} (étape ${next.step}/${total}).`);
+    }
+  }
+  await postDocumentEvent(document.id, lines);
+}
+
 const notifySubmitter = async (document, status, validatorComment) => {
   try {
     const submitter = await User.findByPk(document.uploadedById || document.uploadedBy?.id);
@@ -225,6 +252,8 @@ export const createWorkflow = async (req, res) => {
       include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email'] }],
       order: [['step', 'ASC']],
     });
+    const firstStep = workflowsWithValidators.find((w) => w.status === 'pending') || workflowsWithValidators[0];
+    postDocumentEvent(documentId, `📤 ${personName(req.user)} a soumis le document à validation (${workflowsWithValidators.length} étape(s))${firstStep?.validator ? ` — premier validateur : ${personName(firstStep.validator)}` : ''}.`);
     
     res.status(201).json({ 
       success: true, 
@@ -675,6 +704,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         await task.update({ status: 'en_pause', comment, validatedAt: new Date() }, { transaction: t });
         await document.update({ status: 'en_attente_dependance' }, { transaction: t });
         await t.commit();
+        postDocumentEvent(document.id, `⏸ ${personName(req.user)} a mis sa validation en pause${comment ? ` — « ${String(comment).slice(0, 300)} »` : '.'}`);
         return res.json({ success: true, message: 'Tâche mise en pause.' });
       }
 
@@ -1029,6 +1059,10 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
 
       await t.commit();
 
+      if (['approved', 'rejected'].includes(effectiveStatus)) {
+        postValidationEvent(document, req.user, { status: effectiveStatus, validationType, step: task.step, comment }).catch(() => {});
+      }
+
       // Bon de prise en charge visé par le DG : envoyé à l'accueil (ouverture du BPC dans Sage)
       if (bpcApproved) sendBpcToAccueil(document.id, userId).catch(e => console.error('BPC → accueil :', e.message));
 
@@ -1149,6 +1183,7 @@ export const bulkValidateTask = async (req, res) => {
     }
 
     const results = [];
+    const chatEvents = []; // messages automatiques, publiés après validation de la transaction
     const errors = [];
 
     for (const task of tasks) {
@@ -1332,6 +1367,7 @@ export const bulkValidateTask = async (req, res) => {
           documentTitle: task.document.title,
           success: true
         });
+        chatEvents.push({ document, status, step: task.step, comment: bulkComment });
 
       } catch (taskError) {
         console.error(`Erreur traitement tâche ${task.id}:`, taskError);
@@ -1344,6 +1380,10 @@ export const bulkValidateTask = async (req, res) => {
     }
 
     await t.commit();
+
+    for (const ev of chatEvents) {
+      postValidationEvent(ev.document, req.user, { status: ev.status, validationType: null, step: ev.step, comment: ev.comment }).catch(() => {});
+    }
 
     res.json({ 
       success: true, 
@@ -1673,6 +1713,7 @@ export const relancerValidation = async (req, res) => {
       include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName', 'email', 'role'] }],
       order: [['step', 'ASC']],
     });
+    postDocumentEvent(documentId, `🔁 ${personName(req.user)} a relancé la validation${motif ? ` — « ${String(motif).slice(0, 300)} »` : '.'}`);
     res.json({ success: true, message: 'Validation relancée avec succès.', data: updatedWorkflows });
   } catch (error) {
     console.error('❌ Erreur relancerValidation:', error);

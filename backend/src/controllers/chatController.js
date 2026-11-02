@@ -4,7 +4,7 @@ import { sequelize } from '../models/index.js';
 import Conversation from '../models/Conversation.js';
 import ChatMessage from '../models/ChatMessage.js';
 import ChatMember from '../models/ChatMember.js';
-import { User, Document } from '../models/index.js';
+import { User, Document, Workflow } from '../models/index.js';
 import { hasDocumentReadAccess } from '../utils/documentVisibility.js';
 import { getIO, isUserConnected } from '../utils/socketManager.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
@@ -247,7 +247,7 @@ const MESSAGE_SELECT = `
         CASE WHEN m.is_deleted OR m.attachment_path IS NULL THEN false ELSE true END as has_file,
         CASE WHEN m.is_deleted THEN NULL ELSE m.attachment_size END as attachment_size,
         CASE WHEN m.is_deleted THEN NULL ELSE m.attachment_document_id END as attachment_document_id,
-        m.is_deleted, m.edited_at, m.created_at, m.updated_at,
+        m.is_deleted, m.is_system, m.edited_at, m.created_at, m.updated_at,
         u.first_name  as author_first_name,
         u.last_name   as author_last_name,
         u.username    as author_username,
@@ -433,6 +433,46 @@ async function publishMessage(req, res, conversationId, fields) {
 
   res.status(201).json({ success: true, data: messageData, added });
 }
+
+// GET /api/chat/conversations/:id/document — bandeau épinglé de la discussion
+// d'un document : titre, type, statut, étape de validation en cours. Réservé à
+// qui peut lire le document (sinon { accessible: false }, sans le titre).
+export const getConversationDocument = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const member = await ChatMember.findOne({ where: { conversationId: id, userId: req.user.id } });
+    if (!member) return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+    const conv = await Conversation.findByPk(id);
+    if (conv?.type !== 'document' || !conv.documentId) return res.status(404).json({ success: false, error: 'Pas de document lié.' });
+    const doc = await Document.findByPk(conv.documentId, { attributes: { exclude: ['extractedText'] } });
+    if (!doc || !(await hasDocumentReadAccess(doc, req.user))) return res.json({ success: true, data: { accessible: false } });
+
+    const steps = await Workflow.findAll({
+      where: { documentId: doc.id }, attributes: ['step', 'status', 'validatorId'], order: [['step', 'ASC']],
+      include: [{ model: User, as: 'validator', attributes: ['id', 'firstName', 'lastName'] }],
+    });
+    const current = steps.find((w) => w.status === 'pending');
+    res.json({
+      success: true,
+      data: {
+        accessible: true,
+        id: doc.id, title: doc.title, category: doc.category, status: doc.status, fileType: doc.fileType,
+        updatedAt: doc.updatedAt,
+        workflow: steps.length ? {
+          total: steps.length,
+          done: steps.filter((w) => w.status === 'approved').length,
+          current: current ? {
+            step: current.step,
+            validator: current.validator ? `${current.validator.firstName || ''} ${current.validator.lastName || ''}`.trim() : null,
+            isMe: current.validatorId === req.user.id,
+          } : null,
+        } : null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // GET /api/chat/conversations/:id/mention-candidates?q= — qui mentionner (@).
 // Discussion d'un document : tout collègue actif de l'établissement, avec
