@@ -17,6 +17,8 @@ import PHPBonPrint from '../components/php/PHPBonPrint';
 import toast from 'react-hot-toast';
 import Pagination, { usePageSize } from '../components/Pagination';
 import i18n from '../i18n/config';
+import { phpAccess } from '../utils/phpAccess';
+import { useAuth } from '../contexts/AuthContext';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
@@ -31,6 +33,8 @@ const STATUS_STYLES = {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function PHPPatients() {
+  const { user } = useAuth();
+  const canWrite = phpAccess(user).write; // pas de création en consultation seule
   const { t } = useTranslation();
   const STATUS_LABELS = getStatusLabels(t);
   const [patients, setPatients]     = useState([]);
@@ -176,11 +180,11 @@ export default function PHPPatients() {
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}>
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button onClick={() => setShowRegistration(true)}
+          {canWrite && <button onClick={() => setShowRegistration(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors font-medium"
             style={{ background: 'var(--brand)', color: '#fff', boxShadow: 'var(--shadow-1)' }}>
             <Plus size={16} /> {t('Nouveau patient')}
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -228,10 +232,10 @@ export default function PHPPatients() {
             <div className="rounded-xl p-8 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <Users size={40} className="mx-auto mb-3" style={{ color: 'var(--fg-subtle)' }} />
               <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>{t('Aucun patient trouvé')}</p>
-              <button onClick={() => setShowRegistration(true)}
+              {canWrite && <button onClick={() => setShowRegistration(true)}
                 className="mt-3 text-sm flex items-center gap-1 mx-auto hover:underline" style={{ color: 'var(--brand)' }}>
                 <Plus size={14} /> {t('Enregistrer un patient')}
-              </button>
+              </button>}
             </div>
           ) : (
             <>

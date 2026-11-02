@@ -17,14 +17,16 @@ import PHPConsultationForm from '../components/php/PHPConsultationForm';
 import PHPBonPrint from '../components/php/PHPBonPrint';
 import PHPImportExcel from '../components/php/PHPImportExcel';
 import i18n from '../i18n/config';
+import { phpAccess } from '../utils/phpAccess';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
 export default function PHPModule() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  // Import du classeur Excel : mêmes droits que le serveur (routes/phpImport.js)
-  const canImport = ['admin', 'superadmin', 'agent_accueil_php'].includes(user?.role);
+  // Saisie (patients, consultations, import Excel) : pas en consultation seule (poste php_lecture)
+  const canWrite = phpAccess(user).write;
+  const canImport = canWrite;
   const [showImport, setShowImport] = useState(false);
 
   const [dashboard, setDashboard] = useState(null);
@@ -187,6 +189,7 @@ export default function PHPModule() {
               {t('Importer l\'Excel')}
             </button>
           )}
+          {canWrite && (
           <button
             onClick={() => setShowRegistration(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors font-medium"
@@ -195,6 +198,7 @@ export default function PHPModule() {
             <UserPlus size={16} />
             {t('Nouveau Patient')}
           </button>
+          )}
         </div>
       </div>
 
@@ -287,6 +291,7 @@ export default function PHPModule() {
             <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--danger)' }}>
               <AlertCircle size={14} />
               {searchError}
+              {canWrite && (
               <button
                 onClick={() => setShowRegistration(true)}
                 className="ml-auto flex items-center gap-1 hover:underline"
@@ -294,6 +299,7 @@ export default function PHPModule() {
               >
                 <Plus size={14} /> {t('Enregistrer')}
               </button>
+              )}
             </div>
           )}
 
@@ -316,14 +322,14 @@ export default function PHPModule() {
                     </p>
                   )}
                 </div>
-                <button
+                {canWrite && <button
                   onClick={() => handleOpenConsultation(searchResult)}
                   className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition-colors ml-2 shrink-0"
                   style={{ background: 'var(--brand)', color: '#fff' }}
                 >
                   <Stethoscope size={13} />
                   {t('Consulter')}
-                </button>
+                </button>}
               </div>
             </div>
           )}

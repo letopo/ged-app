@@ -14,6 +14,7 @@ import { Op } from 'sequelize';
 import './models/index.js';
 import { Service, Motif } from './models/index.js';
 import authMiddlewareObject from './middleware/auth.js';
+import { requirePhpRead } from './utils/phpAccess.js';
 
 // ✅ NOUVEAU : Import Socket.IO Manager
 import { initializeSocket } from './utils/socketManager.js';
@@ -253,6 +254,8 @@ app.use('/api/invoices', invoiceRoutes); // ✅ NOUVELLE ROUTE POUR LES FACTURES
 app.use('/api/demande-achat', demandeAchatRoutes); // ✅ NOUVELLE ROUTE POUR LES DEMANDES D'ACHAT
 app.use('/api/gmao', gmaoRoutes); // ✅ GMAO - Maintenance Préventive
 // ── MODULE PHP ────────────────────────────────────────────────────────────────
+// Module PHP (données médicales) : connexion + accès au module vérifiés pour toutes les routes
+app.use('/api/php', authMiddlewareObject.protect, requirePhpRead);
 app.use('/api/php/reference', phpReferenceRoutes);
 app.use('/api/php/patients', phpPatientsRoutes);
 app.use('/api/php/consultations', phpConsultationsRoutes);

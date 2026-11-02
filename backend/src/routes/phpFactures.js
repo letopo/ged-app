@@ -5,13 +5,14 @@ import upload, { fixUploadEncoding } from '../middleware/upload.js';
 import {
   extractFromUpload, reextract, create, list, getOne, update, remove, exportCsv,
 } from '../controllers/phpFactureController.js';
+import { requirePhpWrite } from '../utils/phpAccess.js';
 
 const { protect, authorize } = authMiddlewareObject;
 const router = express.Router();
 
 // Réservé à la secrétaire/agent PHP et aux admins
 // (on couvre les deux casses du rôle présentes dans le code historique)
-const canManage = authorize('admin', 'agent_accueil_php', 'agent_accueil_PHP');
+const canManage = requirePhpWrite;
 
 router.get('/', protect, list);
 router.get('/export.csv', protect, exportCsv);

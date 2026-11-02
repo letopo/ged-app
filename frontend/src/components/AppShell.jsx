@@ -24,6 +24,7 @@ import { ReleaseNotesProvider } from './ReleaseNotes';
 import { useFestive, Snowfall, Garland, SantaHat } from './Festive';
 import { CampaignBadge, CampaignConfetti } from './Campaign';
 import toast from 'react-hot-toast';
+import { phpAccess } from '../utils/phpAccess';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
 
@@ -135,7 +136,7 @@ const makeCanAccess = (user) => (item) => {
   if (item.planningOnly)    return isAdmin || ['director','dds','medical_chief'].includes(user.role) || (user.postes || []).some(p => ['planning','rh'].includes(p));
   if (item.demandeAchatOnly) return isAdmin || ['achat','user'].includes(user.role);
   if (item.gmaoOnly)        return isAdmin || (user.postes || []).includes('gmao');
-  if (item.phpOnly)         return isAdmin || user.role === 'agent_accueil_php';
+  if (item.phpOnly)         return phpAccess(user).read; // admins, Point Focal, postes php / php_lecture
   if (item.comptaOnly)      return isAdmin || (user.postes || []).includes('comptable');
   if (item.sageBlOnly)      return user.role === 'superadmin' || !!user.canSeeSageBl;
   // Même règle que le serveur (routes/sageFactures.js) : admins + poste Finances + postes BL
