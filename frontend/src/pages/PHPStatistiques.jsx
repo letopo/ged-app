@@ -2,7 +2,7 @@
 // Rapport statistique PHP — Format calqué sur le fichier Excel HSJM
 // 5 onglets : Journalier | Synthèse mensuelle | Trimestriel | Hospitalisations | Repos maladie
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart3, ChevronLeft, ChevronRight, Download, RefreshCw,
@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { phpStatsAPI } from '../services/phpService';
+import { exportTablesToExcel } from '../utils/tableToExcel';
+import toast from 'react-hot-toast';
 import i18n from '../i18n/config';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -37,9 +39,9 @@ const fmt = (v) => (v === 0 || v == null)
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiCard({ icon, label, value, sub, colorStyle }) {
   return (
-    <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl p-4" data-export-kpi={label} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="inline-flex p-2 rounded-lg mb-2" style={colorStyle}>{icon}</div>
-      <p className="text-2xl font-bold" style={{ color: 'var(--fg)' }}>{value}</p>
+      <p className="text-2xl font-bold" data-kpi-value style={{ color: 'var(--fg)' }}>{value}</p>
       <p className="text-xs mt-0.5 leading-tight" style={{ color: 'var(--fg-muted)' }}>{label}</p>
       {sub && <p className="text-xs mt-1" style={{ color: 'var(--fg-subtle)' }}>{sub}</p>}
     </div>
@@ -227,8 +229,8 @@ function TabJournalier({ data, loading }) {
           </table>
         </div>
 
-        {/* Légende */}
-        <div className="px-4 py-2 flex flex-wrap gap-4 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--fg-muted)' }}>
+        {/* Légende (reprise sous le tableau dans l'export Excel) */}
+        <div data-export-note className="px-4 py-2 flex flex-wrap gap-4 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--fg-muted)' }}>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded inline-block" style={{ background: '#c7d2fe' }}/>{t('D = Déclarations des malades par infirmerie PHP')}</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded inline-block" style={{ background: '#fde68a' }}/>{t('R = Patients reçus à HSJM')}</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded inline-block" style={{ background: '#fecaca' }}/>{t('H = Hospitalisés')}</span>
@@ -541,68 +543,6 @@ function EmptyBox({ label }) {
   );
 }
 
-// ─── Export CSV ───────────────────────────────────────────────────────────────
-function exportCSV(data, mois, annee) {
-  if (!data) return;
-  const { infirmeries, semaines, totauxMois } = data;
-  const t = i18n.t;
-  const MOIS_NOM = getMois(t);
-
-  const rows = [];
-
-  rows.push([t('STATISTIC JOURNALIER DE {{month}} {{year}}', { month: MOIS_NOM[mois].toUpperCase(), year: annee })]);
-  rows.push([]);
-
-  const h1 = [t('INFIRMERIE PHP')];
-  const h2 = [''];
-  semaines.forEach(s => {
-    s.jours.forEach(j => {
-      h1.push(t('SEMAINE {{num}} - Jour {{jour}}', { num: s.numero, jour: j.jourNum }), '', '');
-      h2.push(t('DÉCLARATIONS'), t('REÇUS HSJM'), t('HOSPI'));
-    });
-    h1.push(t('TOT S{{num}}', { num: s.numero }), '', '');
-    h2.push(t('DÉCLARATIONS'), t('REÇUS HSJM'), t('HOSPI'));
-  });
-  h1.push(t('TOTAL MOIS'), '', '');
-  h2.push(t('DÉCLARATIONS'), t('REÇUS HSJM'), t('HOSPI'));
-  rows.push(h1);
-  rows.push(h2);
-
-  infirmeries.forEach(inf => {
-    const row = [inf.code];
-    semaines.forEach(s => {
-      s.jours.forEach(j => {
-        const v = j.parInfirmerie[inf.code] || { declarations: 0, recus: 0, hospi: 0 };
-        row.push(v.declarations, v.recus, v.hospi);
-      });
-      const ts = s.totaux.parInfirmerie[inf.code] || { declarations: 0, recus: 0, hospi: 0 };
-      row.push(ts.declarations, ts.recus, ts.hospi);
-    });
-    const tm = totauxMois.parInfirmerie[inf.code] || { declarations: 0, recus: 0, hospi: 0 };
-    row.push(tm.declarations, tm.recus, tm.hospi);
-    rows.push(row);
-  });
-
-  const totRow = [t('TOTAL')];
-  semaines.forEach(s => {
-    s.jours.forEach(j => {
-      totRow.push(j.totaux.declarations, j.totaux.recus, j.totaux.hospi);
-    });
-    totRow.push(s.totaux.global.declarations, s.totaux.global.recus, s.totaux.global.hospi);
-  });
-  totRow.push(totauxMois.global.declarations, totauxMois.global.recus, totauxMois.global.hospi);
-  rows.push(totRow);
-
-  const csv = '﻿' + rows.map(r => r.join(';')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `STATISTIC-PHP-${MOIS_NOM[mois].toUpperCase()}-${annee}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 // ─── Tab Pathologies par Infirmerie ───────────────────────────────────────────
 function TabPathologies({ data, loading, onRefresh }) {
   const { t } = useTranslation();
@@ -685,6 +625,42 @@ function TabPathologies({ data, loading, onRefresh }) {
             );
           })}
         </div>
+      </div>
+
+      {/* Version tableau pour l'export Excel (non affichée) : classement global puis une feuille par infirmerie */}
+      <div data-export-only style={{ display: 'none' }}>
+        {[{ titre: t('Toutes infirmeries'), list: topGlobal }, ...parInfirmerie.map(inf => ({ titre: inf.infirmerie.replace('INF_', ''), list: inf.pathologies }))].map(({ titre, list }) => {
+          const total = list.reduce((sum, p) => sum + p.count, 0);
+          return (
+            <div key={titre} data-export-title={titre}>
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ background: 'rgb(79,70,229)', color: '#fff', fontWeight: 700, textAlign: 'center' }}>N°</th>
+                    <th style={{ background: 'rgb(79,70,229)', color: '#fff', fontWeight: 700, textAlign: 'left' }}>{t('Diagnostic')}</th>
+                    <th style={{ background: 'rgb(79,70,229)', color: '#fff', fontWeight: 700, textAlign: 'center' }}>{t('Cas')}</th>
+                    <th style={{ background: 'rgb(79,70,229)', color: '#fff', fontWeight: 700, textAlign: 'center' }}>%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((p, i) => (
+                    <tr key={p.diagnostic} style={{ background: i % 2 ? 'rgba(99,102,241,0.06)' : '#fff' }}>
+                      <td style={{ textAlign: 'center', color: '#6b7280' }}>{i + 1}</td>
+                      <td style={{ color: '#111827' }}>{p.diagnostic}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 700, color: '#111827' }}>{p.count}</td>
+                      <td style={{ textAlign: 'center', color: '#374151' }}>{total ? `${((p.count / total) * 100).toFixed(1)}%` : ''}</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td colSpan={2} style={{ background: '#1f2937', color: '#fff', fontWeight: 700 }}>{t('TOTAL')}</td>
+                    <td style={{ background: '#1f2937', color: '#fff', fontWeight: 700, textAlign: 'center' }}>{total}</td>
+                    <td style={{ background: '#1f2937', color: '#fff', fontWeight: 700, textAlign: 'center' }}>{total ? '100.0%' : ''}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
       </div>
 
       {/* Résumé par infirmerie (en cards compactes) */}
@@ -810,6 +786,28 @@ export default function PHPStatistiques() {
 
   const TRIMESTRE_LABELS = { 1: t('T1 Jan–Mar'), 2: t('T2 Avr–Jun'), 3: t('T3 Jul–Sep'), 4: t('T4 Oct–Déc') };
 
+  // Export Excel de l'onglet affiché : mêmes couleurs, cellules fusionnées et totaux qu'à l'écran
+  const contentRef = useRef(null);
+  const [exporting, setExporting] = useState(false);
+  const exportExcel = async () => {
+    const tab = TABS.find(tb => tb.key === activeTab);
+    const periode = activeTab === 'trimestriel' ? `${TRIMESTRE_LABELS[trimestre]} ${trimYear}` : `${MOIS[month]} ${year}`;
+    setExporting(true);
+    try {
+      const n = await exportTablesToExcel(contentRef.current, {
+        fileName: `STATISTIQUES-PHP-${tab.label}-${periode}`.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').toUpperCase(),
+        sheetName: tab.label,
+        title: `${t('Statistiques PHP')} — ${tab.label} — ${periode}`,
+      });
+      if (!n) toast(t('Aucun tableau à exporter pour cet onglet.'), { icon: 'ℹ️' });
+    } catch (err) {
+      console.error('Export Excel :', err);
+      toast.error(t('Export Excel impossible.'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const navBtnStyle = {
     padding: '0.5rem',
     background: 'var(--surface)',
@@ -846,16 +844,15 @@ export default function PHPStatistiques() {
           >
             <RefreshCw size={14} className={loadingCurrent ? 'animate-spin' : ''} />
           </button>
-          {['journalier', 'synthese', 'hospit', 'repos'].includes(activeTab) && rapportMensuel && (
-            <button
-              onClick={() => exportCSV(rapportMensuel, month, year)}
-              className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors font-medium"
-              style={{ background: 'var(--success)', color: '#fff' }}
-            >
-              <Download size={15} />
-              {t('Export CSV')}
-            </button>
-          )}
+          <button
+            onClick={exportExcel}
+            disabled={exporting || loadingCurrent}
+            className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors font-medium"
+            style={{ background: 'var(--success)', color: '#fff', opacity: exporting || loadingCurrent ? 0.6 : 1 }}
+          >
+            <Download size={15} />
+            {exporting ? t('Export…') : t('Exporter en Excel')}
+          </button>
         </div>
       </div>
 
@@ -909,13 +906,15 @@ export default function PHPStatistiques() {
         </div>
       )}
 
-      {/* Contenu des onglets */}
+      {/* Contenu des onglets (exporté tel quel en Excel) */}
+      <div ref={contentRef}>
       {activeTab === 'journalier'  && <TabJournalier data={rapportMensuel} loading={loadingMens} />}
       {activeTab === 'synthese'    && <TabSyntheseMensuelle data={rapportMensuel} loading={loadingMens} />}
       {activeTab === 'trimestriel' && <TabTrimestriel data={rapportTrimestriel} loading={loadingTrim} />}
       {activeTab === 'hospit'      && <TabMotifHospi data={rapportMensuel} loading={loadingMens} mois={month} annee={year} />}
       {activeTab === 'repos'       && <TabReposMaladie data={rapportMensuel} loading={loadingMens} mois={month} annee={year} />}
       {activeTab === 'pathologies' && <TabPathologies data={pathologiesData} loading={loadingPath} onRefresh={loadPathologies} />}
+      </div>
 
     </div>
   );

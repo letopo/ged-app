@@ -857,6 +857,17 @@ const RELEASE_NOTES = [
       'L\'accueil du module PHP se met à jour en arrière-plan : les chiffres changent sans que la page clignote comme si elle avait été actualisée.',
     ],
   },
+  {
+    id: '2026-11-02-php-stats-excel',
+    date: '2026-11-02',
+    target: 'app',
+    title: 'Statistiques PHP : export Excel identique à l\'écran',
+    access: (user) => ['admin', 'superadmin', 'agent_accueil_php'].includes(user?.role),
+    items: [
+      'Le bouton « Exporter en Excel » remplace l\'export CSV et fonctionne sur tous les onglets (rapport journalier, synthèse mensuelle, trimestriel, hospitalisations, repos maladie, pathologies).',
+      'Le fichier reprend la présentation de l\'écran : couleurs des semaines et des colonnes D / R / H, cellules fusionnées, ligne TOTAL, chiffres clés en tête et légende, en-têtes figés au défilement.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
