@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
+import ChatAttachment from './chat/ChatAttachment';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
@@ -76,6 +77,12 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
       const cid = msg.conversationId || msg.conversation_id;
       if (cid !== conv.id) return;
       setMessages(prev => [...prev, msg]);
+      // Document de la GED partagé : le droit de l'ouvrir est propre à chacun
+      if (msg.attachmentDocumentId) {
+        chatService.getMessage(msg.id).then(full => {
+          if (full) setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...full } : m));
+        }).catch(() => {});
+      }
       if (open) {
         chatService.markAsRead(conv.id);
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
@@ -203,6 +210,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
                     }}>
                       {msg.isDeleted ? t('[Message supprimé]') : msg.content}
                     </div>
+                    <div style={{ marginLeft: 31 }}><ChatAttachment msg={msg} /></div>
                   </div>
                 );
               })

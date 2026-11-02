@@ -11,6 +11,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
 import i18n from '../i18n/config';
+import ChatAttachment, { fileIcon, formatSize } from '../components/chat/ChatAttachment';
+import GedDocumentPicker from '../components/GedDocumentPicker';
+
+// Types acceptés par le serveur (utils/chatAttachments.js) : refus immédiat sinon
+const CHAT_FILE_TYPES = /\.(pdf|docx?|xlsx?|xlsm|pptx?|odt|ods|odp|rtf|txt|csv|jpe?g|png|gif|webp|heic|zip)$/i;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -213,16 +218,7 @@ const MessageBubble = ({ msg, isMine, showHeader, onEdit, onDelete, onReact, onl
           </div>
         )}
 
-        {msg.attachment_path && (
-          <a
-            href={`/api/uploads/${msg.attachment_path}`}
-            target="_blank"
-            rel="noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--brand)', marginTop: 4 }}
-          >
-            <Paperclip size={12} /> {msg.attachment_name || t('Pièce jointe')}
-          </a>
-        )}
+        <ChatAttachment msg={msg} />
 
         {/* Réactions */}
         {msg.reactions && msg.reactions.length > 0 && (
@@ -320,10 +316,17 @@ const ActionBtn = ({ icon, title, onClick, danger }) => (
 
 // ─── Zone de saisie ───────────────────────────────────────────────────────────
 
-const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
+const MessageInput = ({ onSend, convId, disabled, members = [], droppedFiles }) => {
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  // Pièces jointes en attente d'envoi : fichiers de l'appareil ou documents de la GED
+  const [pending, setPending] = useState([]);
+  const [progress, setProgress] = useState(null);
+  const [attachError, setAttachError] = useState(null);
+  const [attachMenu, setAttachMenu] = useState(false);
+  const [showGedPicker, setShowGedPicker] = useState(false);
+  const fileInputRef = useRef(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [mentionIdx, setMentionIdx] = useState(0);
   const textareaRef = useRef(null);
@@ -337,6 +340,30 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
       setTimeout(() => { typingRef.current = false; }, 2500);
     }
   }, [socket, convId]);
+
+  const addFiles = (files) => {
+    const list = [...(files || [])];
+    if (!list.length) return;
+    const refused = list.filter(f => !CHAT_FILE_TYPES.test(f.name || ''));
+    setAttachError(refused.length
+      ? t('Type de fichier non accepté : {{names}}. PDF, Word, Excel, PowerPoint, OpenOffice, texte, CSV, images ou ZIP.', { names: refused.map(f => f.name).join(', ') })
+      : null);
+    const ok = list.filter(f => CHAT_FILE_TYPES.test(f.name || ''));
+    setPending(p => [...p, ...ok.map(file => ({ key: `${file.name}-${file.size}-${Math.random()}`, kind: 'file', file }))]);
+    setTimeout(() => textareaRef.current?.focus(), 10);
+  };
+
+  // Fichiers déposés sur le fil de messages (glisser-déposer)
+  useEffect(() => { if (droppedFiles?.files?.length) addFiles(droppedFiles.files); }, [droppedFiles]);
+
+  const handlePaste = (e) => {
+    const files = [...(e.clipboardData?.files || [])];
+    if (!files.length) return;
+    e.preventDefault();
+    // Capture d'écran collée : nom lisible
+    addFiles(files.map(f => (f.name && f.name !== 'image.png') ? f
+      : new window.File([f], `capture-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`, { type: f.type })));
+  };
 
   const getMentionMatch = (val) => val.match(/@(\w*)$/);
 
@@ -373,14 +400,34 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
 
   const send = async () => {
     const content = text.trim();
-    if (!content || sending) return;
+    if ((!content && !pending.length) || sending) return;
     setSending(true);
     setText('');
     setMentionSuggestions([]);
+    setAttachError(null);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     try {
-      await onSend({ content });
+      if (!pending.length) { await onSend({ content }); return; }
+      // Une pièce jointe par message ; le texte accompagne la première
+      const queue = [...pending];
+      for (let i = 0; i < queue.length; i++) {
+        const item = queue[i];
+        const caption = i === 0 ? content : '';
+        try {
+          if (item.kind === 'doc') await chatService.shareDocument(convId, item.doc.id, caption);
+          else {
+            setProgress({ name: item.file.name, value: 0 });
+            await chatService.uploadAttachment(convId, item.file, caption, (v) => setProgress({ name: item.file.name, value: v }));
+          }
+          setPending(p => p.filter(x => x.key !== item.key));
+        } catch (err) {
+          setAttachError(`${item.kind === 'doc' ? item.doc.title : item.file.name} : ${t(err.message)}`);
+          if (i === 0 && content) setText(content);
+          break;
+        }
+      }
     } finally {
+      setProgress(null);
       setSending(false);
       setTimeout(() => textareaRef.current?.focus(), 10);
     }
@@ -434,16 +481,84 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
         </div>
       )}
 
+      {/* Pièces jointes prêtes à partir */}
+      {(pending.length > 0 || attachError || progress) && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          {pending.map(item => {
+            const label = item.kind === 'doc' ? item.doc.title : item.file.name;
+            const Icon = item.kind === 'doc' ? FileText : fileIcon(label);
+            const uploading = progress && item.kind === 'file' && progress.name === item.file.name;
+            return (
+              <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: 260, padding: '4px 6px 4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)', fontSize: 12, color: 'var(--fg)' }}>
+                <Icon size={14} style={{ color: item.kind === 'doc' ? 'var(--brand)' : 'var(--fg-muted)', flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={label}>{label}</span>
+                <span style={{ color: 'var(--fg-muted)', flexShrink: 0 }}>
+                  {uploading ? `${Math.round(progress.value * 100)} %` : item.kind === 'doc' ? t('GED') : formatSize(item.file.size)}
+                </span>
+                {!sending && (
+                  <button type="button" onClick={() => setPending(p => p.filter(x => x.key !== item.key))} aria-label={t('Retirer')}
+                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--fg-muted)', padding: 2, display: 'flex' }}>
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {attachError && <div style={{ width: '100%', fontSize: 12, color: 'var(--danger)' }}>{attachError}</div>}
+        </div>
+      )}
+
+      {/* Menu du trombone */}
+      {attachMenu && (
+        <>
+          <div onClick={() => setAttachMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 190 }} />
+          <div style={{ position: 'absolute', bottom: '100%', left: 16, marginBottom: 4, zIndex: 200, minWidth: 230, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+            {[
+              [Paperclip, t('Fichier de l\'ordinateur ou du téléphone'), () => fileInputRef.current?.click()],
+              [FileText, t('Document de la GED'), () => setShowGedPicker(true)],
+            ].map(([Icon, label, action]) => (
+              <button key={label} type="button" onClick={() => { setAttachMenu(false); action(); }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: 'none', background: 'transparent', color: 'var(--fg)', fontSize: 13, cursor: 'pointer', textAlign: 'left' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <Icon size={15} style={{ color: 'var(--brand)' }} /> {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      <input ref={fileInputRef} type="file" multiple hidden
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.heic,.zip,image/*"
+        onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
+      {showGedPicker && (
+        <GedDocumentPicker pdfOnly={false}
+          title={t('Partager un document de la GED')}
+          subtitle={t('Il ne s\'ouvrira que pour les membres qui ont déjà le droit de le lire.')}
+          pickLabel={t('Joindre ce document')}
+          onClose={() => setShowGedPicker(false)}
+          onPick={(doc) => {
+            setShowGedPicker(false);
+            setPending(p => p.some(x => x.kind === 'doc' && x.doc.id === doc.id) ? p : [...p, { key: `doc-${doc.id}`, kind: 'doc', doc }]);
+            setTimeout(() => textareaRef.current?.focus(), 10);
+          }} />
+      )}
+
       <div style={{
         display: 'flex', alignItems: 'flex-end', gap: 8,
         background: 'var(--surface-2)', border: '1px solid var(--border)',
         borderRadius: 8, padding: '8px 12px',
       }}>
+        <button type="button" onClick={() => setAttachMenu(o => !o)} disabled={disabled || sending}
+          title={t('Joindre un fichier ou un document de la GED')} aria-label={t('Joindre un fichier ou un document de la GED')}
+          style={{ padding: '6px 4px', border: 'none', background: 'transparent', color: attachMenu ? 'var(--brand)' : 'var(--fg-muted)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
+          <Paperclip size={18} />
+        </button>
         <textarea
           ref={textareaRef}
           value={text}
           onChange={handleChange}
           onKeyDown={handleKey}
+          onPaste={handlePaste}
           disabled={disabled || sending}
           placeholder={t('Écrire un message… @ pour mentionner')}
           rows={1}
@@ -459,12 +574,13 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
         />
         <button
           onClick={send}
-          disabled={!text.trim() || sending}
+          disabled={(!text.trim() && !pending.length) || sending}
+          aria-label={t('Envoyer')}
           style={{
             padding: '6px 14px', borderRadius: 6, border: 'none',
-            background: text.trim() ? 'var(--brand)' : 'var(--border)',
-            color: text.trim() ? '#fff' : 'var(--fg-muted)',
-            cursor: text.trim() ? 'pointer' : 'default',
+            background: text.trim() || pending.length ? 'var(--brand)' : 'var(--border)',
+            color: text.trim() || pending.length ? '#fff' : 'var(--fg-muted)',
+            cursor: text.trim() || pending.length ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
             transition: 'all 0.15s', flexShrink: 0,
           }}
@@ -473,7 +589,7 @@ const MessageInput = ({ onSend, convId, disabled, members = [] }) => {
         </button>
       </div>
       <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 4, paddingLeft: 2 }}>
-        {t('@ pour mentionner · Maj+Entrée pour retour à la ligne')}
+        {t('@ pour mentionner · Maj+Entrée pour retour à la ligne · 📎 ou glisser un fichier pour le joindre')}
       </div>
     </div>
   );
@@ -490,6 +606,8 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
   const [typingUsers, setTypingUsers] = useState({});
   const [members, setMembers] = useState([]);
   const [showMembers, setShowMembers] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState(null);
   const bottomRef = useRef(null);
   const listRef = useRef(null);
   const typingTimers = useRef({});
@@ -520,6 +638,12 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
     const handleMsg = (msg) => {
       if (msg.conversationId !== conv.id && msg.conversation_id !== conv.id) return;
       setMessages(prev => [...prev, msg]);
+      // Document de la GED : le droit de l'ouvrir est propre à chacun
+      if (msg.attachmentDocumentId) {
+        chatService.getMessage(msg.id).then(full => {
+          if (full) setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...full } : m));
+        }).catch(() => {});
+      }
       chatService.markAsRead(conv.id);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     };
@@ -664,8 +788,16 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
       </div>
 
       <div className="chat-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {/* Messages */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Messages (un fichier glissé ici est ajouté au message en cours) */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}
+          onDragOver={e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); setDragOver(true); } }}
+          onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
+          onDrop={e => { if (e.dataTransfer.files?.length) { e.preventDefault(); setDroppedFiles({ files: [...e.dataTransfer.files] }); } setDragOver(false); }}>
+          {dragOver && (
+            <div style={{ position: 'absolute', inset: 8, zIndex: 50, borderRadius: 12, border: '2px dashed var(--brand)', background: 'color-mix(in srgb, var(--brand) 10%, var(--surface))', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--brand)', fontWeight: 600, fontSize: 14, pointerEvents: 'none' }}>
+              <Paperclip size={18} /> {t('Déposez le fichier pour le joindre')}
+            </div>
+          )}
           <div
             ref={listRef}
             style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}
@@ -725,7 +857,7 @@ const MessageThread = ({ conv, user, onBack, onlineUsers }) => {
             <div ref={bottomRef} />
           </div>
 
-          <MessageInput onSend={handleSend} convId={conv.id} disabled={loading} members={members} />
+          <MessageInput onSend={handleSend} convId={conv.id} disabled={loading} members={members} droppedFiles={droppedFiles} />
         </div>
 
         {/* Panel membres */}
@@ -1046,7 +1178,7 @@ const ChatPage = () => {
         if (c.id !== (msg.conversationId || msg.conversation_id)) return c;
         return {
           ...c,
-          last_content: msg.content,
+          last_content: msg.content || (msg.attachmentDocumentId ? `📎 ${t('Document de la GED')}` : msg.attachmentName ? `📎 ${msg.attachmentName}` : ''),
           last_at: msg.createdAt || msg.created_at,
           last_author_name: `${msg.authorFirstName || ''} ${msg.authorLastName || ''}`.trim(),
           unread_count: c.id !== selectedId ? (parseInt(c.unread_count) || 0) + 1 : 0,

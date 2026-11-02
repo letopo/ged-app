@@ -32,6 +32,17 @@ const ChatMessage = sequelize.define('ChatMessage', {
     allowNull: true,
     field: 'attachment_name',
   },
+  attachmentSize: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'attachment_size',
+  },
+  // Document de la GED partagé (ouvert seulement par qui a le droit de le lire)
+  attachmentDocumentId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'attachment_document_id',
+  },
   isDeleted: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,

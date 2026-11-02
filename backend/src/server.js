@@ -208,7 +208,8 @@ app.use('/api/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   // Miniatures (uploads/.thumbs) : seulement via /api/documents/:id/thumbnail (contrôle d'accès)
-  if (/^\/\.thumbs(\/|$)/i.test(decodeURIComponent(req.path))) return res.sendStatus(404);
+  // Pièces jointes de la discussion (uploads/.chat) : seulement via /api/chat/messages/:id/attachment
+  if (/^\/\.(thumbs|chat)(\/|$)/i.test(decodeURIComponent(req.path))) return res.sendStatus(404);
   next();
 }, requireFileAccess('uploads'), express.static(path.join(__dirname, '../uploads'), { dotfiles: 'deny', setHeaders: setUploadHeaders }));
 
@@ -914,6 +915,8 @@ const startServer = async () => {
           updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS idx_chat_messages_conv_id ON chat_messages(conversation_id, created_at);
+        ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_size INTEGER;
+        ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_document_id UUID;
         CREATE TABLE IF NOT EXISTS chat_conversation_members (
           id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           conversation_id UUID NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
