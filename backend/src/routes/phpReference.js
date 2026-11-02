@@ -13,18 +13,19 @@ import {
   updateSecteur,
   getServicesMedicaux
 } from '../controllers/phpReferenceController.js';
+import { requirePhpWrite } from '../utils/phpAccess.js';
 
 const router = express.Router();
 
 // ── Infirmeries ──────────────────────────────
 router.get('/infirmeries', protect, getInfirmeries);
 router.get('/infirmeries/:id', protect, getInfirmerieById);
-router.post('/infirmeries', protect, authorize('admin', 'agent_accueil_php'), createInfirmerie);
+router.post('/infirmeries', protect, requirePhpWrite, createInfirmerie);
 router.put('/infirmeries/:id', protect, authorize('admin'), updateInfirmerie);
 
 // ── Secteurs ─────────────────────────────────
 router.get('/secteurs', protect, getSecteurs);
-router.post('/secteurs', protect, authorize('admin', 'agent_accueil_php'), createSecteur);
+router.post('/secteurs', protect, requirePhpWrite, createSecteur);
 router.put('/secteurs/:id', protect, authorize('admin'), updateSecteur);
 
 // ── Services Médicaux ─────────────────────────

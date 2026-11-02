@@ -9,13 +9,14 @@ import {
   updateStatusRdv,
   deleteRendezVous,
 } from '../controllers/phpRendezVousController.js';
+import { requirePhpWrite } from '../utils/phpAccess.js';
 
 const router = express.Router();
 
 router.get('/',       protect, getRendezVous);
 router.get('/today',  protect, getRdvDuJour);
-router.post('/',      protect, createRendezVous);
-router.patch('/:id/status', protect, updateStatusRdv);
-router.delete('/:id', protect, deleteRendezVous);
+router.post('/',      protect, requirePhpWrite, createRendezVous);
+router.patch('/:id/status', protect, requirePhpWrite, updateStatusRdv);
+router.delete('/:id', protect, requirePhpWrite, deleteRendezVous);
 
 export default router;

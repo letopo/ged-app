@@ -14,6 +14,8 @@ import PHPConsultationForm, { TYPES_VISITE } from '../components/php/PHPConsulta
 import toast from 'react-hot-toast';
 import Pagination, { usePageSize } from '../components/Pagination';
 import i18n from '../i18n/config';
+import { phpAccess } from '../utils/phpAccess';
+import { useAuth } from '../contexts/AuthContext';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
@@ -88,6 +90,8 @@ export default function PHPConsultations() {
   const [filterResultat, setFilterResultat] = useState('');
   const [filterInfirmerie, setFilterInfirmerie] = useState('');
   const [filterType, setFilterType] = useState('');
+  const { user } = useAuth();
+  const canWrite = phpAccess(user).write; // pas de clôture en consultation seule
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize('phpConsultations', 25);
 
@@ -383,7 +387,7 @@ export default function PHPConsultations() {
                         })()}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {c.resultat === 'en_cours' ? (
+                        {c.resultat === 'en_cours' && canWrite ? (
                           <button
                             onClick={() => { setSelectedConsult(c); setShowCloture(true); }}
                             className="text-xs px-3 py-1.5 rounded-lg transition-colors"

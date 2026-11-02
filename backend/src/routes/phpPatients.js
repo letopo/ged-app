@@ -13,6 +13,7 @@ import {
   genererBon,
   getHistoriquePatient
 } from '../controllers/phpPatientController.js';
+import { requirePhpWrite } from '../utils/phpAccess.js';
 
 const router = express.Router();
 
@@ -22,11 +23,11 @@ router.get('/search/matricule/:matricule', protect, searchByMatricule);
 router.get('/:id', protect, getPatientById);
 router.get('/:id/historique', protect, getHistoriquePatient);
 
-router.post('/',        protect, authorize('admin', 'agent_accueil_php'), createPatient);
-router.put('/:id',     protect, authorize('admin', 'agent_accueil_php'), updatePatient);
-router.delete('/:id',  protect, authorize('admin', 'agent_accueil_php'), deletePatient);
+router.post('/',        protect, requirePhpWrite, createPatient);
+router.put('/:id',     protect, requirePhpWrite, updatePatient);
+router.delete('/:id',  protect, requirePhpWrite, deletePatient);
 
 // ── Bons de prise en charge ───────────────────
-router.post('/:id/bon', protect, authorize('admin', 'agent_accueil_php'), genererBon);
+router.post('/:id/bon', protect, requirePhpWrite, genererBon);
 
 export default router;

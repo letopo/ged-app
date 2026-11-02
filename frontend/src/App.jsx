@@ -140,8 +140,7 @@ const PHPRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return (isAdminOrSuper(user?.role) || user?.role === 'agent_accueil_php')
-    ? children : <Navigate to="/dashboard" replace />;
+  return phpAccess(user).read ? children : <Navigate to="/dashboard" replace />;
 };
 
 const AccueilRoute = ({ children }) => {
@@ -186,6 +185,7 @@ const ManagementRoute = ({ children }) => {
 
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 import { useEffect, useState } from 'react';
+import { phpAccess } from './utils/phpAccess';
 
 // Bannière discrète affichée quand un admin modifie les droits de l'utilisateur connecté
 function RightsBanner() {

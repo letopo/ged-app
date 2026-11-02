@@ -868,6 +868,17 @@ const RELEASE_NOTES = [
       'Le fichier reprend la présentation de l\'écran : couleurs des semaines et des colonnes D / R / H, cellules fusionnées, ligne TOTAL, chiffres clés en tête et légende, en-têtes figés au défilement.',
     ],
   },
+  {
+    id: '2026-11-02-postes-module-php',
+    date: '2026-11-02',
+    target: 'app',
+    title: 'Module PHP : accès par poste',
+    access: (user) => ['admin', 'superadmin'].includes(user?.role),
+    items: [
+      'Deux nouveaux postes dans Admin › Postes & Fonctions : « Module PHP » (utilisation complète, comme le Point Focal) et « Module PHP — consultation » (listes, statistiques et exports, sans saisie).',
+      'Les données du module PHP (patients, diagnostics, statistiques) ne sont plus lisibles que par les administrateurs, le Point Focal PHP et les titulaires de ces postes : le contrôle est fait par le serveur.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
