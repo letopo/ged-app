@@ -13,6 +13,44 @@ import path from 'path';
 import { chatFilePath, INLINE_EXT } from '../utils/chatAttachments.js';
 import { fileSessionUser } from '../utils/fileAccess.js';
 import { tenantNamespace } from '../config/database.js';
+import { transmitToRecipients } from './documentTransmissionController.js';
+import { Op } from 'sequelize';
+
+// @identifiant dans un message (les identifiants HSJM contiennent des tirets : F-YANKEU)
+const MENTION_RE = /@([A-Za-z0-9_.-]*[A-Za-z0-9_])/g;
+const mentionHandles = (text) => [...String(text || '').matchAll(MENTION_RE)].map((m) => m[1].toLowerCase());
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Discussion d'un document : mentionner (@) quelqu'un l'ajoute à la discussion
+// et, s'il ne peut pas encore lire le document, le lui transmet (mêmes règles
+// que « Transmettre » : il suffit de pouvoir lire le document soi-même).
+// Seules comptent les personnes choisies dans la liste ET dont l'@identifiant
+// figure dans le message.
+async function addMentionedToDocumentThread(req, conversationId, content, mentionUserIds) {
+  const ids = [...new Set((Array.isArray(mentionUserIds) ? mentionUserIds : []).filter((x) => typeof x === 'string' && UUID_RE.test(x)))]
+    .filter((x) => x !== req.user.id).slice(0, 20);
+  if (!ids.length) return [];
+  const conv = await Conversation.findByPk(conversationId);
+  if (conv?.type !== 'document' || !conv.documentId) return [];
+  const doc = await Document.findByPk(conv.documentId, { attributes: { exclude: ['extractedText'] } });
+  if (!doc || !(await hasDocumentReadAccess(doc, req.user))) return [];
+
+  const handles = new Set(mentionHandles(content));
+  const users = await User.findAll({ where: { id: ids, isActive: true } }); // établissement courant
+  const excerpt = content.length > 200 ? `${content.slice(0, 200)}…` : content;
+  const added = [];
+  for (const target of users) {
+    if (!handles.has(String(target.username || '').toLowerCase())) continue;
+    const [, joined] = await ChatMember.findOrCreate({
+      where: { conversationId, userId: target.id },
+      defaults: { conversationId, userId: target.id, role: 'member', lastReadAt: new Date(0), joinedAt: new Date() },
+    });
+    const transmitted = !(await hasDocumentReadAccess(doc, target));
+    if (transmitted) await transmitToRecipients(doc, req.user.id, [target], `Mentionné(e) dans la discussion du document : « ${excerpt} »`);
+    added.push({ id: target.id, name: `${target.firstName || ''} ${target.lastName || ''}`.trim(), joined, transmitted });
+  }
+  return added;
+}
 
 // ─── Conversations ────────────────────────────────────────────────────────────
 
@@ -288,6 +326,11 @@ async function publishMessage(req, res, conversationId, fields) {
   const id = conversationId;
   const message = await ChatMessage.create({ conversationId: id, authorId: userId, ...fields });
   await Conversation.update({ lastMessageAt: new Date() }, { where: { id } });
+  let mentionIds = req.body?.mentionUserIds;
+  if (typeof mentionIds === 'string') { try { mentionIds = JSON.parse(mentionIds); } catch { mentionIds = []; } }
+  const added = await addMentionedToDocumentThread(req, id, message.content, mentionIds);
+  // Le document vient de leur être transmis : pas d'e-mail de mention en plus
+  const alreadyNotified = new Set(added.filter((a) => a.transmitted).map((a) => a.id));
 
   const u = req.user;
   const messageData = {
@@ -349,10 +392,7 @@ async function publishMessage(req, res, conversationId, fields) {
       }
 
       // ── 2. @mentions → socket + email si hors-ligne ──────────────────────
-      const mentionPattern = /@(\w+)/g;
-      const mentionedUsernames = [];
-      let mm;
-      while ((mm = mentionPattern.exec(message.content)) !== null) mentionedUsernames.push(mm[1]);
+      const mentionedUsernames = [...new Set(mentionHandles(message.content))];
 
       if (mentionedUsernames.length > 0) {
         const mentioned = await sequelize.query(`
@@ -377,7 +417,7 @@ async function publishMessage(req, res, conversationId, fields) {
               fromName: senderName, excerpt, timestamp: message.createdAt,
             });
           }
-          if (!isUserConnected(target.id)) {
+          if (!isUserConnected(target.id) && !alreadyNotified.has(target.id)) {
             await sendNotificationEmail(
               target.email,
               `@ ${senderName} vous a mentionné dans « ${convName} »`,
@@ -391,8 +431,42 @@ async function publishMessage(req, res, conversationId, fields) {
     } catch (_) {}
   });
 
-  res.status(201).json({ success: true, data: messageData });
+  res.status(201).json({ success: true, data: messageData, added });
 }
+
+// GET /api/chat/conversations/:id/mention-candidates?q= — qui mentionner (@).
+// Discussion d'un document : tout collègue actif de l'établissement, avec
+// « est membre » et « peut déjà lire le document » ; ailleurs : les membres.
+export const getMentionCandidates = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const q = String(req.query.q || '').trim().slice(0, 50);
+    const member = await ChatMember.findOne({ where: { conversationId: id, userId: req.user.id } });
+    if (!member) return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+    const conv = await Conversation.findByPk(id);
+    if (!conv) return res.status(404).json({ success: false, error: 'Conversation introuvable.' });
+
+    const memberIds = new Set((await ChatMember.findAll({ where: { conversationId: id }, attributes: ['userId'] })).map((m) => m.userId));
+    const where = { isActive: true, id: { [Op.ne]: req.user.id } };
+    if (q) where[Op.or] = ['firstName', 'lastName', 'username'].map((f) => ({ [f]: { [Op.iLike]: `${q}%` } }));
+    if (conv.type !== 'document') where.id = { [Op.in]: [...memberIds].filter((x) => x !== req.user.id) };
+    const users = await User.findAll({ where, attributes: { exclude: ['password'] }, order: [['firstName', 'ASC'], ['lastName', 'ASC']], limit: 8 });
+
+    let doc = null;
+    if (conv.type === 'document' && conv.documentId) doc = await Document.findByPk(conv.documentId, { attributes: { exclude: ['extractedText'] } });
+    const data = [];
+    for (const u of users) {
+      data.push({
+        id: u.id, username: u.username, first_name: u.firstName, last_name: u.lastName,
+        is_member: memberIds.has(u.id),
+        has_access: doc ? await hasDocumentReadAccess(doc, u) : true,
+      });
+    }
+    res.json({ success: true, data, documentThread: conv.type === 'document' });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const sendMessage = async (req, res, next) => {
   try {

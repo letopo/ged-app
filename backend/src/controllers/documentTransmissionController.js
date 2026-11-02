@@ -39,7 +39,7 @@ async function notifyRecipient(recipient, document, sender, message) {
 
 // Enregistre la transmission (une ligne par destinataire) et prévient chacun.
 // Retransmettre au même destinataire : on actualise (nouveau message, à relire).
-async function transmitToRecipients(document, senderId, recipients, message) {
+export async function transmitToRecipients(document, senderId, recipients, message) {
   const sender = await User.findByPk(senderId, { attributes: ['id', 'firstName', 'lastName', 'email'] });
   for (const recipient of recipients) {
     const existing = await DocumentTransmission.findOne({ where: { documentId: document.id, toUserId: recipient.id } });

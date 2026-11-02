@@ -20,6 +20,7 @@ import {
   uploadAttachment,
   downloadAttachment,
   requireConversationMember,
+  getMentionCandidates,
 } from '../controllers/chatController.js';
 import { chatUpload } from '../utils/chatAttachments.js';
 import { fixUploadEncoding } from '../middleware/upload.js';
@@ -40,6 +41,7 @@ router.get('/conversations/:id/messages',           getMessages);
 router.post('/conversations/:id/messages',          sendMessage);
 router.post('/conversations/:id/attachments',      requireConversationMember, chatUpload.single('file'), fixUploadEncoding, uploadAttachment);
 router.post('/conversations/:id/read',              markAsRead);
+router.get('/conversations/:id/mention-candidates', getMentionCandidates);
 router.get('/conversations/:id/members',            getMembers);
 router.post('/conversations/:id/members',           addMember);
 router.delete('/conversations/:id/members/:userId', removeMember);
