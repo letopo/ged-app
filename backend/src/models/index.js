@@ -44,6 +44,7 @@ import BonPriseEnCharge from './BonPriseEnCharge.js';
 import ConsultationPHP from './ConsultationPHP.js';
 import HospitalisationPHP from './HospitalisationPHP.js';
 import ReposPHP from './ReposPHP.js';
+import PhpIndicateur from './PhpIndicateur.js';
 import OperationPHP from './OperationPHP.js';
 import DecesTransfertPHP from './DecesTransfertPHP.js';
 import RendezVousPHP from './RendezVousPHP.js';
@@ -135,6 +136,7 @@ const db = {
   ConsultationPHP,
   HospitalisationPHP,
   ReposPHP,
+  PhpIndicateur,
   OperationPHP,
   DecesTransfertPHP,
   RendezVousPHP,
@@ -323,6 +325,7 @@ export {
   ConsultationPHP,
   HospitalisationPHP,
   ReposPHP,
+  PhpIndicateur,
   OperationPHP,
   DecesTransfertPHP,
   PhpFacture,

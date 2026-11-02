@@ -954,6 +954,18 @@ const RELEASE_NOTES = [
       'La barre « Rechercher » de la Discussion cherche aussi dans les messages de toutes vos conversations : un clic sur un résultat ouvre la conversation à cet endroit.',
     ],
   },
+  {
+    id: '2026-11-03-php-tableau-jour-indicateurs',
+    date: '2026-11-03',
+    target: '/php/statistiques',
+    title: 'Statistiques PHP : tableau du jour et indicateurs',
+    access: (user) => phpAccess(user).read,
+    items: [
+      '« Tableau du jour » : pour une date, les visites par infirmerie, type (CS, RDV, AUTRE) et service, avec les totaux — comme les tableaux croisés de l\'Excel du Point Focal. Les flèches passent d\'un jour saisi à l\'autre.',
+      '« Indicateurs » : paludisme et IST par secteur, visites par spécialité, évacuations par secteur et repos par spécialité, sur la période choisie. Les mots-clés des indicateurs (PALU, IST…) se modifient avec « Modifier les indicateurs ».',
+      'Chaque visite garde désormais l\'infirmerie et le secteur du jour où elle a eu lieu, comme sur la ligne de l\'Excel. Export Excel identique à l\'écran, une feuille par tableau.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

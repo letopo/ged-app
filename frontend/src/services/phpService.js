@@ -60,6 +60,11 @@ export const phpStatsAPI = {
   getRapportMensuel: (params) => api.get('/php/stats/rapport-mensuel', { params }),
   getRapportTrimestriel: (params) => api.get('/php/stats/rapport-trimestriel', { params }),
   getPathologies: (params) => api.get('/php/stats/pathologies', { params }),
+  // Tableaux de l'Excel du Point Focal
+  getTableauJour: (params) => api.get('/php/stats/tableau-jour', { params }),
+  getIndicateurs: (params) => api.get('/php/stats/indicateurs', { params }),
+  getIndicateursConfig: () => api.get('/php/stats/indicateurs/config'),
+  saveIndicateursConfig: (data) => api.put('/php/stats/indicateurs/config', data),
 };
 
 // ============================================

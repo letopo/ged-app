@@ -22,6 +22,7 @@ const as = (user) => authHeaders(f.tenant, user);
 // Matricules et codes propres à ce test (colonnes uniques dans toute la base)
 const M1 = '9900101', M2 = '9900102';
 const INF = 'INF_TESTIMPORT';
+const INF2 = 'INF_TESTIMPORT2';
 const SEC = 'TESTIMPORT SECTEUR';
 
 async function workbook() {
@@ -32,7 +33,7 @@ async function workbook() {
     ws.getRow(3).values = header;
     rows.forEach((r, i) => { ws.getRow(4 + i).values = r; });
   };
-  sheet('DB_Infirmeries', ['N°', 'Code Infirmerie', 'Localisation'], [[1, INF, 'TESTIMPORT']]);
+  sheet('DB_Infirmeries', ['N°', 'Code Infirmerie', 'Localisation'], [[1, INF, 'TESTIMPORT'], [2, INF2, 'TESTIMPORT 2']]);
   sheet('DB_Secteurs', ['N°', 'Secteur', 'Infirmerie'], [[1, SEC, INF]]);
   sheet('DB_Patients', ['Matricule', 'Nom et Prénoms', 'Secteur', 'Infirmerie', 'Statut'], [
     [M1, 'TESTIMPORT JEAN PAUL', SEC, INF, 'ACTIF'],
@@ -45,7 +46,8 @@ async function workbook() {
     [990002, d('2026-10-29'), Number(M2), 'TESTIMPORT MARIE', SEC, 'INF_TESTIMPORT ', 'SUIVI HTA', 'GASTROLOGUE', 1, 'RDV', '07H33', '10H08'],
     [990003, d('2026-10-29'), Number(M1), 'TESTIMPORT JEAN PAUL', SEC, INF, 'BILANS', 'LABO 100%', 2, 'autres', '08H', '09:15'],
     // jour et mois inversés : 06/11 saisi pour le 11/06, entre deux lignes de juin
-    [990010, d('2026-06-10'), M1, 'TESTIMPORT JEAN PAUL', SEC, INF, 'SUIVI', 'MEDECINE', 1, 'RDV', '', ''],
+    // venu ce jour-là d'une autre infirmerie que celle de sa fiche
+    [990010, d('2026-06-10'), M1, 'TESTIMPORT JEAN PAUL', SEC, INF2, 'SUIVI', 'MEDECINE', 1, 'RDV', '', ''],
     [990004, d('2026-11-06'), M1, 'TESTIMPORT JEAN PAUL', SEC, INF, 'BAV', 'OPTALMO', 3, 'CS', '', ''],
     // 01/07 compris comme le 7 janvier, au milieu de juillet : corrigé aussi (date passée)
     [990011, d('2026-07-01'), M1, 'TESTIMPORT JEAN PAUL', SEC, INF, 'SUIVI', 'MEDECINE', 1, 'RDV', '', ''],
@@ -136,6 +138,13 @@ test('simulation, import, puis réimport sans doublon', async () => {
     ['RDV', 1, 'GASTROENTEROLOGIE', '07:33:00', '10:08:00', 155],
   );
   assert.equal(byRef['C:990003'].type_visite, 'AUTRE');
+  // Infirmerie de la ligne de consultation (tableau du jour), la fiche du patient garde la sienne
+  const [places] = await sequelize.query(`
+    SELECT c.excel_ref, ci.code AS visite, pi.code AS fiche, c.secteur_id IS NOT NULL AS secteur
+    FROM php_consultations c JOIN php_patients p ON p.id = c.patient_id
+    LEFT JOIN php_infirmeries ci ON ci.id = c.infirmerie_id LEFT JOIN php_infirmeries pi ON pi.id = p.infirmerie_id
+    WHERE c.excel_ref IN ('C:990010', 'C:990011') ORDER BY c.excel_ref`);
+  assert.deepEqual(places.map(r => [r.excel_ref, r.visite, r.fiche, r.secteur]), [['C:990010', INF2, INF, true], ['C:990011', INF, INF, true]]);
   assert.equal(byRef['C:990004'].d, '2026-06-11');
   assert.ok(rows.every(r => r.bon), 'chaque consultation importée a son bon (statistiques)');
   const [[bon]] = await sequelize.query("SELECT b.date_emission::text d FROM php_bons_prise_en_charge b JOIN php_consultations c ON c.bon_prise_en_charge_id = b.id WHERE c.excel_ref = 'C:990004'");

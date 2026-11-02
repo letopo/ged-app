@@ -121,6 +121,9 @@ export const createConsultation = async (req, res) => {
       dateConsultation: jour,
       typeVisite: typeVisite || 'CS',
       numeroOrdre: (dernier || 0) + 1,
+      // Lieu de la visite = infirmerie et secteur du patient aujourd'hui
+      infirmerieId: patient.infirmerieId || null,
+      secteurId: patient.secteurId || null,
       heureArrivee,
       heureDebutConsultation,
       heureFinConsultation,
