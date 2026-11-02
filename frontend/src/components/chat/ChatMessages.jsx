@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  User, Hash, Send, X, Trash2, Edit2, FileText, Loader, Paperclip, Copy, Check, CheckCheck,
+  User, Hash, Send, X, Trash2, Edit2, FileText, Loader, Paperclip, Copy, Check, CheckCheck, Reply,
 } from 'lucide-react';
 import { getSocket } from '../../services/api';
 import chatService from '../../services/chatService';
@@ -190,11 +190,107 @@ export const SeenLine = ({ receipt, isGroup }) => {
   );
 };
 
+// ─── Réponses ─────────────────────────────────────────────────────────────────
+
+/** Aperçu d'un message cité (message affiché, ou champs reply_* renvoyés par le serveur). */
+export const quoteOf = (msg) => ({
+  id: msg.id,
+  author: `${msg.author_first_name || msg.authorFirstName || ''} ${msg.author_last_name || msg.authorLastName || ''}`.trim(),
+  text: msg.content || '',
+  kind: (msg.attachment_document_id || msg.attachmentDocumentId) ? 'document' : (msg.has_file || msg.hasFile) ? 'file' : null,
+  fileName: (msg.attachment_document_id || msg.attachmentDocumentId) ? null : (msg.attachment_name ?? msg.attachmentName),
+});
+const replyQuote = (msg) => (msg.reply_to_id ? {
+  id: msg.reply_to_id,
+  author: `${msg.reply_author_first_name || ''} ${msg.reply_author_last_name || ''}`.trim(),
+  text: msg.reply_content || '',
+  kind: msg.reply_kind,
+  fileName: msg.reply_attachment_name,
+  deleted: msg.reply_deleted,
+} : null);
+
+/** Bloc cité (dans la bulle, ou au-dessus de la saisie) */
+export const QuoteBlock = ({ quote, onClick, compact }) => {
+  const { t } = useTranslation();
+  const color = avatarColor(quote.author.replace(' ', ''));
+  const text = quote.deleted ? t('Message supprimé')
+    : quote.text || (quote.kind === 'document' ? `📎 ${t('Document de la GED')}` : quote.kind === 'file' ? `📎 ${quote.fileName || t('Pièce jointe')}` : '');
+  return (
+    <div role={onClick ? 'button' : undefined} onClick={onClick}
+      style={{ borderLeft: `3px solid ${color}`, background: 'var(--chat-quote-bg)', borderRadius: 6, padding: '4px 8px', marginBottom: compact ? 0 : 4, cursor: onClick ? 'pointer' : 'default', minWidth: 0 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color }}>{quote.author || t('Message')}</div>
+      <div style={{ fontSize: 12.5, color: 'var(--fg-muted)', fontStyle: quote.deleted ? 'italic' : 'normal', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: compact ? 1 : 2, WebkitBoxOrient: 'vertical', wordBreak: 'break-word' }}>{text}</div>
+    </div>
+  );
+};
+
+/**
+ * Aller à un message du fil (citation, résultat de recherche) : charge les
+ * messages plus anciens si besoin (loadOlder() → false quand il n'y en a plus),
+ * fait défiler le fil (pas scrollIntoView : il fait défiler la page entière)
+ * et met le message en évidence quelques secondes.
+ */
+export function useJumpToMessage(listRef, messages, loadOlder) {
+  const [highlightId, setHighlightId] = useState(null);
+  const pending = useRef(null);   // message cherché, pas encore chargé
+  const busy = useRef(false);     // un chargement de messages plus anciens est en cours
+  const tries = useRef(0);
+  const loadRef = useRef(loadOlder);
+  loadRef.current = loadOlder;
+  const msgsRef = useRef(messages);
+  msgsRef.current = messages;
+
+  const reveal = useCallback((id) => {
+    const box = listRef.current;
+    const el = box?.querySelector(`[data-msg-id="${id}"]`);
+    if (!box || !el) return false;
+    const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+    box.scrollTop = Math.max(0, top - box.clientHeight / 3);
+    setHighlightId(id);
+    setTimeout(() => setHighlightId(h => (h === id ? null : h)), 2200);
+    return true;
+  }, [listRef]);
+
+  const step = useCallback(function next() {
+    const id = pending.current;
+    if (busy.current || !id) return;
+    if (msgsRef.current.some(m => m.id === id)) { pending.current = null; setTimeout(() => reveal(id), 30); return; }
+    if (tries.current >= 20) { pending.current = null; return; }
+    tries.current += 1;
+    busy.current = true;
+    Promise.resolve(loadRef.current()).then((more) => {
+      busy.current = false;
+      if (more === false) { pending.current = null; return; }
+      setTimeout(next, 50); // le lot chargé est peut-être déjà affiché
+    }, () => { busy.current = false; pending.current = null; });
+  }, [reveal]);
+
+  // À chaque lot de messages : trouvé → on y va, sinon on charge plus ancien
+  useEffect(() => {
+    const id = pending.current;
+    if (!id) return;
+    if (messages.some(m => m.id === id)) {
+      pending.current = null;
+      setTimeout(() => reveal(id), 30);
+    } else step();
+  }, [messages, reveal, step]);
+
+  const jumpTo = useCallback((id) => {
+    if (!id) return;
+    if (messages.some(m => m.id === id)) { reveal(id); return; }
+    tries.current = 0;
+    pending.current = id;
+    step();
+  }, [messages, reveal, step]);
+
+  return { jumpTo, highlightId };
+}
+
 // Bulle façon messagerie (WhatsApp / Telegram) : mes messages à droite en
 // couleur, ceux des autres à gauche ; heure dans la bulle ; nom et avatar
 // seulement dans les groupes. Actions (réagir, modifier, supprimer) au survol
 // sur ordinateur, par appui long sur téléphone.
-export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDelete, onReact, onlineUsers = new Set(), currentUserId, receipt }) => {
+export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDelete, onReact, onlineUsers = new Set(), currentUserId, receipt, onReply, onJump, highlighted }) => {
   const { t } = useTranslation();
   const [actionsOpen, setActionsOpen] = useState(false); // appui long (écran tactile)
   const [editing, setEditing] = useState(false);
@@ -203,6 +299,9 @@ export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDele
   const inputRef = useRef(null);
   const rowRef = useRef(null);
   const pressTimer = useRef(null);
+  // Glisser vers la droite sur téléphone = répondre (comme WhatsApp)
+  const swipe = useRef(null);
+  const [swipeX, setSwipeX] = useState(0);
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
@@ -266,23 +365,48 @@ export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDele
       ref={rowRef}
       className={`chat-row${actionsOpen || showPicker ? ' is-open' : ''}`}
       onMouseLeave={() => setShowPicker(false)}
-      onTouchStart={() => { pressTimer.current = setTimeout(() => setActionsOpen(true), 450); }}
-      onTouchEnd={() => clearTimeout(pressTimer.current)}
-      onTouchMove={() => clearTimeout(pressTimer.current)}
+      data-msg-id={msg.id}
+      onTouchStart={e => {
+        const tch = e.touches[0];
+        swipe.current = { x: tch.clientX, y: tch.clientY, locked: null };
+        pressTimer.current = setTimeout(() => setActionsOpen(true), 450);
+      }}
+      onTouchEnd={() => {
+        clearTimeout(pressTimer.current);
+        if (swipeX > 55 && onReply && !deleted) onReply(msg);
+        setSwipeX(0);
+        swipe.current = null;
+      }}
+      onTouchMove={e => {
+        clearTimeout(pressTimer.current);
+        const st = swipe.current;
+        if (!st || !onReply || deleted || editing) return;
+        const dx = e.touches[0].clientX - st.x;
+        const dy = e.touches[0].clientY - st.y;
+        if (st.locked === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) st.locked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        if (st.locked === 'x') setSwipeX(Math.max(0, Math.min(80, dx)));
+      }}
       onContextMenu={e => { if (window.matchMedia('(pointer: coarse)').matches) e.preventDefault(); }}
       style={{
         position: 'relative', display: 'flex', alignItems: 'flex-end', gap: 6,
         flexDirection: isMine ? 'row-reverse' : 'row',
         padding: `${showHeader ? 8 : 2}px 12px 0`,
+        background: highlighted ? 'var(--chat-highlight)' : 'transparent',
+        transition: 'background 0.6s',
       }}
     >
+      {swipeX > 0 && (
+        <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', opacity: Math.min(1, swipeX / 55), color: 'var(--brand)', display: 'flex' }}>
+          <Reply size={18} />
+        </span>
+      )}
       {showAvatar && (
         <div style={{ width: 30, flexShrink: 0, alignSelf: 'flex-start' }}>
           {showHeader && <Avatar firstName={authorFirst} lastName={authorLast} size={30} isOnline={onlineUsers.has(msg.author_id || msg.authorId)} />}
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: 'min(78%, 560px)', minWidth: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: 'min(78%, 560px)', minWidth: 0, transform: swipeX ? `translateX(${swipeX}px)` : 'none', transition: swipeX ? 'none' : 'transform 0.2s' }}>
         <div style={{
           position: 'relative', padding: '6px 9px 5px', borderRadius: bubbleRadius,
           background: isMine ? 'var(--chat-mine-bg)' : 'var(--chat-other-bg)',
@@ -294,6 +418,10 @@ export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDele
             <div style={{ fontSize: 12.5, fontWeight: 700, color: avatarColor(`${authorFirst}${authorLast}`), marginBottom: 2 }}>
               {authorFirst} {authorLast}
             </div>
+          )}
+
+          {!deleted && replyQuote(msg) && (
+            <QuoteBlock quote={replyQuote(msg)} onClick={onJump ? () => onJump(msg.reply_to_id) : undefined} />
           )}
 
           {deleted ? (
@@ -403,6 +531,9 @@ export const MessageBubble = ({ msg, isMine, showHeader, isGroup, onEdit, onDele
               </div>
             )}
           </div>
+          {onReply && (
+            <ActionBtn icon={<Reply size={13} />} title={t('Répondre')} onClick={() => { setActionsOpen(false); onReply(msg); }} />
+          )}
           {msg.content && (
             <ActionBtn icon={<Copy size={13} />} title={t('Copier le texte')}
               onClick={() => { navigator.clipboard?.writeText(msg.content).catch(() => {}); setActionsOpen(false); }} />
@@ -439,7 +570,7 @@ export const ActionBtn = ({ icon, title, onClick, danger }) => (
 // mentionSearch(q) : recherche des personnes à mentionner sur le serveur
 // (discussion d'un document : tout collègue, qui recevra le document s'il ne
 // peut pas le lire). Sans elle, la liste @ propose les membres.
-export const MessageInput = ({ onSend, convId, disabled, members = [], droppedFiles, mentionSearch }) => {
+export const MessageInput = ({ onSend, convId, disabled, members = [], droppedFiles, mentionSearch, replyTo, onCancelReply }) => {
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -562,8 +693,10 @@ export const MessageInput = ({ onSend, convId, disabled, members = [], droppedFi
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     try {
       const mentionUserIds = mentionIdsIn(content);
+      const replyToId = replyTo?.id;
+      onCancelReply?.();
       if (!pending.length) {
-        const sent = await onSend({ content, ...(mentionUserIds.length ? { mentionUserIds } : {}) });
+        const sent = await onSend({ content, ...(mentionUserIds.length ? { mentionUserIds } : {}), ...(replyToId ? { replyToId } : {}) });
         showAdded(sent?.added);
         pickedMentions.current.clear();
         return;
@@ -576,10 +709,11 @@ export const MessageInput = ({ onSend, convId, disabled, members = [], droppedFi
         try {
           const ids = i === 0 ? mentionUserIds : [];
           let sent;
-          if (item.kind === 'doc') sent = await chatService.shareDocument(convId, item.doc.id, caption, ids);
+          const replyId = i === 0 ? replyToId : undefined;
+          if (item.kind === 'doc') sent = await chatService.shareDocument(convId, item.doc.id, caption, ids, replyId);
           else {
             setProgress({ name: item.file.name, value: 0 });
-            sent = await chatService.uploadAttachment(convId, item.file, caption, (v) => setProgress({ name: item.file.name, value: v }), ids);
+            sent = await chatService.uploadAttachment(convId, item.file, caption, (v) => setProgress({ name: item.file.name, value: v }), ids, replyId);
           }
           if (i === 0) { showAdded(sent?.added); pickedMentions.current.clear(); }
           setPending(p => p.filter(x => x.key !== item.key));
@@ -603,11 +737,26 @@ export const MessageInput = ({ onSend, convId, disabled, members = [], droppedFi
       if (e.key === 'Tab' || e.key === 'Enter') { e.preventDefault(); selectMention(mentionSuggestions[mentionIdx]); return; }
       if (e.key === 'Escape')    { setMentionSuggestions([]); return; }
     }
+    if (e.key === 'Escape' && replyTo) { onCancelReply?.(); return; }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
+  // Réponse choisie : on revient dans la saisie
+  useEffect(() => { if (replyTo) setTimeout(() => textareaRef.current?.focus(), 10); }, [replyTo?.id]);
+
   return (
     <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', background: 'var(--surface)', position: 'relative' }}>
+
+      {replyTo && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <Reply size={15} style={{ color: 'var(--brand)', flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}><QuoteBlock quote={replyTo} compact /></div>
+          <button type="button" onClick={onCancelReply} aria-label={t('Annuler la réponse')}
+            style={{ border: 'none', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', padding: 4, display: 'flex' }}>
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div role="status" style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 8, fontSize: 12, background: 'var(--success-soft, var(--surface-2))', color: 'var(--success, var(--fg))' }}>

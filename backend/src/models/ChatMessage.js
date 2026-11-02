@@ -49,6 +49,12 @@ const ChatMessage = sequelize.define('ChatMessage', {
     defaultValue: false,
     field: 'is_system',
   },
+  // Réponse à un message de la même conversation
+  replyToId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'reply_to_id',
+  },
   isDeleted: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,

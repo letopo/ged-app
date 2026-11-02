@@ -944,6 +944,16 @@ const RELEASE_NOTES = [
       'Trop de messages dans un canal ? La cloche en haut de la conversation la met en sourdine.',
     ],
   },
+  {
+    id: '2026-11-03-chat-repondre-rechercher',
+    date: '2026-11-03',
+    target: '/chat',
+    title: 'Discussion : répondre à un message et rechercher',
+    items: [
+      'Répondre à un message précis : bouton ↩ au survol, ou glisser le message vers la droite sur téléphone. Le message cité s\'affiche dans la réponse ; un clic dessus remonte jusqu\'à lui.',
+      'La barre « Rechercher » de la Discussion cherche aussi dans les messages de toutes vos conversations : un clic sur un résultat ouvre la conversation à cet endroit.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

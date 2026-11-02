@@ -10,7 +10,7 @@ import { MessageSquare, X, Loader, Hash } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
-import { MessageBubble, MessageInput, fmtDay, useReadTracking, readReceipt, SeenLine } from './chat/ChatMessages';
+import { MessageBubble, MessageInput, fmtDay, useReadTracking, readReceipt, SeenLine, useJumpToMessage, quoteOf } from './chat/ChatMessages';
 
 const DocumentDiscussion = ({ documentId, documentTitle }) => {
   const { t } = useTranslation();
@@ -22,6 +22,9 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
   const [loading, setLoading] = useState(false);
   const [unread, setUnread] = useState(0);
   const bottomRef = useRef(null);
+  const listRef = useRef(null);
+  const [replyTo, setReplyTo] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
   const socket = getSocket();
   // Panneau ouvert = conversation affichée (pas de notification, ✓✓ en direct)
   const markRead = useReadTracking(conv?.id, setMembers, open);
@@ -91,6 +94,16 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }), 80);
     }
   }, [open, messages.length]);
+
+  // Messages plus anciens (pour aller à un message cité) ; false quand il n'y en a plus
+  const loadOlder = async () => {
+    if (!conv || !hasMore || !messages.length) return false;
+    const prev = await chatService.getMessages(conv.id, messages[0].id).catch(() => []);
+    if (!prev.length) { setHasMore(false); return false; }
+    setMessages(old => [...prev, ...old]);
+    return true;
+  };
+  const { jumpTo, highlightId } = useJumpToMessage(listRef, messages, loadOlder);
 
   const handleSend = async (data) => {
     if (!conv) return null;
@@ -184,7 +197,7 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
           </div>
 
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0 10px', background: 'var(--chat-wall)' }}>
+          <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '4px 0 10px', background: 'var(--chat-wall)' }}>
             {loading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
                 <Loader size={20} style={{ color: 'var(--brand)' }} />
@@ -212,6 +225,9 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
                   onReact={handleReact}
                   currentUserId={user?.id}
                   receipt={(item.msg.author_id || item.msg.authorId) === user?.id ? readReceipt(item.msg, members, user?.id) : null}
+                  onReply={(m) => setReplyTo(quoteOf(m))}
+                  onJump={jumpTo}
+                  highlighted={item.msg.id === highlightId}
                 />
               ))
             )}
@@ -230,6 +246,8 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
               disabled={loading}
               members={members}
               mentionSearch={(q) => chatService.getMentionCandidates(conv.id, q)}
+              replyTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
             />
           )}
         </div>
