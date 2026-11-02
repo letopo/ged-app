@@ -8,6 +8,11 @@ import { User, Document } from '../models/index.js';
 import { hasDocumentReadAccess } from '../utils/documentVisibility.js';
 import { getIO, isUserConnected } from '../utils/socketManager.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
+import fs from 'fs';
+import path from 'path';
+import { chatFilePath, INLINE_EXT } from '../utils/chatAttachments.js';
+import { fileSessionUser } from '../utils/fileAccess.js';
+import { tenantNamespace } from '../config/database.js';
 
 // ─── Conversations ────────────────────────────────────────────────────────────
 
@@ -19,7 +24,8 @@ export const listConversations = async (req, res, next) => {
         c.id, c.type, c.name, c.description, c.document_id, c.is_archived,
         c.last_message_at, c.created_at,
         cm.last_read_at, cm.role as member_role,
-        lm.content       as last_content,
+        CASE WHEN lm.content = '' AND lm.attachment_name IS NOT NULL AND NOT lm.is_deleted
+             THEN '📎 ' || lm.attachment_name ELSE lm.content END as last_content,
         lm.created_at    as last_at,
         lm.is_deleted    as last_deleted,
         la.first_name || ' ' || la.last_name as last_author_name,
@@ -33,7 +39,7 @@ export const listConversations = async (req, res, next) => {
       JOIN chat_conversation_members cm
         ON c.id = cm.conversation_id AND cm.user_id = :userId
       LEFT JOIN LATERAL (
-        SELECT content, created_at, is_deleted, author_id
+        SELECT content, created_at, is_deleted, author_id, attachment_name
         FROM chat_messages
         WHERE conversation_id = c.id
         ORDER BY created_at DESC LIMIT 1
@@ -195,6 +201,37 @@ export const getOrCreateDocumentThread = async (req, res, next) => {
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
 
+const MESSAGE_SELECT = `
+      SELECT
+        m.id, m.conversation_id, m.author_id,
+        CASE WHEN m.is_deleted THEN '[Message supprimé]' ELSE m.content END as content,
+        CASE WHEN m.is_deleted THEN NULL ELSE m.attachment_name END as attachment_name,
+        CASE WHEN m.is_deleted OR m.attachment_path IS NULL THEN false ELSE true END as has_file,
+        CASE WHEN m.is_deleted THEN NULL ELSE m.attachment_size END as attachment_size,
+        CASE WHEN m.is_deleted THEN NULL ELSE m.attachment_document_id END as attachment_document_id,
+        m.is_deleted, m.edited_at, m.created_at, m.updated_at,
+        u.first_name  as author_first_name,
+        u.last_name   as author_last_name,
+        u.username    as author_username,
+        u.role        as author_role
+      FROM chat_messages m
+      LEFT JOIN users u ON m.author_id = u.id`;
+
+// Documents de la GED partagés dans les messages : ouverts seulement par qui a
+// déjà le droit de les lire (sinon « Accès réservé », sans titre ni contenu).
+async function withDocumentAccess(messages, user) {
+  const ids = [...new Set(messages.map(m => m.attachment_document_id).filter(Boolean))];
+  if (!ids.length) return messages;
+  const docs = await Document.findAll({ where: { id: ids }, attributes: { exclude: ['extractedText'] } });
+  const allowed = new Map();
+  for (const d of docs) allowed.set(d.id, await hasDocumentReadAccess(d, user));
+  return messages.map(m => {
+    if (!m.attachment_document_id) return m;
+    const ok = allowed.get(m.attachment_document_id) === true;
+    return { ...m, document_accessible: ok, attachment_name: ok ? m.attachment_name : null };
+  });
+}
+
 export const getMessages = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -208,18 +245,7 @@ export const getMessages = async (req, res, next) => {
       ? `AND m.created_at < (SELECT created_at FROM chat_messages WHERE id = :before)`
       : '';
 
-    const messages = await sequelize.query(`
-      SELECT
-        m.id, m.conversation_id, m.author_id,
-        CASE WHEN m.is_deleted THEN '[Message supprimé]' ELSE m.content END as content,
-        m.attachment_path, m.attachment_name,
-        m.is_deleted, m.edited_at, m.created_at, m.updated_at,
-        u.first_name  as author_first_name,
-        u.last_name   as author_last_name,
-        u.username    as author_username,
-        u.role        as author_role
-      FROM chat_messages m
-      LEFT JOIN users u ON m.author_id = u.id
+    const messages = await sequelize.query(`${MESSAGE_SELECT}
       WHERE m.conversation_id = :id ${beforeClause}
       ORDER BY m.created_at DESC
       LIMIT :limit
@@ -228,135 +254,224 @@ export const getMessages = async (req, res, next) => {
       type: QueryTypes.SELECT,
     });
 
-    res.json({ success: true, data: messages.reverse() });
+    res.json({ success: true, data: await withDocumentAccess(messages.reverse(), req.user) });
   } catch (error) {
     next(error);
   }
 };
 
+// Un message tel que le voit l'utilisateur (ex. reçu en temps réel avec un
+// document partagé : le droit de l'ouvrir dépend de chaque destinataire)
+export const getMessage = async (req, res, next) => {
+  try {
+    const [msg] = await sequelize.query(`${MESSAGE_SELECT} WHERE m.id = :id`, { replacements: { id: req.params.id }, type: QueryTypes.SELECT });
+    if (!msg) return res.status(404).json({ success: false, error: 'Message introuvable' });
+    const member = await ChatMember.findOne({ where: { conversationId: msg.conversation_id, userId: req.user.id } });
+    if (!member) return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+    const [data] = await withDocumentAccess([msg], req.user);
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Enregistre le message, le diffuse aux membres et prévient les destinataires
+async function publishMessage(req, res, conversationId, fields) {
+  const userId = req.user.id;
+  const id = conversationId;
+  const message = await ChatMessage.create({ conversationId: id, authorId: userId, ...fields });
+  await Conversation.update({ lastMessageAt: new Date() }, { where: { id } });
+
+  const u = req.user;
+  const messageData = {
+    id: message.id,
+    conversationId: id,
+    authorId: userId,
+    content: message.content,
+    attachmentName: message.attachmentName,
+    hasFile: !!message.attachmentPath,
+    attachmentSize: message.attachmentSize,
+    attachmentDocumentId: message.attachmentDocumentId,
+    isDeleted: false,
+    editedAt: null,
+    createdAt: message.createdAt,
+    updatedAt: message.updatedAt,
+    authorFirstName: u.firstName,
+    authorLastName: u.lastName,
+    authorUsername: u.username,
+    authorRole: u.role,
+  };
+
+  // Document de la GED : le titre n'est pas diffusé, chaque membre redemande le
+  // message (GET /messages/:id) pour savoir s'il peut l'ouvrir
+  const io = getIO();
+  if (io) io.to(`conv:${id}`).emit('chat:message', message.attachmentDocumentId ? { ...messageData, attachmentName: null } : messageData);
+
+  const senderName = `${u.firstName} ${u.lastName}`;
+  const appUrl = process.env.APP_URL || 'http://localhost:3001';
+  const chatLink = `${appUrl}/chat/${id}`;
+  const text = message.content || (message.attachmentName ? `📎 ${message.attachmentDocumentId ? 'Document partagé' : message.attachmentName}` : '');
+  const excerpt = text.length > 200 ? text.slice(0, 200) + '…' : text;
+
+  // Notifications asynchrones (ne bloquent pas la réponse)
+  setImmediate(async () => {
+    try {
+      const conv = await Conversation.findByPk(id, { attributes: ['name', 'type'] });
+      const convName = conv?.name || 'Discussion';
+
+      // ── 1. Message direct → email au destinataire si hors-ligne ──────────
+      if (conv?.type === 'direct') {
+        const otherMembers = await sequelize.query(`
+          SELECT u.id, u.email, u.first_name, u.last_name
+          FROM chat_conversation_members cm
+          JOIN users u ON cm.user_id = u.id
+          WHERE cm.conversation_id = :convId AND cm.user_id != :senderId
+        `, { replacements: { convId: id, senderId: userId }, type: QueryTypes.SELECT });
+
+        for (const recipient of otherMembers) {
+          if (!isUserConnected(recipient.id)) {
+            await sendNotificationEmail(
+              recipient.email,
+              `💬 Nouveau message de ${senderName}`,
+              `${senderName} vous a envoyé un message privé :\n\n"${excerpt}"\n\nConnectez-vous à la GED pour répondre.`,
+              'chat',
+              chatLink
+            ).catch(() => {});
+          }
+        }
+      }
+
+      // ── 2. @mentions → socket + email si hors-ligne ──────────────────────
+      const mentionPattern = /@(\w+)/g;
+      const mentionedUsernames = [];
+      let mm;
+      while ((mm = mentionPattern.exec(message.content)) !== null) mentionedUsernames.push(mm[1]);
+
+      if (mentionedUsernames.length > 0) {
+        const mentioned = await sequelize.query(`
+          SELECT u.id, u.email, u.first_name, u.last_name
+          FROM users u
+          JOIN chat_conversation_members cm ON u.id = cm.user_id AND cm.conversation_id = :convId
+          WHERE LOWER(u.username) = ANY(ARRAY[${mentionedUsernames.map((_, i) => `:u${i}`).join(',')}]::text[])
+            AND u.id != :senderId
+        `, {
+          replacements: {
+            convId: id,
+            senderId: userId,
+            ...Object.fromEntries(mentionedUsernames.map((uname, i) => [`u${i}`, uname.toLowerCase()])),
+          },
+          type: QueryTypes.SELECT,
+        });
+
+        for (const target of mentioned) {
+          if (io) {
+            io.to(`user:${target.id}`).emit('chat:mention', {
+              conversationId: id, conversationName: convName,
+              fromName: senderName, excerpt, timestamp: message.createdAt,
+            });
+          }
+          if (!isUserConnected(target.id)) {
+            await sendNotificationEmail(
+              target.email,
+              `@ ${senderName} vous a mentionné dans « ${convName} »`,
+              `${senderName} vous a mentionné dans la discussion « ${convName} » :\n\n"${excerpt}"\n\nConnectez-vous à la GED pour répondre.`,
+              'mention',
+              chatLink
+            ).catch(() => {});
+          }
+        }
+      }
+    } catch (_) {}
+  });
+
+  res.status(201).json({ success: true, data: messageData });
+}
+
 export const sendMessage = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    const { content, attachmentPath, attachmentName } = req.body;
+    // Le chemin d'un fichier n'est jamais fourni par le client : les fichiers
+    // passent par POST /conversations/:id/attachments
+    const { content, documentId } = req.body;
 
-    if (!content?.trim() && !attachmentPath) {
+    if (!content?.trim() && !documentId) {
       return res.status(400).json({ success: false, error: 'Contenu ou pièce jointe requis' });
     }
 
     const member = await ChatMember.findOne({ where: { conversationId: id, userId } });
     if (!member) return res.status(403).json({ success: false, error: 'Accès non autorisé' });
 
-    const message = await ChatMessage.create({
-      conversationId: id,
-      authorId: userId,
-      content: content?.trim() || '',
-      attachmentPath: attachmentPath || null,
-      attachmentName: attachmentName || null,
+    const fields = { content: content?.trim() || '' };
+    if (documentId) {
+      // On ne partage qu'un document que l'on peut soi-même lire (même établissement)
+      const doc = await Document.findByPk(documentId, { attributes: { exclude: ['extractedText'] } });
+      if (!doc || !(await hasDocumentReadAccess(doc, req.user))) {
+        return res.status(403).json({ success: false, error: 'Document introuvable ou accès non autorisé.' });
+      }
+      fields.attachmentDocumentId = doc.id;
+      fields.attachmentName = (doc.title || doc.originalName || 'Document').slice(0, 255);
+    }
+    await publishMessage(req, res, id, fields);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Fichier envoyé depuis l'ordinateur ou le téléphone (champ « file », légende « content »)
+export const uploadAttachment = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: 'Aucun fichier reçu' });
+    await publishMessage(req, res, req.params.id, {
+      content: String(req.body?.content || '').trim(),
+      attachmentPath: `${req.params.id}/${req.file.filename}`,
+      attachmentName: req.file.originalname.slice(0, 255),
+      attachmentSize: req.file.size,
     });
+  } catch (error) {
+    if (req.file?.path) fs.promises.unlink(req.file.path).catch(() => {});
+    next(error);
+  }
+};
 
-    await Conversation.update({ lastMessageAt: new Date() }, { where: { id } });
+// Seuls les membres de la conversation envoient un fichier : vérifié avant de
+// l'écrire sur le disque
+export const requireConversationMember = async (req, res, next) => {
+  try {
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ success: false, error: 'Conversation invalide' });
+    const member = await ChatMember.findOne({ where: { conversationId: req.params.id, userId: req.user.id } });
+    if (!member) return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
 
-    const u = req.user;
-    const messageData = {
-      id: message.id,
-      conversationId: id,
-      authorId: userId,
-      content: message.content,
-      attachmentPath: message.attachmentPath,
-      attachmentName: message.attachmentName,
-      isDeleted: false,
-      editedAt: null,
-      createdAt: message.createdAt,
-      updatedAt: message.updatedAt,
-      authorFirstName: u.firstName,
-      authorLastName: u.lastName,
-      authorUsername: u.username,
-      authorRole: u.role,
-    };
-
-    const io = getIO();
-    if (io) io.to(`conv:${id}`).emit('chat:message', messageData);
-
-    const senderName = `${u.firstName} ${u.lastName}`;
-    const appUrl = process.env.APP_URL || 'http://localhost:3001';
-    const chatLink = `${appUrl}/chat/${id}`;
-    const excerpt = message.content.length > 200
-      ? message.content.slice(0, 200) + '…'
-      : message.content;
-
-    // Notifications asynchrones (ne bloquent pas la réponse)
-    setImmediate(async () => {
-      try {
-        const conv = await Conversation.findByPk(id, { attributes: ['name', 'type'] });
-        const convName = conv?.name || 'Discussion';
-
-        // ── 1. Message direct → email au destinataire si hors-ligne ──────────
-        if (conv?.type === 'direct') {
-          const otherMembers = await sequelize.query(`
-            SELECT u.id, u.email, u.first_name, u.last_name
-            FROM chat_conversation_members cm
-            JOIN users u ON cm.user_id = u.id
-            WHERE cm.conversation_id = :convId AND cm.user_id != :senderId
-          `, { replacements: { convId: id, senderId: userId }, type: QueryTypes.SELECT });
-
-          for (const recipient of otherMembers) {
-            if (!isUserConnected(recipient.id)) {
-              await sendNotificationEmail(
-                recipient.email,
-                `💬 Nouveau message de ${senderName}`,
-                `${senderName} vous a envoyé un message privé :\n\n"${excerpt}"\n\nConnectez-vous à la GED pour répondre.`,
-                'chat',
-                chatLink
-              ).catch(() => {});
-            }
-          }
-        }
-
-        // ── 2. @mentions → socket + email si hors-ligne ──────────────────────
-        const mentionPattern = /@(\w+)/g;
-        const mentionedUsernames = [];
-        let mm;
-        while ((mm = mentionPattern.exec(message.content)) !== null) mentionedUsernames.push(mm[1]);
-
-        if (mentionedUsernames.length > 0) {
-          const mentioned = await sequelize.query(`
-            SELECT u.id, u.email, u.first_name, u.last_name
-            FROM users u
-            JOIN chat_conversation_members cm ON u.id = cm.user_id AND cm.conversation_id = :convId
-            WHERE LOWER(u.username) = ANY(ARRAY[${mentionedUsernames.map((_, i) => `:u${i}`).join(',')}]::text[])
-              AND u.id != :senderId
-          `, {
-            replacements: {
-              convId: id,
-              senderId: userId,
-              ...Object.fromEntries(mentionedUsernames.map((uname, i) => [`u${i}`, uname.toLowerCase()])),
-            },
-            type: QueryTypes.SELECT,
-          });
-
-          for (const target of mentioned) {
-            if (io) {
-              io.to(`user:${target.id}`).emit('chat:mention', {
-                conversationId: id, conversationName: convName,
-                fromName: senderName, excerpt, timestamp: message.createdAt,
-              });
-            }
-            if (!isUserConnected(target.id)) {
-              await sendNotificationEmail(
-                target.email,
-                `@ ${senderName} vous a mentionné dans « ${convName} »`,
-                `${senderName} vous a mentionné dans la discussion « ${convName} » :\n\n"${excerpt}"\n\nConnectez-vous à la GED pour répondre.`,
-                'mention',
-                chatLink
-              ).catch(() => {});
-            }
-          }
-        }
-      } catch (_) {}
+// Téléchargement : session par en-tête ou cookie de fichiers (images affichées
+// et fichiers ouverts directement par le navigateur), membres seulement
+export const downloadAttachment = async (req, res, next) => {
+  try {
+    const { user, error } = await fileSessionUser(req);
+    if (error) return res.status(401).json({ success: false, error });
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.sendStatus(404);
+    const message = await tenantNamespace.runPromise(async () => {
+      tenantNamespace.set('tenantId', user.tenantId);
+      const m = await ChatMessage.findByPk(req.params.id);
+      if (!m) return null;
+      const member = await ChatMember.findOne({ where: { conversationId: m.conversationId, userId: user.id } });
+      return member ? m : false;
     });
+    if (message === false) return res.status(403).json({ success: false, error: 'Accès non autorisé' });
+    const abs = message && !message.isDeleted && chatFilePath(message.attachmentPath);
+    if (!abs || !fs.existsSync(abs)) return res.status(404).json({ success: false, error: 'Fichier introuvable' });
 
-    res.status(201).json({ success: true, data: messageData });
+    const inline = INLINE_EXT.has(path.extname(abs).toLowerCase()) && req.query.download !== '1';
+    const name = message.attachmentName || path.basename(abs);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${name.replace(/[^\x20-\x7e]|"/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`);
+    if (!inline) res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+    res.sendFile(abs);
   } catch (error) {
     next(error);
   }
@@ -368,13 +483,12 @@ export const editMessage = async (req, res, next) => {
     const userId = req.user.id;
     const { content } = req.body;
 
-    if (!content?.trim()) return res.status(400).json({ success: false, error: 'Contenu requis' });
-
     const message = await ChatMessage.findByPk(id);
     if (!message) return res.status(404).json({ success: false, error: 'Message introuvable' });
+    if (!content?.trim() && !message.attachmentName) return res.status(400).json({ success: false, error: 'Contenu requis' });
     if (message.authorId !== userId) return res.status(403).json({ success: false, error: 'Non autorisé' });
 
-    await message.update({ content: content.trim(), editedAt: new Date() });
+    await message.update({ content: String(content || '').trim(), editedAt: new Date() });
 
     const io = getIO();
     if (io) io.to(`conv:${message.conversationId}`).emit('chat:message_edited', {
@@ -398,7 +512,9 @@ export const deleteMessage = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Non autorisé' });
     }
 
+    const file = chatFilePath(message.attachmentPath);
     await message.update({ isDeleted: true, content: '' });
+    if (file) fs.promises.unlink(file).catch(() => {});
 
     const io = getIO();
     if (io) io.to(`conv:${message.conversationId}`).emit('chat:message_deleted', {

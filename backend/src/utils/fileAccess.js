@@ -48,6 +48,22 @@ export function setFileCookie(req, res, token, decoded) {
 }
 
 /**
+ * Utilisateur de la session portée par l'en-tête Authorization ou le cookie de
+ * fichiers. Renvoie { user } ou { error } (message à afficher, réponse 401).
+ */
+export async function fileSessionUser(req) {
+  const header = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
+  const token = header || cookieValue(req, FILE_COOKIE);
+  if (!token) return { error: 'Connexion requise.' };
+  let decoded;
+  try { decoded = verifySessionToken(token); } catch { return { error: 'Session invalide.' }; }
+  const { User } = await import('../models/index.js');
+  const user = await User.unscoped().findByPk(decoded.id);
+  if (await sessionRejection(user, decoded)) return { error: 'Session invalide.' };
+  return { user };
+}
+
+/**
  * Middleware placé devant les dossiers statiques. `root` est le préfixe du
  * chemin enregistré correspondant ('uploads' pour /api/uploads).
  */
@@ -59,15 +75,9 @@ export function requireFileAccess(root) {
       if (req.query.sig && validSignature(rel, req.query.exp, req.query.sig)) return next();
       if (req.query.sig) return res.status(401).json({ success: false, message: 'Lien expiré ou invalide.' });
 
-      const header = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
-      const token = header || cookieValue(req, FILE_COOKIE);
-      if (!token) return res.status(401).json({ success: false, message: 'Connexion requise.' });
-      let decoded;
-      try { decoded = verifySessionToken(token); } catch { return res.status(401).json({ success: false, message: 'Session invalide.' }); }
-
-      const { User, Document } = await import('../models/index.js');
-      const user = await User.unscoped().findByPk(decoded.id);
-      if (await sessionRejection(user, decoded)) return res.status(401).json({ success: false, message: 'Session invalide.' });
+      const { user, error } = await fileSessionUser(req);
+      if (error) return res.status(401).json({ success: false, message: error });
+      const { Document } = await import('../models/index.js');
 
       // Fichier d'un document : mêmes droits que pour l'ouvrir dans la GED
       if (root === 'uploads') {

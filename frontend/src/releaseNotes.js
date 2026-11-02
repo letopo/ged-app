@@ -891,6 +891,17 @@ const RELEASE_NOTES = [
       'Un patient déjà enregistré n\'est plus ressaisi : vous le mettez directement en consultation ou lui faites un nouveau bon.',
     ],
   },
+  {
+    id: '2026-11-03-chat-pieces-jointes',
+    date: '2026-11-03',
+    target: '/chat',
+    title: 'Discussion : pièces jointes',
+    items: [
+      'Le trombone 📎 à gauche de la zone de saisie joint un fichier de l\'ordinateur ou du téléphone (PDF, Word, Excel, PowerPoint, images, ZIP…) ou un document de la GED. Vous pouvez aussi glisser un fichier sur la conversation ou coller une capture d\'écran.',
+      'Les images s\'affichent directement dans le message ; les autres fichiers s\'ouvrent ou se téléchargent d\'un clic. Seuls les membres de la conversation y ont accès.',
+      'Un document de la GED partagé ne s\'ouvre que pour les membres qui ont déjà le droit de le lire : les autres voient « accès réservé » et peuvent demander à son auteur de le leur transmettre.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

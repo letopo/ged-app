@@ -2,6 +2,8 @@
 // Choisir un document de la GED à ajouter dans un autre (visionneuse →
 // « Ajouter une page PDF » → « Depuis la GED »). PDF uniquement, documents
 // validés par défaut, recherche par nom, filtre par type et période, tri.
+// La discussion s'en sert aussi pour partager un document (tous formats et
+// statuts : pdfOnly={false}, libellés passés en props).
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -14,12 +16,12 @@ const PAGE_SIZE = 10;
 const STATUS_LABELS = { approved: 'Approuvé', pending_validation: 'En validation', rejected: 'Rejeté', draft: 'Brouillon', in_progress: 'En cours' };
 const STATUS_CLS = { approved: 'ged-badge-success', pending_validation: 'ged-badge-warning', rejected: 'ged-badge-danger' };
 
-export default function GedDocumentPicker({ excludeId, onPick, onClose }) {
+export default function GedDocumentPicker({ excludeId, onPick, onClose, pdfOnly = true, title, subtitle, pickLabel }) {
   const { t, i18n } = useTranslation();
   const locale = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' }[i18n.language] || 'fr-FR';
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('approved');
+  const [status, setStatus] = useState(pdfOnly ? 'approved' : 'all');
   const [category, setCategory] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -49,7 +51,7 @@ export default function GedDocumentPicker({ excludeId, onPick, onClose }) {
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    const params = { page, limit: PAGE_SIZE, fileType: 'pdf', sort, excludeId };
+    const params = { page, limit: PAGE_SIZE, sort, excludeId, ...(pdfOnly ? { fileType: 'pdf' } : {}) };
     if (search) params.search = search;
     if (status !== 'all') params.status = status;
     if (category !== 'all') params.category = category;
@@ -65,7 +67,7 @@ export default function GedDocumentPicker({ excludeId, onPick, onClose }) {
       .catch(() => { if (alive) setDocs([]); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [page, search, status, category, dateFrom, dateTo, sort, excludeId]);
+  }, [page, search, status, category, dateFrom, dateTo, sort, excludeId, pdfOnly]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -84,8 +86,8 @@ export default function GedDocumentPicker({ excludeId, onPick, onClose }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
           <FileText size={18} color="var(--brand)" />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{t('Ajouter un document de la GED')}</div>
-            <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{t('Ses pages seront ajoutées au document ouvert ; il reste lui-même inchangé.')}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{title || t('Ajouter un document de la GED')}</div>
+            <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{subtitle || t('Ses pages seront ajoutées au document ouvert ; il reste lui-même inchangé.')}</div>
           </div>
           <button onClick={onClose} aria-label={t('Fermer')} style={{ width: 32, height: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <X size={15} />
@@ -129,7 +131,7 @@ export default function GedDocumentPicker({ excludeId, onPick, onClose }) {
           )}
           {!loading && docs.length === 0 && (
             <div style={{ textAlign: 'center', padding: 40, fontSize: 13, color: 'var(--fg-muted)' }}>
-              {status === 'approved' ? t('Aucun document PDF validé ne correspond. Essayez « Tous les statuts ».') : t('Aucun document PDF ne correspond.')}
+              {!pdfOnly ? t('Aucun document ne correspond.') : status === 'approved' ? t('Aucun document PDF validé ne correspond. Essayez « Tous les statuts ».') : t('Aucun document PDF ne correspond.')}
             </div>
           )}
           {!loading && docs.map((d) => {
@@ -162,7 +164,7 @@ export default function GedDocumentPicker({ excludeId, onPick, onClose }) {
             <button onClick={onClose} style={{ height: 36, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg)', fontSize: 13, cursor: 'pointer' }}>{t('Annuler')}</button>
             <button onClick={() => selected && onPick(selected)} disabled={!selected}
               style={{ height: 36, padding: '0 16px', borderRadius: 'var(--radius-2)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: selected ? 'pointer' : 'not-allowed', opacity: selected ? 1 : 0.5 }}>
-              {t('Ajouter ce document')}
+              {pickLabel || t('Ajouter ce document')}
             </button>
           </div>
         </div>
