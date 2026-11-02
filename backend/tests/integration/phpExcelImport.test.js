@@ -11,7 +11,7 @@ import ExcelJS from 'exceljs';
 import request from 'supertest';
 import sequelize from '../../src/config/database.js';
 import {
-  toTime, toTypeVisite, normalizeService, normalizeInfirmerie, fixFutureDay, importPhpExcel,
+  toTime, toTypeVisite, normalizeService, normalizeInfirmerie, fixSwappedDay, importPhpExcel,
 } from '../../src/utils/phpExcelImport.js';
 import { createTenant, makeFactory, authHeaders } from '../helpers/fixtures.js';
 
@@ -44,8 +44,12 @@ async function workbook() {
     // nouveau format : n° d'ordre, type, arrivée, passage ; service et infirmerie mal saisis
     [990002, d('2026-10-29'), Number(M2), 'TESTIMPORT MARIE', SEC, 'INF_TESTIMPORT ', 'SUIVI HTA', 'GASTROLOGUE', 1, 'RDV', '07H33', '10H08'],
     [990003, d('2026-10-29'), Number(M1), 'TESTIMPORT JEAN PAUL', SEC, INF, 'BILANS', 'LABO 100%', 2, 'autres', '08H', '09:15'],
-    // date future (jour et mois inversés : 06/11 pour le 11/06)
+    // jour et mois inversés : 06/11 saisi pour le 11/06, entre deux lignes de juin
+    [990010, d('2026-06-10'), M1, 'TESTIMPORT JEAN PAUL', SEC, INF, 'SUIVI', 'MEDECINE', 1, 'RDV', '', ''],
     [990004, d('2026-11-06'), M1, 'TESTIMPORT JEAN PAUL', SEC, INF, 'BAV', 'OPTALMO', 3, 'CS', '', ''],
+    // 01/07 compris comme le 7 janvier, au milieu de juillet : corrigé aussi (date passée)
+    [990011, d('2026-07-01'), M1, 'TESTIMPORT JEAN PAUL', SEC, INF, 'SUIVI', 'MEDECINE', 1, 'RDV', '', ''],
+    [990012, d('2026-01-07'), M2, 'TESTIMPORT MARIE', SEC, INF, 'SUIVI', 'MEDECINE', 2, 'RDV', '', ''],
     // matricule non numérique : ignoré
     [990005, d('2026-10-29'), 'PHP', 'INCONNU', SEC, INF, 'X', 'MEDECINE', 4, 'CS'],
   ]);
@@ -93,8 +97,16 @@ test('lecture des cellules : heures, types, services, infirmeries, dates invers�
   assert.equal(normalizeInfirmerie('INF_PHP/BAS'), 'INF_PHP_BAS');
   assert.equal(normalizeInfirmerie('INF_ NYOMBE'), 'INF_NYOMBE');
   assert.equal(normalizeInfirmerie('INF_NJOMBE'), 'INF_NYOMBE');
-  assert.deepEqual(fixFutureDay('2026-11-06', '2026-10-30'), { day: '2026-06-11', fixed: true });
-  assert.deepEqual(fixFutureDay('2026-10-29', '2026-10-30'), { day: '2026-10-29' });
+  // 06/11 saisi pour le 11/06 au milieu des lignes de juin : corrigé, avant comme après le 6 novembre
+  assert.deepEqual(fixSwappedDay('2026-11-06', '2026-06-10', '2026-10-30'), { day: '2026-06-11', fixed: true });
+  assert.deepEqual(fixSwappedDay('2026-11-06', '2026-06-10', '2027-01-15'), { day: '2026-06-11', fixed: true });
+  // Date normale, proche de la précédente : inchangée
+  assert.deepEqual(fixSwappedDay('2026-10-29', '2026-10-28', '2026-10-30'), { day: '2026-10-29' });
+  assert.deepEqual(fixSwappedDay('2026-11-06', '2026-11-05', '2026-11-07'), { day: '2026-11-06' });
+  // Saut réel sans inversion plausible (reprise après les congés) : inchangé
+  assert.deepEqual(fixSwappedDay('2026-01-05', '2025-12-10', '2026-10-30'), { day: '2026-01-05' });
+  // Date future sans inversion possible : ignorée
+  assert.deepEqual(fixSwappedDay('2026-12-25', null, '2026-10-30'), { day: null });
 });
 
 test('simulation, import, puis réimport sans doublon', async () => {
@@ -102,15 +114,15 @@ test('simulation, import, puis réimport sans doublon', async () => {
   const ctx = { userId: pointFocal.id, tenantId: f.tenant.id };
 
   const dry = await importPhpExcel(buf, ctx);
-  assert.equal(dry.consultations.created, 4);
+  assert.equal(dry.consultations.created, 7);
   assert.equal(dry.ignores.Consultations['matricule absent ou non numérique'], 1);
   const [[{ n }]] = await sequelize.query("SELECT count(*)::int n FROM php_consultations WHERE excel_ref LIKE 'C:99%'");
   assert.equal(n, 0, 'la simulation n\'écrit rien');
 
   const done = await importPhpExcel(buf, { ...ctx, apply: true });
-  assert.equal(done.consultations.created, 4);
+  assert.equal(done.consultations.created, 7);
   assert.equal(done.patients.created, 2);
-  assert.equal(done.datesCorrigees.length, 1);
+  assert.deepEqual(done.datesCorrigees.map(c => [c.n, c.corrige]), [[990004, '2026-06-11'], [990012, '2026-07-01']]);
 
   const [rows] = await sequelize.query(`
     SELECT excel_ref, date_consultation::text d, type_visite, numero_ordre, service_name, resultat,
@@ -126,6 +138,8 @@ test('simulation, import, puis réimport sans doublon', async () => {
   assert.equal(byRef['C:990003'].type_visite, 'AUTRE');
   assert.equal(byRef['C:990004'].d, '2026-06-11');
   assert.ok(rows.every(r => r.bon), 'chaque consultation importée a son bon (statistiques)');
+  const [[bon]] = await sequelize.query("SELECT b.date_emission::text d FROM php_bons_prise_en_charge b JOIN php_consultations c ON c.bon_prise_en_charge_id = b.id WHERE c.excel_ref = 'C:990004'");
+  assert.equal(bon.d, '2026-06-11', 'le bon suit la date corrigée');
 
   const [[repos]] = await sequelize.query("SELECT consultation_id IS NOT NULL lie, status FROM php_repos WHERE excel_ref = 'R:99001'");
   assert.deepEqual(repos, { lie: true, status: 'termine' });

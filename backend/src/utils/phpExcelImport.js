@@ -144,14 +144,21 @@ export function normalizeInfirmerie(v) {
   return INFIRMERIE_ALIASES[code] || code;
 }
 
-// Date future = jour et mois inversés à la saisie (06/11 pour le 11/06) : on
-// remet dans l'ordre si cela donne une date passée, sinon la ligne est ignorée.
-export function fixFutureDay(day, today = new Date().toISOString().slice(0, 10)) {
-  if (!day || day <= today) return { day };
+// Jour et mois inversés à la saisie (06/11 pour le 11/06). Le registre est
+// chronologique : une date très éloignée de celle de la ligne précédente, alors
+// que l'inversion la ramène à côté, est corrigée. Une date encore dans le futur
+// est corrigée si possible, sinon ignorée. (Ne pas comparer seulement à la date
+// du jour : une fois le 06/11 passé, la ligne serait remise au mauvais jour.)
+const DAY_MS = 86400000;
+const gapDays = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / DAY_MS;
+export function fixSwappedDay(day, previous = null, today = new Date().toISOString().slice(0, 10)) {
+  if (!day) return { day: null };
   const [y, m, d] = day.split('-');
-  const swapped = `${y}-${d}-${m}`;
-  if (Number(d) <= 12 && !Number.isNaN(Date.parse(swapped)) && swapped <= today) return { day: swapped, fixed: true };
-  return { day: null };
+  const swapped = Number(d) <= 12 && d !== m ? `${y}-${d}-${m}` : null;
+  const swappedOk = swapped && !Number.isNaN(Date.parse(swapped)) && swapped <= today;
+  if (previous && gapDays(day, previous) > 20 && swappedOk && gapDays(swapped, previous) <= 20) return { day: swapped, fixed: true };
+  if (day <= today) return { day };
+  return swappedOk ? { day: swapped, fixed: true } : { day: null };
 }
 
 const shortHash = (...parts) => crypto.createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 16);
@@ -192,12 +199,14 @@ export async function parsePhpWorkbook(buffer) {
   }
 
   const consultations = [];
+  let previousDay = null; // date de la ligne précédente (registre chronologique)
   for (const { n, v } of sheetRows(wb, 'Consultations')) {
     const lu = toDay(v[2]);
     const matricule = toMatricule(v[3]);
     if (!lu && !matricule && !text(v[4])) continue; // ligne vide
-    const { day, fixed } = fixFutureDay(lu);
+    const { day, fixed } = fixSwappedDay(lu, previousDay);
     if (!day) { skip('Consultations', lu ? 'date dans le futur' : 'date absente'); continue; }
+    previousDay = day;
     if (fixed) corrected.push({ feuille: 'Consultations', n: toInt(v[1]), lu, corrige: day });
     if (!matricule) { skip('Consultations', 'matricule absent ou non numérique'); continue; }
     const num = toInt(v[1]);
@@ -464,6 +473,16 @@ export async function importPhpExcel(buffer, { apply = false, userId, tenantId }
             AND c.excel_ref = 'C:' || substring(b.numero_bon FROM 4)
         `, { ...opts, replacements: { ids: chunk.map(b => b.id) } });
       }
+    }
+
+    // Date corrigée d'une consultation (ex. jour/mois inversés) : le bon lié suit,
+    // car les statistiques comptent les patients reçus par date d'émission du bon
+    if (apply) {
+      await sequelize.query(`
+        UPDATE php_bons_prise_en_charge b SET date_emission = c.date_consultation, updated_at = NOW()
+        FROM php_consultations c
+        WHERE c.bon_prise_en_charge_id = b.id AND c.excel_ref IS NOT NULL AND b.date_emission <> c.date_consultation
+      `, opts);
     }
 
     await upsertRows({
