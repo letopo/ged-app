@@ -124,3 +124,12 @@ test('supprimer le message efface le fichier', async () => {
   assert.equal(gone.has_file, false);
   assert.equal(gone.attachment_name, null);
 });
+
+test('les réactions sont relues avec les messages (pas seulement en direct)', async () => {
+  const sent = await request(app).post(`/api/chat/conversations/${conv.id}/messages`).set(as(A)).send({ content: 'Réunion demain' });
+  await request(app).post(`/api/chat/conversations/${conv.id}/messages/${sent.body.data.id}/reactions`).set(as(B)).send({ emoji: '👍' });
+  const row = (await messages(A)).find((m) => m.id === sent.body.data.id);
+  assert.equal(row.reactions.length, 1);
+  assert.equal(row.reactions[0].emoji, '👍');
+  assert.equal(row.reactions[0].users[0].id, B.id);
+});
