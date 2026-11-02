@@ -18,7 +18,17 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 /**
  * Envoie une notification push à un utilisateur
  */
+// Installation de développement (PUSH_DISABLED=true dans docker-compose.yml) :
+// la base peut contenir les abonnements des téléphones du personnel, copiés de
+// la production — aucune notification ne part.
+export const pushDisabled = (env = process.env) => /^(true|1|oui|yes)$/i.test(String(env.PUSH_DISABLED || '').trim());
+if (pushDisabled()) console.warn('🔕 PUSH_DISABLED : aucune notification push ne partira (installation de développement).');
+
 export const sendPushNotification = async (userId, payload) => {
+  if (pushDisabled()) {
+    console.log(`🔕 [PUSH NON ENVOYÉ — PUSH_DISABLED] ${userId} : ${payload?.title || ''}`);
+    return { success: false, message: 'Push disabled (development)' };
+  }
   try {
     // Récupérer toutes les souscriptions de l'utilisateur
     const subscriptions = await PushSubscription.findAll({

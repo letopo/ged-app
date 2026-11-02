@@ -53,6 +53,13 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Développement : jamais d'e-mail aux vrais destinataires (réglages de
+      # messagerie copiés de la production). « off » = rien ne part (journal
+      # seulement) ; une adresse = tout part vers elle. Absent en production.
+      MAIL_REDIRECT_TO: ${MAIL_REDIRECT_TO:-off}
+      # Même raison pour les notifications push (abonnements des téléphones copiés
+      # de la production) : « false » pour les tester sur cette installation.
+      PUSH_DISABLED: ${PUSH_DISABLED:-true}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://192.168.1.186}
       WORKFLOW_ENABLE_NOTIFICATIONS: ${WORKFLOW_ENABLE_NOTIFICATIONS:-false}
       WORKFLOW_DEFAULT_TIMEOUT_DAYS: ${WORKFLOW_DEFAULT_TIMEOUT_DAYS:-7}

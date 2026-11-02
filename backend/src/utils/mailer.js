@@ -123,6 +123,48 @@ export async function resolveMailConfig(tenantId, { useServerConfig = false } = 
   };
 }
 
+// ─── Installation de développement : jamais de vrais destinataires ─────────
+// MAIL_REDIRECT_TO (docker-compose.yml de développement, jamais en production) :
+//   absent              → envoi normal (production) ;
+//   « off »             → aucun e-mail ne part, il est seulement écrit dans le journal ;
+//   une adresse e-mail  → tout part vers cette seule adresse, le vrai destinataire
+//                          est indiqué dans l'objet et en tête du message.
+export function mailRedirect(env = process.env) {
+  const v = String(env.MAIL_REDIRECT_TO || '').trim();
+  if (!v) return null;
+  if (/^(off|none|non|false|0)$/i.test(v)) return { mode: 'off' };
+  return { mode: 'redirect', to: v };
+}
+
+{
+  const r = mailRedirect();
+  if (r?.mode === 'off') console.warn('📧 MAIL_REDIRECT_TO=off : aucun e-mail ne partira (installation de développement).');
+  else if (r) console.warn(`📧 MAIL_REDIRECT_TO : tous les e-mails partiront vers ${r.to} (installation de développement).`);
+}
+
+const recipientsText = (to) => (Array.isArray(to) ? to.join(', ') : String(to || ''));
+
+/** Message tel qu'il doit partir (ou null s'il ne doit pas partir) selon MAIL_REDIRECT_TO. */
+export function applyMailRedirect({ to, subject, text }, env = process.env) {
+  const r = mailRedirect(env);
+  if (!r) return { to, subject, text };
+  if (r.mode === 'off') return null;
+  const original = recipientsText(to);
+  return {
+    to: r.to,
+    subject: `[DEV → ${original}] ${subject}`,
+    text: `[Installation de développement — destinataire réel : ${original}]\n\n${text}`,
+  };
+}
+
+const logSkipped = (to, subject, text, why) => {
+  console.log(`📧 [EMAIL NON ENVOYÉ — ${why}] ─────────────────────`);
+  console.log(`À: ${recipientsText(to)}`);
+  console.log(`Sujet: ${subject}`);
+  console.log(`Message: ${text}`);
+  console.log('──────────────────────────────────────');
+};
+
 // Un transporteur par configuration, réutilisé (connexion non renégociée à chaque e-mail)
 const transporters = new Map();
 function transporterFor(config) {
@@ -168,6 +210,12 @@ async function recordResult(config, ok, error) {
  */
 export const sendNotificationEmail = async (to, subject, text, type = 'default', link = null, options = {}) => {
   let config;
+  // Développement (MAIL_REDIRECT_TO=off) : rien ne part, quelle que soit la messagerie réglée
+  const outgoing = applyMailRedirect({ to, subject, text });
+  if (!outgoing) {
+    logSkipped(to, subject, text, 'installation de développement, MAIL_REDIRECT_TO=off');
+    return { success: true, simulated: true, messageId: 'simulated-' + Date.now() };
+  }
   try {
     const tenantId = options.tenantId ?? tenantNamespace.get('tenantId') ?? null;
     config = await resolveMailConfig(tenantId, options);
@@ -186,12 +234,12 @@ export const sendNotificationEmail = async (to, subject, text, type = 'default',
     const info = await transporterFor(config).sendMail({
       from: config.from,
       replyTo: config.replyTo,
-      to,
-      subject,
-      text,
-      html: getEmailHTML(subject, text, type, link, config.brand),
+      to: outgoing.to,
+      subject: outgoing.subject,
+      text: outgoing.text,
+      html: getEmailHTML(outgoing.subject, outgoing.text, type, link, config.brand),
     });
-    console.log(`✅ Email envoyé (${config.source}) à ${to} : ${subject}`);
+    console.log(`✅ Email envoyé (${config.source}) à ${recipientsText(outgoing.to)} : ${outgoing.subject}`);
     await recordResult(config, true);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -206,7 +254,12 @@ export const sendNotificationEmail = async (to, subject, text, type = 'default',
  * E-mail de test avec une configuration donnée (réglages en cours de saisie ou
  * enregistrés). Lève une erreur au message compréhensible en cas d'échec.
  */
-export async function sendTestEmail({ transport, from, replyTo, to, brand }) {
+export async function sendTestEmail({ transport, from, replyTo, to: requestedTo, brand }) {
+  const redirect = mailRedirect();
+  if (redirect?.mode === 'off') {
+    throw new Error('Envoi désactivé sur cette installation de développement (MAIL_REDIRECT_TO=off) : aucun e-mail ne part. Indiquez une adresse dans MAIL_REDIRECT_TO pour tester la messagerie.');
+  }
+  const to = redirect ? redirect.to : requestedTo;
   const transporter = nodemailer.createTransport(transport);
   try {
     await transporter.verify();
