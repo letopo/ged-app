@@ -24,6 +24,7 @@
   --chat-mine-bg:       #D6E4F7;
   --chat-other-bg:      #FFFFFF;
   --chat-meta:          #6B7280;
+  --chat-system-bg:     #FFF6D6;
   --chat-bubble-shadow: 0 1px 1px rgba(15, 23, 42, 0.10);
   --brand-muted:     #5B89D6;
   --brand-fg:        #1B3A6B;
@@ -101,6 +102,7 @@
   --chat-mine-bg:       #234470;
   --chat-other-bg:      #1C2433;
   --chat-meta:          #9AA6B8;
+  --chat-system-bg:     #2E2A1C;
   --chat-bubble-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
   --brand-hover:     #6E99DE;
   --brand-soft:      #1A2845;
@@ -484,6 +486,7 @@
 /* Discussion : bouton retour réservé au mobile */
 .chat-back { display: none; }
 .chat-actions { display: none; }
+.chat-doc-open-short { display: none; }
 .chat-row.is-open .chat-actions { display: flex; }
 @media (hover: hover) { .chat-row:hover .chat-actions { display: flex; } }
 /* Téléphone : l'appui long ouvre les actions (dont « Copier ») au lieu de sélectionner le texte */
@@ -741,6 +744,10 @@ a.kpi-card:active { transform: scale(0.98); }
   .chat-root:not(.has-selection) .chat-thread { display: none !important; }
   .chat-back { display: inline-flex; }
   .chat-hint { display: none; }
+  .chat-doc-banner { padding: 6px 12px !important; gap: 8px !important; }
+  .chat-doc-thumb { display: none !important; }
+  .chat-doc-open-long { display: none; }
+  .chat-doc-open-short { display: inline; }
   .chat-body { position: relative; }
   .chat-members { position: absolute; inset: 0; z-index: 5; width: auto !important; border-left: none !important; }
   .chat-new-modal { padding: 18px !important; max-height: calc(100dvh - 32px) !important; }

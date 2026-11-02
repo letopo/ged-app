@@ -10,6 +10,7 @@ import { hasDocumentReadAccess } from '../utils/documentVisibility.js';
 import { sendPushNotification } from '../services/pushNotificationService.js';
 import { sendNotificationEmail } from '../utils/mailer.js';
 import { getIO } from '../utils/socketManager.js';
+import { postDocumentEvent } from '../utils/documentChatEvents.js';
 
 const fullName = (u) => (u ? `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email : null);
 
@@ -109,6 +110,7 @@ export const transmitDocument = async (req, res) => {
     }
 
     await transmitToRecipients(document, req.user.id, recipients, message);
+    postDocumentEvent(document.id, `📨 ${fullName(req.user)} a transmis le document à ${recipients.map(fullName).join(', ')}${message ? ` — « ${message.slice(0, 300)} »` : '.'}`);
     res.json({ success: true, message: `Document transmis à ${recipients.length} personne(s).`, recipients: recipients.map(fullName) });
   } catch (error) {
     console.error('Erreur transmission document:', error);

@@ -923,6 +923,16 @@ const RELEASE_NOTES = [
       'La liste signale « recevra le document » pour les personnes qui n\'y ont pas encore accès. Le panneau a aussi les bulles, les réactions et les pièces jointes de la page Discussion.',
     ],
   },
+  {
+    id: '2026-11-03-chat-document-bandeau',
+    date: '2026-11-03',
+    target: '/chat',
+    title: 'Discussion d\'un document : le document épinglé et son suivi',
+    items: [
+      'En haut de la discussion d\'un document : son aperçu, son statut et l\'étape de validation en cours (« au tour de… », « c\'est à vous de valider »), avec un bouton « Ouvrir le document » pour le lire, le signer ou le valider.',
+      'La discussion raconte la vie du document : soumission, validations, signatures, rejet, approbation finale et transmissions s\'y affichent automatiquement.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
