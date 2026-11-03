@@ -61,7 +61,7 @@ async function remindCrew(m, vehicle, phase, sent, key) {
   await m.update({ alertsSent: { ...sent } });
 }
 
-// Inventaire de l'ambulance (lun / mer / ven) pas fait à 14 h : une alerte
+// Inventaire de l'ambulance (jours prévus : tous par défaut) pas fait à 14 h : une alerte
 // aux responsables par jour et par ambulance.
 async function inventoryAlerts(tenantId) {
   const now = new Date();

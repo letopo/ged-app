@@ -14,7 +14,7 @@ import path from 'path';
 import { Op } from 'sequelize';
 import {
   Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline,
-  Document, ServiceMember, Service, Employee, Tenant, TenantSettings, AuditLog,
+  Document, DocumentTransmission, ServiceMember, Service, Employee, Tenant, TenantSettings, AuditLog,
 } from '../models/index.js';
 import { getUserPosteCodes, getPosteHolders } from '../utils/posteResolver.js';
 import {
@@ -171,6 +171,22 @@ export async function notifyVehicleManagers(vehicle, { title, body, url = '/vehi
       tag: `vehicle-${vehicle.id}-${Date.now()}`, data: { url, timestamp: Date.now() }, requireInteraction: true,
     }).catch(() => {});
     if (u.email) sendNotificationEmail(u.email, title, body, 'default', url, { tenantId: vehicle.tenantId }).catch(() => {});
+  }
+}
+
+// Fiche de contrôle ou d'inventaire : transmise au responsable du véhicule
+// (ambulances : Chef de pôle RO SAU ; à défaut, chef Sécurité / Logistique),
+// qui la retrouve dans Documents › Reçus. Sans notification : les manques et
+// anomalies sont déjà signalés par notifyVehicleManagers.
+export async function shareWithVehicleManagers(doc, vehicle, authorId) {
+  const code = vehicle.managerPosteCode || (vehicle.vehicleType === 'ambulance' ? AMBULANCE_MANAGER_POSTE : FLEET_POSTE);
+  let holders = await getPosteHolders(code);
+  if (!holders.length && code !== FLEET_POSTE) holders = await getPosteHolders(FLEET_POSTE);
+  const seen = new Set([authorId]);
+  for (const u of holders) {
+    if (seen.has(u.id)) continue;
+    seen.add(u.id);
+    await DocumentTransmission.create({ documentId: doc.id, fromUserId: authorId, toUserId: u.id, message: null, tenantId: doc.tenantId });
   }
 }
 
@@ -621,6 +637,7 @@ export const submitCheck = async (req, res) => {
         metadata: { sourceType: 'vehicle_check', vehicleId: v.id, missionId: mission.id, checkId: check.id, phase, sectionKey: section.key },
       });
       await check.update({ documentId: doc.id, sha256: sha256(pdf) });
+      await shareWithVehicleManagers(doc, v, req.user.id);
     } catch (err) {
       console.error('Fiche PDF contrôle véhicule :', err);
     }

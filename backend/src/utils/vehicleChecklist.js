@@ -184,7 +184,7 @@ export function completionLevel(pct) {
 const qty = (id, label, required, extra = {}) => ({ id, label, kind: 'qty', required, unit: '', critical: false, expiry: false, ...extra });
 const med = (id, label, required, extra = {}) => qty(id, label, required, { expiry: true, ...extra });
 
-export const DEFAULT_INVENTORY_DAYS = [1, 3, 5]; // lundi, mercredi, vendredi
+export const DEFAULT_INVENTORY_DAYS = [0, 1, 2, 3, 4, 5, 6]; // tous les jours (demande du RO SAU, 03/11/2026)
 
 export const DEFAULT_INVENTORY_SECTIONS = [
   {

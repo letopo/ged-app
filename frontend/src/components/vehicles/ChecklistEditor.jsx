@@ -104,9 +104,9 @@ export default function ChecklistEditor() {
       {tpl.vehicleType === 'ambulance' && (
         <>
           <div style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--fg)' }}>{t('Inventaire hebdomadaire')}</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--fg)' }}>{t('Inventaire du matériel')}</div>
             <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>
-              {t('Fiche RO SAU : quantité requise de chaque article, relevée par l\'infirmier les jours choisis. Un manque part dans la liste de réassort ; un point critique en défaut rend l\'ambulance indisponible.')}
+              {t('Fiche RO SAU : quantité requise de chaque article, relevée par l\'infirmier les jours choisis (tous les jours par défaut). Un manque part dans la liste de réassort ; un point critique en défaut rend l\'ambulance indisponible.')}
             </div>
           </div>
           <div className="ged-card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

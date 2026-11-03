@@ -33,10 +33,12 @@ export function StatusBadge({ status, reason }) {
   );
 }
 
-// Jours d'inventaire de la semaine en cours : fait / à faire / non fait
+// Jours d'inventaire de la semaine en cours : fait / à faire / non fait.
+// Un inventaire fait un jour non prévu est affiché aussi.
 export function InventoryWeek({ days, weekStart, week, today, onOpenPdf }) {
   const { t } = useTranslation();
-  const order = [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+  const doneDays = Object.keys(week || {}).map((date) => new Date(`${date}T12:00:00Z`).getUTCDay());
+  const order = [...new Set([...days, ...doneDays])].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
       {order.map((wd) => {
@@ -50,8 +52,8 @@ export function InventoryWeek({ days, weekStart, week, today, onOpenPdf }) {
           : date < today ? { c: '#b91c1c', bg: '#fee2e2', txt: t('Non fait') }
           : { c: 'var(--fg-muted)', bg: 'var(--surface-2)', txt: t('À venir') };
         return (
-          <button key={wd} type="button" disabled={!cell} onClick={() => cell && onOpenPdf?.(cell.id)} title={cell ? t('Fait par {{name}} le {{date}}', { name: cell.by, date: fmtDateTime(cell.at) }) : undefined}
-            style={{ flex: '1 1 90px', minWidth: 90, padding: '6px 8px', borderRadius: 8, border: 'none', background: st.bg, color: st.c, textAlign: 'left', cursor: cell ? 'pointer' : 'default' }}>
+          <button key={wd} type="button" disabled={!cell} aria-current={date === today ? 'date' : undefined} onClick={() => cell && onOpenPdf?.(cell.id)} title={cell ? t('Fait par {{name}} le {{date}}', { name: cell.by, date: fmtDateTime(cell.at) }) : undefined}
+            style={{ flex: '1 1 90px', minWidth: 90, padding: '6px 8px', borderRadius: 8, border: date === today ? `2px solid ${st.c}` : '2px solid transparent', background: st.bg, color: st.c, textAlign: 'left', cursor: cell ? 'pointer' : 'default' }}>
             <div style={{ fontSize: 11, fontWeight: 700 }}>{t(WEEKDAYS[wd])} {fmtDay(date)}</div>
             <div style={{ fontSize: 12, fontWeight: 700 }}>{cell ? (bad ? '⚠ ' : '✓ ') : ''}{st.txt}</div>
           </button>
@@ -88,6 +90,7 @@ function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
   }
 
   const { vehicle, sections, mission, lastFinishedMission, checks } = state;
+  const todayInventory = inventory?.week?.[inventory.today?.date] || null;
   const checkOf = (missionId, phase, key) => checks.find((c) => c.missionId === missionId && c.phase === phase && c.sectionKey === key);
   // Départ : mission prévue / en cours (sinon sortie urgente). Retour : mission en cours, sinon la dernière terminée.
   const departMission = mission && ['planifiee', 'en_cours'].includes(mission.status) ? mission : null;
@@ -173,16 +176,21 @@ function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
           {inventory?.sections?.length > 0 && (
             <div style={{ border: `1px solid ${inventory.today?.due ? '#fcd34d' : 'var(--border)'}`, borderRadius: 'var(--radius-3)', padding: 12, background: inventory.today?.due ? '#fffbeb' : 'transparent' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>
-                <ClipboardList size={16} color="#ea580c" /> {t('Inventaire de la semaine')}
+                <ClipboardList size={16} color="#ea580c" /> {t('Inventaire du matériel')}
               </div>
               <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 10 }}>
                 {t('Matériel, consommables, médicaments et DSA : quantités présentes, péremptions du mois.')}
               </div>
               <InventoryWeek days={inventory.days} weekStart={inventory.weekStart} week={inventory.week} today={inventory.today?.date}
                 onOpenPdf={(id) => openCheckPdf(vehiclesAPI, id, 'inventory')} />
+              {todayInventory && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 13, fontWeight: 600, color: '#15803d' }}>
+                  <CheckCircle2 size={16} /> {t('Inventaire du jour fait par {{name}} le {{date}}', { name: todayInventory.by, date: fmtDateTime(todayInventory.at) })}
+                </div>
+              )}
               <button type="button" onClick={() => setInventoryOpen(true)}
                 style={{ marginTop: 10, height: 38, padding: '0 14px', borderRadius: 8, border: inventory.today?.due ? 'none' : '1px solid var(--border)', background: inventory.today?.due ? 'var(--brand)' : 'var(--surface)', color: inventory.today?.due ? '#fff' : 'var(--fg)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                {t('Faire l\'inventaire')}
+                {todayInventory ? t('Refaire l\'inventaire') : t('Faire l\'inventaire')}
               </button>
             </div>
           )}

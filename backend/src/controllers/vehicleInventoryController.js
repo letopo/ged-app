@@ -1,16 +1,17 @@
 // backend/src/controllers/vehicleInventoryController.js
-// Inventaire hebdomadaire des ambulances (fiche RO SAU) : le lundi, le
-// mercredi et le vendredi, l'infirmier relève les quantités présentes
+// Inventaire des ambulances (fiche RO SAU) : chaque jour prévu (tous les jours
+// par défaut, réglable dans la check-list), l'infirmier relève les quantités présentes
 // (matériel, consommables, médicaments, DSA, oxygène) et signe. Les manques et
 // les péremptions du mois forment la liste de réassort envoyée aux
 // responsables ; un point critique en défaut rend l'ambulance indisponible.
+// La fiche PDF est transmise au responsable de l'ambulance (Chef de pôle RO SAU).
 import crypto from 'crypto';
 import { resolveStoredFile } from '../utils/storedFiles.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
 import { Vehicle, VehicleInventory, Document, Tenant } from '../models/index.js';
-import { fleetAccess, canManage, canCheck, templateFor, notifyVehicleManagers, CHECK_DIR, userName, fmtFr } from './vehicleController.js';
+import { fleetAccess, canManage, canCheck, templateFor, notifyVehicleManagers, shareWithVehicleManagers, CHECK_DIR, userName, fmtFr } from './vehicleController.js';
 import { evaluateInventory, doualaDay, weekStart } from '../utils/vehicleChecklist.js';
 import { buildVehicleInventoryPdf } from '../utils/vehicleInventoryPdf.js';
 import { parseSignaturePng } from './manualSignatureController.js';
@@ -137,6 +138,7 @@ export const submitInventory = async (req, res) => {
         metadata: { sourceType: 'vehicle_inventory', vehicleId: v.id, inventoryId: inventory.id },
       });
       await inventory.update({ documentId: doc.id, sha256: sha256(pdf) });
+      await shareWithVehicleManagers(doc, v, req.user.id);
     } catch (err) {
       console.error('Fiche PDF inventaire :', err);
     }
@@ -172,12 +174,9 @@ export const listInventories = async (req, res) => {
     const today = doualaDay();
     const monday = weekStart(/^\d{4}-\d{2}-\d{2}$/.test(req.query.week || '') ? req.query.week : today.date);
     const withInventory = [];
-    const daySet = new Set();
     for (const v of managed) {
       const inv = await inventoryOf(v);
-      if (!inv.sections.length) continue;
-      inv.days.forEach((d) => daySet.add(d));
-      withInventory.push({ v, inv });
+      if (inv.sections.length) withInventory.push({ v, inv });
     }
     const weekRows = await weekOf(withInventory.map((x) => x.v.id), monday);
     const vehicles = [];
@@ -190,8 +189,9 @@ export const listInventories = async (req, res) => {
         last: last ? { ...summary(last), restock: last.restock } : null,
       });
     }
-    // Jours affichés : jours d'inventaire (lundi = 1) de la semaine
-    const days = [...daySet].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((wd) => ({ weekday: wd, date: addDays(monday, (wd + 6) % 7) }));
+    // Les 7 jours, du lundi au dimanche : un inventaire fait un jour non prévu
+    // reste visible (« — » seulement si rien n'a été fait ce jour-là)
+    const days = [0, 1, 2, 3, 4, 5, 6].map((i) => ({ weekday: (i + 1) % 7, date: addDays(monday, i) }));
     res.json({ success: true, data: { weekStart: monday, today: today.date, days, vehicles } });
   } catch (error) {
     console.error('Inventaires (semaine) :', error);

@@ -3109,5 +3109,9 @@
   "Bonne année {{year}} !": "Happy New Year {{year}}!",
   "Joyeuses fêtes de fin d’année !": "Happy holidays!",
   "Décor de fêtes": "Holiday decorations",
-  "Neige, guirlande et bonnet de Noël sur l’interface": "Snow, garland and Santa hat on the interface"
+  "Neige, guirlande et bonnet de Noël sur l’interface": "Snow, garland and Santa hat on the interface",
+  "Inventaire du matériel": "Equipment inventory",
+  "Refaire l'inventaire": "Redo the inventory",
+  "Inventaire du jour fait par {{name}} le {{date}}": "Today's inventory done by {{name}} on {{date}}",
+  "Fiche RO SAU : quantité requise de chaque article, relevée par l'infirmier les jours choisis (tous les jours par défaut). Un manque part dans la liste de réassort ; un point critique en défaut rend l'ambulance indisponible.": "RO SAU sheet: required quantity of each item, counted by the nurse on the chosen days (every day by default). A shortage goes to the restock list; a failed critical item makes the ambulance unavailable."
 }

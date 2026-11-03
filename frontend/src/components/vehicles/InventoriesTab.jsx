@@ -46,7 +46,7 @@ export default function InventoriesTab({ refreshKey }) {
 
   const cellView = (v, day) => {
     const cell = v.cells?.[day.date];
-    if (!v.days.includes(day.weekday)) return <span style={{ color: 'var(--fg-subtle)', fontSize: 12 }}>—</span>;
+    if (!cell && !v.days.includes(day.weekday)) return <span style={{ color: 'var(--fg-subtle)', fontSize: 12 }}>—</span>;
     if (!cell) {
       const st = day.date === data.today ? { c: '#b45309', txt: t('À faire aujourd\'hui') } : day.date < data.today ? { c: '#b91c1c', txt: t('Non fait') } : { c: 'var(--fg-muted)', txt: t('À venir') };
       return <span style={{ fontSize: 13, fontWeight: 700, color: st.c }}>{st.txt}</span>;
