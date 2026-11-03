@@ -3,7 +3,10 @@
 //  - tableau du jour (Feuil8 / Feuil10) : infirmerie × type de visite × service ;
 //  - indicateurs (Feuil1) : visites par spécialité, par secteur (« évacuations »),
 //    indicateurs par mots-clés du diagnostic (paludisme, IST…) par secteur,
-//    repos par spécialité.
+//    repos par spécialité ;
+//  - activité des infirmeries (Tableau PHP 2026, une feuille par mois) : par
+//    infirmerie et par jour, consultations et rendez-vous (généraliste,
+//    spécialiste de l'hôpital, spécialiste externe) et autres visites.
 // L'infirmerie et le secteur sont ceux de la consultation (lieu de la visite),
 // comme sur la ligne de l'Excel, et non ceux de la fiche actuelle du patient.
 import { QueryTypes } from 'sequelize';
@@ -114,6 +117,67 @@ export const getIndicateurs = handle(async (req, res) => {
   `, { replacements: rep, type: QueryTypes.SELECT });
 
   res.json({ success: true, data: { du, au, types: TYPES, parService, parSecteur, indicateurs, repos } });
+});
+
+// ─── Activité des infirmeries (Tableau PHP 2026) ─────────────────────────────
+// Colonnes de chaque jour, dans l'ordre du tableau du Point Focal
+export const ACTIVITE_COLONNES = ['cs_gen', 'cs_int', 'cs_ext', 'rdv_gen', 'rdv_int', 'rdv_ext', 'labo', 'pharmacie', 'resultat'];
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+// Service saisi sans accents ni casse ; fautes de frappe courantes comprises (MEDCINE, OPTALMO, LABAO…)
+const SVC = NORM_SQL('TRIM(c.service_name)');
+// Spécialiste externe (consulte à l'hôpital sans en faire partie) : dentiste,
+// ophtalmologie, ORL, gastro-entérologie, urologie, chirurgie pédiatrique.
+// Les autres spécialités (chirurgie, gynécologie, PMI…) sont de l'hôpital.
+// Labo comprend la radiologie et l'échographie ; une visite AUTRE vers un
+// médecin est une présentation de résultats. Sans type saisi : consultation.
+export const ACTIVITE_SQL = `CASE
+  WHEN ${SVC} ~ '^(LAB|RADIO|ECHO)' THEN 'labo'
+  WHEN ${SVC} ~ '^PHAR' THEN 'pharmacie'
+  WHEN c.type_visite = 'AUTRE' THEN 'resultat'
+  ELSE (CASE WHEN c.type_visite = 'RDV' THEN 'rdv_' ELSE 'cs_' END) ||
+    (CASE WHEN ${SVC} ~ '^M(E|EE)D' THEN 'gen'
+          WHEN ${SVC} ~ '^(DENT|OPH|OPT|ORL|GAS|URO|CHIR[A-Z]* PED)' THEN 'ext'
+          ELSE 'int' END)
+END`;
+
+/** Jours du mois groupés en semaines du lundi au dimanche (semaine 1 = celle du 1er). */
+export const semainesDuMois = (mois) => {
+  const [y, m] = mois.split('-').map(Number);
+  const semaines = [];
+  for (let d = new Date(Date.UTC(y, m - 1, 1)); d.getUTCMonth() === m - 1; d.setUTCDate(d.getUTCDate() + 1)) {
+    if (!semaines.length || d.getUTCDay() === 1) semaines.push({ numero: semaines.length + 1, jours: [] });
+    semaines[semaines.length - 1].jours.push(d.toISOString().slice(0, 10));
+  }
+  return semaines;
+};
+
+// GET /api/php/stats/activite?mois=AAAA-MM
+export const getActiviteInfirmeries = handle(async (req, res) => {
+  const mois = MONTH.test(String(req.query.mois || '')) ? req.query.mois : new Date().toISOString().slice(0, 7);
+  const semaines = semainesDuMois(mois);
+  const du = semaines[0].jours[0];
+  const au = semaines.at(-1).jours.at(-1);
+  const rows = await sequelize.query(`
+    SELECT c.infirmerie_id AS "infirmerieId", to_char(c.date_consultation, 'YYYY-MM-DD') AS date,
+           ${ACTIVITE_SQL} AS col, count(*)::int AS n
+    FROM php_consultations c ${OWN_PATIENT}
+    WHERE c.date_consultation BETWEEN :du AND :au
+    GROUP BY 1, 2, 3
+  `, { replacements: { du, au, tenantId: req.tenantId }, type: QueryTypes.SELECT });
+  const [extra] = await sequelize.query(`
+    SELECT count(*) FILTER (WHERE c.date_consultation BETWEEN :du AND :au AND c.type_visite IS NULL)::int AS "sansType",
+           to_char(max(c.date_consultation), 'YYYY-MM') AS "dernierMois"
+    FROM php_consultations c ${OWN_PATIENT}
+  `, { replacements: { du, au, tenantId: req.tenantId }, type: QueryTypes.SELECT });
+  const infirmeries = await Infirmerie.findAll({ where: { isActive: true }, attributes: ['id', 'code', 'nom'], order: [['code', 'ASC']] });
+  res.json({
+    success: true,
+    data: {
+      mois, semaines, colonnes: ACTIVITE_COLONNES, rows,
+      infirmeries: infirmeries.map((i) => ({ id: i.id, code: i.code, nom: i.nom })),
+      sansType: extra.sansType, dernierMois: extra.dernierMois,
+    },
+  });
 });
 
 // GET /api/php/indicateurs — liste des indicateurs par mots-clés

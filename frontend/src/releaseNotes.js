@@ -978,6 +978,18 @@ const RELEASE_NOTES = [
       'Onglet « Consommation par produit » sur la période choisie, export Excel identique à l\'écran. L\'import du fichier Excel reprend aussi la feuille PHARMACIE.',
     ],
   },
+  {
+    id: '2026-11-03-php-activite-infirmeries',
+    date: '2026-11-03',
+    target: '/php/statistiques',
+    title: 'Statistiques PHP : activité des infirmeries',
+    access: (user) => phpAccess(user).read,
+    items: [
+      'Nouvel onglet « Activité des infirmeries » : pour chaque infirmerie et chaque mois, les consultations et rendez-vous (généraliste, spécialiste de l\'hôpital, spécialiste externe), le labo, la pharmacie et les présentations de résultats — comme le « Tableau PHP 2026 » du Point Focal.',
+      'Présentation par semaine ou par jour ; tout se calcule à partir des visites enregistrées, rien à recompter à la main.',
+      '« Exporter en Excel » télécharge le tableau du mois, par jour et par semaine, avec les totaux.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

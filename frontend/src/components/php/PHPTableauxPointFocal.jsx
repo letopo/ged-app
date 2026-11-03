@@ -2,7 +2,10 @@
 // Statistiques PHP — tableaux croisés de l'Excel du Point Focal :
 //  - TabTableauDuJour (Feuil8 / Feuil10) : infirmerie × type de visite × service ;
 //  - TabIndicateurs (Feuil1) : visites par spécialité et par secteur, indicateurs
-//    par mots-clés du diagnostic (paludisme, IST… modifiables), repos.
+//    par mots-clés du diagnostic (paludisme, IST… modifiables), repos ;
+//  - TabActiviteInfirmeries (Tableau PHP 2026, une feuille par mois) : par
+//    infirmerie et par jour, consultations et rendez-vous (généraliste,
+//    spécialiste de l'hôpital / externe), labo, pharmacie, résultats.
 // Les tableaux sont exportés tels qu'affichés (utils/tableToExcel.js, une
 // feuille par bloc data-export-title).
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -423,6 +426,203 @@ export function TabIndicateurs({ refreshKey, onPeriod, canWrite }) {
       )}
 
       {editing && <IndicateursEditor onClose={() => setEditing(false)} onSaved={() => { setEditing(false); setReload((x) => x + 1); }} />}
+    </div>
+  );
+}
+
+// ─── Activité des infirmeries (Tableau PHP 2026) ──────────────────────────────
+
+const ACT_GROUPES = [
+  { label: 'CONSULTATION', bg: TYPE_STYLE.CS.bg, cols: [['cs_gen', 'Généraliste'], ['cs_int', 'Spécialiste Int'], ['cs_ext', 'Spécialiste Ext']] },
+  { label: 'RENDEZ-VOUS', bg: TYPE_STYLE.RDV.bg, cols: [['rdv_gen', 'Généraliste'], ['rdv_int', 'Spécialiste Int'], ['rdv_ext', 'Spécialiste Ext']] },
+  { label: 'AUTRES', bg: TYPE_STYLE.AUTRE.bg, cols: [['labo', 'Labo'], ['pharmacie', 'Pharmacie'], ['resultat', 'Présentation résultat']] },
+];
+const ACT_COLS = ACT_GROUPES.flatMap((g) => g.cols.map(([key, label]) => ({ key, label, bg: g.bg })));
+const NCOLS = ACT_COLS.length;
+const TOTAL_BG = 'rgba(17,24,39,0.06)';
+const hd = { border: '1px solid rgba(255,255,255,0.25)', color: '#fff' };
+
+/** Tableau infirmeries × blocs (jours, semaines, mois) × 9 colonnes du Point Focal. */
+function ActiviteTable({ title, weeks, blocks, rows, value }) {
+  const { t } = useTranslation();
+  const headRows = weeks ? 4 : 3;
+  return (
+    <div className="overflow-x-auto" data-export-title={title}>
+      <table className="border-collapse text-xs min-w-max">
+        <thead>
+          {weeks && (
+            <tr>
+              <th rowSpan={headRows} className="sticky left-0 z-20 text-left font-bold px-3 py-2" style={{ background: DARK, color: '#fff', minWidth: 120 }}>{t('INFIRMERIES')}</th>
+              {weeks.map((w) => (
+                <th key={w.key} colSpan={w.span * NCOLS} className="text-center px-2 py-1.5 font-bold" style={{ ...hd, background: '#374151' }}>{w.label}</th>
+              ))}
+            </tr>
+          )}
+          <tr>
+            {!weeks && <th rowSpan={headRows} className="sticky left-0 z-20 text-left font-bold px-3 py-2" style={{ background: DARK, color: '#fff', minWidth: 120 }}>{t('INFIRMERIES')}</th>}
+            {blocks.map((b) => (
+              <th key={b.key} colSpan={NCOLS} className="text-center px-2 py-1.5 font-bold whitespace-nowrap" title={b.title}
+                style={{ ...hd, background: b.total ? DARK : '#4b5563' }}>{b.label}</th>
+            ))}
+          </tr>
+          <tr>
+            {blocks.map((b) => ACT_GROUPES.map((g) => (
+              <th key={`${b.key}-${g.label}`} colSpan={g.cols.length} className="text-center px-2 py-1 font-bold text-[10px]" style={{ ...hd, background: g.bg }}>{t(g.label)}</th>
+            )))}
+          </tr>
+          <tr>
+            {blocks.map((b) => ACT_COLS.map((c) => (
+              <th key={`${b.key}-${c.key}`} className="text-center px-1 py-1 font-semibold text-[10px] leading-tight" style={{ ...hd, background: c.bg, opacity: 0.92, minWidth: 58, maxWidth: 72, whiteSpace: 'normal' }}>{t(c.label)}</th>
+            )))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={row.key} style={{ background: ri % 2 ? 'var(--surface-2)' : 'var(--surface)' }}>
+              <td className="sticky left-0 z-10 px-3 py-1.5 font-medium whitespace-nowrap" title={row.title}
+                style={{ background: 'inherit', color: 'var(--fg)', borderRight: '1px solid var(--border)' }}>{row.label}</td>
+              {blocks.map((b) => ACT_COLS.map((c) => (
+                <td key={`${b.key}-${c.key}`} className={`${cell} ${b.total ? 'font-bold' : ''}`}
+                  style={{ ...border, color: 'var(--fg)', background: b.total ? TOTAL_BG : undefined }}>{num(value(row.key, b.dates, c.key))}</td>
+              )))}
+            </tr>
+          ))}
+          <tr style={{ background: DARK, color: '#fff', fontWeight: 700 }}>
+            <td className="sticky left-0 z-10 px-3 py-2" style={{ background: DARK }}>{t('TOTAL')}</td>
+            {blocks.map((b) => ACT_COLS.map((c) => (
+              <td key={`${b.key}-${c.key}`} className={cell} style={{ border: '1px solid #374151' }}>{value('*', b.dates, c.key) || 0}</td>
+            )))}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function TabActiviteInfirmeries({ refreshKey, onPeriod }) {
+  const { t, i18n } = useTranslation();
+  const [mois, setMois] = useState(todayISO().slice(0, 7));
+  const [vue, setVue] = useState('semaine');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [autoJumped, setAutoJumped] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    phpStatsAPI.getActivite({ mois })
+      .then((res) => { if (alive) setData(res.data.data); })
+      .catch((err) => { console.error('Activité des infirmeries :', err); if (alive) setData(null); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [mois, refreshKey]);
+
+  const moisLabel = (m) => new Date(`${m}-15T12:00:00`).toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' });
+  useEffect(() => { onPeriod?.(moisLabel(mois)); }, [mois, onPeriod]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mois en cours encore vide : on montre le dernier mois saisi
+  useEffect(() => {
+    if (!autoJumped && data && !data.rows.length && data.dernierMois && data.dernierMois !== mois && mois === todayISO().slice(0, 7)) {
+      setAutoJumped(true);
+      setMois(data.dernierMois);
+    }
+  }, [data, autoJumped, mois]);
+
+  const pivot = useMemo(() => {
+    if (!data || data.mois !== mois) return null;
+    const cells = new Map();
+    const add = (k, n) => cells.set(k, (cells.get(k) || 0) + n);
+    let grand = 0;
+    const parGroupe = [0, 0, 0];
+    for (const r of data.rows) {
+      const inf = r.infirmerieId || 'none';
+      add(`${inf}|${r.date}|${r.col}`, r.n);
+      add(`*|${r.date}|${r.col}`, r.n);
+      add(`*|${r.date}`, r.n);
+      grand += r.n;
+      parGroupe[ACT_GROUPES.findIndex((g) => g.cols.some(([k]) => k === r.col))] += r.n;
+    }
+    const value = (inf, dates, col) => dates.reduce((s, d) => s + (cells.get(`${inf}|${d}|${col}`) || 0), 0);
+    const short = (d, opts) => new Date(`${d}T12:00:00`).toLocaleDateString(i18n.language, opts);
+    const range = (w) => `${short(w.jours[0], { day: 'numeric' })}–${short(w.jours.at(-1), { day: 'numeric', month: 'short' })}`;
+    const tous = data.semaines.flatMap((w) => w.jours);
+    const totalMois = { key: 'mois', label: t('TOTAL DU MOIS'), dates: tous, total: true };
+
+    const blocsSemaine = [
+      ...data.semaines.map((w) => ({ key: `s${w.numero}`, label: t('SEMAINE {{num}}', { num: w.numero }), title: range(w), dates: w.jours })),
+      totalMois,
+    ];
+    // Par jour : jours où au moins une visite est enregistrée, puis le total de la semaine
+    const weeks = [];
+    const blocsJour = [];
+    for (const w of data.semaines) {
+      const jours = w.jours.filter((d) => cells.get(`*|${d}`));
+      if (!jours.length) continue;
+      weeks.push({ key: `w${w.numero}`, label: `${t('SEMAINE {{num}}', { num: w.numero })} (${range(w)})`, span: jours.length + 1 });
+      blocsJour.push(...jours.map((d) => ({ key: d, label: short(d, { weekday: 'short', day: 'numeric' }), dates: [d] })));
+      blocsJour.push({ key: `t${w.numero}`, label: t('TOTAL SEMAINE {{num}}', { num: w.numero }), dates: w.jours, total: true });
+    }
+    weeks.push({ key: 'wm', label: t('MOIS'), span: 1 });
+    blocsJour.push(totalMois);
+
+    const rows = data.infirmeries.map((i) => ({ key: i.id, label: i.code, title: i.nom }));
+    if (data.rows.some((r) => !r.infirmerieId)) rows.push({ key: 'none', label: t('SANS INFIRMERIE'), title: t('Infirmerie non renseignée') });
+    return { value, rows, grand, parGroupe, blocsSemaine, blocsJour, weeks };
+  }, [data, mois, t, i18n.language]);
+
+  const shift = (delta) => {
+    const [y, m] = mois.split('-').map(Number);
+    const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+    setMois(d.toISOString().slice(0, 7));
+  };
+  const isCurrent = mois >= todayISO().slice(0, 7);
+  const navBtn = { padding: '0.45rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', color: 'var(--fg)', cursor: 'pointer' };
+  const toggle = (k) => ({
+    background: vue === k ? 'var(--surface)' : 'transparent', color: vue === k ? 'var(--fg)' : 'var(--fg-muted)',
+    boxShadow: vue === k ? 'var(--shadow-1)' : 'none',
+  });
+
+  const jour = pivot && <ActiviteTable title={t('Activité par jour')} weeks={pivot.weeks} blocks={pivot.blocsJour} rows={pivot.rows} value={pivot.value} />;
+  const semaine = pivot && <ActiviteTable title={t('Activité par semaine')} blocks={pivot.blocsSemaine} rows={pivot.rows} value={pivot.value} />;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button onClick={() => shift(-1)} style={navBtn} title={t('Mois précédent')}><ChevronLeft size={16} /></button>
+        <input type="month" value={mois} max={todayISO().slice(0, 7)} onChange={(e) => e.target.value && setMois(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13 }} />
+        <button onClick={() => shift(1)} disabled={isCurrent} style={{ ...navBtn, opacity: isCurrent ? 0.4 : 1 }} title={t('Mois suivant')}><ChevronRight size={16} /></button>
+        <span className="text-sm font-semibold capitalize" style={{ color: 'var(--fg)' }}>{moisLabel(mois)}</span>
+        <div className="flex gap-1 rounded-lg p-0.5 ml-auto" style={{ background: 'var(--surface-3)' }}>
+          <button onClick={() => setVue('semaine')} className="px-3 py-1.5 text-xs rounded-md font-medium" style={toggle('semaine')}>{t('Par semaine')}</button>
+          <button onClick={() => setVue('jour')} className="px-3 py-1.5 text-xs rounded-md font-medium" style={toggle('jour')}>{t('Par jour')}</button>
+        </div>
+      </div>
+
+      {loading && !pivot ? <Box><Loading /></Box> : !pivot?.grand ? (
+        <Box><div className="py-14 text-center text-sm" style={{ color: 'var(--fg-muted)' }}>{t('Aucune visite enregistrée ce mois-ci.')}</div></Box>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[[t('Visites'), pivot.grand, 'var(--brand)'], ...ACT_GROUPES.map((g, i) => [t(g.label), pivot.parGroupe[i], g.bg])].map(([label, n, color]) => (
+              <div key={label} data-export-kpi={label} className="rounded-xl px-4 py-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--fg-muted)' }}>{label}</div>
+                <div data-kpi-value className="text-2xl font-bold" style={{ color }}>{n}</div>
+              </div>
+            ))}
+          </div>
+          <Box>
+            {vue === 'jour' ? jour : semaine}
+            {/* Le fichier Excel contient les deux présentations : par jour (comme le tableau du Point Focal) et par semaine */}
+            <div data-export-only style={{ display: 'none' }}>{vue === 'jour' ? semaine : jour}</div>
+            <div data-export-note className="px-4 py-2 text-xs space-y-0.5" style={{ borderTop: '1px solid var(--border)', color: 'var(--fg-muted)' }}>
+              <div>{t('Spécialiste Int : spécialiste de l\'hôpital (chirurgie, gynécologie, PMI…). Spécialiste Ext : spécialiste externe qui consulte à l\'hôpital (dentiste, ophtalmologie, ORL, gastro-entérologie, urologie, chirurgie pédiatrique).')}</div>
+              <div>{t('Labo : laboratoire, radiologie, échographie. Présentation résultat : visite « AUTRE » vers un médecin. Semaines du lundi au dimanche ; infirmerie du lieu de la visite.')}</div>
+              {data.sansType > 0 && <div>{t('{{count}} visite(s) sans type saisi comptée(s) en consultation.', { count: data.sansType })}</div>}
+            </div>
+          </Box>
+        </>
+      )}
     </div>
   );
 }
