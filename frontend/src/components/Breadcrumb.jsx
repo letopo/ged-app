@@ -29,6 +29,7 @@ const ROUTE_LABELS = {
   '/php/consultations':          'Consultations',
   '/php/statistiques':           'Statistiques',
   '/php/repos':                  'Repos & Hospitalisations',
+  '/php/pharmacie':              'Registre de pharmacie',
 };
 
 const HIDDEN_ROUTES = ['/dashboard', '/login', '/register', '/display'];

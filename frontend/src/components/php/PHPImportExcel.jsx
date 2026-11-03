@@ -9,7 +9,7 @@ import { phpImportAPI } from '../../services/phpService';
 
 const SECTIONS = [
   ['patients', 'Patients'], ['consultations', 'Consultations'], ['hospitalisations', 'Hospitalisations'],
-  ['operations', 'Opérations'], ['repos', 'Repos maladie'], ['deces', 'Décès / transferts'],
+  ['operations', 'Opérations'], ['repos', 'Repos maladie'], ['deces', 'Décès / transferts'], ['pharmacie', 'Pharmacie'],
   ['infirmeries', 'Infirmeries'], ['secteurs', 'Secteurs'],
 ];
 const frDay = (d) => (d ? d.split('-').reverse().join('/') : '');
@@ -51,7 +51,7 @@ export default function PHPImportExcel({ onClose, onDone }) {
 
         <div className="p-5 space-y-4" style={{ overflowY: 'auto' }}>
           <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>
-            {t('Patients, consultations (avec type de visite CS / RDV / AUTRE, n° d\'ordre et heures), hospitalisations, opérations, repos et décès. Vous pouvez réimporter le fichier à chaque mise à jour : les lignes déjà importées sont mises à jour, jamais dupliquées.')}
+            {t('Patients, consultations (avec type de visite CS / RDV / AUTRE, n° d\'ordre et heures), hospitalisations, opérations, repos, décès et registre de pharmacie. Vous pouvez réimporter le fichier à chaque mise à jour : les lignes déjà importées sont mises à jour, jamais dupliquées.')}
           </p>
 
           {(step === 'choose' || busy) && (

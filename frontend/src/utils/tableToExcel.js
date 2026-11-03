@@ -44,6 +44,7 @@ function layout(table) {
   [...table.rows].forEach((tr, r) => {
     let c = 0;
     for (const td of tr.cells) {
+      if (td.hasAttribute('data-export-skip')) continue; // boutons d'action : écran seulement (dernière colonne)
       while (taken[r]?.[c]) c++;
       const rs = Math.max(1, td.rowSpan || 1);
       const cs = Math.max(1, td.colSpan || 1);

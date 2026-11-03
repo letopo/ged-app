@@ -45,6 +45,7 @@ import ConsultationPHP from './ConsultationPHP.js';
 import HospitalisationPHP from './HospitalisationPHP.js';
 import ReposPHP from './ReposPHP.js';
 import PhpIndicateur from './PhpIndicateur.js';
+import PharmacieLignePHP from './PharmacieLignePHP.js';
 import OperationPHP from './OperationPHP.js';
 import DecesTransfertPHP from './DecesTransfertPHP.js';
 import RendezVousPHP from './RendezVousPHP.js';
@@ -137,6 +138,7 @@ const db = {
   HospitalisationPHP,
   ReposPHP,
   PhpIndicateur,
+  PharmacieLignePHP,
   OperationPHP,
   DecesTransfertPHP,
   RendezVousPHP,
@@ -326,6 +328,7 @@ export {
   HospitalisationPHP,
   ReposPHP,
   PhpIndicateur,
+  PharmacieLignePHP,
   OperationPHP,
   DecesTransfertPHP,
   PhpFacture,

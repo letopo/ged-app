@@ -12,13 +12,15 @@
 //    n° d'ordre du jour / type de visite (CS, RDV, AUTRE) / heures d'arrivée
 //    et de passage.
 //  - Les noms de services sont uniformisés (GASTRO, GASTROLOGUE → GASTROENTEROLOGIE…).
+//  - Feuille PHARMACIE : un produit par ligne, sous la colonne de sa source
+//    (HSJM, hôpital extérieur, médecin du travail), quantité et nombre servi.
 // Simulation par défaut (apply=false) : rien n'est écrit, le rapport dit ce qui changerait.
 import ExcelJS from 'exceljs';
 import crypto from 'crypto';
 import { sequelize } from '../models/index.js';
 import {
   Infirmerie, Secteur, PatientPHP, BonPriseEnCharge, ConsultationPHP,
-  HospitalisationPHP, OperationPHP, ReposPHP, DecesTransfertPHP,
+  HospitalisationPHP, OperationPHP, ReposPHP, DecesTransfertPHP, PharmacieLignePHP,
 } from '../models/index.js';
 
 // ── Lecture des cellules ─────────────────────────────────────────────────────
@@ -161,6 +163,36 @@ export function fixSwappedDay(day, previous = null, today = new Date().toISOStri
   return swappedOk ? { day: swapped, fixed: true } : { day: null };
 }
 
+// Registre tenu à la main : en plus de l'inversion jour/mois, une faute sur
+// l'année (2025 pour 2026) ou sur le mois (31/01 au milieu du 30/07 et du
+// 03/08) est corrigée quand elle ramène la date à côté de la ligne précédente.
+export function fixTypoDay(day, previous = null, today = new Date().toISOString().slice(0, 10)) {
+  const swapped = fixSwappedDay(day, previous, today);
+  if (!day || !previous || swapped.fixed || gapDays(day, previous) <= 20) return swapped;
+  const [y, m, d] = day.split('-');
+  const [py, pm] = previous.split('-');
+  for (const candidate of [`${py}-${m}-${d}`, `${y}-${pm}-${d}`]) {
+    const ts = Date.parse(candidate);
+    if (candidate !== day && !Number.isNaN(ts) && new Date(ts).toISOString().slice(0, 10) === candidate
+      && candidate <= today && gapDays(candidate, previous) <= 20) return { day: candidate, fixed: true };
+  }
+  return swapped;
+}
+
+const PHARMACIE_COLUMNS = [[6, 'hsjm'], [8, 'hopital_ext'], [10, 'medecin_travail']];
+
+// Produit saisi avec sa quantité dans la même cellule, séparée par de grands
+// espaces (« ANTALGEX-T                1 ») ; un nombre collé au nom est un dosage
+// (« OMEPRAZOLE 20 ») et reste dans le nom.
+export function splitProduit(v) {
+  const r = raw(v);
+  if (r === null || r instanceof Date) return { produit: null, quantite: null };
+  const s = String(r);
+  const m = s.match(/^(.*\S)\s{4,}(\d{1,3})\s*$/);
+  const produit = (m ? m[1] : s).replace(/\s+/g, ' ').trim().toUpperCase().slice(0, 255);
+  return { produit: produit || null, quantite: m ? Number(m[2]) : null };
+}
+
 const shortHash = (...parts) => crypto.createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 16);
 
 // ── Lecture du classeur ──────────────────────────────────────────────────────
@@ -291,7 +323,37 @@ export async function parsePhpWorkbook(buffer) {
     });
   }
 
-  return { infirmeries, secteurs, patients, consultations, hospitalisations, operations, repos, deces, skipped, corrected };
+  // PHARMACIE : en-tête en ligne 4. Un même produit peut revenir pour le même
+  // patient le même jour : l'occurrence entre dans la référence de la ligne.
+  const pharmacie = [];
+  const seen = new Map();
+  let previousPharma = null;
+  for (const { v } of sheetRows(wb, 'PHARMACIE', 5)) {
+    const lu = toDay(v[2]);
+    const matricule = toMatricule(v[3]);
+    const cell = PHARMACIE_COLUMNS.map(([col, source]) => ({ source, col, ...splitProduit(v[col]) })).find(c => c.produit);
+    if (!cell) { if (matricule) skip('Pharmacie', 'produit absent'); continue; }
+    const { day, fixed } = fixTypoDay(lu, previousPharma);
+    if (!day) { skip('Pharmacie', lu ? 'date dans le futur' : 'date absente'); continue; }
+    previousPharma = day;
+    if (fixed) corrected.push({ feuille: 'Pharmacie', n: toInt(v[1]), lu, corrige: day });
+    if (!matricule) { skip('Pharmacie', 'matricule absent ou non numérique'); continue; }
+    const servi = typeof raw(v[12]) === 'number' ? Math.max(0, Math.trunc(raw(v[12]))) : null;
+    const reste = typeof raw(v[13]) === 'number' ? Math.max(0, Math.trunc(raw(v[13]))) : null;
+    // Quantité : colonne QTE, sinon celle écrite après le produit, sinon servi + reste
+    const qte = toInt(v[cell.col + 1]) ?? cell.quantite ?? (servi !== null || reste !== null ? (servi || 0) + (reste || 0) : null) ?? 1;
+    const quantitePrescrite = Math.max(qte, servi ?? 0, 1);
+    const quantiteServie = servi ?? (reste !== null ? Math.max(quantitePrescrite - reste, 0) : 0);
+    const k = `${day}|${matricule}|${cell.source}|${cell.produit}`;
+    const occ = (seen.get(k) || 0) + 1;
+    seen.set(k, occ);
+    pharmacie.push({
+      ref: `P:${shortHash(k, occ)}`, day, matricule, nomComplet: upper(v[4], 255), secteur: upper(v[5], 255),
+      source: cell.source, produit: cell.produit, quantitePrescrite, quantiteServie,
+    });
+  }
+
+  return { infirmeries, secteurs, patients, consultations, hospitalisations, operations, repos, deces, pharmacie, skipped, corrected };
 }
 
 // ── Application ──────────────────────────────────────────────────────────────
@@ -328,11 +390,11 @@ export async function importPhpExcel(buffer, { apply = false, userId, tenantId }
     lu: {
       patients: data.patients.length, consultations: data.consultations.length,
       hospitalisations: data.hospitalisations.length, operations: data.operations.length,
-      repos: data.repos.length, deces: data.deces.length,
+      repos: data.repos.length, deces: data.deces.length, pharmacie: data.pharmacie.length,
     },
     infirmeries: emptyStats(), secteurs: emptyStats(), patients: emptyStats(),
     consultations: emptyStats(), hospitalisations: emptyStats(), operations: emptyStats(),
-    repos: emptyStats(), deces: emptyStats(),
+    repos: emptyStats(), deces: emptyStats(), pharmacie: emptyStats(),
     ignores: data.skipped,
     datesCorrigees: data.corrected,
     periode: null,
@@ -385,7 +447,7 @@ export async function importPhpExcel(buffer, { apply = false, userId, tenantId }
 
     // Patients : DB_Patients, complétés par les lignes des autres feuilles
     const patientsIn = new Map(data.patients.map(p => [p.matricule, p]));
-    for (const r of [...data.consultations, ...data.hospitalisations, ...data.operations, ...data.repos, ...data.deces]) {
+    for (const r of [...data.consultations, ...data.hospitalisations, ...data.operations, ...data.repos, ...data.deces, ...data.pharmacie]) {
       if (!patientsIn.has(r.matricule) && r.nomComplet) patientsIn.set(r.matricule, { matricule: r.matricule, nomComplet: r.nomComplet, secteur: r.secteur, infirmerie: r.infirmerie });
     }
     const existingPatients = new Map((await PatientPHP.findAll({ ...opts, attributes: ['id', 'matricule', 'nom', 'prenom', 'secteurId', 'infirmerieId'] })).map(p => [p.matricule, p]));
@@ -530,6 +592,30 @@ export async function importPhpExcel(buffer, { apply = false, userId, tenantId }
       build: (r, pid) => ({
         patientId: pid, type: r.type, date: r.day, motif: r.motif || r.diagnostic,
         destination: r.destination, causesDeces: r.type === 'deces' ? r.diagnostic : null, notes: r.notes, enregistreParId: userId,
+      }),
+    });
+
+    // Pharmacie : rattachée à la consultation du patient ce jour-là, s'il y en a une
+    const consultationDuJour = new Map();
+    for (const c of await ConsultationPHP.findAll({ ...opts, attributes: ['id', 'patientId', 'dateConsultation', 'numeroOrdre'], order: [['numeroOrdre', 'ASC NULLS LAST'], ['createdAt', 'ASC']] })) {
+      const k = `${c.patientId}|${c.dateConsultation}`;
+      if (!consultationDuJour.has(k)) consultationDuJour.set(k, c.id);
+    }
+    // (en simulation, les nouvelles consultations ne sont pas encore en base)
+    const consultationByRef = new Map(data.consultations.map(c => [c.ref, c]));
+    for (const [ref, id] of consultIdByRef) {
+      const r = consultationByRef.get(ref);
+      const pid = r && patientId.get(r.matricule);
+      if (pid && !consultationDuJour.has(`${pid}|${r.day}`)) consultationDuJour.set(`${pid}|${r.day}`, id);
+    }
+    await upsertRows({
+      model: PharmacieLignePHP, rows: data.pharmacie, stats: report.pharmacie,
+      key: (r) => r.ref,
+      legacyKey: (e) => e.id,
+      build: (r, pid) => ({
+        patientId: pid, consultationId: consultationDuJour.get(`${pid}|${r.day}`) || null,
+        datePrescription: r.day, source: r.source, produit: r.produit, tenantId,
+        quantitePrescrite: r.quantitePrescrite, quantiteServie: r.quantiteServie,
       }),
     });
 

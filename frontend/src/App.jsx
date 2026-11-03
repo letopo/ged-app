@@ -62,6 +62,7 @@ import PHPPatients from './pages/PHPPatients';
 import PHPStatistiques from './pages/PHPStatistiques';
 import PHPConsultations from './pages/PHPConsultations';
 import PHPReposHospit from './pages/PHPReposHospit';
+import PHPPharmacie from './pages/PHPPharmacie';
 import PhpFactures from './pages/PhpFactures';
 import ComptaDocuments from './pages/ComptaDocuments';
 import AccessControlPage from './pages/AccessControlPage';
@@ -386,6 +387,7 @@ function App() {
           <Route path="/php/consultations" element={<PHPRoute><PageWrapper><PHPConsultations /></PageWrapper></PHPRoute>} />
           <Route path="/php/statistiques"  element={<PHPRoute><PageWrapper><PHPStatistiques /></PageWrapper></PHPRoute>} />
           <Route path="/php/repos"         element={<PHPRoute><PageWrapper><PHPReposHospit /></PageWrapper></PHPRoute>} />
+          <Route path="/php/pharmacie"     element={<PHPRoute><PageWrapper><PHPPharmacie /></PageWrapper></PHPRoute>} />
           <Route path="/php/factures"      element={<PHPRoute><PageWrapper><PhpFactures /></PageWrapper></PHPRoute>} />
           <Route path="/compta"            element={<ComptaRoute><PageWrapper><ComptaDocuments /></PageWrapper></ComptaRoute>} />
           <Route path="/admin/droits-acces" element={<AdminRoute><PageWrapper><AccessControlPage /></PageWrapper></AdminRoute>} />

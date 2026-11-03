@@ -7,7 +7,7 @@ import {
   Users, UserPlus, FileText, Activity, Clock, Hospital,
   BedDouble, Stethoscope, TrendingUp, Search, Plus,
   RefreshCw, AlertCircle, CheckCircle, ChevronRight,
-  ClipboardList, BarChart3, Timer, ArrowRight, CalendarDays, X, Trash2, Receipt, FileSpreadsheet
+  ClipboardList, BarChart3, Timer, ArrowRight, CalendarDays, X, Trash2, Receipt, FileSpreadsheet, Pill
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -456,11 +456,12 @@ export default function PHPModule() {
       </div>
 
       {/* Liens rapides */}
-      <div className="mt-6 grid grid-cols-2 sm:grid-cols-6 gap-3">
+      <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <QuickLink to="/php/patients" icon={<Users size={18} />} label={t('Patients')} color="blue" />
         <QuickLink to="/php/consultations" icon={<Stethoscope size={18} />} label={t('Consultations')} color="green" />
         <QuickLink to="/php/statistiques" icon={<BarChart3 size={18} />} label={t('Statistiques')} color="indigo" />
         <QuickLink to="/php/repos" icon={<BedDouble size={18} />} label={t('Repos / Hospit.')} color="orange" />
+        <QuickLink to="/php/pharmacie" icon={<Pill size={18} />} label={t('Pharmacie')} color="green" />
         <QuickLink to="/php/factures" icon={<Receipt size={18} />} label={t('Factures')} color="green" />
         <button
           onClick={() => { setShowRdvModal(true); loadRdv(); }}
