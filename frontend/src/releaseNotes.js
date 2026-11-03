@@ -990,6 +990,18 @@ const RELEASE_NOTES = [
       '« Exporter en Excel » télécharge le tableau du mois, par jour et par semaine, avec les totaux.',
     ],
   },
+  {
+    id: '2026-11-03-ambulance-inventaire-quotidien',
+    date: '2026-11-03',
+    target: '/vehicules',
+    title: 'Ambulances : inventaire tous les jours',
+    access: (user) => !!user?.fleet?.hasModule,
+    items: [
+      'L\'inventaire du matériel des ambulances est ouvert tous les jours (et plus seulement lundi, mercredi et vendredi), comme le demande le RO SAU.',
+      'Une fois l\'inventaire fait, la fenêtre de l\'ambulance l\'indique : « Inventaire du jour fait par … », et le jour passe en vert.',
+      'Les fiches d\'inventaire et de contrôle (véhicule, matériel médical) sont transmises au Chef de pôle RO SAU : il les retrouve dans Documents › Reçus.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

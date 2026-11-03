@@ -120,15 +120,15 @@ test('inventaire : quantités négatives ou invalides', () => {
   assert.equal(r.answers.find((a) => a.itemId === 'draps').present, 0);
   assert.equal(r.answers.find((a) => a.itemId === 'ballon').present, null);
 });
-test('fiche RO SAU par défaut : 74 lignes, lun / mer / ven, valide une fois nettoyée', () => {
+test('fiche RO SAU par défaut : 74 lignes, tous les jours, valide une fois nettoyée', () => {
   const lines = DEFAULT_INVENTORY_SECTIONS.reduce((n, s) => n + s.items.length, 0);
   assert.equal(lines, 74);
-  assert.deepEqual(DEFAULT_INVENTORY_DAYS, [1, 3, 5]);
+  assert.deepEqual(DEFAULT_INVENTORY_DAYS, [0, 1, 2, 3, 4, 5, 6]);
   assert.deepEqual(sanitizeInventorySections(DEFAULT_INVENTORY_SECTIONS), DEFAULT_INVENTORY_SECTIONS);
 });
-test('jours d\'inventaire : nettoyés, défaut lun / mer / ven', () => {
+test('jours d\'inventaire : nettoyés, défaut tous les jours', () => {
   assert.deepEqual(sanitizeInventoryDays([5, 1, 1, 9, 'x']), [1, 5]);
-  assert.deepEqual(sanitizeInventoryDays([]), [1, 3, 5]);
+  assert.deepEqual(sanitizeInventoryDays([]), [0, 1, 2, 3, 4, 5, 6]);
 });
 test('semaine : lundi de la semaine, jour de Douala', () => {
   assert.equal(weekStart('2026-10-26'), '2026-10-26');

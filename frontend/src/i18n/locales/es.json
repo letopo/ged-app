@@ -3109,5 +3109,9 @@
   "Bonne année {{year}} !": "¡Feliz año {{year}}!",
   "Joyeuses fêtes de fin d’année !": "¡Felices fiestas!",
   "Décor de fêtes": "Decoración festiva",
-  "Neige, guirlande et bonnet de Noël sur l’interface": "Nieve, guirnalda y gorro de Papá Noel en la interfaz"
+  "Neige, guirlande et bonnet de Noël sur l’interface": "Nieve, guirnalda y gorro de Papá Noel en la interfaz",
+  "Inventaire du matériel": "Inventario del material",
+  "Refaire l'inventaire": "Rehacer el inventario",
+  "Inventaire du jour fait par {{name}} le {{date}}": "Inventario del día hecho por {{name}} el {{date}}",
+  "Fiche RO SAU : quantité requise de chaque article, relevée par l'infirmier les jours choisis (tous les jours par défaut). Un manque part dans la liste de réassort ; un point critique en défaut rend l'ambulance indisponible.": "Ficha RO SAU: cantidad requerida de cada artículo, contada por el enfermero los días elegidos (todos los días por defecto). Una falta pasa a la lista de reposición; un punto crítico fallido deja la ambulancia no disponible."
 }

@@ -3109,5 +3109,9 @@
   "Bonne année {{year}} !": "سنة سعيدة {{year}}!",
   "Joyeuses fêtes de fin d’année !": "أعياد سعيدة!",
   "Décor de fêtes": "زينة الأعياد",
-  "Neige, guirlande et bonnet de Noël sur l’interface": "الثلج والزينة وقبعة بابا نويل على الواجهة"
+  "Neige, guirlande et bonnet de Noël sur l’interface": "الثلج والزينة وقبعة بابا نويل على الواجهة",
+  "Inventaire du matériel": "جرد المعدات",
+  "Refaire l'inventaire": "إعادة الجرد",
+  "Inventaire du jour fait par {{name}} le {{date}}": "جرد اليوم أنجزه {{name}} في {{date}}",
+  "Fiche RO SAU : quantité requise de chaque article, relevée par l'infirmier les jours choisis (tous les jours par défaut). Un manque part dans la liste de réassort ; un point critique en défaut rend l'ambulance indisponible.": "بطاقة RO SAU: الكمية المطلوبة من كل صنف، يعدّها الممرض في الأيام المختارة (كل يوم افتراضيًا). يُدرج النقص في قائمة إعادة التزويد؛ وأي خلل في بند حرج يجعل سيارة الإسعاف غير متاحة."
 }
