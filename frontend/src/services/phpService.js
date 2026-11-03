@@ -63,6 +63,7 @@ export const phpStatsAPI = {
   // Tableaux de l'Excel du Point Focal
   getTableauJour: (params) => api.get('/php/stats/tableau-jour', { params }),
   getIndicateurs: (params) => api.get('/php/stats/indicateurs', { params }),
+  getActivite: (params) => api.get('/php/stats/activite', { params }),
   getIndicateursConfig: () => api.get('/php/stats/indicateurs/config'),
   saveIndicateursConfig: (data) => api.put('/php/stats/indicateurs/config', data),
 };

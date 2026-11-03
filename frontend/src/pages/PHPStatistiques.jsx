@@ -11,7 +11,7 @@ import {
 import { Link } from 'react-router-dom';
 import { phpStatsAPI } from '../services/phpService';
 import { exportTablesToExcel } from '../utils/tableToExcel';
-import { TabTableauDuJour, TabIndicateurs } from '../components/php/PHPTableauxPointFocal';
+import { TabTableauDuJour, TabIndicateurs, TabActiviteInfirmeries } from '../components/php/PHPTableauxPointFocal';
 import { useAuth } from '../contexts/AuthContext';
 import { phpAccess } from '../utils/phpAccess';
 import toast from 'react-hot-toast';
@@ -698,6 +698,7 @@ function TabPathologies({ data, loading, onRefresh }) {
 const getTabs = (t) => [
   { key: 'jour',         label: t('Tableau du jour')       },
   { key: 'indicateurs',  label: t('Indicateurs')           },
+  { key: 'activite',     label: t('Activité des infirmeries') },
   { key: 'journalier',   label: t('Rapport journalier')  },
   { key: 'synthese',     label: t('Synthèse mensuelle')   },
   { key: 'trimestriel',  label: t('Trimestriel')           },
@@ -714,7 +715,7 @@ export default function PHPStatistiques() {
   const [activeTab,  setActiveTab]  = useState('jour');
   const { user } = useAuth();
   // Onglets de l'Excel du Point Focal : leur propre période (jour, ou du/au)
-  const ownPeriodTab = activeTab === 'jour' || activeTab === 'indicateurs';
+  const ownPeriodTab = ['jour', 'indicateurs', 'activite'].includes(activeTab);
   const [tabPeriod, setTabPeriod] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [month,      setMonth]      = useState(now.getMonth() + 1);
@@ -919,6 +920,7 @@ export default function PHPStatistiques() {
       {/* Contenu des onglets (exporté tel quel en Excel) */}
       <div ref={contentRef}>
       {activeTab === 'jour'        && <TabTableauDuJour refreshKey={refreshKey} onPeriod={setTabPeriod} />}
+      {activeTab === 'activite'    && <TabActiviteInfirmeries refreshKey={refreshKey} onPeriod={setTabPeriod} />}
       {activeTab === 'indicateurs' && <TabIndicateurs refreshKey={refreshKey} onPeriod={setTabPeriod} canWrite={phpAccess(user).write} />}
       {activeTab === 'journalier'  && <TabJournalier data={rapportMensuel} loading={loadingMens} />}
       {activeTab === 'synthese'    && <TabSyntheseMensuelle data={rapportMensuel} loading={loadingMens} />}

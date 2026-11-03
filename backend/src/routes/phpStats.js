@@ -12,7 +12,7 @@ import {
   getRapportTrimestriel,
   getPathologiesParInfirmerie,
 } from '../controllers/phpStatsController.js';
-import { getTableauDuJour, getIndicateurs, listIndicateurs, saveIndicateurs } from '../controllers/phpIndicateursController.js';
+import { getTableauDuJour, getIndicateurs, getActiviteInfirmeries, listIndicateurs, saveIndicateurs } from '../controllers/phpIndicateursController.js';
 import { requirePhpWrite } from '../utils/phpAccess.js';
 
 const router = express.Router();
@@ -27,6 +27,8 @@ router.get('/pathologies',         protect, getPathologiesParInfirmerie);
 // Tableaux de l'Excel du Point Focal : tableau du jour (Feuil8/10), indicateurs (Feuil1)
 router.get('/tableau-jour',        protect, getTableauDuJour);
 router.get('/indicateurs',         protect, getIndicateurs);
+// Tableau PHP 2026 : activité des infirmeries, une feuille par mois
+router.get('/activite',            protect, getActiviteInfirmeries);
 // Mots-clés des indicateurs : lecture pour tous les postes PHP, modification à la saisie
 router.get('/indicateurs/config',  protect, listIndicateurs);
 router.put('/indicateurs/config',  protect, requirePhpWrite, saveIndicateurs);
