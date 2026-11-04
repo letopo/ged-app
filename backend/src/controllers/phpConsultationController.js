@@ -111,6 +111,16 @@ export const createConsultation = async (req, res) => {
     }
 
     const today = new Date().toISOString().split('T')[0];
+    // Date antérieure possible : rattrapage des consultations de la période où
+    // l'Excel ne fonctionnait pas (demande du 04/11/2026). Jamais dans le futur.
+    if (dateConsultation && (!/^\d{4}-\d{2}-\d{2}$/.test(dateConsultation) || Number.isNaN(Date.parse(dateConsultation)))) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: 'Date de consultation invalide.' });
+    }
+    if (dateConsultation && dateConsultation > today) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: 'La date de consultation ne peut pas être dans le futur.' });
+    }
     const jour = dateConsultation || today;
     // N° d'ordre du jour : à la suite des patients déjà enregistrés ce jour-là
     const dernier = await ConsultationPHP.max('numeroOrdre', { where: { dateConsultation: jour }, transaction: t });
@@ -211,7 +221,9 @@ export const cloturerConsultation = async (req, res) => {
       dureeAttenteMinutes = (hf * 60 + mf) - (ha * 60 + ma);
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    // Par défaut, les suites (hospitalisation, opération…) datent du jour de la
+    // consultation, qui peut être antérieur (consultation antidatée).
+    const today = consultation.dateConsultation || new Date().toISOString().split('T')[0];
 
     // Stocker le parcours complet (JSON) dans ordonnance pour l'affichage
     // Si spécialiste envoyé, ordonnance contient le nom de la spécialité — on enrichit

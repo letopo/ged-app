@@ -1002,6 +1002,18 @@ const RELEASE_NOTES = [
       'Les fiches d\'inventaire et de contrôle (véhicule, matériel médical) sont transmises au Chef de pôle RO SAU : il les retrouve dans Documents › Reçus.',
     ],
   },
+  {
+    id: '2026-11-04-php-labo-pharmacie-antidate',
+    date: '2026-11-04',
+    target: '/php',
+    title: 'Consultations PHP : Laboratoire, Pharmacie et date antérieure',
+    access: (user) => phpAccess(user).write,
+    items: [
+      'Laboratoire et Pharmacie s\'ajoutent à la liste des services à l\'enregistrement d\'une arrivée.',
+      'Nouveau champ « Date de la consultation » : aujourd\'hui par défaut, il permet de rattraper une consultation d\'un jour passé (période où l\'Excel ne fonctionnait pas). Le n° d\'ordre suit ceux de ce jour-là.',
+      'Pour la retrouver et la clôturer, choisissez sa date dans le filtre de la liste des consultations ; une consultation antidatée non clôturée est close automatiquement à minuit (Retour au travail).',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

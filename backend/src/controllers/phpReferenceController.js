@@ -201,6 +201,8 @@ export const getServicesMedicaux = async (req, res) => {
     { code: 'DERMATOLOGIE',   nom: 'Dermatologie' },
     { code: 'DENTISTERIE',    nom: 'Dentisterie' },
     { code: 'RADIOLOGIE',     nom: 'Radiologie / Imagerie' },
+    { code: 'LABORATOIRE',    nom: 'Laboratoire' },
+    { code: 'PHARMACIE',      nom: 'Pharmacie' },
   ];
   res.json({ success: true, data: services });
 };

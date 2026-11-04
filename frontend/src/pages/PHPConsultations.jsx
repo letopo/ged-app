@@ -449,7 +449,8 @@ function CloturerConsultationModal({ consultation, loading, onClose, onSubmit })
 
   // Champs détaillés par parcours
   const [serviceHospitalisation, setServiceHospitalisation] = useState('');
-  const [dateDebut, setDateDebut]   = useState(new Date().toISOString().split('T')[0]);
+  // Repos à partir du jour de la consultation (qui peut être antidatée)
+  const [dateDebut, setDateDebut]   = useState(consultation?.dateConsultation || new Date().toISOString().split('T')[0]);
   const [dateFin, setDateFin]       = useState('');
   const [specialite, setSpecialite] = useState('');
   const [specialiteAutre, setSpecialiteAutre] = useState('');

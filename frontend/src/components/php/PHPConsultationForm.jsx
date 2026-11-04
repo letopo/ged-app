@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Stethoscope, Clock, AlertCircle, Loader, CheckCircle } from 'lucide-react';
+import { X, Stethoscope, Clock, AlertCircle, Loader, CheckCircle, CalendarDays } from 'lucide-react';
 import { phpConsultationAPI, phpReferenceAPI } from '../../services/phpService';
 
 const inputStyle = {
@@ -18,7 +18,7 @@ export const TYPES_VISITE = [['CS', 'Consultation'], ['RDV', 'Rendez-vous de sui
 const labelStyle = { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)', marginBottom: 4 };
 
 export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [loading, setLoading]             = useState(false);
   const [error,   setError]               = useState(null);
   const [success, setSuccess]             = useState(false);
@@ -26,9 +26,11 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
 
   const now           = new Date();
   const heureActuelle = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const today         = now.toISOString().split('T')[0];
+  // Date locale (Douala) : toISOString() donnerait la veille entre minuit et 1 h
+  const today         = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const [form, setForm] = useState({
+    dateConsultation: today,
     heureArrivee: heureActuelle,
     serviceName:  '',
     typeVisite:   'CS',
@@ -46,6 +48,7 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
     e.preventDefault();
     if (!form.serviceName) { setError(t('Veuillez sélectionner un service')); return; }
     if (!form.motif.trim()) { setError(t('Le motif de consultation est obligatoire')); return; }
+    if (!form.dateConsultation || form.dateConsultation > today) { setError(t('La date de consultation ne peut pas être dans le futur.')); return; }
 
     setLoading(true);
     setError(null);
@@ -53,7 +56,7 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
       await phpConsultationAPI.create({
         patientId:           patient.id,
         bonPriseEnChargeId:  patient.bons?.[0]?.id || null,
-        dateConsultation:    today,
+        dateConsultation:    form.dateConsultation,
         heureArrivee:        form.heureArrivee,
         serviceName:         form.serviceName,
         typeVisite:          form.typeVisite,
@@ -122,6 +125,22 @@ export default function PHPConsultationForm({ patient, onClose, onSuccess }) {
                   {error}
                 </div>
               )}
+
+              {/* Date : aujourd'hui par défaut, antérieure pour rattraper une consultation non saisie */}
+              <div>
+                <label style={labelStyle}>
+                  <CalendarDays size={11} style={{ display: 'inline', marginRight: 4 }} />
+                  {t('Date de la consultation')}
+                </label>
+                <input type="date" value={form.dateConsultation} max={today}
+                  onChange={e => setForm(f => ({ ...f, dateConsultation: e.target.value }))}
+                  required style={inputStyle} />
+                {form.dateConsultation && form.dateConsultation < today && (
+                  <p style={{ fontSize: 12, color: '#b45309', margin: '4px 0 0' }}>
+                    {t('Consultation antidatée : elle sera enregistrée au {{date}}. Pensez à la clôturer aujourd\'hui, sinon elle sera close automatiquement à minuit (Retour au travail).', { date: new Date(form.dateConsultation + 'T12:00:00').toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : i18n.language) })}
+                  </p>
+                )}
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
