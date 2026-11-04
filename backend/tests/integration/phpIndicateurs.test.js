@@ -111,7 +111,7 @@ test('mots-clés : début de mot, caractères spéciaux pris à la lettre', () =
 
 test('créer une consultation : elle garde l\'infirmerie et le secteur du patient', async () => {
   const p = await f.run(() => PatientPHP.create({ matricule: `7${uid()}`, nom: 'TROIS', secteurId: secA.id, infirmerieId: infA.id }));
-  const res = await request(app).post('/api/php/consultations').set(as(focal)).send({ patientId: p.id, typeVisite: 'CS', serviceName: 'MEDECINE', dateConsultation: '2031-04-02' });
+  const res = await request(app).post('/api/php/consultations').set(as(focal)).send({ patientId: p.id, typeVisite: 'CS', serviceName: 'MEDECINE', dateConsultation: '2021-04-02' });
   assert.equal(res.status, 201, JSON.stringify(res.body));
   const row = await ConsultationPHP.findByPk(res.body.data.id);
   assert.equal(row.infirmerieId, infA.id);
