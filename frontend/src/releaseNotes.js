@@ -1025,6 +1025,17 @@ const RELEASE_NOTES = [
       'Dans ce circuit, la Caissière signe la pièce (pas de bouton « Payer ») ; les autres pièces de caisse ne changent pas.',
     ],
   },
+  {
+    id: '2026-11-05-finances-patients-externes',
+    date: '2026-11-05',
+    target: '/sage-factures-php',
+    title: 'Finances : patients externes et hospitalisés',
+    items: [
+      'BL PHP et Factures PHP : nouveau filtre « Patients externes / Patients hospitalisés ».',
+      'Externe = consultation, laboratoire, imagerie, pharmacie, sans hospitalisation (même en gynécologie, pédiatrie ou chirurgie). Hospitalisé = au moins une chambre, un acte du bloc, une anesthésie ou un accouchement, d\'après les familles d\'articles Sage.',
+      'Les totaux par catégorie s\'affichent en haut de page, le badge « Hospitalisé » sur chaque ligne, et la colonne « Parcours » dans l\'export.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

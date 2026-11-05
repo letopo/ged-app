@@ -150,6 +150,8 @@ export const getFactures = guard(async (req, res) => {
       horsBpc: by(f => f.horsBpc).length,
       employes: { n: by(f => f.patient.type === 'Employé PHP').length, montant: sum(by(f => f.patient.type === 'Employé PHP')) },
       familles: { n: by(f => f.patient.type === 'Famille PHP').length, montant: sum(by(f => f.patient.type === 'Famille PHP')) },
+      externes: { n: by(f => f.parcours === 'externe').length, montant: sum(by(f => f.parcours === 'externe')) },
+      hospitalises: { n: by(f => f.parcours === 'hospitalise').length, montant: sum(by(f => f.parcours === 'hospitalise')) },
       ged: {
         nonImportees: by(f => !f.ged).length,
         enCircuit: by(f => f.ged?.state === 'in_progress').length,

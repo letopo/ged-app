@@ -26,6 +26,15 @@ const STATUS = {
   late:        { label: 'En retard',    color: 'var(--danger)', bg: 'var(--danger-soft)' },
 };
 
+
+// Externe : consultation, labo, imagerie, pharmacie… sans séjour ni bloc (règle côté serveur, utils/sageBl.js)
+const PARCOURS = { externe: 'Externe', hospitalise: 'Hospitalisé' };
+const PARCOURS_AIDE = 'Externe : consultation, laboratoire, imagerie, pharmacie, sans hospitalisation. Hospitalisé : au moins une chambre, un acte du bloc, une anesthésie ou un accouchement.';
+function ParcoursBadge({ parcours, t }) {
+  if (parcours !== 'hospitalise') return null;
+  return <span title={t(PARCOURS_AIDE)} style={{ padding: '1px 7px', borderRadius: 999, fontSize: 11, fontWeight: 500, background: 'var(--warning-soft)', color: 'var(--warning)' }}>{t('Hospitalisé')}</span>;
+}
+
 function StatusBadge({ b, t }) {
   const s = STATUS[b.status];
   const detail = b.status === 'in_progress'
@@ -200,6 +209,7 @@ export default function SageBlPhp() {
   const [type, setType] = useState('all');
   const [service, setService] = useState('all');
   const [secteur, setSecteur] = useState('all');
+  const [parcours, setParcours] = useState('all');
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(null);
   const [page, setPage] = useState(1);
@@ -226,17 +236,18 @@ export default function SageBlPhp() {
       && (type === 'all' || b.patient.type === type)
       && (service === 'all' || b.services.includes(service))
       && (secteur === 'all' || b.patient.secteur === secteur)
+      && (parcours === 'all' || b.parcours === parcours)
       && (!needle || [b.patient.nom, b.patient.compteTiers, b.patient.matricule, b.patient.nomAssure, ...b.bl.map(x => x.piece)].some(v => (v || '').toLowerCase().includes(needle))))
       .sort((a, c) => order[a.status] - order[c.status] || a.joursDepuisFin - c.joursDepuisFin || c.total - a.total);
-  }, [bpcs, status, type, service, secteur, q]);
-  useEffect(() => { setPage(1); setOpen(null); }, [status, type, service, secteur, q]);
+  }, [bpcs, status, type, service, secteur, parcours, q]);
+  useEffect(() => { setPage(1); setOpen(null); }, [status, type, service, secteur, parcours, q]);
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const k = data?.kpis;
 
   const exportCsv = () => {
-    const rows = [[t('Patient'), t('Compte tiers'), t('Type'), t('Matricule'), t('Assuré'), t('Secteur'), t('Début BPC'), t('Fin BPC'), t('État'), t('Jours depuis la fin'), t('BL'), t('Services'), t('Montant TTC')]];
-    filtered.forEach(b => rows.push([b.patient.nom, b.patient.compteTiers, b.patient.type || '', b.patient.matricule || '', b.patient.nomAssure || '', b.patient.secteur || '', fmtDate(b.start), fmtDate(b.end), t(STATUS[b.status].label), b.joursDepuisFin, b.bl.map(x => x.piece).join(' '), b.services.join(' '), b.total]));
+    const rows = [[t('Patient'), t('Compte tiers'), t('Type'), t('Matricule'), t('Assuré'), t('Secteur'), t('Début BPC'), t('Fin BPC'), t('État'), t('Jours depuis la fin'), t('BL'), t('Services'), t('Parcours'), t('Montant TTC')]];
+    filtered.forEach(b => rows.push([b.patient.nom, b.patient.compteTiers, b.patient.type || '', b.patient.matricule || '', b.patient.nomAssure || '', b.patient.secteur || '', fmtDate(b.start), fmtDate(b.end), t(STATUS[b.status].label), b.joursDepuisFin, b.bl.map(x => x.piece).join(' '), b.services.join(' '), t(PARCOURS[b.parcours]), b.total]));
     const csv = '﻿' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -287,6 +298,7 @@ export default function SageBlPhp() {
               {k.anciennete.map((a, i) => (
                 <span key={a.label}><span style={{ color: ['var(--brand)', 'var(--warning)', '#f97316', 'var(--danger)'][i] }}>●</span> {t(a.label)} : <strong style={{ color: 'var(--fg)' }}>{fmtMoneyShort(a.montant)}</strong> ({t('{{n}} BL', { n: a.bl })})</span>
               ))}
+              {k.parParcours?.map(p => <span key={p.parcours}>{t(PARCOURS[p.parcours])} : <strong style={{ color: 'var(--fg)' }}>{fmtMoneyShort(p.montant)}</strong> ({t('{{n}} BPC', { n: p.bpc })})</span>)}
               {k.parType.map(p => <span key={p.type} style={{ marginLeft: 'auto' }}>{t(p.type)} : <strong style={{ color: 'var(--fg)' }}>{fmtMoneyShort(p.montant)}</strong></span>)}
             </div>
           </div>
@@ -322,6 +334,11 @@ export default function SageBlPhp() {
                   <option value="all">{t('Tous les secteurs')}</option>
                   {secteurs.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
+                <select value={parcours} onChange={e => setParcours(e.target.value)} style={sel} title={t(PARCOURS_AIDE)}>
+                  <option value="all">{t('Externes et hospitalisés')}</option>
+                  <option value="externe">{t('Patients externes')}</option>
+                  <option value="hospitalise">{t('Patients hospitalisés')}</option>
+                </select>
               </div>
 
               <div className="ged-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -333,7 +350,7 @@ export default function SageBlPhp() {
                     <button type="button" onClick={() => setOpen(open === b.id ? null : b.id)} className="blphp-row">
                       <span style={{ color: 'var(--fg-subtle)', display: 'flex' }}>{open === b.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}</span>
                       <span className="blphp-patient">
-                        <span style={{ fontWeight: 600, color: 'var(--fg)' }}>{b.patient.nom}</span> <TypeBadge type={b.patient.type} t={t} />
+                        <span style={{ fontWeight: 600, color: 'var(--fg)' }}>{b.patient.nom}</span> <TypeBadge type={b.patient.type} t={t} /> <ParcoursBadge parcours={b.parcours} t={t} />
                         <span style={{ display: 'block', fontSize: 11.5, color: 'var(--fg-subtle)' }}>
                           {b.patient.compteTiers}{b.patient.matricule ? ` · ${t('Mat.')} ${b.patient.matricule}` : ''}{b.patient.secteur ? ` · ${b.patient.secteur}` : ''}
                           {b.patient.type === 'Famille PHP' && b.patient.nomAssure ? ` · ${t('Assuré')} : ${b.patient.nomAssure}` : ''}

@@ -18,6 +18,52 @@ export const BPC_DAYS = 3;
 export const LATE_DAYS = 30;          // BPC expiré depuis plus de 30 jours : « en retard »
 const COLLECTIFS = Object.keys(PHP_COMPTES_COLLECTIFS);
 
+// Patients externes / hospitalisés (demande de la facturation, 05/11/2026).
+// Un passage (BPC ou facture) est « hospitalisé » dès qu'un de ses actes relève
+// d'un séjour ou du bloc, d'après la famille d'article Sage :
+//   H511 / G411 / F311 / E211  chambres et frais d'hospitalisation (médecine,
+//                              pédiatrie, maternité, chirurgie)
+//   E214 bloc opératoire · E215 anesthésie (sauf la consultation d'anesthésie)
+//   D131 morgue · accouchements (MAT027-029) · chirurgie pédiatrique (BCA039)
+// Sinon il est « externe » : consultations, labo, imagerie, pharmacie, soins
+// de l'accueil… même en gynécologie, pédiatrie ou chirurgie.
+export const HOSPI_FAMILLES = ['H511', 'G411', 'F311', 'E211', 'E214', 'E215', 'D131'];
+export const HOSPI_ARTICLES = ['MAT027', 'MAT028', 'MAT029', 'BCA039'];
+export const NON_HOSPI_ARTICLES = ['CONSO32'];
+export const parcoursOf = (hospi) => (hospi ? 'hospitalise' : 'externe');
+
+// Références des articles « hospitalisation » (F_ARTICLE est petit : requête rapide).
+// On compare ensuite les lignes à cette liste, sans jointure : les jointures sur
+// F_DOCLIGNE dépassent le délai de Sage.
+export async function fetchHospiRefs(pool) {
+  const request = pool.request();
+  HOSPI_FAMILLES.forEach((f, i) => request.input(`f${i}`, sql.VarChar, f));
+  const r = await request.query(`SELECT AR_Ref FROM F_ARTICLE WHERE FA_CodeFamille IN (${HOSPI_FAMILLES.map((_, i) => `@f${i}`).join(', ')})`);
+  const refs = new Set(r.recordset.map(x => x.AR_Ref.trim()));
+  NON_HOSPI_ARTICLES.forEach(a => refs.delete(a));
+  HOSPI_ARTICLES.forEach(a => refs.add(a));
+  return [...refs];
+}
+
+// Pièces (parmi `pieces`, de type `types`) qui ont au moins une ligne d'hospitalisation
+async function piecesWithHospi(pool, pieces, types, refs) {
+  const out = new Set();
+  if (!refs.length) return out;
+  for (let i = 0; i < pieces.length; i += 200) {
+    const chunk = pieces.slice(i, i + 200);
+    const request = pool.request();
+    chunk.forEach((p, j) => request.input(`p${j}`, sql.VarChar, p));
+    refs.forEach((a, j) => request.input(`a${j}`, sql.VarChar, a));
+    const r = await request.query(`
+      SELECT DISTINCT DO_Piece FROM F_DOCLIGNE
+      WHERE DO_Domaine = 0 AND DO_Type IN (${types.join(', ')})
+        AND cbDO_Piece IN (${chunk.map((_, j) => `CONVERT(varbinary(13), @p${j})`).join(', ')})
+        AND AR_Ref IN (${refs.map((_, j) => `@a${j}`).join(', ')})`);
+    r.recordset.forEach(x => out.add(x.DO_Piece.trim()));
+  }
+  return out;
+}
+
 const DAY = 86_400_000;
 const dayOf = (d) => { const x = new Date(d); return Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate()); };
 const iso = (t) => new Date(t).toISOString().slice(0, 10);
@@ -39,7 +85,8 @@ export async function fetchPendingBl(pool) {
     JOIN F_COMPTET T ON T.CT_Num = E.DO_Tiers
     WHERE E.DO_Domaine = 0 AND E.DO_Type = 3 AND T.CG_NumPrinc IN (${inList})
     ORDER BY E.DO_Tiers, E.DO_Date`);
-  return r.recordset;
+  const hospi = await piecesWithHospi(pool, r.recordset.map(x => x.DO_Piece.trim()), [3], await fetchHospiRefs(pool));
+  return r.recordset.map(x => ({ ...x, hospi: hospi.has(x.DO_Piece.trim()) }));
 }
 
 /** Lignes (actes) de BL non facturés. */
@@ -78,7 +125,7 @@ export function groupIntoBpc(rows, now = new Date()) {
         bl: [],
       });
     }
-    patients.get(r.DO_Tiers).bl.push({ piece: r.DO_Piece, date: iso(dayOf(r.DO_Date)), service: (r.DO_Ref || '').trim() || null, montant: Number(r.DO_TotalTTC) || 0 });
+    patients.get(r.DO_Tiers).bl.push({ piece: r.DO_Piece, date: iso(dayOf(r.DO_Date)), service: (r.DO_Ref || '').trim() || null, montant: Number(r.DO_TotalTTC) || 0, hospi: Boolean(r.hospi) });
   }
 
   const out = [];
@@ -108,6 +155,7 @@ export function groupIntoBpc(rows, now = new Date()) {
         jour: status === 'in_progress' ? Math.round((today - g.start) / DAY) + 1 : null,   // J1, J2, J3
         joursDepuisFin: status === 'in_progress' ? 0 : daysSinceEnd,
         services: [...new Set(g.bl.map(b => b.service).filter(Boolean))],
+        parcours: parcoursOf(g.bl.some(b => b.hospi)),
         bl: g.bl.sort((a, c) => a.date.localeCompare(c.date) || a.piece.localeCompare(c.piece)),
         total, depassePlafond: p.plafond != null && total > p.plafond,
       });
@@ -131,6 +179,10 @@ export function summarize(bpcs) {
     enCours: { bpc: by('in_progress').length, montant: sum(by('in_progress')) },
     aFacturer: { bpc: by('to_invoice').length, montant: sum(by('to_invoice')) },
     enRetard: { bpc: by('late').length, montant: sum(by('late')) },
+    parParcours: ['externe', 'hospitalise'].map(parcours => {
+      const list = bpcs.filter(b => b.parcours === parcours);
+      return { parcours, bpc: list.length, bl: count(list), montant: sum(list) };
+    }),
     parType: Object.values(PHP_COMPTES_COLLECTIFS).map(type => {
       const list = bpcs.filter(b => b.patient.type === type);
       return { type, bpc: list.length, bl: count(list), montant: sum(list) };
@@ -207,6 +259,8 @@ export async function fetchFacturesPhp(pool, from, to) {
     rows.forEach(r => agg.set(`${r.DO_Piece}|${r.DO_Type}`, r));
   }
 
+  const hospi = await piecesWithHospi(pool, heads.map(h => h.DO_Piece.trim()), [6, 7], await fetchHospiRefs(pool));
+
   return heads.map(x => {
     const l = agg.get(`${x.DO_Piece}|${x.DO_Type}`) || {};
     const ecart = l.premierBl && l.dernierBl ? Math.round((dayOf(l.dernierBl) - dayOf(l.premierBl)) / DAY) : 0;
@@ -216,6 +270,7 @@ export async function fetchFacturesPhp(pool, from, to) {
       patient: { compteTiers: (x.DO_Tiers || '').trim(), nom: (x.CT_Intitule || '').trim(), type: phpBeneficiaryType(x.CG_NumPrinc), matricule: (x.matricule || '').trim() || null, secteur: (x.secteur || '').trim() || null, nomAssure: (x.nomAssure || '').trim() || null },
       nbBl: Number(l.nbBl) || 0, premierBl: l.premierBl ? iso(dayOf(l.premierBl)) : null, dernierBl: l.dernierBl ? iso(dayOf(l.dernierBl)) : null,
       ecartJours: ecart, horsBpc: ecart >= BPC_DAYS,
+      parcours: parcoursOf(hospi.has(x.DO_Piece.trim())),
     };
   });
 }

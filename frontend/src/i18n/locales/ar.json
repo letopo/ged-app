@@ -3115,5 +3115,13 @@
   "Inventaire du jour fait par {{name}} le {{date}}": "جرد اليوم أنجزه {{name}} في {{date}}",
   "Fiche RO SAU : quantité requise de chaque article, relevée par l'infirmier les jours choisis (tous les jours par défaut). Un manque part dans la liste de réassort ; un point critique en défaut rend l'ambulance indisponible.": "بطاقة RO SAU: الكمية المطلوبة من كل صنف، يعدّها الممرض في الأيام المختارة (كل يوم افتراضيًا). يُدرج النقص في قائمة إعادة التزويد؛ وأي خلل في بند حرج يجعل سيارة الإسعاف غير متاحة.",
   "La date de consultation ne peut pas être dans le futur.": "لا يمكن أن يكون تاريخ الاستشارة في المستقبل.",
-  "Consultation antidatée : elle sera enregistrée au {{date}}. Pensez à la clôturer aujourd'hui, sinon elle sera close automatiquement à minuit (Retour au travail).": "استشارة بتاريخ سابق: ستُسجَّل بتاريخ {{date}}. تذكّر إغلاقها اليوم، وإلا ستُغلق تلقائياً عند منتصف الليل (العودة إلى العمل)."
+  "Consultation antidatée : elle sera enregistrée au {{date}}. Pensez à la clôturer aujourd'hui, sinon elle sera close automatiquement à minuit (Retour au travail).": "استشارة بتاريخ سابق: ستُسجَّل بتاريخ {{date}}. تذكّر إغلاقها اليوم، وإلا ستُغلق تلقائياً عند منتصف الليل (العودة إلى العمل).",
+  "Externe": "خارجي",
+  "Parcours": "المسار",
+  "Externes et hospitalisés": "الخارجيون والمقيمون",
+  "Patients externes": "المرضى الخارجيون",
+  "Patients hospitalisés": "المرضى المقيمون",
+  "Externe : consultation, laboratoire, imagerie, pharmacie, sans hospitalisation. Hospitalisé : au moins une chambre, un acte du bloc, une anesthésie ou un accouchement.": "خارجي: استشارة، مختبر، تصوير، صيدلية، دون استشفاء. مقيم: غرفة واحدة على الأقل أو عمل في غرفة العمليات أو تخدير أو ولادة.",
+  "{{n}} BPC": "{{n}} BPC",
+  "{{n}} hospitalisés ({{m}})": "{{n}} مقيمون ({{m}})"
 }
