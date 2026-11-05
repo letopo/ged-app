@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Loader, RefreshCw, Download, Search, FileText, AlertCircle, CheckCircle, Clock, XCircle, FileSignature, Eye, Send, Users } from 'lucide-react';
+import { Loader, RefreshCw, Download, Search, FileText, AlertCircle, CheckCircle, Clock, XCircle, FileSignature, Eye, Send, Users, FileWarning } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sageBlAPI, sageFactureAPI } from '../services/phpService';
 import Pagination, { usePageSize } from '../components/Pagination';
@@ -93,7 +93,8 @@ export default function SageFacturesPHP() {
     return factures.filter(f =>
       (type === 'all' || f.patient.type === type)
       && (sage === 'all' || (sage === 'posted') === f.comptabilisee)
-      && (bpc === 'all' || (bpc === 'out') === f.horsBpc)
+      && (bpc === 'all' || (bpc === 'out' && f.horsBpc) || (bpc === 'ok' && !f.horsBpc)
+        || (bpc === 'incomplete' && f.blNonFactures?.length > 0) || (bpc === 'split' && f.memeBpc?.length > 0))
       && (parcours === 'all' || f.parcours === parcours)
       && (ged === 'all' || (f.ged?.state || 'none') === ged || (ged === 'rejected' && f.ged?.state === 'expired'))
       && (!needle || [f.piece, f.patient.nom, f.patient.compteTiers, f.patient.matricule, f.patient.secteur].some(v => (v || '').toLowerCase().includes(needle))));
@@ -103,8 +104,8 @@ export default function SageFacturesPHP() {
   const k = data?.kpis;
 
   const exportCsv = () => {
-    const rows = [[t('Facture'), t('Date'), t('Patient'), t('Compte tiers'), t('Type'), t('Matricule'), t('Secteur'), t('BL'), t('Premier BL'), t('Dernier BL'), t('Écart (j)'), t('État Sage'), t('État GED'), t('Parcours'), t('Montant TTC')]];
-    filtered.forEach(f => rows.push([f.piece, fmtDate(f.date), f.patient.nom, f.patient.compteTiers, f.patient.type || '', f.patient.matricule || '', f.patient.secteur || '', f.nbBl, fmtDate(f.premierBl), fmtDate(f.dernierBl), f.ecartJours, f.comptabilisee ? t('Comptabilisée') : t('Non comptabilisée'), t(GED[f.ged?.state || 'none'].label), t(PARCOURS[f.parcours]), f.total]));
+    const rows = [[t('Facture'), t('Date'), t('Patient'), t('Compte tiers'), t('Type'), t('Matricule'), t('Secteur'), t('BL'), t('Premier BL'), t('Dernier BL'), t('Écart (j)'), t('État Sage'), t('État GED'), t('Parcours'), t('BL du BPC non facturés'), t('Même BPC que'), t('Montant TTC')]];
+    filtered.forEach(f => rows.push([f.piece, fmtDate(f.date), f.patient.nom, f.patient.compteTiers, f.patient.type || '', f.patient.matricule || '', f.patient.secteur || '', f.nbBl, fmtDate(f.premierBl), fmtDate(f.dernierBl), f.ecartJours, f.comptabilisee ? t('Comptabilisée') : t('Non comptabilisée'), t(GED[f.ged?.state || 'none'].label), t(PARCOURS[f.parcours]), (f.blNonFactures || []).map(b => b.piece).join(' '), (f.memeBpc || []).join(' '), f.total]));
     const csv = '﻿' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -175,6 +176,7 @@ export default function SageFacturesPHP() {
             <Kpi icon={FileText} label={t('Factures')} value={k.factures.toLocaleString('fr-FR')} sub={`${fmtShort(k.montant)} · ${t('{{e}} employés, {{f}} familles', { e: k.employes.n, f: k.familles.n })}`} />
             {k.externes && <Kpi icon={Users} label={t('Patients externes')} value={k.externes.n.toLocaleString('fr-FR')} sub={`${fmtShort(k.externes.montant)} · ${t('{{n}} hospitalisés ({{m}})', { n: k.hospitalises.n, m: fmtShort(k.hospitalises.montant) })}`} color="var(--success)" active={parcours === 'externe'} onClick={() => setParcours(parcours === 'externe' ? 'all' : 'externe')} />}
             <Kpi icon={Clock} label={t('Non comptabilisées')} value={k.nonComptabilisees} sub={t('dans Sage')} color="var(--warning)" active={sage === 'draft'} onClick={() => setSage(sage === 'draft' ? 'all' : 'draft')} />
+            {k.bpcIncomplets && <Kpi icon={FileWarning} label={t('BL du BPC non facturés')} value={k.bpcIncomplets.bl} sub={t('{{n}} facture(s) incomplète(s) · {{m}}', { n: k.bpcIncomplets.n, m: fmtShort(k.bpcIncomplets.montant) })} color={k.bpcIncomplets.bl ? 'var(--danger)' : 'var(--success)'} active={bpc === 'incomplete'} onClick={() => setBpc(bpc === 'incomplete' ? 'all' : 'incomplete')} />}
             <Kpi icon={AlertCircle} label={t('BL hors période BPC')} value={k.horsBpc} sub={t('BL étalés sur plus de 3 jours')} color={k.horsBpc ? 'var(--danger)' : 'var(--success)'} active={bpc === 'out'} onClick={() => setBpc(bpc === 'out' ? 'all' : 'out')} />
             <Kpi icon={FileSignature} label={t('En signature (GED)')} value={k.ged.enCircuit} sub={t('{{v}} signées · {{n}} non importées', { v: k.ged.validees, n: k.ged.nonImportees })} color="var(--brand)" active={ged === 'in_progress'} onClick={() => setGed(ged === 'in_progress' ? 'all' : 'in_progress')} />
           </div>
@@ -213,6 +215,8 @@ export default function SageFacturesPHP() {
               <option value="all">{t('Contrôle BPC : tous')}</option>
               <option value="out">{t('BL hors période')}</option>
               <option value="ok">{t('BPC respecté')}</option>
+              <option value="incomplete">{t('BL du BPC non facturés')}</option>
+              <option value="split">{t('BPC en plusieurs factures')}</option>
             </select>
             <select value={ged} onChange={e => setGed(e.target.value)} style={sel}>
               <option value="all">{t('Tous les états GED')}</option>
@@ -247,6 +251,17 @@ export default function SageFacturesPHP() {
                   <span className="fphp-bl" style={{ color: f.horsBpc ? 'var(--danger)' : 'var(--fg-muted)' }}>
                     {t('{{n}} BL', { n: f.nbBl })}
                     <span style={{ display: 'block', fontSize: 11.5 }}>{f.premierBl ? `${fmtDate(f.premierBl)} → ${fmtDate(f.dernierBl)}` : '—'}{f.horsBpc ? ` · ${t('{{n}} j', { n: f.ecartJours })}` : ''}</span>
+                    {f.blNonFactures?.length > 0 && (
+                      <span title={f.blNonFactures.map(b => `${b.piece} · ${fmtDate(b.date)}${b.service ? ` · ${b.service}` : ''} · ${fmtMoney(b.montant)}`).join('\n')}
+                        style={{ display: 'block', marginTop: 3, fontSize: 11.5, fontWeight: 600, color: 'var(--danger)' }}>
+                        {t('+ {{n}} BL du BPC non facturé(s) : {{list}}', { n: f.blNonFactures.length, list: f.blNonFactures.map(b => b.piece).join(', ') })}
+                      </span>
+                    )}
+                    {f.memeBpc?.length > 0 && (
+                      <span style={{ display: 'block', marginTop: 2, fontSize: 11.5, color: 'var(--warning)' }}>
+                        {t('Même BPC que {{list}}', { list: f.memeBpc.join(', ') })}
+                      </span>
+                    )}
                   </span>
                   <span className="fphp-ged">
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, color: g.color, background: g.bg }}><GIcon size={12} /> {t(g.label)}</span>

@@ -8,7 +8,7 @@ import { TenantIntegration, TenantSettings, Poste, AuditLog, SageFactureImport, 
 import { decryptSecret } from '../utils/secretBox.js';
 import { SAGE_DEFAULTS } from '../utils/integrations.js';
 import { openSagePool } from '../utils/sageFactureSync.js';
-import { fetchPendingBl, fetchBlLines, groupIntoBpc, summarize, fetchInvoiceSpanControl, fetchFacturesPhp } from '../utils/sageBl.js';
+import { fetchPendingBl, fetchBlLines, groupIntoBpc, summarize, fetchInvoiceSpanControl, fetchFacturesPhp, fetchFacturedBlForBpc } from '../utils/sageBl.js';
 import { loadSageFacture } from '../utils/sageFactureData.js';
 import { buildFacturePhpPdf } from '../utils/facturePhpPdfBuilder.js';
 import { buildRelevePhpPdf, DEFAULT_RELEVE_LABELS } from '../utils/relevePhpPdfBuilder.js';
@@ -106,6 +106,16 @@ export const getLines = guard(async (req, res) => {
   res.json({ success: true, lines });
 });
 
+// GET /api/sage-bl/bpc-factures?tiers=&start=&end= — BL du patient déjà facturés sur la période d'un BPC
+export const getBpcFactures = guard(async (req, res) => {
+  const tiers = String(req.query.tiers || '').trim();
+  if (!/^[A-Z0-9]{1,17}$/i.test(tiers) || !isoDate(req.query.start) || !isoDate(req.query.end)) {
+    return res.status(400).json({ success: false, message: 'Paramètres invalides.' });
+  }
+  const factures = await withSage(req.tenantId, pool => fetchFacturedBlForBpc(pool, tiers, req.query.start, req.query.end));
+  res.json({ success: true, factures });
+});
+
 // GET /api/sage-bl/controle?days=30 — factures regroupant des BL sur plus de 3 jours
 export const getControl = guard(async (req, res) => {
   const data = await withSage(req.tenantId, pool => fetchInvoiceSpanControl(pool, req.query.days));
@@ -152,6 +162,8 @@ export const getFactures = guard(async (req, res) => {
       familles: { n: by(f => f.patient.type === 'Famille PHP').length, montant: sum(by(f => f.patient.type === 'Famille PHP')) },
       externes: { n: by(f => f.parcours === 'externe').length, montant: sum(by(f => f.parcours === 'externe')) },
       hospitalises: { n: by(f => f.parcours === 'hospitalise').length, montant: sum(by(f => f.parcours === 'hospitalise')) },
+      bpcIncomplets: { n: by(f => f.blNonFactures.length > 0).length, bl: list.reduce((n, f) => n + f.blNonFactures.length, 0), montant: list.reduce((m, f) => m + f.blNonFactures.reduce((x, b) => x + b.montant, 0), 0) },
+      bpcFractionnes: by(f => f.memeBpc.length > 0).length,
       ged: {
         nonImportees: by(f => !f.ged).length,
         enCircuit: by(f => f.ged?.state === 'in_progress').length,

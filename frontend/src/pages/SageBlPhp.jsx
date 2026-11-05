@@ -68,10 +68,15 @@ function Kpi({ icon: Icon, label, value, sub, color = 'var(--fg)', active, onCli
 function BpcDetail({ bpc, t }) {
   const [lines, setLines] = useState(null);
   const [error, setError] = useState(null);
+  const [factured, setFactured] = useState(null);
   useEffect(() => {
     sageBlAPI.lines(bpc.bl.map(b => b.piece))
       .then(r => setLines(r.data.lines))
       .catch(e => setError(e.response?.data?.message || t('Actes indisponibles')));
+    // BL de la même période déjà facturés : le BPC a pu être facturé en plusieurs fois
+    sageBlAPI.bpcFactures(bpc.patient.compteTiers, bpc.start, bpc.end)
+      .then(r => setFactured(r.data.factures))
+      .catch(() => setFactured([]));
   }, [bpc.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const p = bpc.patient;
   return (
@@ -84,6 +89,21 @@ function BpcDetail({ bpc, t }) {
         <span>{t('Date d’entrée (Sage)')} : <strong style={{ color: 'var(--fg)' }}>{fmtDate(p.dateEntree)}</strong></span>
         {p.plafond && <span style={{ color: bpc.depassePlafond ? 'var(--danger)' : undefined }}>{t('Plafond')} : <strong>{fmtMoney(p.plafond)}</strong></span>}
       </div>
+      {factured?.length > 0 && (
+        <div style={{ marginBottom: 10, padding: '8px 10px', border: '1px solid var(--warning)', borderRadius: 'var(--radius-2)', background: 'var(--warning-soft)', fontSize: 12.5 }}>
+          <div style={{ fontWeight: 600, color: 'var(--warning)', marginBottom: 4 }}>
+            {t('Déjà facturés sur ce BPC : {{n}} BL. Les BL ci-dessous restent à facturer.', { n: new Set(factured.map(f => f.bl)).size })}
+          </div>
+          {factured.map((f, i) => (
+            <div key={`${f.facture}-${f.bl}-${i}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', color: 'var(--fg)' }}>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{f.bl || '—'}</span>
+              <span style={{ color: 'var(--fg-muted)' }}>{fmtDate(f.dateBl)}</span>
+              <span>→ <span style={{ fontFamily: 'var(--font-mono)' }}>{f.facture}</span> {t('du {{d}}', { d: fmtDate(f.dateFacture) })}</span>
+              <span style={{ marginLeft: 'auto' }}>{fmtMoney(f.montant)}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {error && <div style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</div>}
       {!lines && !error && <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}><Loader size={13} className="animate-spin" style={{ verticalAlign: -2 }} /> {t('Chargement des actes…')}</div>}
       {lines && bpc.bl.map(b => {
@@ -172,6 +192,33 @@ function ControlTab({ t }) {
       </div>
       {error && <div style={{ padding: 16, color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
       {!data && !error && <div style={{ padding: 30, textAlign: 'center' }}><Loader size={20} className="animate-spin" /></div>}
+      {data?.fractionnes && (
+        <div style={{ borderBottom: '1px solid var(--border)' }}>
+          <div style={{ padding: '12px 16px 6px', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>
+            {t('BPC facturés en plusieurs factures : {{n}}', { n: data.fractionnes.length })}
+            <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: 'var(--fg-muted)' }}>{t('Un BPC devrait donner une seule facture. Vérifiez qu’aucun BL de ces périodes n’a été oublié.')}</span>
+          </div>
+          <div style={{ overflowX: 'auto', maxHeight: 360 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <thead><tr style={{ background: 'var(--surface-2)', color: 'var(--fg-muted)', textAlign: 'left' }}>
+                {['Patient', 'BPC', 'Factures', 'Montant'].map(h => <th key={h} style={{ padding: '8px 12px', fontWeight: 600, whiteSpace: 'nowrap' }}>{t(h)}</th>)}
+              </tr></thead>
+              <tbody>
+                {data.fractionnes.map(g => (
+                  <tr key={`${g.patient.compteTiers}-${g.start}`} style={{ borderTop: '1px solid var(--border)' }}>
+                    <td style={{ padding: '7px 12px' }}>{g.patient.nom} <TypeBadge type={g.patient.type} t={t} /><div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{g.patient.compteTiers}</div></td>
+                    <td style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>{fmtDate(g.start)} → {fmtDate(g.end)}</td>
+                    <td style={{ padding: '7px 12px' }}>{g.factures.map(f => <div key={f.piece}><span style={{ fontFamily: 'var(--font-mono)' }}>{f.piece}</span> <span style={{ color: 'var(--fg-subtle)', fontSize: 11 }}>{fmtDate(f.date)} · {fmtMoney(f.total)}</span></div>)}</td>
+                    <td style={{ padding: '7px 12px', whiteSpace: 'nowrap', textAlign: 'right' }}>{fmtMoney(g.total)}</td>
+                  </tr>
+                ))}
+                {!data.fractionnes.length && <tr><td colSpan={4} style={{ padding: 20, textAlign: 'center', color: 'var(--fg-muted)' }}>{t('Chaque BPC a été facturé en une seule fois.')}</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: '12px 16px 6px', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{t('Factures qui regroupent des BL espacés de plus de 3 jours')}</div>
+        </div>
+      )}
       {data && (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
@@ -305,7 +352,7 @@ export default function SageBlPhp() {
 
           {/* Onglets */}
           <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 14 }}>
-            {[['bpc', t('BPC en attente')], ['controle', t('Contrôle des 3 jours')]].map(([id, label]) => (
+            {[['bpc', t('BPC en attente')], ['controle', t('Contrôle des BPC')]].map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: tab === id ? 650 : 500, color: tab === id ? 'var(--brand)' : 'var(--fg-muted)', borderBottom: `2px solid ${tab === id ? 'var(--brand)' : 'transparent'}`, marginBottom: -1 }}>{label}</button>
             ))}
           </div>

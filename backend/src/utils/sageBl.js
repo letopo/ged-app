@@ -89,6 +89,42 @@ export async function fetchPendingBl(pool) {
   return r.recordset.map(x => ({ ...x, hospi: hospi.has(x.DO_Piece.trim()) }));
 }
 
+/** BL PHP non facturés, entêtes seules (contrôle des factures : BL oubliés d'un BPC). */
+async function fetchPendingBlHeads(pool) {
+  const request = pool.request();
+  const inList = collectifParams(request);
+  const r = await request.query(`
+    SELECT E.DO_Piece, E.DO_Date, E.DO_Ref, E.DO_TotalTTC, E.DO_Tiers
+    FROM F_DOCENTETE E JOIN F_COMPTET T ON T.CT_Num = E.DO_Tiers
+    WHERE E.DO_Domaine = 0 AND E.DO_Type = 3 AND T.CG_NumPrinc IN (${inList})`);
+  return r.recordset.map(x => ({
+    piece: x.DO_Piece.trim(), tiers: (x.DO_Tiers || '').trim(), date: iso(dayOf(x.DO_Date)),
+    service: (x.DO_Ref || '').trim() || null, montant: Number(x.DO_TotalTTC) || 0,
+  }));
+}
+
+/**
+ * BL d'un patient déjà facturés sur une période (celle d'un BPC en attente) :
+ * un BPC facturé en plusieurs fois laisse sinon croire qu'il ne reste que
+ * quelques BL (cas du 05/11/2026 : consultation et labo facturés, complément
+ * de consultation oublié).
+ */
+export async function fetchFacturedBlForBpc(pool, compteTiers, start, end) {
+  const r = await pool.request()
+    .input('t', sql.VarChar, compteTiers).input('s', sql.Date, start).input('e', sql.Date, end)
+    .query(`
+      SELECT DO_Piece, MIN(DO_Type) AS DO_Type, MIN(DO_Date) AS dateFacture, DL_PieceBL, MIN(DL_DateBL) AS dateBl,
+             SUM(DL_MontantTTC) AS montant, COUNT(*) AS actes
+      FROM F_DOCLIGNE
+      WHERE DO_Domaine = 0 AND DO_Type IN (6, 7) AND CT_Num = @t AND DL_DateBL >= @s AND DL_DateBL <= @e
+      GROUP BY DO_Piece, DL_PieceBL
+      ORDER BY MIN(DL_DateBL), DL_PieceBL`);
+  return r.recordset.map(x => ({
+    facture: x.DO_Piece.trim(), comptabilisee: x.DO_Type === 7, dateFacture: iso(dayOf(x.dateFacture)),
+    bl: (x.DL_PieceBL || '').trim() || null, dateBl: iso(dayOf(x.dateBl)), montant: Number(x.montant) || 0, actes: x.actes,
+  }));
+}
+
 /** Lignes (actes) de BL non facturés. */
 export async function fetchBlLines(pool, pieces) {
   const list = [...new Set(pieces)].filter(p => /^[A-Z0-9-]{3,20}$/i.test(p)).slice(0, 100);
@@ -212,8 +248,25 @@ export async function fetchInvoiceSpanControl(pool, days = 30) {
     FROM F_DOCLIGNE L JOIN F_COMPTET T ON T.CT_Num = L.CT_Num
     WHERE L.DO_Domaine = 0 AND L.DO_Type IN (6, 7) AND T.CG_NumPrinc IN ('${COLLECTIFS.join("','")}')
       AND L.DO_Date >= DATEADD(day, -@days2, CAST(GETDATE() AS date))`);
+  // BPC facturés en plusieurs fois : factures d'un même patient dont le premier BL
+  // tombe dans la période de 3 jours d'une autre
+  const all = (await pool.request().input('days3', sql.Int, Math.min(365, Math.max(1, Number(days) || 30))).query(`
+    SELECT L.DO_Piece, MIN(L.DO_Type) AS DO_Type, MIN(L.DO_Date) AS dateFacture, MIN(L.CT_Num) AS compteTiers,
+           MIN(T.CT_Intitule) AS nom, MIN(T.CG_NumPrinc) AS compteCollectif,
+           MIN(CASE WHEN L.DL_DateBL > '1901-01-01' THEN L.DL_DateBL END) AS premierBl, SUM(L.DL_MontantTTC) AS total
+    FROM F_DOCLIGNE L JOIN F_COMPTET T ON T.CT_Num = L.CT_Num
+    WHERE L.DO_Domaine = 0 AND L.DO_Type IN (6, 7) AND T.CG_NumPrinc IN ('${COLLECTIFS.join("','")}')
+      AND L.DO_Date >= DATEADD(day, -@days3, CAST(GETDATE() AS date))
+    GROUP BY L.DO_Piece`)).recordset;
+  const fractionnes = groupSplitBpc(all.map(x => ({
+    piece: x.DO_Piece.trim(), comptabilisee: x.DO_Type === 7, date: iso(dayOf(x.dateFacture)),
+    premierBl: x.premierBl ? iso(dayOf(x.premierBl)) : iso(dayOf(x.dateFacture)), total: Number(x.total) || 0,
+    patient: { compteTiers: (x.compteTiers || '').trim(), nom: (x.nom || '').trim(), type: phpBeneficiaryType(x.compteCollectif) },
+  })));
+
   return {
     factures: Number(stats.recordset[0]?.factures || 0),
+    fractionnes,
     horsDelai: r.recordset.map(x => ({
       piece: x.DO_Piece, comptabilisee: x.DO_Type === 7, date: iso(dayOf(x.dateFacture)),
       patient: { compteTiers: x.compteTiers, nom: x.nom, type: phpBeneficiaryType(x.compteCollectif) },
@@ -260,8 +313,13 @@ export async function fetchFacturesPhp(pool, from, to) {
   }
 
   const hospi = await piecesWithHospi(pool, heads.map(h => h.DO_Piece.trim()), [6, 7], await fetchHospiRefs(pool));
+  const pendingByTiers = new Map();
+  for (const b of await fetchPendingBlHeads(pool)) {
+    if (!pendingByTiers.has(b.tiers)) pendingByTiers.set(b.tiers, []);
+    pendingByTiers.get(b.tiers).push(b);
+  }
 
-  return heads.map(x => {
+  const out = heads.map(x => {
     const l = agg.get(`${x.DO_Piece}|${x.DO_Type}`) || {};
     const ecart = l.premierBl && l.dernierBl ? Math.round((dayOf(l.dernierBl) - dayOf(l.premierBl)) / DAY) : 0;
     return {
@@ -272,5 +330,62 @@ export async function fetchFacturesPhp(pool, from, to) {
       ecartJours: ecart, horsBpc: ecart >= BPC_DAYS,
       parcours: parcoursOf(hospi.has(x.DO_Piece.trim())),
     };
+  });
+  return withBpcCompleteness(out, pendingByTiers);
+}
+
+/** Regroupe les factures d'un même patient par BPC ; ne garde que les BPC facturés en plusieurs fois. */
+export function groupSplitBpc(factures) {
+  const byTiers = new Map();
+  for (const f of factures) {
+    if (!byTiers.has(f.patient.compteTiers)) byTiers.set(f.patient.compteTiers, []);
+    byTiers.get(f.patient.compteTiers).push(f);
+  }
+  const out = [];
+  for (const list of byTiers.values()) {
+    let group = null;
+    for (const f of list.sort((a, c) => a.premierBl.localeCompare(c.premierBl) || a.piece.localeCompare(c.piece))) {
+      const t = dayOf(f.premierBl);
+      if (!group || t > group.startT + (BPC_DAYS - 1) * DAY) { group = { startT: t, factures: [] }; out.push(group); }
+      group.factures.push(f);
+    }
+  }
+  return out.filter(g => g.factures.length > 1).map(g => ({
+    patient: g.factures[0].patient, start: iso(g.startT), end: iso(g.startT + (BPC_DAYS - 1) * DAY),
+    factures: g.factures.map(({ piece, date, total, comptabilisee }) => ({ piece, date, total, comptabilisee })),
+    total: g.factures.reduce((sum, f) => sum + f.total, 0),
+  })).sort((a, c) => c.start.localeCompare(a.start));
+}
+
+/**
+ * Complétude du BPC de chaque facture (période de 3 jours à partir de son 1er BL) :
+ *  - blNonFactures : BL du patient encore en attente sur cette période (oubliés)
+ *  - memeBpc       : autres factures de la liste couvrant le même BPC (facturé en plusieurs fois)
+ */
+export function withBpcCompleteness(factures, pendingByTiers) {
+  const windowOf = (f) => {
+    const start = dayOf(f.premierBl || f.date);
+    return [start, start + (BPC_DAYS - 1) * DAY];
+  };
+  const byTiers = new Map();
+  for (const f of factures) {
+    const k = f.patient.compteTiers;
+    if (!byTiers.has(k)) byTiers.set(k, []);
+    byTiers.get(k).push(f);
+  }
+  return factures.map(f => {
+    const [start, end] = windowOf(f);
+    const inWindow = (d) => { const t = dayOf(d); return t >= start && t <= end; };
+    const blNonFactures = (pendingByTiers.get(f.patient.compteTiers) || [])
+      .filter(b => inWindow(b.date)).sort((a, c) => a.date.localeCompare(c.date) || a.piece.localeCompare(c.piece));
+    // Même BPC : l'une des deux factures commence pendant la période de l'autre
+    const memeBpc = (byTiers.get(f.patient.compteTiers) || [])
+      .filter(o => {
+        if (o.piece === f.piece) return false;
+        const [oStart, oEnd] = windowOf(o);
+        return (oStart >= start && oStart <= end) || (start >= oStart && start <= oEnd);
+      })
+      .map(o => o.piece);
+    return { ...f, blNonFactures, memeBpc };
   });
 }

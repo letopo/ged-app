@@ -113,6 +113,7 @@ export const sageFactureAPI = {
 export const sageBlAPI = {
   summary: (refresh) => api.get('/sage-bl/summary', { params: refresh ? { refresh: 1 } : {} }),
   lines: (pieces) => api.get('/sage-bl/lines', { params: { pieces: pieces.join(',') } }),
+  bpcFactures: (tiers, start, end) => api.get('/sage-bl/bpc-factures', { params: { tiers, start, end } }),
   controle: (days) => api.get('/sage-bl/controle', { params: { days } }),
   access: () => api.get('/sage-bl/access'),
   updateAccess: (postes) => api.put('/sage-bl/access', { postes }),

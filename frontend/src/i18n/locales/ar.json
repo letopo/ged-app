@@ -3123,5 +3123,19 @@
   "Patients hospitalisés": "المرضى المقيمون",
   "Externe : consultation, laboratoire, imagerie, pharmacie, sans hospitalisation. Hospitalisé : au moins une chambre, un acte du bloc, une anesthésie ou un accouchement.": "خارجي: استشارة، مختبر، تصوير، صيدلية، دون استشفاء. مقيم: غرفة واحدة على الأقل أو عمل في غرفة العمليات أو تخدير أو ولادة.",
   "{{n}} BPC": "{{n}} BPC",
-  "{{n}} hospitalisés ({{m}})": "{{n}} مقيمون ({{m}})"
+  "{{n}} hospitalisés ({{m}})": "{{n}} مقيمون ({{m}})",
+  "BL du BPC non facturés": "إيصالات التسليم غير المفوترة من سند التكفل",
+  "BPC en plusieurs factures": "سند تكفل موزع على عدة فواتير",
+  "Même BPC que": "نفس سند التكفل مثل",
+  "{{n}} facture(s) incomplète(s) · {{m}}": "{{n}} فاتورة غير مكتملة · {{m}}",
+  "+ {{n}} BL du BPC non facturé(s) : {{list}}": "+ {{n}} إيصال غير مفوتر من السند: {{list}}",
+  "Même BPC que {{list}}": "نفس السند مثل {{list}}",
+  "Déjà facturés sur ce BPC : {{n}} BL. Les BL ci-dessous restent à facturer.": "مفوترة مسبقاً لهذا السند: {{n}} إيصال. الإيصالات أدناه لا تزال للفوترة.",
+  "du {{d}}": "بتاريخ {{d}}",
+  "Contrôle des BPC": "مراقبة سندات التكفل",
+  "BPC facturés en plusieurs factures : {{n}}": "سندات تكفل مفوترة على عدة فواتير: {{n}}",
+  "Un BPC devrait donner une seule facture. Vérifiez qu’aucun BL de ces périodes n’a été oublié.": "يجب أن يُنتج سند التكفل فاتورة واحدة. تحقق من عدم نسيان أي إيصال من هذه الفترات.",
+  "BPC": "سند التكفل",
+  "Chaque BPC a été facturé en une seule fois.": "فُوتر كل سند تكفل دفعة واحدة.",
+  "Factures qui regroupent des BL espacés de plus de 3 jours": "فواتير تجمع إيصالات متباعدة بأكثر من 3 أيام"
 }
