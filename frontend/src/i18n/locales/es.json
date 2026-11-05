@@ -3115,5 +3115,13 @@
   "Inventaire du jour fait par {{name}} le {{date}}": "Inventario del día hecho por {{name}} el {{date}}",
   "Fiche RO SAU : quantité requise de chaque article, relevée par l'infirmier les jours choisis (tous les jours par défaut). Un manque part dans la liste de réassort ; un point critique en défaut rend l'ambulance indisponible.": "Ficha RO SAU: cantidad requerida de cada artículo, contada por el enfermero los días elegidos (todos los días por defecto). Una falta pasa a la lista de reposición; un punto crítico fallido deja la ambulancia no disponible.",
   "La date de consultation ne peut pas être dans le futur.": "La fecha de la consulta no puede ser futura.",
-  "Consultation antidatée : elle sera enregistrée au {{date}}. Pensez à la clôturer aujourd'hui, sinon elle sera close automatiquement à minuit (Retour au travail).": "Consulta con fecha anterior: se registrará el {{date}}. Recuerde cerrarla hoy; si no, se cerrará automáticamente a medianoche (Vuelta al trabajo)."
+  "Consultation antidatée : elle sera enregistrée au {{date}}. Pensez à la clôturer aujourd'hui, sinon elle sera close automatiquement à minuit (Retour au travail).": "Consulta con fecha anterior: se registrará el {{date}}. Recuerde cerrarla hoy; si no, se cerrará automáticamente a medianoche (Vuelta al trabajo).",
+  "Externe": "Externo",
+  "Parcours": "Recorrido",
+  "Externes et hospitalisés": "Externos y hospitalizados",
+  "Patients externes": "Pacientes externos",
+  "Patients hospitalisés": "Pacientes hospitalizados",
+  "Externe : consultation, laboratoire, imagerie, pharmacie, sans hospitalisation. Hospitalisé : au moins une chambre, un acte du bloc, une anesthésie ou un accouchement.": "Externo: consulta, laboratorio, imagen, farmacia, sin hospitalización. Hospitalizado: al menos una habitación, un acto de quirófano, una anestesia o un parto.",
+  "{{n}} BPC": "{{n}} BPC",
+  "{{n}} hospitalisés ({{m}})": "{{n}} hospitalizados ({{m}})"
 }

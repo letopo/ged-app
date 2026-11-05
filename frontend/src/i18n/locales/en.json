@@ -3115,5 +3115,13 @@
   "Inventaire du jour fait par {{name}} le {{date}}": "Today's inventory done by {{name}} on {{date}}",
   "Fiche RO SAU : quantité requise de chaque article, relevée par l'infirmier les jours choisis (tous les jours par défaut). Un manque part dans la liste de réassort ; un point critique en défaut rend l'ambulance indisponible.": "RO SAU sheet: required quantity of each item, counted by the nurse on the chosen days (every day by default). A shortage goes to the restock list; a failed critical item makes the ambulance unavailable.",
   "La date de consultation ne peut pas être dans le futur.": "The consultation date cannot be in the future.",
-  "Consultation antidatée : elle sera enregistrée au {{date}}. Pensez à la clôturer aujourd'hui, sinon elle sera close automatiquement à minuit (Retour au travail).": "Backdated consultation: it will be recorded on {{date}}. Remember to close it today, otherwise it will be closed automatically at midnight (Back to work)."
+  "Consultation antidatée : elle sera enregistrée au {{date}}. Pensez à la clôturer aujourd'hui, sinon elle sera close automatiquement à minuit (Retour au travail).": "Backdated consultation: it will be recorded on {{date}}. Remember to close it today, otherwise it will be closed automatically at midnight (Back to work).",
+  "Externe": "External",
+  "Parcours": "Care path",
+  "Externes et hospitalisés": "Outpatients and inpatients",
+  "Patients externes": "Outpatients",
+  "Patients hospitalisés": "Inpatients",
+  "Externe : consultation, laboratoire, imagerie, pharmacie, sans hospitalisation. Hospitalisé : au moins une chambre, un acte du bloc, une anesthésie ou un accouchement.": "Outpatient: consultation, laboratory, imaging, pharmacy, no hospital stay. Inpatient: at least one room, operating-theatre procedure, anaesthesia or delivery.",
+  "{{n}} BPC": "{{n}} BPC",
+  "{{n}} hospitalisés ({{m}})": "{{n}} inpatients ({{m}})"
 }

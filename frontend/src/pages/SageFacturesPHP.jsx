@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Loader, RefreshCw, Download, Search, FileText, AlertCircle, CheckCircle, Clock, XCircle, FileSignature, Eye, Send } from 'lucide-react';
+import { Loader, RefreshCw, Download, Search, FileText, AlertCircle, CheckCircle, Clock, XCircle, FileSignature, Eye, Send, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sageBlAPI, sageFactureAPI } from '../services/phpService';
 import Pagination, { usePageSize } from '../components/Pagination';
@@ -23,6 +23,10 @@ const PERIODS = {
   month: () => { const t = new Date(); return [iso(new Date(t.getFullYear(), t.getMonth(), 1, 12)), iso(t)]; },
   lastMonth: () => { const t = new Date(); return [iso(new Date(t.getFullYear(), t.getMonth() - 1, 1, 12)), iso(new Date(t.getFullYear(), t.getMonth(), 0, 12))]; },
 };
+
+// Externe : consultation, labo, imagerie, pharmacie… sans séjour ni bloc (règle côté serveur, utils/sageBl.js)
+const PARCOURS = { externe: 'Externe', hospitalise: 'Hospitalisé' };
+const PARCOURS_AIDE = 'Externe : consultation, laboratoire, imagerie, pharmacie, sans hospitalisation. Hospitalisé : au moins une chambre, un acte du bloc, une anesthésie ou un accouchement.';
 
 const GED = {
   none:        { label: 'Non importée', color: 'var(--fg-muted)', bg: 'var(--surface-2)', icon: FileText },
@@ -68,6 +72,7 @@ export default function SageFacturesPHP() {
   const [sage, setSage] = useState('all');
   const [bpc, setBpc] = useState('all');
   const [ged, setGed] = useState('all');
+  const [parcours, setParcours] = useState('all');
   const [page, setPage] = useState(1);
   const [PAGE_SIZE, setPageSize] = usePageSize('sageFactures', 50);
   const [releveDate, setReleveDate] = useState(iso(new Date()));
@@ -89,16 +94,17 @@ export default function SageFacturesPHP() {
       (type === 'all' || f.patient.type === type)
       && (sage === 'all' || (sage === 'posted') === f.comptabilisee)
       && (bpc === 'all' || (bpc === 'out') === f.horsBpc)
+      && (parcours === 'all' || f.parcours === parcours)
       && (ged === 'all' || (f.ged?.state || 'none') === ged || (ged === 'rejected' && f.ged?.state === 'expired'))
       && (!needle || [f.piece, f.patient.nom, f.patient.compteTiers, f.patient.matricule, f.patient.secteur].some(v => (v || '').toLowerCase().includes(needle))));
-  }, [factures, q, type, sage, bpc, ged]);
-  useEffect(() => setPage(1), [q, type, sage, bpc, ged, from, to]);
+  }, [factures, q, type, sage, bpc, ged, parcours]);
+  useEffect(() => setPage(1), [q, type, sage, bpc, ged, parcours, from, to]);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const k = data?.kpis;
 
   const exportCsv = () => {
-    const rows = [[t('Facture'), t('Date'), t('Patient'), t('Compte tiers'), t('Type'), t('Matricule'), t('Secteur'), t('BL'), t('Premier BL'), t('Dernier BL'), t('Écart (j)'), t('État Sage'), t('État GED'), t('Montant TTC')]];
-    filtered.forEach(f => rows.push([f.piece, fmtDate(f.date), f.patient.nom, f.patient.compteTiers, f.patient.type || '', f.patient.matricule || '', f.patient.secteur || '', f.nbBl, fmtDate(f.premierBl), fmtDate(f.dernierBl), f.ecartJours, f.comptabilisee ? t('Comptabilisée') : t('Non comptabilisée'), t(GED[f.ged?.state || 'none'].label), f.total]));
+    const rows = [[t('Facture'), t('Date'), t('Patient'), t('Compte tiers'), t('Type'), t('Matricule'), t('Secteur'), t('BL'), t('Premier BL'), t('Dernier BL'), t('Écart (j)'), t('État Sage'), t('État GED'), t('Parcours'), t('Montant TTC')]];
+    filtered.forEach(f => rows.push([f.piece, fmtDate(f.date), f.patient.nom, f.patient.compteTiers, f.patient.type || '', f.patient.matricule || '', f.patient.secteur || '', f.nbBl, fmtDate(f.premierBl), fmtDate(f.dernierBl), f.ecartJours, f.comptabilisee ? t('Comptabilisée') : t('Non comptabilisée'), t(GED[f.ged?.state || 'none'].label), t(PARCOURS[f.parcours]), f.total]));
     const csv = '﻿' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -167,6 +173,7 @@ export default function SageFacturesPHP() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 14, opacity: loading ? 0.6 : 1 }}>
             <Kpi icon={FileText} label={t('Factures')} value={k.factures.toLocaleString('fr-FR')} sub={`${fmtShort(k.montant)} · ${t('{{e}} employés, {{f}} familles', { e: k.employes.n, f: k.familles.n })}`} />
+            {k.externes && <Kpi icon={Users} label={t('Patients externes')} value={k.externes.n.toLocaleString('fr-FR')} sub={`${fmtShort(k.externes.montant)} · ${t('{{n}} hospitalisés ({{m}})', { n: k.hospitalises.n, m: fmtShort(k.hospitalises.montant) })}`} color="var(--success)" active={parcours === 'externe'} onClick={() => setParcours(parcours === 'externe' ? 'all' : 'externe')} />}
             <Kpi icon={Clock} label={t('Non comptabilisées')} value={k.nonComptabilisees} sub={t('dans Sage')} color="var(--warning)" active={sage === 'draft'} onClick={() => setSage(sage === 'draft' ? 'all' : 'draft')} />
             <Kpi icon={AlertCircle} label={t('BL hors période BPC')} value={k.horsBpc} sub={t('BL étalés sur plus de 3 jours')} color={k.horsBpc ? 'var(--danger)' : 'var(--success)'} active={bpc === 'out'} onClick={() => setBpc(bpc === 'out' ? 'all' : 'out')} />
             <Kpi icon={FileSignature} label={t('En signature (GED)')} value={k.ged.enCircuit} sub={t('{{v}} signées · {{n}} non importées', { v: k.ged.validees, n: k.ged.nonImportees })} color="var(--brand)" active={ged === 'in_progress'} onClick={() => setGed(ged === 'in_progress' ? 'all' : 'in_progress')} />
@@ -211,6 +218,11 @@ export default function SageFacturesPHP() {
               <option value="all">{t('Tous les états GED')}</option>
               {['none', 'in_progress', 'approved', 'rejected'].map(s => <option key={s} value={s}>{t(GED[s].label)}</option>)}
             </select>
+            <select value={parcours} onChange={e => setParcours(e.target.value)} style={sel} title={t(PARCOURS_AIDE)}>
+              <option value="all">{t('Externes et hospitalisés')}</option>
+              <option value="externe">{t('Patients externes')}</option>
+              <option value="hospitalise">{t('Patients hospitalisés')}</option>
+            </select>
           </div>
 
           <div className="ged-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -229,6 +241,7 @@ export default function SageFacturesPHP() {
                   <span className="fphp-patient">
                     <span style={{ fontWeight: 600 }}>{f.patient.nom}</span>{' '}
                     {f.patient.type && <span style={{ padding: '1px 7px', borderRadius: 999, fontSize: 11, background: f.patient.type === 'Employé PHP' ? 'var(--brand-soft)' : 'var(--success-soft)', color: f.patient.type === 'Employé PHP' ? 'var(--brand)' : 'var(--success)' }}>{t(f.patient.type)}</span>}
+                    {f.parcours === 'hospitalise' && <span title={t(PARCOURS_AIDE)} style={{ marginLeft: 4, padding: '1px 7px', borderRadius: 999, fontSize: 11, background: 'var(--warning-soft)', color: 'var(--warning)' }}>{t('Hospitalisé')}</span>}
                     <span style={{ display: 'block', fontSize: 11.5, color: 'var(--fg-subtle)' }}>{f.patient.compteTiers}{f.patient.matricule ? ` · ${t('Mat.')} ${f.patient.matricule}` : ''}{f.patient.secteur ? ` · ${f.patient.secteur}` : ''}</span>
                   </span>
                   <span className="fphp-bl" style={{ color: f.horsBpc ? 'var(--danger)' : 'var(--fg-muted)' }}>
