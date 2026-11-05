@@ -52,3 +52,9 @@ test('autre service : circuit habituel DG → Comptable → Caissière', async (
   assert.deepEqual(await circuit(doc.id), [dg.id, comptable.id, caissiere.id]);
   assert.equal((await f.run(() => Document.findByPk(doc.id))).metadata.circuitPC, 'standard');
 });
+
+test('la caissière figure parmi les validateurs proposés', async () => {
+  const res = await request(app).get('/api/workflows/validators').set(as(pharmacienne));
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.ok(res.body.data.some((u) => u.id === caissiere.id));
+});

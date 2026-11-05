@@ -290,7 +290,8 @@ const MyTasks = () => {
   const isBeneficiaireOfPC = (task) =>
     task.document?.category === 'Pièce de caisse' && task.document?.metadata?.beneficiaire_id === user?.id;
   
-  const ROLES_FOR_COMBINED_ACTION = ['admin', 'director', 'validator'];
+  // La caissière signe et appose son cachet comme les validateurs (circuit Pharmacie, 05/11/2026)
+  const ROLES_FOR_COMBINED_ACTION = ['admin', 'director', 'validator', 'caissier'];
   const canUseCombinedAction = () => {
     const isAuthorizedRole = user?.role && ROLES_FOR_COMBINED_ACTION.includes(user.role);
     const hasSignatureAndStamp = user?.signaturePath && user?.stampPath;
@@ -1171,7 +1172,7 @@ const MyTasks = () => {
                   <BpcCompletionForm document={taskToProcess.document} loading={actionLoading === 'completer'} onSubmit={(fields) => handleAction('completer', fields)} />
                 )}
 
-                {!needsBpcCompletion(taskToProcess) && canUseCombinedAction() && taskToProcess.document.fileType === 'application/pdf' && (
+                {!needsBpcCompletion(taskToProcess) && !needsPayerAction(taskToProcess) && canUseCombinedAction() && taskToProcess.document.fileType === 'application/pdf' && (
                   <>
                     <button
                       onClick={() => handleAction('approve_sign_stamp')}

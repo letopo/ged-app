@@ -395,7 +395,7 @@ export const getValidators = async (req, res, next) => {
     const validators = await User.findAll({
       where: {
         role: {
-          [Op.in]: ['admin', 'director', 'validator']
+          [Op.in]: ['admin', 'director', 'validator', 'caissier']
         }
       },
       attributes: ['id', 'username', 'email', 'role', 'firstName', 'lastName'] // On masque le password

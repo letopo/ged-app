@@ -1113,7 +1113,7 @@ export const getDocumentWorkflow = async (req, res) => {
 export const getValidators = async (req, res) => {
   try {
     const validators = await User.findAll({
-      where: { role: ['validator', 'admin', 'director'] },
+      where: { role: ['validator', 'admin', 'director', 'caissier'] },
       attributes: ['id', 'firstName', 'lastName', 'email', 'position'],
       order: [['firstName', 'ASC']],
     });

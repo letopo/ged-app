@@ -388,7 +388,7 @@ const DocumentList = () => {
       ]);
 
       const usersList = usersRes.data?.users || [];
-      setAvailableUsers(usersList.filter(u => ['validator', 'director', 'admin', 'superadmin'].includes(u.role)));
+      setAvailableUsers(usersList.filter(u => ['validator', 'director', 'admin', 'superadmin', 'caissier'].includes(u.role)));
 
       const templates = templatesRes.data?.data || [];
       const filtered = templates.filter(t =>
@@ -417,7 +417,7 @@ const DocumentList = () => {
       try {
         const res = await usersAPI.getAll();
         const users = res.data?.users || [];
-        setReassignValidators(users.filter(u => ['validator', 'director', 'admin', 'superadmin'].includes(u.role)));
+        setReassignValidators(users.filter(u => ['validator', 'director', 'admin', 'superadmin', 'caissier'].includes(u.role)));
       } catch (e) {
         toast.error(t('Erreur chargement des validateurs'));
       }
