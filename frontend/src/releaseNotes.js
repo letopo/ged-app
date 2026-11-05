@@ -1047,6 +1047,17 @@ const RELEASE_NOTES = [
       'Onglet « Contrôle des BPC » : liste des BPC facturés en plusieurs factures, à vérifier.',
     ],
   },
+  {
+    id: '2026-11-05-caissiere-signature',
+    date: '2026-11-05',
+    target: 'app',
+    title: 'Caissière : signature et cachet',
+    access: (user) => user?.role === 'caissier',
+    items: [
+      'Dans « Mes tâches », le bouton « Approuver, Signer et Cacheter » est désormais proposé à la caissière (avec sa signature et son cachet enregistrés), comme aux autres validateurs.',
+      'La caissière peut aussi être choisie comme validatrice lors de la soumission d\'un document.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
