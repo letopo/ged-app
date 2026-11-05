@@ -28,3 +28,32 @@ test('règle : chambres, bloc, anesthésie et morgue ; la consultation d\'anesth
   for (const f of ['H511', 'G411', 'F311', 'E211', 'E214', 'E215', 'D131']) assert.ok(HOSPI_FAMILLES.includes(f), f);
   assert.ok(NON_HOSPI_ARTICLES.includes('CONSO32'));
 });
+
+// BPC facturé en plusieurs fois (cas du 05/11/2026, compte 418999995503) :
+// consultation facturée seule, labo + pharmacie sur une autre facture, complément
+// de consultation resté en BL.
+import { withBpcCompleteness, groupSplitBpc } from '../../src/utils/sageBl.js';
+
+const fac = (piece, premierBl, tiers = 'P1') => ({ piece, date: premierBl, premierBl, total: 1000, comptabilisee: true, patient: { compteTiers: tiers, nom: tiers } });
+
+test('facture dont le BPC a encore des BL non facturés, et autre facture du même BPC', () => {
+  const pending = new Map([['P1', [
+    { piece: 'BL799773', tiers: 'P1', date: '2026-10-29', montant: 1500 },
+    { piece: 'BL800759', tiers: 'P1', date: '2026-11-02', montant: 12810 }, // BPC suivant
+  ]]]);
+  const out = withBpcCompleteness([fac('FA321823', '2026-10-28'), fac('FA322000', '2026-10-29'), fac('FA9', '2026-10-28', 'P2')], pending);
+  const by = Object.fromEntries(out.map(f => [f.piece, f]));
+  assert.deepEqual(by.FA321823.blNonFactures.map(b => b.piece), ['BL799773']);
+  assert.deepEqual(by.FA322000.blNonFactures.map(b => b.piece), ['BL799773']);
+  assert.deepEqual(by.FA321823.memeBpc, ['FA322000']);
+  assert.deepEqual(by.FA9.blNonFactures, []);
+  assert.deepEqual(by.FA9.memeBpc, []);
+});
+
+test('regroupement des BPC facturés en plusieurs factures', () => {
+  const groups = groupSplitBpc([fac('A', '2026-10-28'), fac('B', '2026-10-29'), fac('C', '2026-11-05'), fac('D', '2026-10-28', 'P2')]);
+  assert.equal(groups.length, 1);
+  assert.deepEqual(groups[0].factures.map(f => f.piece), ['A', 'B']);
+  assert.equal(groups[0].start, '2026-10-28');
+  assert.equal(groups[0].end, '2026-10-30');
+});

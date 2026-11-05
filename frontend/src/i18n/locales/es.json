@@ -3123,5 +3123,19 @@
   "Patients hospitalisés": "Pacientes hospitalizados",
   "Externe : consultation, laboratoire, imagerie, pharmacie, sans hospitalisation. Hospitalisé : au moins une chambre, un acte du bloc, une anesthésie ou un accouchement.": "Externo: consulta, laboratorio, imagen, farmacia, sin hospitalización. Hospitalizado: al menos una habitación, un acto de quirófano, una anestesia o un parto.",
   "{{n}} BPC": "{{n}} BPC",
-  "{{n}} hospitalisés ({{m}})": "{{n}} hospitalizados ({{m}})"
+  "{{n}} hospitalisés ({{m}})": "{{n}} hospitalizados ({{m}})",
+  "BL du BPC non facturés": "BL del BPC sin facturar",
+  "BPC en plusieurs factures": "BPC en varias facturas",
+  "Même BPC que": "Mismo BPC que",
+  "{{n}} facture(s) incomplète(s) · {{m}}": "{{n}} factura(s) incompleta(s) · {{m}}",
+  "+ {{n}} BL du BPC non facturé(s) : {{list}}": "+ {{n}} BL del BPC sin facturar: {{list}}",
+  "Même BPC que {{list}}": "Mismo BPC que {{list}}",
+  "Déjà facturés sur ce BPC : {{n}} BL. Les BL ci-dessous restent à facturer.": "Ya facturados en este BPC: {{n}} BL. Los BL de abajo quedan por facturar.",
+  "du {{d}}": "del {{d}}",
+  "Contrôle des BPC": "Control de los BPC",
+  "BPC facturés en plusieurs factures : {{n}}": "BPC facturados en varias facturas: {{n}}",
+  "Un BPC devrait donner une seule facture. Vérifiez qu’aucun BL de ces périodes n’a été oublié.": "Un BPC debería dar una sola factura. Compruebe que no se haya olvidado ningún BL de esos periodos.",
+  "BPC": "BPC",
+  "Chaque BPC a été facturé en une seule fois.": "Cada BPC se facturó de una sola vez.",
+  "Factures qui regroupent des BL espacés de plus de 3 jours": "Facturas que agrupan BL separados más de 3 días"
 }

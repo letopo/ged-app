@@ -1036,6 +1036,17 @@ const RELEASE_NOTES = [
       'Les totaux par catégorie s\'affichent en haut de page, le badge « Hospitalisé » sur chaque ligne, et la colonne « Parcours » dans l\'export.',
     ],
   },
+  {
+    id: '2026-11-05-finances-bpc-complet',
+    date: '2026-11-05',
+    target: '/sage-bl-php',
+    title: 'BL PHP : BPC facturés en plusieurs fois',
+    items: [
+      'En dépliant un BPC en attente, les BL de la même période déjà facturés s\'affichent avec leur numéro de facture : on voit tout le BPC, pas seulement ce qui reste.',
+      'Factures PHP : une facture dont le BPC a encore des BL non facturés est signalée en rouge (« + N BL du BPC non facturé(s) »), avec la case et le filtre « BL du BPC non facturés ».',
+      'Onglet « Contrôle des BPC » : liste des BPC facturés en plusieurs factures, à vérifier.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

@@ -3123,5 +3123,19 @@
   "Patients hospitalisés": "Inpatients",
   "Externe : consultation, laboratoire, imagerie, pharmacie, sans hospitalisation. Hospitalisé : au moins une chambre, un acte du bloc, une anesthésie ou un accouchement.": "Outpatient: consultation, laboratory, imaging, pharmacy, no hospital stay. Inpatient: at least one room, operating-theatre procedure, anaesthesia or delivery.",
   "{{n}} BPC": "{{n}} BPC",
-  "{{n}} hospitalisés ({{m}})": "{{n}} inpatients ({{m}})"
+  "{{n}} hospitalisés ({{m}})": "{{n}} inpatients ({{m}})",
+  "BL du BPC non facturés": "Unbilled BLs of the BPC",
+  "BPC en plusieurs factures": "BPC split across invoices",
+  "Même BPC que": "Same BPC as",
+  "{{n}} facture(s) incomplète(s) · {{m}}": "{{n}} incomplete invoice(s) · {{m}}",
+  "+ {{n}} BL du BPC non facturé(s) : {{list}}": "+ {{n}} unbilled BL(s) of the BPC: {{list}}",
+  "Même BPC que {{list}}": "Same BPC as {{list}}",
+  "Déjà facturés sur ce BPC : {{n}} BL. Les BL ci-dessous restent à facturer.": "Already billed for this BPC: {{n}} BL(s). The BLs below remain to be billed.",
+  "du {{d}}": "of {{d}}",
+  "Contrôle des BPC": "BPC checks",
+  "BPC facturés en plusieurs factures : {{n}}": "BPCs billed across several invoices: {{n}}",
+  "Un BPC devrait donner une seule facture. Vérifiez qu’aucun BL de ces périodes n’a été oublié.": "A BPC should produce a single invoice. Check that no BL from these periods was missed.",
+  "BPC": "BPC",
+  "Chaque BPC a été facturé en une seule fois.": "Each BPC was billed in a single invoice.",
+  "Factures qui regroupent des BL espacés de plus de 3 jours": "Invoices grouping BLs more than 3 days apart"
 }
