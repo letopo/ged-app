@@ -1014,6 +1014,17 @@ const RELEASE_NOTES = [
       'Pour la retrouver et la clôturer, choisissez sa date dans le filtre de la liste des consultations ; une consultation antidatée non clôturée est close automatiquement à minuit (Retour au travail).',
     ],
   },
+  {
+    id: '2026-11-05-pc-circuit-pharmacie',
+    date: '2026-11-05',
+    target: '/documents',
+    title: 'Pièce de caisse : circuit de la Pharmacie',
+    access: (user) => user?.role === 'caissier' || (user?.postes || []).includes('comptable'),
+    items: [
+      'Les pièces de caisse déposées par le personnel de la Pharmacie suivent leur propre circuit : la Pharmacienne qui la dépose, puis la Caissière, puis la Comptable — chacune signe ; elles ne passent pas chez le DG.',
+      'Dans ce circuit, la Caissière signe la pièce (pas de bouton « Payer ») ; les autres pièces de caisse ne changent pas.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
