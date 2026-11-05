@@ -283,8 +283,10 @@ const MyTasks = () => {
   // Bon de prise en charge, étape RH (2) : compléter l'assuré, sans signer
   const needsBpcCompletion = (task) =>
     task.status === 'pending' && task.document?.category === BPC_CATEGORY && task.step === 2;
+  // Circuit Pharmacie (Pharmacienne → Caissière → Comptable) : la caissière signe, pas de « Payer »
   const needsPayerAction = (task) =>
-    task.status === 'pending' && isCaissier() && task.document?.category === 'Pièce de caisse';
+    task.status === 'pending' && isCaissier() && task.document?.category === 'Pièce de caisse'
+    && task.document?.metadata?.circuitPC !== 'pharmacie';
   const isBeneficiaireOfPC = (task) =>
     task.document?.category === 'Pièce de caisse' && task.document?.metadata?.beneficiaire_id === user?.id;
   

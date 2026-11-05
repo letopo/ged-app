@@ -203,12 +203,15 @@ export const createWorkflow = async (req, res) => {
       finalValidatorIds = built.validatorIds;
       comptableAdded = built.comptableAdded;
     } else if (document.category === 'Pièce de caisse') {
-      // Circuit construit côté serveur : DG → Comptable → Bénéficiaire (si compte) → Caissière.
+      // Circuit construit côté serveur : DG → Comptable → Bénéficiaire (si compte) → Caissière,
+      // ou Pharmacienne → Caissière → Comptable pour le personnel de la Pharmacie.
       const built = await buildPieceDeCaisseChain(document, posteSelections || {});
       if (built.error) {
         return res.status(400).json({ success: false, message: built.error });
       }
       finalValidatorIds = built.validatorIds;
+      // Mémorisé pour l'écran de la caissière : dans le circuit Pharmacie elle signe (pas de « Payer »)
+      await document.update({ metadata: { ...(document.metadata || {}), circuitPC: built.circuit } });
     } else if (hasFixedPosteChain(document.category)) {
       // Circuit imposé par poste (ex. Demande d'explication → Directeur Général) :
       // les validateurs choisis sur la page ou via un modèle sont ignorés.

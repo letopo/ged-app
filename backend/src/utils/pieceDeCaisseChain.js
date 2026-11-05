@@ -1,13 +1,17 @@
 // backend/src/utils/pieceDeCaisseChain.js
 // Construit le circuit de validation d'une Pièce de caisse :
 //   Directeur Général → Comptable → Bénéficiaire (si compte de connexion) → Caissière
+// Sauf pour le personnel de la Pharmacie (demande du 05/11/2026), dont la pièce
+// ne passe pas chez le DG et où chacun signe :
+//   Pharmacienne (celle qui a déposé la pièce) → Caissière → Comptable
 // Calqué sur ordreMissionChain.js. Le bénéficiaire n'est pas un poste : c'est une
 // personne précise choisie à la création de la PC (metadata.beneficiaire_id/_source).
 // Si elle n'a pas de compte User (fiche Employee sans compte lié), son étape est
 // simplement absente de la chaîne — pas une erreur.
 
 import { getPosteHoldersForAssignment } from './posteResolver.js';
-import { User, Employee } from '../models/index.js';
+import { Op } from 'sequelize';
+import { User, Employee, ServiceMember, Service } from '../models/index.js';
 
 const fullName = (u) => `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
 
@@ -22,6 +26,16 @@ async function resolveBeneficiaireUserId(document) {
   return null;
 }
 
+// Le déposant de la pièce fait-il partie du service Pharmacie ?
+export async function isPharmacieStaff(userId) {
+  if (!userId) return false;
+  const member = await ServiceMember.findOne({
+    where: { userId, isActive: true },
+    include: [{ model: Service, as: 'service', attributes: [], where: { name: { [Op.iLike]: 'pharmacie%' } } }],
+  });
+  return Boolean(member);
+}
+
 /**
  * @param {Document} document
  * @param {Object<string,string>} selections  { key: userId } pour les étapes à titulaires multiples
@@ -29,6 +43,7 @@ async function resolveBeneficiaireUserId(document) {
  */
 export async function resolvePieceDeCaisseChain(document, selections = {}) {
   const steps = [];
+  const pharmacie = await isPharmacieStaff(document.userId);
 
   const addPosteStep = async (key, code, label) => {
     const holders = await getPosteHoldersForAssignment(code);
@@ -51,6 +66,40 @@ export async function resolvePieceDeCaisseChain(document, selections = {}) {
     return null;
   };
 
+  const addCaissierStep = async () => {
+    // Les caissières absentes ne sont pas proposées pour un NOUVEAU circuit (pas de
+    // notion de "poste" ici pour appliquer la substitution automatique comme pour dg/comptable).
+    const caissiers = await User.findAll({ where: { role: 'caissier', isActive: true, isAbsent: false }, attributes: ['id', 'firstName', 'lastName', 'email'] });
+    if (caissiers.length === 0) {
+      return 'Aucune caissière active. Assignez le rôle "caissier" à un compte utilisateur.';
+    }
+    const caissierOptions = caissiers.map(u => ({ id: u.id, name: fullName(u) }));
+    let caissierChosenId = null;
+    let caissierNeedsSelection = false;
+    if (caissiers.length === 1) {
+      caissierChosenId = caissiers[0].id;
+    } else {
+      const sel = selections.caissier;
+      if (sel && caissiers.some(u => u.id === sel)) caissierChosenId = sel;
+      else caissierNeedsSelection = true;
+    }
+    steps.push({ key: 'caissier', posteCode: 'caissier', label: 'Caissière', holders: caissierOptions, chosenId: caissierChosenId, needsSelection: caissierNeedsSelection });
+    return null;
+  };
+
+  if (pharmacie) {
+    const owner = await User.findByPk(document.userId, { attributes: ['id', 'firstName', 'lastName', 'email'] });
+    steps.push({
+      key: 'pharmacienne', posteCode: 'pharmacienne', label: 'Pharmacienne',
+      holders: [{ id: owner.id, name: fullName(owner) }], chosenId: owner.id, needsSelection: false,
+    });
+    const caissierErr = await addCaissierStep();
+    if (caissierErr) return { error: caissierErr };
+    const comptableErr = await addPosteStep('comptable', 'comptable', 'Comptable');
+    if (comptableErr) return { error: comptableErr };
+    return { steps, circuit: 'pharmacie' };
+  }
+
   const dgErr = await addPosteStep('dg', 'dg', 'Directeur Général');
   if (dgErr) return { error: dgErr };
 
@@ -70,23 +119,8 @@ export async function resolvePieceDeCaisseChain(document, selections = {}) {
   }
   // Sinon : pas de compte de connexion pour ce bénéficiaire → étape sautée, comportement voulu.
 
-  // Les caissières absentes ne sont pas proposées pour un NOUVEAU circuit (pas de
-  // notion de "poste" ici pour appliquer la substitution automatique comme pour dg/comptable).
-  const caissiers = await User.findAll({ where: { role: 'caissier', isActive: true, isAbsent: false }, attributes: ['id', 'firstName', 'lastName', 'email'] });
-  if (caissiers.length === 0) {
-    return { error: 'Aucune caissière active. Assignez le rôle "caissier" à un compte utilisateur.' };
-  }
-  const caissierOptions = caissiers.map(u => ({ id: u.id, name: fullName(u) }));
-  let caissierChosenId = null;
-  let caissierNeedsSelection = false;
-  if (caissiers.length === 1) {
-    caissierChosenId = caissiers[0].id;
-  } else {
-    const sel = selections.caissier;
-    if (sel && caissiers.some(u => u.id === sel)) caissierChosenId = sel;
-    else caissierNeedsSelection = true;
-  }
-  steps.push({ key: 'caissier', posteCode: 'caissier', label: 'Caissière', holders: caissierOptions, chosenId: caissierChosenId, needsSelection: caissierNeedsSelection });
+  const caissierErr = await addCaissierStep();
+  if (caissierErr) return { error: caissierErr };
 
   if (steps.length === 0) {
     return { error: 'Impossible de construire le circuit de validation (aucun validateur résolu).' };
@@ -95,7 +129,7 @@ export async function resolvePieceDeCaisseChain(document, selections = {}) {
 }
 
 export async function buildPieceDeCaisseChain(document, selections = {}) {
-  const { steps, error } = await resolvePieceDeCaisseChain(document, selections);
+  const { steps, error, circuit } = await resolvePieceDeCaisseChain(document, selections);
   if (error) return { error };
 
   const missing = steps.find(s => s.needsSelection);
@@ -111,5 +145,5 @@ export async function buildPieceDeCaisseChain(document, selections = {}) {
   if (validatorIds.length === 0) {
     return { error: 'Impossible de construire le circuit de validation (aucun validateur résolu).' };
   }
-  return { validatorIds };
+  return { validatorIds, circuit: circuit || 'standard' };
 }
