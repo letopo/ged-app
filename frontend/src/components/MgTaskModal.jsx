@@ -65,7 +65,7 @@ const MgTaskModal = ({ task, onClose, onUpdate }) => {
         </div>
 
         {task.document.status === 'en_attente_dependance' ? (
-          <div style={{ background: 'var(--warning-soft)', borderLeft: '4px solid var(--warning)', padding: 16, borderRadius: 'var(--radius-2)', display: 'flex', gap: 12 }}>
+          <div style={{ background: 'var(--warning-soft)', border: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)', padding: 16, borderRadius: 'var(--radius-2)', display: 'flex', gap: 12 }}>
             <AlertTriangle size={18} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} />
             <p style={{ fontSize: 13, color: 'var(--fg)', margin: 0 }}>
               {t("Cette tâche est en attente de la finalisation d'une Demande de Besoin. Elle sera réactivée automatiquement.")}

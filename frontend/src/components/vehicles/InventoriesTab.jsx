@@ -113,10 +113,11 @@ export default function InventoriesTab({ refreshKey }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {data.vehicles.map((v) => {
           const restock = v.last?.restock || [];
+          const tone = !v.last ? 'var(--fg-muted)' : v.last.critical ? '#dc2626' : restock.length ? '#ea580c' : '#16a34a';
           return (
-            <div key={v.id} className="ged-card" style={{ padding: 14, borderLeft: `4px solid ${!v.last ? 'var(--border)' : v.last.critical ? '#dc2626' : restock.length ? '#ea580c' : '#16a34a'}` }}>
+            <div key={v.id} className="ged-card" style={{ padding: 14, borderColor: `color-mix(in srgb, ${tone} 30%, var(--border))` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <PackageOpen size={17} color="#ea580c" />
+                <PackageOpen size={17} color={tone} />
                 <div style={{ flex: 1, fontSize: 14, fontWeight: 800, color: 'var(--fg)' }}>{t('À réapprovisionner')} · {v.label}</div>
               </div>
               <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 8 }}>

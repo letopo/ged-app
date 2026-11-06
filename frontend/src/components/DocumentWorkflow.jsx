@@ -182,7 +182,7 @@ export default function DocumentWorkflow({ documentId, onClose }) {
           { value: workflows.filter(w => w.status === 'approved').length, label: t('Approuvés'), color: 'var(--success)' },
           { value: workflows.filter(w => w.status === 'pending').length,  label: t('En attente'), color: 'var(--warning)' },
         ].map(s => (
-          <div key={s.label} className="ged-stat" style={{ textAlign: 'center', borderLeft: `3px solid ${s.color}` }}>
+          <div key={s.label} className="ged-stat" style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 24, fontWeight: 700, color: s.color }}>{s.value}</div>
             <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{s.label}</div>
           </div>

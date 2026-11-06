@@ -545,7 +545,7 @@ export default function ComptaDocuments() {
               const type = TYPE_COLORS[d.typeMouvement];
               return (
                 <div key={d.id} data-compta-card className="flex items-start gap-3 px-3 py-3"
-                  style={{ borderBottom: '1px solid var(--border)', borderLeft: `4px solid ${d.groupId ? color : 'transparent'}` }}>
+                  style={{ borderBottom: '1px solid var(--border)', background: d.groupId ? `color-mix(in srgb, ${color} 6%, var(--surface))` : undefined }}>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold truncate" style={{ color: 'var(--fg)' }}>{d.libelle || '—'}</div>
                     <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--fg-muted)' }}>
@@ -638,10 +638,9 @@ export default function ComptaDocuments() {
                         ? `color-mix(in srgb, ${color} ${isFirst ? '7%' : '4%'}, var(--surface))`
                         : 'transparent',
                     }}>
-                      {/* Indicateur de groupe — barre colorée à gauche */}
+                      {/* Groupe : signalé par le fond teinté et l'étiquette « n lignes » */}
                       <td className="py-2 whitespace-nowrap" style={{
                         paddingLeft: 0,
-                        borderLeft: d.groupId ? `4px solid ${color}` : '4px solid transparent',
                         paddingRight: 8,
                       }}>
                         <span style={{ paddingLeft: 8, color: 'var(--fg)' }}>{d.numeroOrdre}</span>
