@@ -25,8 +25,7 @@ const INFIRMERIES = [
 
 // Mapping secteur → code infirmerie (60 secteurs)
 const SECTEURS_DATA = [
-  // INF_NYOMBE (37 secteurs)
-  { nom: 'PENJA EST',         infCode: 'INF_NYOMBE' },
+  // INF_NYOMBE (36 secteurs)
   { nom: 'PENJA OUEST',       infCode: 'INF_NYOMBE' },
   { nom: 'NYOMBE',            infCode: 'INF_NYOMBE' },
   { nom: 'DAC',               infCode: 'INF_NYOMBE' },
@@ -73,10 +72,11 @@ const SECTEURS_DATA = [
   { nom: 'PHP HAUT',          infCode: 'INF_PENJA' },
   { nom: 'MPOULA 1',          infCode: 'INF_PENJA' },
   { nom: 'MPOULA 2',          infCode: 'INF_PENJA' },
-  // INF_PHP_BAS (3 secteurs)
+  // INF_PHP_BAS (4 secteurs) — PENJA EST rattaché le 06/11/2026
   { nom: 'PHP BAS',           infCode: 'INF_PHP_BAS' },
   { nom: 'KUMBE',             infCode: 'INF_PHP_BAS' },
   { nom: 'CAPLAIN',           infCode: 'INF_PHP_BAS' },
+  { nom: 'PENJA EST',         infCode: 'INF_PHP_BAS' },
   // INF_LOUM (4 secteurs)
   { nom: 'LOUM 1',            infCode: 'INF_LOUM' },
   { nom: 'LOUM 2',            infCode: 'INF_LOUM' },

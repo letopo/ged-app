@@ -362,7 +362,19 @@ const splitName = (full) => {
   const [nom, ...rest] = (full || '').split(' ');
   return { nom: nom || full, prenom: rest.join(' ') || null };
 };
-const secteurCode = (nom) => `SEC_${nom.replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '')}`.slice(0, 100);
+// Secteurs mal saisis à la main, ramenés au bon (fusionnés le 06/11/2026)
+const SECTEUR_ALIASES = {
+  SEC_P_EST: 'SEC_PENJA_EST', SEC_P_OUEST: 'SEC_PENJA_OUEST',
+  SEC_LOUM1: 'SEC_LOUM_1', SEC_IOUM1: 'SEC_LOUM_1', SEC_LOUM2: 'SEC_LOUM_2', SEC_LOUN2: 'SEC_LOUM_2',
+  SEC_BOUBOPU: 'SEC_BOUBOU', SEC_NJOMBE: 'SEC_NYOMBE',
+};
+const secteurCode = (nom) => {
+  const code = `SEC_${nom.replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '')}`.slice(0, 100);
+  return SECTEUR_ALIASES[code] || code;
+};
+// Secteurs rattachés à une autre infirmerie que celle du classeur (demande du
+// personnel PHP, 06/11/2026) : l'infirmerie de la ligne Excel est ignorée.
+const SECTEUR_INFIRMERIE = { SEC_PENJA_EST: 'INF_PHP_BAS' };
 const titleCase = (s) => (s || '').toLowerCase().replace(/(^|[\s-])\S/g, c => c.toUpperCase());
 
 function emptyStats() { return { created: 0, updated: 0, unchanged: 0 }; }
@@ -425,7 +437,7 @@ export async function importPhpExcel(buffer, { apply = false, userId, tenantId }
     const secteurs = await Secteur.findAll(opts);
     const secByCode = new Map(secteurs.map(s => [s.code.toUpperCase(), s]));
     for (const s of secteurs) if (!secByCode.has(secteurCode(s.nom.toUpperCase()))) secByCode.set(secteurCode(s.nom.toUpperCase()), s);
-    const secteurInfirmerie = new Map(data.secteurs.map(s => [secteurCode(s.nom), [s.nom, s.infirmerie]]));
+    const secteurInfirmerie = new Map(data.secteurs.map(s => [secteurCode(s.nom), [s.nom, SECTEUR_INFIRMERIE[secteurCode(s.nom)] || s.infirmerie]]));
     for (const p of [...data.patients, ...data.consultations]) {
       if (p.secteur && p.infirmerie && !secteurInfirmerie.has(secteurCode(p.secteur))) secteurInfirmerie.set(secteurCode(p.secteur), [p.secteur, p.infirmerie]);
     }
@@ -441,7 +453,8 @@ export async function importPhpExcel(buffer, { apply = false, userId, tenantId }
     }
     const placeOf = (r) => {
       const sec = r.secteur ? secByCode.get(secteurCode(r.secteur)) : null;
-      const inf = r.infirmerie ? infByCode.get(r.infirmerie) : null;
+      const infCode = (r.secteur && SECTEUR_INFIRMERIE[secteurCode(r.secteur)]) || r.infirmerie;
+      const inf = infCode ? infByCode.get(infCode) : null;
       return { secteurId: sec?.id ?? null, infirmerieId: inf?.id ?? sec?.infirmerieId ?? null };
     };
 
