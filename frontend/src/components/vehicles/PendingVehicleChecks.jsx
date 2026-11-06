@@ -23,7 +23,7 @@ export default function PendingVehicleChecks({ style }) {
 
   if (!items.length) return null;
   return (
-    <div className="ged-card" style={{ padding: 14, borderLeft: '4px solid #ea580c', ...style }}>
+    <div className="ged-card" style={{ padding: 14, borderColor: 'color-mix(in srgb, #ea580c 25%, var(--border))', ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--fg)', marginBottom: 8 }}>
         <Ambulance size={18} color="#ea580c" /> {t('Contrôles d\'ambulance à faire')}
         <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#ea580c', borderRadius: 999, padding: '1px 8px' }}>{items.length}</span>
