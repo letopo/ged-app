@@ -2,17 +2,26 @@
 
 // Module PHP (demande du personnel PHP, 06/11/2026) : le secteur PENJA EST
 // quitte l'Infirmerie Nyombe pour l'Infirmerie PHP Bas, historique compris.
-// « P EST » et « P OUEST », saisis en abrégé dans le classeur, sont fusionnés
-// dans PENJA EST et PENJA OUEST (PENJA OUEST reste à Nyombe). L'import Excel
-// applique la même règle (SECTEUR_ALIASES et SECTEUR_INFIRMERIE dans
+// Les secteurs mal saisis dans le classeur (abréviations « P EST » / « P OUEST »,
+// fautes de frappe LOUM1, IOUM1, LOUM2, BOUBOPU, NJOMBE) sont fusionnés dans le
+// bon secteur, de la même infirmerie (PENJA OUEST reste à Nyombe). L'import
+// Excel applique la même règle (SECTEUR_ALIASES et SECTEUR_INFIRMERIE dans
 // utils/phpExcelImport.js).
 module.exports = {
   async up(queryInterface) {
     const q = (sql) => queryInterface.sequelize.query(sql);
 
-    // 1. Abréviations du classeur fusionnées : « P EST » → PENJA EST,
-    //    « P OUEST » → PENJA OUEST (renommées si le secteur complet n'existe pas)
-    for (const [abrege, complet, nom] of [['SEC_P_EST', 'SEC_PENJA_EST', 'PENJA EST'], ['SEC_P_OUEST', 'SEC_PENJA_OUEST', 'PENJA OUEST']]) {
+    // 1. Secteurs mal saisis fusionnés dans le bon (renommés si celui-ci n'existe pas)
+    const FUSIONS = [
+      ['SEC_P_EST', 'SEC_PENJA_EST', 'PENJA EST'],
+      ['SEC_P_OUEST', 'SEC_PENJA_OUEST', 'PENJA OUEST'],
+      ['SEC_LOUM1', 'SEC_LOUM_1', 'LOUM 1'],
+      ['SEC_IOUM1', 'SEC_LOUM_1', 'LOUM 1'],
+      ['SEC_LOUM2', 'SEC_LOUM_2', 'LOUM 2'],
+      ['SEC_BOUBOPU', 'SEC_BOUBOU', 'BOUBOU'],
+      ['SEC_NJOMBE', 'SEC_NYOMBE', 'NYOMBE'],
+    ];
+    for (const [abrege, complet, nom] of FUSIONS) {
       await q(`
         UPDATE php_secteurs p SET code = '${complet}', nom = '${nom}', updated_at = now()
          WHERE p.code = '${abrege}'

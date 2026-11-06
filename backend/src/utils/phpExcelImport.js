@@ -362,8 +362,12 @@ const splitName = (full) => {
   const [nom, ...rest] = (full || '').split(' ');
   return { nom: nom || full, prenom: rest.join(' ') || null };
 };
-// Abréviations saisies à la main : « P EST » = PENJA EST, « P OUEST » = PENJA OUEST (fusionnés le 06/11/2026)
-const SECTEUR_ALIASES = { SEC_P_EST: 'SEC_PENJA_EST', SEC_P_OUEST: 'SEC_PENJA_OUEST' };
+// Secteurs mal saisis à la main, ramenés au bon (fusionnés le 06/11/2026)
+const SECTEUR_ALIASES = {
+  SEC_P_EST: 'SEC_PENJA_EST', SEC_P_OUEST: 'SEC_PENJA_OUEST',
+  SEC_LOUM1: 'SEC_LOUM_1', SEC_IOUM1: 'SEC_LOUM_1', SEC_LOUM2: 'SEC_LOUM_2',
+  SEC_BOUBOPU: 'SEC_BOUBOU', SEC_NJOMBE: 'SEC_NYOMBE',
+};
 const secteurCode = (nom) => {
   const code = `SEC_${nom.replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '')}`.slice(0, 100);
   return SECTEUR_ALIASES[code] || code;
