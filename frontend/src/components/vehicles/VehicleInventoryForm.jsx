@@ -140,7 +140,7 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
               )}
             </div>
             {result?.restock?.length ? (
-              <div className="ged-card" style={{ padding: 16, borderLeft: `4px solid ${result.inventory?.critical ? '#dc2626' : '#ea580c'}` }}>
+              <div className="ged-card" style={{ padding: 16, borderColor: `color-mix(in srgb, ${result.inventory?.critical ? '#dc2626' : '#ea580c'} 30%, var(--border))` }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--fg)', marginBottom: 8 }}>{t('À réapprovisionner')} ({result.restock.length})</div>
                 {result.restock.map((r) => (
                   <div key={r.itemId} style={{ fontSize: 13, color: 'var(--fg)', padding: '5px 0', borderTop: '1px solid var(--surface-3)' }}>

@@ -37,7 +37,7 @@ function StatCard({ label, value, color }) {
   return (
     <div style={{
       background: 'var(--surface)', borderRadius: 12, padding: '20px 24px',
-      boxShadow: 'var(--shadow-1)', borderLeft: `4px solid ${color}`,
+      boxShadow: 'var(--shadow-1)', border: '1px solid var(--border)',
       minWidth: 140
     }}>
       <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>

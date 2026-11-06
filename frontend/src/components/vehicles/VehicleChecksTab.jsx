@@ -227,7 +227,7 @@ export default function VehicleChecksTab({ vehicles, loading, onChanged, initial
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
         {vehicles.filter((v) => v.canCheck).map((v) => (
           <button key={v.id} type="button" onClick={() => setOpenId(v.id)} className="ged-card"
-            style={{ textAlign: 'left', padding: 14, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8, borderLeft: `4px solid ${LEVELS[v.readiness?.level || 'aucun'].color}` }}>
+            style={{ textAlign: 'left', padding: 14, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8, borderColor: `color-mix(in srgb, ${LEVELS[v.readiness?.level || 'aucun'].color} 30%, var(--border))` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Truck size={20} color="var(--brand)" /></div>
               <div style={{ minWidth: 0 }}>

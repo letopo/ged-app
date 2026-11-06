@@ -120,7 +120,7 @@ export default function FleetDashboard({ onVehiclesChanged }) {
           {data.missions.map((m) => {
             const alert = m.alerts.departMissing || m.alerts.retourMissing;
             return (
-              <div key={m.id} className="ged-card" style={{ padding: 12, borderLeft: `4px solid ${alert ? '#dc2626' : m.alerts.anomalies ? '#ea580c' : '#16a34a'}` }}>
+              <div key={m.id} className="ged-card" style={{ padding: 12, borderColor: `color-mix(in srgb, ${alert ? '#dc2626' : m.alerts.anomalies ? '#ea580c' : '#16a34a'} 30%, var(--border))` }}>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                   <div style={{ flex: '2 1 240px', minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>

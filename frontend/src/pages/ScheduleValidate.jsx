@@ -156,7 +156,7 @@ export default function ScheduleValidate() {
                 { value: schedule.assignments?.length || 0, label: t('Affectations'), color: 'var(--success)' },
                 { value: new Date(schedule.year, schedule.month, 0).getDate(), label: t('Jours'), color: 'var(--warning)' },
               ].map(stat => (
-                <div key={stat.label} className="ged-stat" style={{ textAlign: 'center', borderLeft: `3px solid ${stat.color}` }}>
+                <div key={stat.label} className="ged-stat" style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 28, fontWeight: 700, color: stat.color, marginBottom: 4 }}>{stat.value}</div>
                   <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{stat.label}</div>
                 </div>
