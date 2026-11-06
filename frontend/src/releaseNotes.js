@@ -1066,7 +1066,7 @@ const RELEASE_NOTES = [
     access: (user) => phpAccess(user).read,
     items: [
       'Le secteur PENJA EST dépend désormais de l\'Infirmerie PHP Bas (et non plus de Nyombe). Ses patients et toutes ses consultations, y compris passées, comptent dans les statistiques de PHP Bas.',
-      '« P EST » était le même secteur saisi en abrégé : il est fusionné dans PENJA EST.',
+      '« P EST » et « P OUEST » étaient les mêmes secteurs saisis en abrégé : ils sont fusionnés dans PENJA EST et PENJA OUEST (qui reste rattaché à Nyombe).',
     ],
   },
 ];
