@@ -3,10 +3,10 @@
 // Module PHP (demande du personnel PHP, 06/11/2026) : le secteur PENJA EST
 // quitte l'Infirmerie Nyombe pour l'Infirmerie PHP Bas, historique compris.
 // Les secteurs mal saisis dans le classeur (abréviations « P EST » / « P OUEST »,
-// fautes de frappe LOUM1, IOUM1, LOUM2, BOUBOPU, NJOMBE) sont fusionnés dans le
-// bon secteur, de la même infirmerie (PENJA OUEST reste à Nyombe). L'import
-// Excel applique la même règle (SECTEUR_ALIASES et SECTEUR_INFIRMERIE dans
-// utils/phpExcelImport.js).
+// fautes de frappe LOUM1, IOUM1, LOUM2, LOUN2, BOUBOPU, NJOMBE) sont fusionnés
+// dans le bon secteur, de la même infirmerie (PENJA OUEST reste à Nyombe).
+// L'import Excel applique la même règle (SECTEUR_ALIASES et SECTEUR_INFIRMERIE
+// dans utils/phpExcelImport.js).
 module.exports = {
   async up(queryInterface) {
     const q = (sql) => queryInterface.sequelize.query(sql);
@@ -18,6 +18,7 @@ module.exports = {
       ['SEC_LOUM1', 'SEC_LOUM_1', 'LOUM 1'],
       ['SEC_IOUM1', 'SEC_LOUM_1', 'LOUM 1'],
       ['SEC_LOUM2', 'SEC_LOUM_2', 'LOUM 2'],
+      ['SEC_LOUN2', 'SEC_LOUM_2', 'LOUM 2'],
       ['SEC_BOUBOPU', 'SEC_BOUBOU', 'BOUBOU'],
       ['SEC_NJOMBE', 'SEC_NYOMBE', 'NYOMBE'],
     ];

@@ -1067,7 +1067,7 @@ const RELEASE_NOTES = [
     items: [
       'Le secteur PENJA EST dépend désormais de l\'Infirmerie PHP Bas (et non plus de Nyombe). Ses patients et toutes ses consultations, y compris passées, comptent dans les statistiques de PHP Bas.',
       '« P EST » et « P OUEST » étaient les mêmes secteurs saisis en abrégé : ils sont fusionnés dans PENJA EST et PENJA OUEST (qui reste rattaché à Nyombe).',
-      'Secteurs en double à cause d\'une faute de frappe, regroupés : LOUM1 et IOUM1 → LOUM 1, LOUM2 → LOUM 2, BOUBOPU → BOUBOU, NJOMBE → NYOMBE.',
+      'Secteurs en double à cause d\'une faute de frappe, regroupés : LOUM1 et IOUM1 → LOUM 1, LOUM2 et LOUN2 → LOUM 2, BOUBOPU → BOUBOU, NJOMBE → NYOMBE.',
     ],
   },
 ];

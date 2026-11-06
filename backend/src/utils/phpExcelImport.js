@@ -365,7 +365,7 @@ const splitName = (full) => {
 // Secteurs mal saisis à la main, ramenés au bon (fusionnés le 06/11/2026)
 const SECTEUR_ALIASES = {
   SEC_P_EST: 'SEC_PENJA_EST', SEC_P_OUEST: 'SEC_PENJA_OUEST',
-  SEC_LOUM1: 'SEC_LOUM_1', SEC_IOUM1: 'SEC_LOUM_1', SEC_LOUM2: 'SEC_LOUM_2',
+  SEC_LOUM1: 'SEC_LOUM_1', SEC_IOUM1: 'SEC_LOUM_1', SEC_LOUM2: 'SEC_LOUM_2', SEC_LOUN2: 'SEC_LOUM_2',
   SEC_BOUBOPU: 'SEC_BOUBOU', SEC_NJOMBE: 'SEC_NYOMBE',
 };
 const secteurCode = (nom) => {
