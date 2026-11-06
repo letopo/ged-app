@@ -1058,6 +1058,17 @@ const RELEASE_NOTES = [
       'La caissière peut aussi être choisie comme validatrice lors de la soumission d\'un document.',
     ],
   },
+  {
+    id: '2026-11-06-php-penja-est-php-bas',
+    date: '2026-11-06',
+    target: '/php',
+    title: 'PHP : le secteur PENJA EST rattaché à l\'Infirmerie PHP Bas',
+    access: (user) => phpAccess(user).read,
+    items: [
+      'Le secteur PENJA EST dépend désormais de l\'Infirmerie PHP Bas (et non plus de Nyombe). Ses patients et toutes ses consultations, y compris passées, comptent dans les statistiques de PHP Bas.',
+      '« P EST » était le même secteur saisi en abrégé : il est fusionné dans PENJA EST.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
