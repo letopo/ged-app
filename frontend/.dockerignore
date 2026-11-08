@@ -13,3 +13,6 @@ dist
 *.log
 coverage
 .nyc_output
+# Projet Android (Capacitor) : inutile à l image web
+android
+capacitor-shell
