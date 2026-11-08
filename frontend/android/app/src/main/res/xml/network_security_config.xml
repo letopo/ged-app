@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Certificats acceptés par l'application GED HSJM.
+  - system : autorités publiques habituelles ;
+  - ca_hsjm : CA interne de l'hôpital, embarquée dans l'APK (copie de nginx/ssl/ca.crt),
+    pour que les téléphones n'aient plus à l'installer à la main ;
+  - user : CA installée à la main sur le téléphone (secours, si la CA du serveur change
+    avant que l'APK ne soit recompilée).
+  Le trafic en clair (http) reste interdit.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/ca_hsjm" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
