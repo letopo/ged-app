@@ -120,7 +120,7 @@ export default function ParcVehicules() {
       {tab === 'suivi' && <FleetOverview refreshKey={refreshKey} onOpenVehicle={(id, sub) => setDetail({ id, tab: sub })} />}
       {tab === 'controles' && <VehicleChecksTab vehicles={vehicles.filter((v) => v.isActive)} loading={loading} onChanged={() => loadVehicles()} initialVehicleId={params.get('tab') === 'suivi' ? null : params.get('vehicle')} onOpenDetail={(id) => setDetail({ id })} />}
       {tab === 'tableau' && <FleetDashboard onVehiclesChanged={() => loadVehicles()} />}
-      {tab === 'manques' && <ShortagesTab refreshKey={refreshKey} />}
+      {tab === 'manques' && <ShortagesTab refreshKey={refreshKey} onChanged={() => loadVehicles()} />}
       {tab === 'inventaires' && <InventoriesTab refreshKey={refreshKey} />}
       {tab === 'vehicules' && <VehiclesAdmin vehicles={vehicles} fleet={fleet} onChanged={() => loadVehicles()} onOpen={(id) => setDetail({ id })} />}
       {detailVehicle && (

@@ -102,7 +102,7 @@ function VehicleShortages({ v, onChanged }) {
   const btn = (primary, disabled) => ({ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 14px', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1, border: primary ? 'none' : '1px solid var(--border)', background: primary ? 'var(--brand)' : 'var(--surface)', color: primary ? '#fff' : 'var(--fg)' });
   const stepBtn = { width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 };
   const selectable = (s) => (mode === 'restock' ? true : v.canManage && toOrder.includes(s));
-  const linkBtn = { border: 'none', background: 'none', padding: 0, fontSize: 11, color: 'var(--fg-muted)', textDecoration: 'underline', cursor: 'pointer' };
+  const linkBtn = { display: 'inline-flex', alignItems: 'center', gap: 3, border: 'none', background: 'none', padding: 0, fontSize: 11, color: 'var(--fg-muted)', textDecoration: 'underline', cursor: 'pointer' };
 
   return (
     <div className="ged-card" style={{ padding: 0, overflow: 'hidden', borderColor: `color-mix(in srgb, ${tone} 30%, var(--border))` }}>
@@ -209,7 +209,7 @@ function VehicleShortages({ v, onChanged }) {
   );
 }
 
-export default function ShortagesTab({ refreshKey }) {
+export default function ShortagesTab({ refreshKey, onChanged }) {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
   const load = useCallback(() => {
@@ -226,7 +226,7 @@ export default function ShortagesTab({ refreshKey }) {
       <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
         {t('Un manque relevé à l\'inventaire reste ici jusqu\'à ce qu\'il soit réarmé : À commander → Commandé (bon envoyé à la pharmacie) → Réarmé.')}
       </div>
-      {data.map((v) => <VehicleShortages key={v.id} v={v} onChanged={load} />)}
+      {data.map((v) => <VehicleShortages key={v.id} v={v} onChanged={() => { load(); onChanged?.(); }} />)}
     </div>
   );
 }
