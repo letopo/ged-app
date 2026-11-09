@@ -755,10 +755,55 @@ const MobileTabBar = ({ pendingCount, onMore }) => {
 
 /* ─── Mobile "Plus" sheet ──────────────────────────────────────────── */
 
-const MoreSheet = ({ onClose, user }) => {
+const MoreSheet = ({ onClose, onNavigate, user }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + '/');
+
+  // Glisser vers le bas pour fermer (seulement quand la liste est tout en haut)
+  const sheetRef = useRef(null);
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return undefined;
+    let debutY = null, ecart = 0, debutT = 0;
+    const depart = (e) => {
+      if (el.scrollTop > 0) { debutY = null; return; }
+      debutY = e.touches[0].clientY; ecart = 0; debutT = Date.now();
+      el.style.transition = 'none';
+    };
+    const deplace = (e) => {
+      if (debutY === null) return;
+      ecart = e.touches[0].clientY - debutY;
+      if (ecart > 0 && el.scrollTop <= 0) {
+        e.preventDefault(); // pas de défilement de la liste pendant le glissement
+        el.style.transform = `translateY(${ecart}px)`;
+      } else if (ecart < 0) {
+        debutY = null; el.style.transform = '';
+      }
+    };
+    const fin = () => {
+      if (debutY === null) return;
+      const rapide = ecart > 40 && ecart / Math.max(1, Date.now() - debutT) > 0.5;
+      debutY = null;
+      el.style.transition = 'transform 200ms ease';
+      if (ecart > 110 || rapide) {
+        el.style.transform = 'translateY(100%)';
+        setTimeout(onClose, 180);
+      } else {
+        el.style.transform = '';
+      }
+    };
+    el.addEventListener('touchstart', depart, { passive: true });
+    el.addEventListener('touchmove', deplace, { passive: false });
+    el.addEventListener('touchend', fin);
+    el.addEventListener('touchcancel', fin);
+    return () => {
+      el.removeEventListener('touchstart', depart);
+      el.removeEventListener('touchmove', deplace);
+      el.removeEventListener('touchend', fin);
+      el.removeEventListener('touchcancel', fin);
+    };
+  }, [onClose]);
 
   // Mêmes modules et mêmes droits que le menu latéral, en tuiles colorées par métier
   const sections = [
@@ -777,14 +822,15 @@ const MoreSheet = ({ onClose, user }) => {
 
   return (
     <div className="more-sheet-overlay" onClick={onClose}>
-      <div className="more-sheet" onClick={e => e.stopPropagation()} role="dialog" aria-label={t('Plus')}>
+      <div ref={sheetRef} className="more-sheet" onClick={e => e.stopPropagation()} role="dialog" aria-label={t('Plus')}>
         <div className="more-sheet-grip" />
         {sections.map(sec => (
           <section key={sec.id} className="more-section">
             <h3>{sec.label}</h3>
             <div className="module-grid">
               {sec.items.map(item => (
-                <Link key={item.path} to={item.path} onClick={onClose}
+                <Link key={item.path} to={item.path}
+                  onClick={(e) => { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); onNavigate(item.path); }}
                   className={`module-tile${isActive(item.path) ? ' is-active' : ''}`}
                   style={{ '--tile-color': sec.color }}>
                   <item.icon size={24} strokeWidth={1.8} className="module-tile-icon" />
@@ -824,10 +870,27 @@ export default function AppShell({ onLogout }) {
   // Grand titre façon iOS : présent sur la page ? sorti de l'écran au défilement ?
   const mainRef = useRef(null);
   const [largeTitle, setLargeTitle] = useState({ present: false, hidden: false });
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // Menu « Plus » mobile : ouvert = une étape d'historique (state.plusOuvert), pour
+  // que la touche retour (navigateur ou téléphone) le ferme au lieu de quitter la page.
+  const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => { setMobileOpen(false); setSheetOpen(false); }, [location.pathname]);
+  const sheetOpen = !!location.state?.plusOuvert;
+  const openSheet = () => {
+    if (!sheetOpen) navigate(location.pathname + location.search, { state: { ...(location.state || {}), plusOuvert: true } });
+  };
+  const closeSheet = () => { if (sheetOpen) navigate(-1); };
+  // Choix d'un module : remplace l'étape « menu ouvert » (retour = page d'avant)
+  const navigateFromSheet = (path) => navigate(path, { replace: true });
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+  // Page rechargée avec le menu ouvert dans l'historique : on le referme proprement
+  useEffect(() => {
+    if (location.state?.plusOuvert) {
+      const { plusOuvert, ...reste } = location.state;
+      navigate(location.pathname + location.search, { replace: true, state: Object.keys(reste).length ? reste : null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Applique la couleur de marque du tenant (--brand) si configurée
   useEffect(() => {
@@ -941,11 +1004,11 @@ export default function AppShell({ onLogout }) {
 
       {/* ── Barre mobile bas ── */}
       <div className="lg:hidden">
-        <MobileTabBar pendingCount={pendingCount} onMore={() => setSheetOpen(true)} />
+        <MobileTabBar pendingCount={pendingCount} onMore={openSheet} />
       </div>
 
       {/* ── Sheet "Plus" mobile ── */}
-      {sheetOpen && <MoreSheet user={user} onClose={() => setSheetOpen(false)} />}
+      {sheetOpen && <MoreSheet user={user} onClose={closeSheet} onNavigate={navigateFromSheet} />}
 
       {/* ── Recherche globale (⌘K + déclenchée par la barre sidebar) ── */}
       <GlobalSearch hideTrigger />

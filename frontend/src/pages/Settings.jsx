@@ -1,6 +1,7 @@
 // frontend/src/pages/Settings.jsx — Redesign complet
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { authAPI, usersAPI, tenantBrandingAPI, mailSettingsAPI, integrationsAPI } from '../services/api';
@@ -8,6 +9,7 @@ import {
   Home, Settings as SettingsIcon, Bell, Users, Sparkles, FileText,
   Zap, Shield, Database, Save, Loader, AlertCircle, CheckCircle,
   Lock, Eye, EyeOff, Upload, Pen, X, UploadCloud, Stamp, Mail, Timer, ShieldCheck,
+  ChevronRight, ChevronLeft,
 } from 'lucide-react';
 import LicenseManager from '../components/LicenseManager';
 import TwoFactorSetup from '../components/TwoFactorSetup';
@@ -30,29 +32,29 @@ const NAV = [
   {
     group: 'Compte',
     items: [
-      { id: 'profile',       label: 'Profil',        icon: Home },
-      { id: 'security',      label: 'Sécurité · 2FA', icon: SettingsIcon },
-      { id: 'notifications', label: 'Notifications',  icon: Bell },
+      { id: 'profile',       label: 'Profil',        icon: Home, desc: 'Nom, photo, signature, cachet, langue' },
+      { id: 'security',      label: 'Sécurité · 2FA', icon: SettingsIcon, desc: 'Mot de passe, double authentification, appareils' },
+      { id: 'notifications', label: 'Notifications',  icon: Bell, desc: 'Alertes push et e-mails' },
     ],
   },
   {
     group: 'Organisation',
     items: [
-      { id: 'team',      label: 'Équipe',     icon: Users },
-      { id: 'branding',  label: 'Branding',   icon: Sparkles },
-      { id: 'delays',    label: 'Délais et session', icon: Timer, requires: 'admin' },
-      { id: 'confidentiality', label: 'Confidentialité', icon: ShieldCheck, requires: 'admin' },
+      { id: 'team',      label: 'Équipe',     icon: Users, desc: 'Utilisateurs et rôles' },
+      { id: 'branding',  label: 'Branding',   icon: Sparkles, desc: 'Nom, logo et couleur' },
+      { id: 'delays',    label: 'Délais et session', icon: Timer, requires: 'admin', desc: 'Durées de session et délais' },
+      { id: 'confidentiality', label: 'Confidentialité', icon: ShieldCheck, requires: 'admin', desc: 'Accès par type de document' },
       // Visible si le super-administrateur ou une délégation le permet (voir mailAccess)
-      { id: 'mail',      label: 'Messagerie', icon: Mail, requires: 'mail' },
-      { id: 'templates', label: 'Licence',    icon: FileText },
+      { id: 'mail',      label: 'Messagerie', icon: Mail, requires: 'mail', desc: 'Serveur d’envoi des e-mails' },
+      { id: 'templates', label: 'Licence',    icon: FileText, desc: 'Licence de la GED' },
     ],
   },
   {
     group: 'Avancé',
     items: [
-      { id: 'ia',           label: 'IA · OCR',      icon: Zap,    requires: 'ai' },
-      { id: 'integrations', label: 'Intégrations',  icon: Shield, requires: 'sage' },
-      { id: 'api',          label: 'API · Webhooks', icon: Database },
+      { id: 'ia',           label: 'IA · OCR',      icon: Zap,    requires: 'ai', desc: 'Lecture automatique des documents' },
+      { id: 'integrations', label: 'Intégrations',  icon: Shield, requires: 'sage', desc: 'Connexion à Sage' },
+      { id: 'api',          label: 'API · Webhooks', icon: Database, desc: 'Accès pour d’autres logiciels' },
     ],
   },
 ];
@@ -106,7 +108,24 @@ export default function Settings() {
   const { user, updateUser } = useAuth();
   const { setLang } = useLanguage();
   const festive = useFestive();
-  const [activeTab, setActiveTab] = useState('profile');
+  // Rubrique dans l'adresse (?rubrique=security) : sur mobile, la liste des rubriques
+  // s'affiche seule, puis la page de la rubrique choisie (bouton retour du téléphone
+  // compris) ; sur ordinateur, liste et page restent côte à côte.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const rubrique = searchParams.get('rubrique');
+  const activeTab = rubrique || 'profile';
+  const setActiveTab = (id) => {
+    const mobile = window.matchMedia?.('(max-width: 860px)').matches;
+    // Mobile : nouvelle entrée d'historique (retour = liste) ; ordinateur : remplacement
+    setSearchParams({ rubrique: id }, mobile ? { state: { depuisListe: true } } : { replace: true });
+    if (mobile) window.scrollTo(0, 0);
+  };
+  const retourListe = () => {
+    if (location.state?.depuisListe) navigate(-1);
+    else setSearchParams({}, { replace: true });
+  };
   // Messagerie : super-administrateur, ou administrateur autorisé par lui
   const [mailAccess, setMailAccess] = useState(user?.role === 'superadmin');
   // IA · OCR et Intégrations (Sage) : même règle que la messagerie
@@ -249,7 +268,7 @@ export default function Settings() {
   const activeLabel = nav.flatMap(g => g.items).find(i => i.id === activeTab)?.label || '';
 
   return (
-    <div className="settings-shell animate-pageFade">
+    <div className={`settings-shell animate-pageFade${rubrique ? ' has-rubrique' : ''}`}>
 
       {/* ── Left sidebar ────────────────────────────────────────────────── */}
       <aside className="settings-sidebar">
@@ -266,6 +285,7 @@ export default function Settings() {
               return (
                 <button
                   key={item.id}
+                  className={`settings-item${active ? ' is-active' : ''}`}
                   onClick={() => setActiveTab(item.id)}
                   style={{
                     width:'100%', display:'flex', alignItems:'center', justifyContent:'flex-start', gap:10,
@@ -279,8 +299,12 @@ export default function Settings() {
                   onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--surface-2)'; }}
                   onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <Icon size={16} />
-                  <span style={{ fontSize:13, fontWeight: active ? 600 : 400 }}>{t(item.label)}</span>
+                  <span className="settings-item-icon"><Icon size={16} /></span>
+                  <span className="settings-item-text">
+                    <span className="settings-item-label" style={{ fontSize:13, fontWeight: active ? 600 : 400 }}>{t(item.label)}</span>
+                    {item.desc && <span className="settings-item-desc">{t(item.desc)}</span>}
+                  </span>
+                  <ChevronRight className="settings-item-chevron" size={18} />
                 </button>
               );
             })}
@@ -291,6 +315,11 @@ export default function Settings() {
       {/* ── Right content ───────────────────────────────────────────────── */}
       <main className="settings-main">
         <div style={{ width:'100%', maxWidth: ['team','notifications'].includes(activeTab) ? 1100 : ['integrations','confidentiality'].includes(activeTab) ? 720 : 560 }}>
+
+          {/* Mobile : retour à la liste des rubriques */}
+          <button type="button" className="settings-back" onClick={retourListe}>
+            <ChevronLeft size={20} /> {t('Paramètres')}
+          </button>
 
           {/* ── Profil ───────────────────────────────────────────────────── */}
           {activeTab === 'profile' && (

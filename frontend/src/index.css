@@ -363,10 +363,36 @@
 .settings-shell   { display: flex; min-height: calc(100vh - 48px); background: var(--bg); }
 .settings-sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 28px 0 24px; background: var(--surface); }
 .settings-main    { flex: 1; min-width: 0; overflow-y: auto; padding: 36px 48px 60px; display: flex; justify-content: center; }
+/* Éléments propres au mobile, masqués sur ordinateur */
+.settings-item-desc, .settings-item-chevron, .settings-back { display: none; }
+.settings-item-text { display: flex; flex-direction: column; min-width: 0; text-align: left; }
+.settings-item-icon { display: inline-flex; }
+
+/* Mobile : liste des rubriques, puis page de la rubrique choisie (?rubrique=…) */
 @media (max-width: 860px) {
   .settings-shell   { flex-direction: column; }
-  .settings-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 16px 0; overflow-x: auto; }
-  .settings-main    { padding: 20px 16px 40px; }
+  .settings-sidebar { width: 100%; border-right: none; padding: 16px 0 110px; background: var(--bg); }
+  .settings-main    { padding: 8px 16px 40px; }
+  .settings-shell:not(.has-rubrique) .settings-main { display: none; }
+  .settings-shell.has-rubrique .settings-sidebar    { display: none; }
+
+  .settings-sidebar > div > div:first-child { padding: 16px 20px 8px !important; }
+  .settings-sidebar > div { margin: 0 12px 8px !important; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .settings-sidebar > div:first-child { background: transparent; border: none; margin: 0 0 8px !important; }
+  .settings-item { height: auto !important; min-height: 60px; padding: 10px 14px !important; gap: 14px !important;
+                   border-left: none !important; background: transparent !important; color: var(--fg) !important;
+                   border-bottom: 1px solid var(--border) !important; }
+  .settings-sidebar > div > .settings-item:last-child { border-bottom: none !important; }
+  .settings-item-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--brand-soft); color: var(--brand);
+                        align-items: center; justify-content: center; flex-shrink: 0; }
+  .settings-item-text { flex: 1; }
+  .settings-item-label { font-size: 15px !important; font-weight: 600 !important; }
+  .settings-item-desc { display: block; font-size: 12.5px; color: var(--fg-muted); margin-top: 2px;
+                        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .settings-item-chevron { display: block; color: var(--fg-subtle); flex-shrink: 0; }
+
+  .settings-back { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 12px -6px; padding: 8px 6px;
+                   border: none; background: none; color: var(--brand); font-size: 15px; font-weight: 600; cursor: pointer; }
 }
 
 /* Tableau de bord — colonne calendrier + raccourcis empilée sur mobile */

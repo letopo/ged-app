@@ -1124,6 +1124,16 @@ const RELEASE_NOTES = [
       "Réglage dans Paramètres › Sécurité : activer ou non, et choisir le délai (immédiatement, 1 min, 5 min…).",
     ],
   },
+  {
+    id: '2026-11-09-parametres-mobile',
+    date: '2026-11-09',
+    target: 'app',
+    title: 'Paramètres sur téléphone',
+    access: () => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 860px)').matches,
+    items: [
+      "Sur téléphone, la page Paramètres affiche d'abord la liste des rubriques (Profil, Sécurité, Notifications…). Touchez une rubrique pour ouvrir ses options ; « ‹ Paramètres » ou le bouton retour du téléphone ramène à la liste.",
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
