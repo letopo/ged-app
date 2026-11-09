@@ -1134,6 +1134,16 @@ const RELEASE_NOTES = [
       "Sur téléphone, la page Paramètres affiche d'abord la liste des rubriques (Profil, Sécurité, Notifications…). Touchez une rubrique pour ouvrir ses options ; « ‹ Paramètres » ou le bouton retour du téléphone ramène à la liste.",
     ],
   },
+  {
+    id: '2026-11-09-apk-barres-couleur',
+    date: '2026-11-09',
+    target: 'app',
+    title: 'Application Android : barres aux couleurs de la GED',
+    access: () => isAndroidApp(),
+    items: [
+      "La barre de notification (en haut) et la barre de navigation (en bas) du téléphone prennent la couleur de l'interface : claires en thème clair, sombres en thème sombre, assombries quand un menu est ouvert.",
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

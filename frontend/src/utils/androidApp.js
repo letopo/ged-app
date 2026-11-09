@@ -146,3 +146,64 @@ export const reglerVerrouillageAndroid = (actif, delaiSecondes) => {
   if (!lireVerrouillageAndroid()) return;
   window.GedAndroid.reglerVerrouillage(!!actif, Number(delaiSecondes) || 0);
 };
+
+// ── Couleur des barres système (APK) ─────────────────────────────────────────
+// Envoie à l'appli la couleur réellement affichée en haut et en bas de l'écran
+// (thème clair/sombre, couleur de marque, voile d'une fenêtre ouverte…) : la barre
+// de notification et la barre de navigation d'Android prennent ces couleurs
+// (android/.../GedBarres.java).
+
+const lireRgba = (css) => {
+  const m = /rgba?\(([^)]+)\)/.exec(css || '');
+  if (!m) return null;
+  const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+  return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+};
+
+// Couleur composée au point (x, y) : fonds superposés, du plus bas au plus haut.
+const couleurAuPoint = (x, y) => {
+  const pile = document.elementsFromPoint ? document.elementsFromPoint(x, y) : [];
+  let c = { r: 255, g: 255, b: 255 };
+  const fondPage = lireRgba(getComputedStyle(document.body).backgroundColor);
+  if (fondPage && fondPage.a > 0) c = { r: fondPage.r, g: fondPage.g, b: fondPage.b };
+  for (let i = pile.length - 1; i >= 0; i--) {
+    const f = lireRgba(getComputedStyle(pile[i]).backgroundColor);
+    if (!f || f.a === 0) continue;
+    c = {
+      r: Math.round(f.r * f.a + c.r * (1 - f.a)),
+      g: Math.round(f.g * f.a + c.g * (1 - f.a)),
+      b: Math.round(f.b * f.a + c.b * (1 - f.a)),
+    };
+  }
+  return `rgb(${c.r}, ${c.g}, ${c.b})`;
+};
+
+export const installerBarresAndroid = () => {
+  if (!isAndroidApp() || !pontFichiers() || typeof window.GedAndroid.couleursBarres !== 'function') return;
+  let dernier = '';
+  let candidat = '';
+  let prevu = false;
+  const mesurer = () => {
+    prevu = false;
+    if (document.visibilityState === 'hidden') return;
+    const x = Math.round(window.innerWidth / 2);
+    const haut = couleurAuPoint(x, 1);
+    const bas = couleurAuPoint(x, window.innerHeight - 2);
+    const cle = `${haut}|${bas}`;
+    if (cle === dernier) { candidat = ''; return; }
+    // Couleur transitoire (fondu d'une page, défilement en cours) : on attend
+    // qu'elle soit identique à deux mesures successives avant de l'envoyer.
+    if (cle !== candidat) { candidat = cle; setTimeout(planifier, 250); return; }
+    candidat = '';
+    dernier = cle;
+    try { window.GedAndroid.couleursBarres(haut, bas); } catch { /* pont indisponible */ }
+  };
+  const planifier = () => { if (!prevu) { prevu = true; requestAnimationFrame(mesurer); } };
+  // Changements de page, de thème, ouverture d'une fenêtre… : vérification régulière
+  // (deux lectures de couleur, négligeable) + réaction immédiate aux gestes.
+  setInterval(planifier, 700);
+  ['click', 'popstate', 'resize'].forEach(ev =>
+    window.addEventListener(ev, () => setTimeout(planifier, 300), true));
+  document.addEventListener('visibilitychange', () => { dernier = ''; planifier(); });
+  planifier();
+};

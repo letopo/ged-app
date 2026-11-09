@@ -3,6 +3,7 @@ package cm.hsjm.ged;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -39,6 +40,9 @@ public class MainActivity extends BridgeActivity {
             }
         });
 
+        // Barres système blanches (comme la page de démarrage) en attendant la GED
+        GedBarres.appliquer(this, android.graphics.Color.WHITE, android.graphics.Color.WHITE);
+
         GedMessagingService.creerCanal(this);
         demanderPermissionNotifications();
         try {
@@ -51,6 +55,13 @@ public class MainActivity extends BridgeActivity {
         // Lancement depuis une notification (appli fermée)
         String url = getIntent().getStringExtra(GedMessagingService.EXTRA_URL);
         if (url != null) ouvrirDepuisNotification(url, true);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration nouvelle) {
+        super.onConfigurationChanged(nouvelle);
+        // Le plugin SystemBars de Capacitor remet les couleurs du thème du téléphone
+        GedBarres.reappliquer(this);
     }
 
     @Override

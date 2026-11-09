@@ -9,10 +9,12 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { registerServiceWorker } from './utils/pushNotificationHelper'
 import ErrorBoundary from './components/ErrorBoundary'
-import { installerTelechargementsAndroid } from './utils/androidApp'
+import { installerTelechargementsAndroid, installerBarresAndroid } from './utils/androidApp'
 
 // APK Android : enregistrement natif des fichiers téléchargés
 installerTelechargementsAndroid()
+// APK Android : barres système aux couleurs de l'interface
+installerBarresAndroid()
 
 // ✅ Enregistrer le Service Worker au démarrage
 if ('serviceWorker' in navigator) {
