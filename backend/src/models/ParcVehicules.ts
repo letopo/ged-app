@@ -29,6 +29,8 @@ export class VehicleChecklistTemplate extends Model<InferAttributes<VehicleCheck
   declare inventorySections: CreationOptional<InventorySection[]>;
   /** Jours d'inventaire, 1 = lundi. */
   declare inventoryDays: CreationOptional<number[]>;
+  /** Contrôles départ / retour à chaque mission (ambulances : non, faits à la prise de poste). */
+  declare missionChecks: CreationOptional<boolean>;
   declare isActive: CreationOptional<boolean>;
   declare updatedBy: string | null;
   declare tenantId: CreationOptional<string>;
@@ -44,6 +46,7 @@ initModel(VehicleChecklistTemplate, {
   // Inventaire hebdomadaire (ambulances) : [{ key, label, items: [{ id, label, kind: 'qty'|'level'|'check'|'yesno', required, unit, expiry, critical }] }]
   inventorySections: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: 'inventory_sections' },
   inventoryDays: { type: DataTypes.JSONB, allowNull: false, defaultValue: [1, 3, 5], field: 'inventory_days' }, // 1 = lundi
+  missionChecks: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'mission_checks' },
   isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'is_active' },
   updatedBy: { type: DataTypes.UUID, allowNull: true, field: 'updated_by' },
   tenantId,
@@ -308,6 +311,8 @@ export class VehicleInventory extends Model<InferAttributes<VehicleInventory>, I
   declare signaturePath: string | null;
   declare documentId: string | null;
   declare sha256: string | null;
+  declare unchanged: CreationOptional<boolean>;
+  declare basedOnId: CreationOptional<string | null>;
   declare tenantId: CreationOptional<string>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -331,6 +336,8 @@ initModel(VehicleInventory, {
   signaturePath: { type: DataTypes.STRING(255), allowNull: true, field: 'signature_path' },
   documentId: { type: DataTypes.UUID, allowNull: true, field: 'document_id' },
   sha256: { type: DataTypes.STRING(64), allowNull: true },
+  unchanged: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  basedOnId: { type: DataTypes.UUID, allowNull: true, field: 'based_on_id' },
   tenantId,
 }, opts('VehicleInventory', 'vehicle_inventories'));
 
@@ -389,6 +396,48 @@ initModel(VehicleShortage, {
   history: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
   tenantId,
 }, opts('VehicleShortage', 'vehicle_shortages'));
+
+// Fiche « Prise de poste » du matin (RO SAU) : les ambulances sur une seule
+// fiche + stock d'oxygène en réserve. vehicles : [{ vehicleId, label,
+// immatriculation, items, answers, bottles, answered, total, anomalies, critical }]
+export class VehicleShiftCheck extends Model<InferAttributes<VehicleShiftCheck>, InferCreationAttributes<VehicleShiftCheck>> {
+  declare id: Id;
+  declare shiftDate: string;
+  declare vehicles: CreationOptional<unknown[]>;
+  declare reserveFull: number | null;
+  declare reserveEmpty: number | null;
+  declare oxygenLevel: string | null;
+  declare anomalies: CreationOptional<number>;
+  declare criticalAnomaly: CreationOptional<boolean>;
+  declare comment: string | null;
+  declare performedBy: string | null;
+  declare performedByName: string | null;
+  declare performedAt: Date;
+  declare signaturePath: string | null;
+  declare documentId: CreationOptional<string | null>;
+  declare sha256: CreationOptional<string | null>;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleShiftCheck, {
+  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  shiftDate: { type: DataTypes.DATEONLY, allowNull: false, field: 'shift_date' },
+  vehicles: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+  reserveFull: { type: DataTypes.INTEGER, allowNull: true, field: 'reserve_full' },
+  reserveEmpty: { type: DataTypes.INTEGER, allowNull: true, field: 'reserve_empty' },
+  oxygenLevel: { type: DataTypes.STRING(20), allowNull: true, field: 'oxygen_level' },
+  anomalies: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  criticalAnomaly: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'critical_anomaly' },
+  comment: { type: DataTypes.TEXT, allowNull: true },
+  performedBy: { type: DataTypes.UUID, allowNull: true, field: 'performed_by' },
+  performedByName: { type: DataTypes.STRING(150), allowNull: true, field: 'performed_by_name' },
+  performedAt: { type: DataTypes.DATE, allowNull: false, field: 'performed_at' },
+  signaturePath: { type: DataTypes.STRING(255), allowNull: true, field: 'signature_path' },
+  documentId: { type: DataTypes.UUID, allowNull: true, field: 'document_id' },
+  sha256: { type: DataTypes.STRING(64), allowNull: true },
+  tenantId,
+}, opts('VehicleShiftCheck', 'vehicle_shift_checks'));
 
 Vehicle.hasMany(VehicleInventory, { as: 'inventories', foreignKey: 'vehicleId' });
 Vehicle.hasMany(VehicleShortage, { as: 'shortages', foreignKey: 'vehicleId' });

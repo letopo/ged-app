@@ -13,6 +13,7 @@ import { Vehicle, VehicleShortage } from '../models/index.js';
 import { fleetAccess, canManage, canCheck, userName } from './vehicleController.js';
 import { inventoryOf } from './vehicleInventoryController.js';
 import { OPEN_STATUSES, shortagesFromRestock, answeredItemIds, reconcileShortages, applyRestock } from '../utils/vehicleShortages.js';
+import { shortagesFromShift, shiftAnsweredIds } from '../utils/vehicleShift.js';
 
 const event = (user, action, extra = {}) => ({ at: new Date().toISOString(), by: user ? userName(user) : null, action, ...extra });
 
@@ -92,6 +93,35 @@ export async function syncInventoryShortages(vehicle, inventory, sections, resul
     });
   }
   return { fresh, open: open.length - close.length + create.length, closed: close.length };
+}
+
+/**
+ * Après une prise de poste : un point en anomalie (DSA Pas OK, pression d'O2
+ * trop basse…) devient un manque suivi jusqu'au réarmement ; un point repassé
+ * OK ferme le manque. Retourne les nouveautés (seul objet de l'alerte).
+ */
+export async function syncShiftShortages(vehicle, items, answers, user) {
+  const open = await VehicleShortage.findAll({ where: openWhere([vehicle.id]) });
+  const found = shortagesFromShift(items, answers);
+  const { create, update, close, fresh } = reconcileShortages(open, found, shiftAnsweredIds(answers));
+  const now = new Date();
+  const byId = new Map(open.map((s) => [s.id, s]));
+  for (const f of create) {
+    await VehicleShortage.create({
+      vehicleId: vehicle.id, itemId: f.itemId, kind: f.kind, label: f.label, section: f.section, unit: f.unit,
+      critical: f.critical, quantity: null, status: 'a_commander', openedAt: now, lastSeenAt: now,
+      history: [event(user, 'releve_prise_de_poste')],
+    });
+  }
+  for (const u of update) await byId.get(u.id).update({ lastSeenAt: now });
+  for (const id of close) {
+    const s = byId.get(id);
+    await s.update({
+      status: 'rearme', closedAt: now, closedByName: userName(user), closedReason: 'inventaire',
+      history: [...(s.history || []), event(user, 'ok_prise_de_poste')],
+    });
+  }
+  return { fresh, closed: close.length };
 }
 
 /** Ambulances (avec inventaire) visibles par l'utilisateur. */

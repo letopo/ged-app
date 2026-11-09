@@ -1178,6 +1178,18 @@ const RELEASE_NOTES = [
       'Ordre de mission RO SAU : l’ambulance affiche « N article(s) non réarmé(s) », en rouge si un article critique manque (alerte, pas un blocage).',
     ],
   },
+  {
+    id: '2026-11-10-ambulances-prise-de-poste-oxygene',
+    date: '2026-11-10',
+    target: '/vehicules',
+    title: 'Ambulances : prise de poste et oxygène',
+    items: [
+      'Nouvel onglet « Prise de poste » : chaque matin, une seule fiche pour les ambulances — matériel vital de l’une puis de l’autre, bouteilles d’oxygène à bord, et bouteilles pleines / vides en réserve. Fiche PDF signée, transmise au Chef de pôle RO SAU.',
+      'Oxygène : 🟠 « passer commande » quand il ne reste plus aucune bouteille pleine en réserve ; 🔴 urgent si, en plus, une ambulance n’a plus ses 2 bouteilles. Les responsables sont prévenus quand le niveau se dégrade.',
+      'Les contrôles de départ et de retour à chaque mission sont supprimés pour les ambulances (faits à la prise de poste). Un ordre de mission classé au retour enregistre la sortie.',
+      'Inventaire : « Rien n’a changé » confirme en un geste les quantités de la veille quand l’ambulance n’est pas sortie et que rien n’a été réarmé. Après une sortie — même si l’OM n’est classé qu’après coup — le recomptage complet est redemandé.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

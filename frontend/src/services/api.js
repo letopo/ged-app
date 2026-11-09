@@ -281,6 +281,10 @@ export const vehiclesAPI = {
   inventories: (week) => api.get('/vehicles/inventories', { params: week ? { week } : {} }),
   inventoryPdf: (iid) => api.get(`/vehicles/inventories/${iid}/pdf`, { responseType: 'blob' }),
   // Manques ouverts : À commander → Commandé → Réarmé
+  // Prise de poste du matin (ambulances + oxygène)
+  shiftState: () => api.get('/vehicles/shift'),
+  submitShift: (data) => api.post('/vehicles/shift', data),
+  shiftPdf: (sid) => api.get(`/vehicles/shift/${sid}/pdf`, { responseType: 'blob' }),
   shortages: () => api.get('/vehicles/shortages'),
   orderShortages: (ids, note) => api.post('/vehicles/shortages/order', { ids, note }),
   setShortageStatus: (sid, status, note) => api.post(`/vehicles/shortages/${sid}/status`, { status, note }),

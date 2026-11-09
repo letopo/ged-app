@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Ambulance } from 'lucide-react';
 import { vehiclesAPI } from '../../services/api';
 import { SectionChips } from './FleetDashboard';
-import { MISSION_STATUS } from './fleetUi';
+import { MISSION_STATUS, fmtDateTime } from './fleetUi';
 import { StatusBadge } from './VehicleChecksTab';
 
 export default function OrdreMissionVehiclePanel({ documentId, secTitle }) {
@@ -30,6 +30,16 @@ export default function OrdreMissionVehiclePanel({ documentId, secTitle }) {
           <StatusBadge status={m.vehicle.status} reason={m.vehicle.unavailableReason} />
         </div>
         {m.omAfterDeparture && <div style={{ fontSize: 11, color: '#1d4ed8', marginBottom: 8 }}>{t('OM créé après le départ')}</div>}
+        {m.missionChecks === false ? (
+          <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
+            {m.shift
+              ? t('Contrôlée à la prise de poste du {{date}} par {{name}} ({{n}}/{{total}} points{{anom}}).', {
+                date: fmtDateTime(m.shift.at), name: m.shift.by, n: m.shift.answered, total: m.shift.total,
+                anom: m.shift.anomalies ? `, ${t('{{count}} anomalie(s)', { count: m.shift.anomalies })}` : '',
+              })
+              : t('Aucune prise de poste enregistrée pour cette ambulance.')}
+          </div>
+        ) : (
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', marginBottom: 4 }}>{t('Départ')}</div>
@@ -40,6 +50,7 @@ export default function OrdreMissionVehiclePanel({ documentId, secTitle }) {
             {m.status === 'planifiee' ? <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>—</span> : <SectionChips phase={m.retour} />}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

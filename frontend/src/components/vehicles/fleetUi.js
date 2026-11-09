@@ -28,10 +28,25 @@ export const fmtDay = (iso) => (iso ? iso.split('-').reverse().slice(0, 2).join(
 export async function openCheckPdf(vehiclesAPI, checkId, kind = 'check') {
   const win = window.open('', '_blank');
   try {
-    const res = kind === 'inventory' ? await vehiclesAPI.inventoryPdf(checkId) : await vehiclesAPI.checkPdf(checkId);
+    const res = kind === 'inventory' ? await vehiclesAPI.inventoryPdf(checkId) : kind === 'shift' ? await vehiclesAPI.shiftPdf(checkId) : await vehiclesAPI.checkPdf(checkId);
     const url = URL.createObjectURL(res.data);
     if (win) win.location.href = url; else window.location.href = url;
   } catch {
     win?.close();
   }
+}
+
+// Stock d'oxygène (prise de poste) : 🟢 normal · 🟠 passer commande · 🔴 urgent
+export const OXYGEN = {
+  ok: { color: '#15803d', bg: '#dcfce7', label: 'Stock d\'oxygène normal' },
+  commander: { color: '#c2410c', bg: '#ffedd5', label: 'Passer commande d\'oxygène : plus aucune bouteille pleine en réserve' },
+  urgent: { color: '#b91c1c', bg: '#fee2e2', label: 'URGENT : plus de bouteille pleine en réserve et une ambulance n\'a pas ses 2 bouteilles' },
+};
+
+/** Même règle que le serveur (utils/vehicleShift.js). */
+export function oxygenLevel(reserveFull, onboard, perAmbulance = 2) {
+  if (reserveFull === null || reserveFull === undefined || reserveFull === '') return null;
+  const short = onboard.filter((o) => o.bottles !== null && o.bottles !== undefined && o.bottles !== '' && Number(o.bottles) < perAmbulance);
+  if (Number(reserveFull) === 0) return short.length ? 'urgent' : 'commander';
+  return 'ok';
 }
