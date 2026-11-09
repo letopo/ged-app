@@ -72,6 +72,46 @@ public class GedFichiers {
         activity.runOnUiThread(() -> GedBarres.appliquer(activity, h, b));
     }
 
+    /**
+     * Partage un fichier de la GED (WhatsApp, e-mail, Bluetooth…) via le menu
+     * « Partager » d'Android. Le fichier est écrit dans le cache de l'appli
+     * (dossier « partage », vidé à chaque partage) puis transmis en lecture seule.
+     */
+    @JavascriptInterface
+    public boolean partager(String base64, String nom, String mime, String texte) {
+        try {
+            byte[] octets = Base64.decode(base64, Base64.DEFAULT);
+            String nomFichier = nettoyerNom(nom, mime);
+            String type = (mime == null || mime.isEmpty()) ? deviner(nomFichier) : mime;
+
+            File dossier = new File(activity.getCacheDir(), "partage");
+            File[] anciens = dossier.listFiles();
+            if (anciens != null) for (File f : anciens) f.delete();
+            if (!dossier.exists() && !dossier.mkdirs()) throw new IllegalStateException("dossier");
+            File fichier = new File(dossier, nomFichier);
+            try (FileOutputStream out = new FileOutputStream(fichier)) {
+                out.write(octets);
+            }
+            Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", fichier);
+
+            Intent envoi = new Intent(Intent.ACTION_SEND);
+            envoi.setType(type);
+            envoi.putExtra(Intent.EXTRA_STREAM, uri);
+            envoi.putExtra(Intent.EXTRA_SUBJECT, nomFichier);
+            if (texte != null && !texte.isEmpty()) envoi.putExtra(Intent.EXTRA_TEXT, texte);
+            envoi.setClipData(android.content.ClipData.newRawUri(nomFichier, uri));
+            envoi.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            Intent choix = Intent.createChooser(envoi, "Partager « " + nomFichier + " »");
+            activity.runOnUiThread(() -> activity.startActivity(choix));
+            return true;
+        } catch (Exception e) {
+            activity.runOnUiThread(() ->
+                Toast.makeText(activity, "Partage impossible", Toast.LENGTH_LONG).show());
+            return false;
+        }
+    }
+
     /** @return vrai si le fichier a été enregistré. */
     @JavascriptInterface
     public boolean enregistrer(String base64, String nom, String mime) {

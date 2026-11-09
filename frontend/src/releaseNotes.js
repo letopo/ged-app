@@ -19,7 +19,7 @@
 
 import { isFestiveSeason } from './components/Festive';
 import { phpAccess } from './utils/phpAccess';
-import { isAndroidApp } from './utils/androidApp';
+import { isAndroidApp, partageDisponible as partageDisponibleNote } from './utils/androidApp';
 
 const isAdmin = (user) => ['admin', 'superadmin'].includes(user?.role);
 
@@ -1142,6 +1142,17 @@ const RELEASE_NOTES = [
     access: () => isAndroidApp(),
     items: [
       "La barre de notification (en haut) et la barre de navigation (en bas) du téléphone prennent la couleur de l'interface : claires en thème clair, sombres en thème sombre, assombries quand un menu est ouvert.",
+    ],
+  },
+  {
+    id: '2026-11-09-partager-document',
+    date: '2026-11-09',
+    target: 'app',
+    title: 'Partager un document',
+    access: () => partageDisponibleNote(),
+    items: [
+      "Dans la visionneuse, le bouton « Partager » envoie le document par WhatsApp, e-mail, Bluetooth… directement depuis le téléphone.",
+      "Pour l'envoyer à un collègue dans la GED, utilisez toujours « Transmettre ».",
     ],
   },
 ];
