@@ -5,8 +5,12 @@ import { protect } from '../middleware/auth.js';
 import { 
   subscribePush, 
   unsubscribePush, 
-  getPublicVapidKey 
+  getPublicVapidKey,
+  subscribeFcm,
+  unsubscribeFcm,
+  sendPushNotification,
 } from '../services/pushNotificationService.js';
+import { fcmActif } from '../services/fcmService.js';
 
 const router = express.Router();
 
@@ -107,6 +111,53 @@ router.post('/unsubscribe', protect, async (req, res) => {
       message: 'Server error' 
     });
   }
+});
+
+/**
+ * POST /api/push/fcm-subscribe   { token }
+ * Application Android : enregistre le jeton Firebase du téléphone
+ */
+const jetonValide = (t) => typeof t === 'string' && t.length > 20 && t.length < 4096 && !/\s/.test(t);
+
+router.post('/fcm-subscribe', protect, async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!jetonValide(token)) return res.status(400).json({ success: false, message: 'Jeton invalide' });
+    const result = await subscribeFcm(req.user.id, token);
+    res.json({ ...result, fcm: fcmActif() });
+  } catch (error) {
+    console.error('❌ Erreur route /fcm-subscribe:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+/**
+ * POST /api/push/fcm-unsubscribe   { token }
+ */
+router.post('/fcm-unsubscribe', protect, async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!jetonValide(token)) return res.status(400).json({ success: false, message: 'Jeton invalide' });
+    res.json(await unsubscribeFcm(req.user.id, token));
+  } catch (error) {
+    console.error('❌ Erreur route /fcm-unsubscribe:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+/**
+ * POST /api/push/test
+ * Envoie une notification d'essai à tous les appareils de l'utilisateur connecté
+ */
+router.post('/test', protect, async (req, res) => {
+  const result = await sendPushNotification(req.user.id, {
+    type: 'test',
+    title: '🧪 Notification d\'essai',
+    body: 'Les notifications de la GED fonctionnent sur cet appareil.',
+    tag: 'test-notification',
+    data: { url: '/mes-taches' },
+  });
+  res.json(result);
 });
 
 export default router;

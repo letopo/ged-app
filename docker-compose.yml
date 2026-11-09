@@ -60,6 +60,9 @@ services:
       # Même raison pour les notifications push (abonnements des téléphones copiés
       # de la production) : « false » pour les tester sur cette installation.
       PUSH_DISABLED: ${PUSH_DISABLED:-true}
+      # Exception : e-mails (séparés par des virgules) qui reçoivent quand même les
+      # notifications ici, pour les essais de l'application Android.
+      PUSH_DEV_USERS: ${PUSH_DEV_USERS:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://192.168.1.186}
       WORKFLOW_ENABLE_NOTIFICATIONS: ${WORKFLOW_ENABLE_NOTIFICATIONS:-false}
       WORKFLOW_DEFAULT_TIMEOUT_DAYS: ${WORKFLOW_DEFAULT_TIMEOUT_DAYS:-7}
@@ -74,6 +77,8 @@ services:
       - uploads_data:/app/uploads
       - signatures_data:/app/signatures
       - ./backend/fonts:/app/fonts
+      # Clé Firebase (notifications de l'application Android), hors Git
+      - ./secrets:/app/secrets:ro
       - ./backend/database:/app/database
     ports:
       - "3000:3000"

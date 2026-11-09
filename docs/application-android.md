@@ -78,6 +78,33 @@ avant) puis l'ouvre avec l'appli adaptée.
 Ce mécanisme ne couvre pas les fichiers ouverts par `window.open(...)` sans
 lien de téléchargement.
 
+## Notifications (Firebase Cloud Messaging)
+
+Projet Firebase : `ged-hsjm`. Le Web Push du navigateur n'existe pas dans la
+WebView Android : l'APK passe donc par Firebase.
+
+- **Téléphone** : `GedMessagingService.java` reçoit des messages « data »
+  (titre, texte, url, tag) et affiche la notification, appli ouverte ou fermée.
+  Un appui ouvre la page `url` sur le serveur courant (au démarrage, via
+  `https://localhost/?ouvrir=<chemin>`). Sur Android 13+, l'autorisation est
+  demandée au lancement. Le fichier `android/app/google-services.json` décrit
+  le projet Firebase ; il n'est pas secret.
+- **GED** : à la connexion, `enregistrerNotificationsAndroid()` envoie le jeton
+  Firebase du téléphone à `POST /api/push/fcm-subscribe`. À la déconnexion,
+  `fcm-unsubscribe` le retire. Un jeton n'appartient qu'au dernier compte
+  connecté sur le téléphone.
+- **Serveur** : `fcmService.js` (firebase-admin). Les jetons sont dans la table
+  `push_subscriptions` (endpoint `fcm:<jeton>`). Toutes les notifications
+  existantes (`sendPushNotification`) partent aussi vers les téléphones Android.
+- **Clé du compte de service** : `secrets/firebase-service-account.json` à la
+  racine du dépôt (ignoré par Git), monté en lecture seule dans le backend
+  (`/app/secrets`). À copier à la main sur chaque serveur. Sans ce fichier, les
+  notifications Android sont désactivées, sans erreur.
+- **Essai** : `POST /api/push/test` envoie une notification à tous les
+  appareils du compte connecté.
+- **Développement** : `PUSH_DISABLED=true` bloque tout, sauf pour les comptes
+  listés dans `PUSH_DEV_USERS` (e-mails, dans `.env`).
+
 ## Points à surveiller
 
 - **Changement d'IP du serveur** : il suffit de saisir la nouvelle adresse
@@ -93,5 +120,4 @@ lien de téléchargement.
 
 ## Étapes suivantes envisagées
 
-- Notifications push via Firebase (FCM).
 - Déverrouillage par empreinte digitale.

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import i18n from '../i18n/config';
 import { isTokenExpired, getTokenExpiry, SESSION_EXPIRED_EVENT, SESSION_RENEWED_EVENT, resetSessionExpiredNotice } from '../utils/authSession';
+import { enregistrerNotificationsAndroid, retirerNotificationsAndroid } from '../utils/androidApp';
 
 // Plafond de setTimeout (~24,8 jours) : au-delà, le minuteur se déclencherait aussitôt.
 const MAX_TIMER_MS = 2 ** 31 - 1;
@@ -21,6 +22,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Application Android : ce téléphone reçoit les notifications du compte connecté
+  useEffect(() => { if (token) enregistrerNotificationsAndroid(token); }, [token]);
 
   useEffect(() => {
     // Charger les données d'auth depuis localStorage au démarrage.
@@ -66,6 +70,7 @@ export const AuthProvider = ({ children }) => {
     // cet appareil de la liste « Appareils connectés »
     let current = null;
     try { current = localStorage.getItem('token'); } catch { /* stockage indisponible */ }
+    retirerNotificationsAndroid(current);
     fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/logout`, {
       method: 'POST', credentials: 'same-origin',
       headers: current ? { Authorization: `Bearer ${current}` } : {},

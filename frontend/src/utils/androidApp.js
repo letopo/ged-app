@@ -95,3 +95,41 @@ export const installerTelechargementsAndroid = () => {
     if (a && intercepter(a)) e.preventDefault();
   }, true);
 };
+
+// ── Notifications dans l'APK (Firebase Cloud Messaging) ─────────────────────
+// Le jeton Firebase du téléphone est fourni par le pont natif (GedFichiers.jetonPush)
+// puis enregistré sur le serveur pour le compte connecté (/api/push/fcm-subscribe).
+// Le Web Push du navigateur n'existe pas dans la WebView Android.
+
+const API = import.meta.env.VITE_API_URL || '/api';
+
+const lireJeton = () => {
+  try { return (pontFichiers() && typeof window.GedAndroid.jetonPush === 'function' && window.GedAndroid.jetonPush()) || ''; }
+  catch { return ''; }
+};
+
+const appelPush = (route, jetonSession, jetonPush) =>
+  fetch(`${API}/push/${route}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jetonSession}` },
+    body: JSON.stringify({ token: jetonPush }),
+  });
+
+// Le jeton Firebase peut arriver quelques secondes après le 1er lancement.
+export const enregistrerNotificationsAndroid = (jetonSession, essai = 0) => {
+  if (!isAndroidApp() || !jetonSession) return;
+  const jeton = lireJeton();
+  if (!jeton) {
+    if (essai < 10) setTimeout(() => enregistrerNotificationsAndroid(jetonSession, essai + 1), 3000);
+    return;
+  }
+  appelPush('fcm-subscribe', jetonSession, jeton).catch(() => {});
+};
+
+// À la déconnexion : ce téléphone ne reçoit plus les notifications du compte.
+export const retirerNotificationsAndroid = (jetonSession) => {
+  const jeton = isAndroidApp() ? lireJeton() : '';
+  if (!jeton || !jetonSession) return;
+  appelPush('fcm-unsubscribe', jetonSession, jeton).catch(() => {});
+};

@@ -69,6 +69,10 @@
 <script>
 (function () {
   var CLE = 'gedServeur';
+  var params = new URLSearchParams(location.search);
+  // Page de la GED à ouvrir (appui sur une notification, appli fermée) : chemin local uniquement
+  var ouvrir = params.get('ouvrir') || '';
+  var PAGE = /^\/(?!\/)/.test(ouvrir) ? ouvrir : '/';
   var DELAI_MS = 7000;
 
   function lire() { try { return localStorage.getItem(CLE); } catch (e) { return null; } }
@@ -126,7 +130,7 @@
     document.getElementById('serveurActuel').textContent = url.replace(/^https:\/\//, '');
     afficher(msgConnexion, ''); reessayer.hidden = true;
     tester(url).then(function (ok) {
-      if (ok) { location.replace(url + '/'); return; }
+      if (ok) { location.replace(url + PAGE); return; }
       afficher(msgConnexion, MSG_ECHEC, true);
       reessayer.hidden = false;
     });
@@ -152,7 +156,7 @@
   reessayer.addEventListener('click', function () { seConnecter(lire()); });
   document.getElementById('changer').addEventListener('click', ouvrirFormulaire);
 
-  var params = new URLSearchParams(location.search);
+
   var serveur = lire();
   if (!serveur || params.has('changer')) ouvrirFormulaire();
   else seConnecter(serveur);
