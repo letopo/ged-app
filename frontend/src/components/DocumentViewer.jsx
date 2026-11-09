@@ -10,7 +10,7 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import {
   X, Check, AlertTriangle, MessageSquare, FilePlus,
-  ArrowUp, ArrowDown, Loader, Download, Printer, Share2, Link2,
+  ArrowUp, ArrowDown, Loader, Download, Printer, Share2, Share, Link2,
   ChevronRight, CheckCircle, Clock, XCircle,
   FileText, Tag, Calendar, User, Hash, Scan, Settings2, UserCheck,
   PenLine, ShieldCheck, ShieldAlert, Lock, FolderOpen, Monitor,
@@ -25,6 +25,7 @@ import PdfCanvasViewer, { canShowPdfInline } from './PdfCanvasViewer';
 import SignatureSession, { isSignableDocument } from './SignatureSession';
 import GedDocumentPicker from './GedDocumentPicker';
 import OrdreMissionVehiclePanel from './vehicles/OrdreMissionVehiclePanel';
+import { partageDisponible, partagerFichier } from '../utils/androidApp';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -342,22 +343,41 @@ const DocumentViewer = ({
     setShowRejectInput(false); setShowModifInput(false);
   }, [doc?.id]);
 
+  // Fichier du document (mêmes droits d'accès que le téléchargement)
+  const fetchDocumentFile = async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/documents/${doc.id}/download`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error();
+    const blob = await response.blob();
+    const ext = (doc.fileName || doc.originalName || '.pdf').match(/\.[^.]+$/)?.[0] || '.pdf';
+    const name = `${(doc.title || 'document').replace(/[/\\?%*:|"<>]/g, '-').trim()}${ext}`;
+    return { blob, name };
+  };
+
   const handleDownload = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/documents/${doc.id}/download`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error();
-      const blob = await response.blob();
+      const { blob, name } = await fetchDocumentFile();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href = url;
-      const ext = (doc.fileName || doc.originalName || '.pdf').match(/\.[^.]+$/)?.[0] || '.pdf';
-      a.download = `${(doc.title || 'document').replace(/[/\\?%*:|"<>]/g, '-').trim()}${ext}`;
+      a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     } catch { toast.error(t('Erreur lors du téléchargement')); }
+  };
+
+  // Partager hors de la GED (WhatsApp, e-mail…) : APK ou navigateur compatible
+  const canShareFile = partageDisponible();
+  const [sharing, setSharing] = useState(false);
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const { blob, name } = await fetchDocumentFile();
+      await partagerFichier(blob, name, doc.title || '');
+    } catch { toast.error(t('Partage impossible')); }
+    finally { setSharing(false); }
   };
 
   const handleValidate = () => onValidate?.({ comment });
@@ -462,6 +482,11 @@ const DocumentViewer = ({
               <button onClick={handleDownload} title={t('Télécharger')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
                 <Download size={13} /> <span className="dv-btn-label">{t('Télécharger')}</span>
               </button>
+              {canShareFile && (
+                <button onClick={handleShare} disabled={sharing} title={t('Partager (WhatsApp, e-mail…)')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: sharing ? 'wait' : 'pointer' }}>
+                  {sharing ? <Loader size={13} className="animate-spin" /> : <Share size={13} />} <span className="dv-btn-label">{t('Partager')}</span>
+                </button>
+              )}
               {canSign && (
                 <button onClick={() => setShowSign(true)} title={t('Faire signer le document (patient, client…)')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                   <PenLine size={13} /> <span className="dv-btn-label">{t('Faire signer')}</span>

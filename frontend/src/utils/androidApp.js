@@ -207,3 +207,34 @@ export const installerBarresAndroid = () => {
   document.addEventListener('visibilitychange', () => { dernier = ''; planifier(); });
   planifier();
 };
+
+// ── Partager un fichier (WhatsApp, e-mail…) ─────────────────────────────────
+// APK : menu « Partager » d'Android (GedFichiers.partager). Ailleurs : partage
+// natif du navigateur (Chrome Android, Safari iOS…) quand il accepte les fichiers.
+
+const partageNavigateurPossible = () => {
+  try {
+    return typeof navigator !== 'undefined' && typeof navigator.canShare === 'function'
+      && navigator.canShare({ files: [new File(['x'], 'test.pdf', { type: 'application/pdf' })] });
+  } catch { return false; }
+};
+
+export const partageDisponible = () =>
+  (isAndroidApp() && !!pontFichiers() && typeof window.GedAndroid.partager === 'function')
+  || partageNavigateurPossible();
+
+/** @returns {Promise<boolean>} vrai si le menu de partage s'est ouvert */
+export const partagerFichier = async (blob, nom, texte = '') => {
+  if (isAndroidApp() && pontFichiers() && typeof window.GedAndroid.partager === 'function') {
+    const base64 = await blobVersBase64(blob);
+    return window.GedAndroid.partager(base64, nom, blob.type || '', texte);
+  }
+  const fichier = new File([blob], nom, { type: blob.type || 'application/octet-stream' });
+  try {
+    await navigator.share({ files: [fichier], title: nom, text: texte || undefined });
+    return true;
+  } catch (e) {
+    if (e?.name === 'AbortError') return false; // partage annulé par l'utilisateur
+    throw e;
+  }
+};
