@@ -280,6 +280,11 @@ export const vehiclesAPI = {
   submitInventory: (id, data) => api.post(`/vehicles/${id}/inventory`, data),
   inventories: (week) => api.get('/vehicles/inventories', { params: week ? { week } : {} }),
   inventoryPdf: (iid) => api.get(`/vehicles/inventories/${iid}/pdf`, { responseType: 'blob' }),
+  // Manques ouverts : À commander → Commandé → Réarmé
+  shortages: () => api.get('/vehicles/shortages'),
+  orderShortages: (ids, note) => api.post('/vehicles/shortages/order', { ids, note }),
+  setShortageStatus: (sid, status, note) => api.post(`/vehicles/shortages/${sid}/status`, { status, note }),
+  restock: (vehicleId, lines) => api.post(`/vehicles/${vehicleId}/restock`, { lines }),
   // Étape 3 : suivi du parc
   overview: () => api.get('/vehicles/overview'),
   details: (id) => api.get(`/vehicles/${id}/details`),

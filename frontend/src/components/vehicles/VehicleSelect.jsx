@@ -27,7 +27,8 @@ export default function VehicleSelect({ value, onChange, style }) {
     if (urgentOrphan(v)) return `🚑 ${v.label} — ${v.immatriculation} · ${t('sortie urgente en cours (à rattacher)')}`;
     if (v.status === 'indisponible') return `⛔ ${v.label} — ${v.immatriculation} · ${t('indisponible')}`;
     const lv = LEVELS[v.readiness?.level || 'aucun'];
-    return `${lv.emoji} ${v.label} — ${v.immatriculation} · ${v.readiness?.pct ? t('contrôlée à {{pct}} %', { pct: v.readiness.pct }) : t('non contrôlée')}`;
+    const miss = v.shortages?.open ? ` · ${v.shortages.critical ? '⚠ ' : ''}${t('{{count}} article(s) non réarmé(s)', { count: v.shortages.open })}` : '';
+    return `${lv.emoji} ${v.label} — ${v.immatriculation} · ${v.readiness?.pct ? t('contrôlée à {{pct}} %', { pct: v.readiness.pct }) : t('non contrôlée')}${miss}`;
   };
 
   return (
@@ -52,6 +53,14 @@ export default function VehicleSelect({ value, onChange, style }) {
                 anom: selected.readiness.anomalies ? ` · ${t('{{count}} anomalie(s)', { count: selected.readiness.anomalies })}` : '',
               })
               : t('Aucun contrôle enregistré pour cette ambulance.')}
+        </div>
+      )}
+      {selected?.shortages?.open > 0 && (
+        <div style={{ marginTop: 6, fontSize: 12, padding: '6px 10px', borderRadius: 'var(--radius-2)', fontWeight: 600,
+          background: selected.shortages.critical ? '#fee2e2' : '#ffedd5', color: selected.shortages.critical ? '#b91c1c' : '#c2410c' }}>
+          {selected.shortages.critical
+            ? t('⚠ {{count}} article(s) non réarmé(s), dont critique : {{list}}', { count: selected.shortages.open, list: selected.shortages.criticalLabels.join(', ') })
+            : t('{{count}} article(s) non réarmé(s) dans cette ambulance ({{ordered}} commandé(s)).', { count: selected.shortages.open, ordered: selected.shortages.ordered })}
         </div>
       )}
       <div style={{ marginTop: 4, fontSize: 11, color: 'var(--fg-subtle)' }}>

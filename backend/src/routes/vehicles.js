@@ -13,6 +13,7 @@ import {
   createFuelLog, deleteFuelLog, createMaintenance, updateMaintenance, deleteMaintenance, fleetOverview,
 } from '../controllers/vehicleFleetController.js';
 import { getInventoryState, submitInventory, listInventories, getInventoryPdf } from '../controllers/vehicleInventoryController.js';
+import { listShortages, orderShortages, setShortageStatus, restockVehicle } from '../controllers/vehicleShortageController.js';
 
 const router = express.Router();
 router.use(protect);
@@ -35,6 +36,10 @@ router.get('/checks/:id/pdf', getCheckPdf);
 // Inventaire hebdomadaire des ambulances
 router.get('/inventories', listInventories);
 router.get('/inventories/:iid/pdf', getInventoryPdf);
+// Manques ouverts : À commander → Commandé → Réarmé
+router.get('/shortages', listShortages);
+router.post('/shortages/order', orderShortages);
+router.post('/shortages/:sid/status', setShortageStatus);
 
 router.get('/', listVehicles);
 router.post('/', createVehicle);
@@ -44,6 +49,7 @@ router.get('/:id/state', getVehicleState);
 router.post('/:id/checks', submitCheck);
 router.get('/:id/inventory', getInventoryState);
 router.post('/:id/inventory', submitInventory);
+router.post('/:id/restock', restockVehicle);
 // Étape 3 : fiche, échéances, carburant, entretien
 router.get('/:id/details', getVehicleDetails);
 router.post('/:id/deadlines', createDeadline);
