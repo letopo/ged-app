@@ -6,7 +6,9 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.webkit.WebBackForwardList;
 import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
@@ -28,6 +30,14 @@ public class MainActivity extends BridgeActivity {
         viderCacheApresMiseAJour();
         verrouillage = new GedVerrouillage(this);
         getBridge().getWebView().addJavascriptInterface(new GedFichiers(this), "GedAndroid");
+
+        // Touche retour d'Android : page précédente de la GED (sinon l'appli se fermait)
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                retour();
+            }
+        });
 
         GedMessagingService.creerCanal(this);
         demanderPermissionNotifications();
@@ -80,6 +90,27 @@ public class MainActivity extends BridgeActivity {
         } catch (Exception e) {
             // sans conséquence
         }
+    }
+
+    /**
+     * Revient à la page précédente de la GED. Sur la première page (ou si la page
+     * précédente est la page locale de choix du serveur), l'appli passe en
+     * arrière-plan sans être fermée, comme les autres applications Android.
+     */
+    private void retour() {
+        WebView vue = getBridge().getWebView();
+        WebBackForwardList hist = vue.copyBackForwardList();
+        int i = hist.getCurrentIndex();
+        if (i > 0) {
+            String precedente = hist.getItemAtIndex(i - 1).getUrl();
+            Uri u = precedente != null ? Uri.parse(precedente) : null;
+            boolean pageLocale = u != null && "localhost".equals(u.getHost());
+            if (!pageLocale) {
+                vue.goBack();
+                return;
+            }
+        }
+        moveTaskToBack(true);
     }
 
     private void demanderPermissionNotifications() {
