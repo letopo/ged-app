@@ -66,6 +66,18 @@ utiliser `adb install app-debug.apk` avec le débogage USB activé.
 
 Le téléphone doit être sur le même réseau Wi-Fi que le serveur choisi.
 
+## Téléchargements
+
+La WebView Android ignore les liens `<a download>`. Dans l'APK,
+`installerTelechargementsAndroid()` (`src/utils/androidApp.js`, appelée dans
+`main.jsx`) intercepte ces liens dans toute la GED et transmet le fichier en
+base64 au pont natif `GedAndroid` (`android/.../GedFichiers.java`). Celui-ci
+l'enregistre dans Téléchargements (MediaStore, Android 10+ ; dossier de l'appli
+avant) puis l'ouvre avec l'appli adaptée.
+
+Ce mécanisme ne couvre pas les fichiers ouverts par `window.open(...)` sans
+lien de téléchargement.
+
 ## Points à surveiller
 
 - **Changement d'IP du serveur** : il suffit de saisir la nouvelle adresse
@@ -81,7 +93,5 @@ Le téléphone doit être sur le même réseau Wi-Fi que le serveur choisi.
 
 ## Étapes suivantes envisagées
 
-- Téléchargement des PDF et des exports : par défaut, la WebView Android
-  n'enregistre pas les fichiers. Il faudra un module de téléchargement natif.
 - Notifications push via Firebase (FCM).
 - Déverrouillage par empreinte digitale.

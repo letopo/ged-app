@@ -1082,6 +1082,25 @@ const RELEASE_NOTES = [
       "Pour changer de serveur : lien « Changer de serveur » sous le formulaire de connexion, ou icône serveur à côté du bouton de déconnexion.",
     ],
   },
+  {
+    id: '2026-11-09-visionneuse-mobile',
+    date: '2026-11-09',
+    target: 'app',
+    title: 'Visionneuse de documents sur téléphone',
+    items: [
+      "Sur téléphone, les boutons de la visionneuse (Télécharger, Modifier, Transmettre, Fermer…) passent sous le titre du document : ils ne sont plus masqués et se touchent facilement.",
+    ],
+  },
+  {
+    id: '2026-11-09-apk-telechargements',
+    date: '2026-11-09',
+    target: 'app',
+    title: 'Application Android : téléchargements',
+    access: () => isAndroidApp(),
+    items: [
+      "Les fichiers téléchargés (documents, exports Excel, PDF, pièces jointes) sont enregistrés dans le dossier Téléchargements du téléphone, puis s'ouvrent automatiquement.",
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
