@@ -238,3 +238,39 @@ export const partagerFichier = async (blob, nom, texte = '') => {
     throw e;
   }
 };
+
+// ── Application publiée (scripts/publier-apk.sh → /telechargements/) ────────
+export const URL_APK = '/telechargements/ged-hsjm.apk';
+
+/**
+ * Mise à jour depuis l'APK : le téléchargement s'ouvre dans le navigateur du
+ * téléphone (en http, comme le QR code : pas besoin du certificat de l'hôpital).
+ */
+export const ouvrirMiseAJourAndroid = () => {
+  const url = `http://${window.location.host}${URL_APK}`;
+  if (pontFichiers() && typeof window.GedAndroid.ouvrirNavigateur === 'function'
+      && window.GedAndroid.ouvrirNavigateur(url)) return;
+  window.location.href = url;
+};
+
+/** Version installée de l'APK ({ code, nom }), null hors de l'APK. */
+export const versionAppAndroid = () => {
+  if (!isAndroidApp() || !pontFichiers() || typeof window.GedAndroid.versionApp !== 'function') return null;
+  try { return JSON.parse(window.GedAndroid.versionApp()); } catch { return null; }
+};
+
+/** Version publiée sur le serveur ({ versionCode, versionName, taille, sha256, date }) ou null. */
+export const lireVersionPubliee = () =>
+  fetch('/telechargements/version.json', { cache: 'no-store' })
+    .then(r => (r.ok ? r.json() : null))
+    .catch(() => null);
+
+/** APK plus ancienne que la version publiée ? (une fois par session) */
+export const verifierMiseAJourAndroid = async () => {
+  const installee = versionAppAndroid();
+  if (!installee) return null;
+  try { if (sessionStorage.getItem('gedMajVue')) return null; sessionStorage.setItem('gedMajVue', '1'); } catch { /* ignore */ }
+  const publiee = await lireVersionPubliee();
+  if (!publiee || Number(publiee.versionCode) <= Number(installee.code)) return null;
+  return publiee;
+};

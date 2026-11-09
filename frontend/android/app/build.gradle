@@ -7,8 +7,8 @@ android {
         applicationId "cm.hsjm.ged"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10
-        versionName "1.9"
+        versionCode 14
+        versionName "2.0.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +16,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Signature « release » avec la clé de l'hôpital : secrets/android-signing.properties
+    // (hors Git, voir docs/application-android.md). Absente : APK release non signée.
+    def signature = new Properties()
+    def fichierSignature = rootProject.file('../../secrets/android-signing.properties')
+    if (fichierSignature.exists()) fichierSignature.withInputStream { signature.load(it) }
+    signingConfigs {
+        if (signature['storeFile']) {
+            hopital {
+                storeFile file(signature['storeFile'])
+                storePassword signature['storePassword']
+                keyAlias signature['keyAlias']
+                keyPassword signature['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (signature['storeFile']) signingConfig signingConfigs.hopital
         }
     }
 }

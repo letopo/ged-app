@@ -90,3 +90,6 @@ backup-status/
 
 # Secrets montés dans le backend (clé Firebase…)
 secrets/
+
+# APK publiée (construite par scripts/publier-apk.sh)
+telechargements/

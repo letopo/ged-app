@@ -58,6 +58,31 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 Le projet utilise Gradle 9.5. Gradle 8.14 ne fonctionne pas avec le Java 25
 d'Android Studio, et à partir de 9.6 Gradle n'accepte plus AGP 8.13.
 
+## Publier une version pour le personnel
+
+1. Augmenter `versionCode` (+1) et `versionName` dans `frontend/android/app/build.gradle`.
+2. `scripts/publier-apk.sh` : construit l'APK **release**, la signe avec la clé de
+   l'hôpital, puis la place dans `telechargements/ged-hsjm.apk` avec `version.json`.
+3. Sur la VM : copier ces deux fichiers dans `~/ged-app/telechargements/`. Aucun
+   redémarrage n'est nécessaire (dossier monté dans nginx sur `/telechargements/`).
+
+Le personnel installe l'appli depuis **Plus › Application Android**, avec un bouton
+et un QR code. Le QR code pointe vers `http://<serveur>/telechargements/ged-hsjm.apk` :
+un téléphone sans le certificat de l'hôpital peut donc la télécharger. L'APK
+contient ensuite le certificat. L'empreinte SHA-256 du fichier est affichée sur
+la page. Quand une version plus récente est publiée, l'appli installée le signale
+à l'ouverture (« Mettre à jour »).
+
+### Clé de signature : à ne jamais perdre
+
+`secrets/ged-hsjm-android.jks` et `secrets/android-signing.properties` (mots de
+passe), hors Git. **Toutes** les mises à jour doivent être signées avec cette clé :
+si elle est perdue, il faudra désinstaller l'appli sur chaque téléphone. Gardez-en
+deux copies sûres (clé USB au coffre, gestionnaire de mots de passe…).
+
+Une APK « debug » (essais, `assembleDebug`) n'a pas la même signature : pour passer
+d'une APK debug à l'APK publiée, il faut désinstaller l'appli une fois.
+
 ## Installer sur un téléphone
 
 Copiez `app-debug.apk` sur le téléphone (câble, WhatsApp, e-mail), ouvrez-le,

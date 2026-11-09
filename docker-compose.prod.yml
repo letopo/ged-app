@@ -106,6 +106,8 @@ services:
     volumes:
       # 🔒 AJOUT CRITIQUE : Montage des certificats SSL
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      # Application Android publiée (scripts/publier-apk.sh)
+      - ./telechargements:/usr/share/nginx/telechargements:ro
     networks:
       - ged-network
     depends_on:

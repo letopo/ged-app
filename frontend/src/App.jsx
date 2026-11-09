@@ -43,6 +43,7 @@ import ArchivesPage from './pages/ArchivesPage';
 import AuditLogPage from './pages/AuditLogPage';
 import StatistiquesPage from './pages/StatistiquesPage';
 import NouveautesPage from './pages/NouveautesPage';
+import ApplicationAndroidPage from './pages/ApplicationAndroidPage';
 import WorkflowTemplatesPage from './pages/WorkflowTemplatesPage';
 import VerifyDocument from './pages/VerifyDocument';
 import SignerPage from './pages/SignerPage';
@@ -352,6 +353,7 @@ function App() {
           <Route path="/settings"             element={<PageWrapper><Settings /></PageWrapper>} />
           <Route path="/parametres/notifications" element={<PageWrapper><NotificationSettings /></PageWrapper>} />
           <Route path="/nouveautes"           element={<PageWrapper><NouveautesPage /></PageWrapper>} />
+          <Route path="/application-android"  element={<PageWrapper><ApplicationAndroidPage /></PageWrapper>} />
 
           <Route path="/schedules"              element={<PageWrapper><SchedulesList /></PageWrapper>} />
           <Route path="/schedules/create"       element={<PageWrapper><ScheduleCreate /></PageWrapper>} />
