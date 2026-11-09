@@ -1165,6 +1165,19 @@ const RELEASE_NOTES = [
       "L'application signale elle-même les nouvelles versions et propose de se mettre à jour.",
     ],
   },
+  {
+    id: '2026-11-09-ambulances-manques-rearmement',
+    date: '2026-11-09',
+    target: '/vehicules',
+    title: 'Ambulances : suivi des manques jusqu’au réarmement',
+    items: [
+      'Nouvel onglet « Manques » : un manque relevé à l’inventaire reste affiché sur l’ambulance jusqu’à ce qu’il soit réarmé (À commander → Commandé → Réarmé).',
+      'L’infirmier du matin voit, sur chaque ligne de l’inventaire, ce qui manquait déjà et où en est la commande (« commandé le …, attend en pharmacie »).',
+      '« Réarmer » : cochez l’article remis dans l’ambulance et la quantité ; un article remis en partie reste ouvert pour le reste.',
+      'Responsables : cochez les articles et « Marquer commandé » (n° du bon papier facultatif). Un manque déjà commandé ne repart pas dans une nouvelle alerte : seules les nouveautés sont signalées.',
+      'Ordre de mission RO SAU : l’ambulance affiche « N article(s) non réarmé(s) », en rouge si un article critique manque (alerte, pas un blocage).',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

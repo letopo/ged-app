@@ -13,7 +13,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
 import {
-  Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline,
+  Vehicle, VehicleChecklistTemplate, VehicleMission, VehicleCheck, VehicleDeadline, VehicleShortage,
   Document, DocumentTransmission, ServiceMember, Service, Employee, Tenant, TenantSettings, AuditLog,
 } from '../models/index.js';
 import { getUserPosteCodes, getPosteHolders } from '../utils/posteResolver.js';
@@ -143,11 +143,23 @@ async function serializeVehicle(v, acc, { withState = true } = {}) {
     brand: v.brand, model: v.model, year: v.year, fuelType: v.fuelType, vin: v.vin,
   };
   if (!withState) return base;
-  const [template, mission] = await Promise.all([templateFor(v), activeMissionOf(v.id)]);
+  const [template, mission, openShortages] = await Promise.all([
+    templateFor(v), activeMissionOf(v.id),
+    v.vehicleType === 'ambulance'
+      ? VehicleShortage.findAll({ where: { vehicleId: v.id, status: { [Op.in]: ['a_commander', 'commande'] } }, attributes: ['status', 'critical', 'label'] })
+      : Promise.resolve([]),
+  ]);
   const doc = mission?.documentId ? await Document.findByPk(mission.documentId, { attributes: ['id', 'title'] }) : null;
   return {
     ...base,
     readiness: await lastRound(v, template),
+    // Articles non réarmés (manques ouverts) : alerte dans l'OM RO SAU, pas un blocage
+    shortages: {
+      open: openShortages.length,
+      critical: openShortages.filter((x) => x.critical).length,
+      criticalLabels: openShortages.filter((x) => x.critical).map((x) => x.label).slice(0, 4),
+      ordered: openShortages.filter((x) => x.status === 'commande').length,
+    },
     currentMission: mission ? {
       id: mission.id, status: mission.status, title: mission.title, urgent: mission.urgent,
       documentId: mission.documentId, documentTitle: doc?.title || null,

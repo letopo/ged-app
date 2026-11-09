@@ -10,11 +10,12 @@ import { resolveStoredFile } from '../utils/storedFiles.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
-import { Vehicle, VehicleInventory, Document, Tenant } from '../models/index.js';
+import { Vehicle, VehicleInventory, VehicleShortage, Document, Tenant } from '../models/index.js';
 import { fleetAccess, canManage, canCheck, templateFor, notifyVehicleManagers, shareWithVehicleManagers, CHECK_DIR, userName, fmtFr } from './vehicleController.js';
 import { evaluateInventory, doualaDay, weekStart } from '../utils/vehicleChecklist.js';
 import { buildVehicleInventoryPdf } from '../utils/vehicleInventoryPdf.js';
 import { parseSignaturePng } from './manualSignatureController.js';
+import { syncInventoryShortages, openShortagesOf, serializeShortage } from './vehicleShortageController.js';
 
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const addDays = (dateStr, n) => {
@@ -80,6 +81,7 @@ export const getInventoryState = async (req, res) => {
         weekStart: monday,
         week: (await weekOf([v.id], monday)).get(v.id) || {},
         last: last ? { ...summary(last), answers: last.answers, restock: last.restock } : null,
+        shortages: ((await openShortagesOf([v.id])).get(v.id) || []).map(serializeShortage),
       },
     });
   } catch (error) {
@@ -117,11 +119,21 @@ export const submitInventory = async (req, res) => {
 
     // Disponibilité : point critique en défaut → indisponible ; un inventaire
     // complet lève une indisponibilité posée par un inventaire précédent.
+    // Manques ouverts : l'inventaire retrouve ceux déjà connus (commandés…),
+    // crée les nouveaux et ferme ceux relevés au complet.
+    let sync = { fresh: result.restock.map((r) => ({ ...r, added: r.missing })), open: result.restock.length, closed: 0 };
+    try {
+      sync = await syncInventoryShortages(v, inventory, sections, result, req.user);
+    } catch (err) {
+      console.error('Manques ouverts (inventaire) :', err);
+    }
+
     if (result.critical) {
       const bad = result.restock.filter((r) => sections.some((s) => (s.items || []).some((it) => it.id === r.itemId && it.critical) && (r.missing || r.low || r.ko))).map((r) => r.label);
       await v.update({ status: 'indisponible', unavailableReason: `Inventaire : ${bad.join(', ')}`.slice(0, 255) });
     } else if (v.status === 'indisponible' && /^Inventaire/.test(v.unavailableReason || '')) {
-      await v.update({ status: 'disponible', unavailableReason: null });
+      const criticalLeft = await VehicleShortage.count({ where: { vehicleId: v.id, critical: true, status: { [Op.in]: ['a_commander', 'commande'] } } });
+      if (!criticalLeft) await v.update({ status: 'disponible', unavailableReason: null });
     }
 
     // Fiche PDF archivée dans la GED
@@ -143,21 +155,25 @@ export const submitInventory = async (req, res) => {
       console.error('Fiche PDF inventaire :', err);
     }
 
-    if (result.restock.length) {
-      const lines = result.restock.map((r) => (r.low ? `${r.label} : ${r.value} ${r.unit}`
-        : r.ko ? `${r.label} : hors service`
-        : `${r.label}${r.missing ? ` : manque ${r.missing}${r.unit ? ` ${r.unit}` : ''}` : ''}${r.expiring ? ' (périme ce mois)' : ''}`));
+    // Alerte aux responsables : seulement ce qui est NOUVEAU (un manque déjà
+    // commandé ne repart pas dans une nouvelle liste).
+    if (sync.fresh.length) {
+      const lines = sync.fresh.map((f) => (f.kind === 'niveau' || f.low ? `${f.label} : sous le minimum`
+        : f.kind === 'panne' || f.ko ? `${f.label} : hors service`
+        : f.kind === 'peremption' || (f.expiring && !f.missing) ? `${f.label} : périme ce mois`
+        : `${f.label} : ${f.existing ? `+${f.added}` : `manque ${f.added ?? f.quantity}`}${f.unit ? ` ${f.unit}` : ''}`));
+      const urgent = sync.fresh.some((f) => f.critical);
       notifyVehicleManagers(v, {
-        title: `${result.critical ? '🚨' : '🧰'} ${v.label} : ${result.restock.length} article(s) à réapprovisionner`,
-        body: `Inventaire de ${userName(req.user)}\n${lines.slice(0, 8).join('\n')}${lines.length > 8 ? `\n… et ${lines.length - 8} autre(s)` : ''}`,
-        url: '/vehicules?tab=inventaires',
+        title: `${urgent ? '🚨' : '🧰'} ${v.label} : ${sync.fresh.length} nouveau(x) manque(s) à commander`,
+        body: `Inventaire de ${userName(req.user)}\n${lines.slice(0, 8).join('\n')}${lines.length > 8 ? `\n… et ${lines.length - 8} autre(s)` : ''}${sync.open > sync.fresh.length ? `\n(${sync.open} manque(s) ouvert(s) au total)` : ''}`,
+        url: '/vehicules?tab=manques',
       }).catch(() => {});
     }
 
     const { AuditLog } = await import('../models/index.js');
     AuditLog.log(req, 'VEHICLE_INVENTORY', 'vehicle', v.id, { inventoryId: inventory.id, shortages: result.shortages, expiring: result.expiring });
 
-    res.status(201).json({ success: true, data: { inventory: summary(inventory), restock: result.restock } });
+    res.status(201).json({ success: true, data: { inventory: summary(inventory), restock: result.restock, fresh: sync.fresh.length, openShortages: sync.open, closedShortages: sync.closed } });
   } catch (error) {
     console.error('Inventaire ambulance :', error);
     res.status(500).json({ success: false, message: 'Erreur lors de l\'enregistrement de l\'inventaire.' });
@@ -179,6 +195,7 @@ export const listInventories = async (req, res) => {
       if (inv.sections.length) withInventory.push({ v, inv });
     }
     const weekRows = await weekOf(withInventory.map((x) => x.v.id), monday);
+    const openByVehicle = await openShortagesOf(withInventory.map((x) => x.v.id));
     const vehicles = [];
     for (const { v, inv } of withInventory) {
       const last = await VehicleInventory.findOne({ where: { vehicleId: v.id }, order: [['performedAt', 'DESC']], attributes: { exclude: ['answers', 'sections'] } });
@@ -187,6 +204,7 @@ export const listInventories = async (req, res) => {
         days: inv.days,
         cells: weekRows.get(v.id) || {},
         last: last ? { ...summary(last), restock: last.restock } : null,
+        shortages: ((openByVehicle.get(v.id)) || []).map(serializeShortage),
       });
     }
     // Les 7 jours, du lundi au dimanche : un inventaire fait un jour non prévu

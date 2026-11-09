@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Loader, X, CheckCircle2, Circle, FileText, ArrowUpRight, ArrowDownLeft, Truck, Fuel, Gauge, ClipboardList } from 'lucide-react';
 import { FuelForm } from './fleetForms';
@@ -11,6 +12,19 @@ import { vehiclesAPI } from '../../services/api';
 import VehicleCheckForm from './VehicleCheckForm';
 import VehicleInventoryForm from './VehicleInventoryForm';
 import { LEVELS, STATUS, WEEKDAYS, fmtDateTime, fmtDay, openCheckPdf } from './fleetUi';
+
+// Articles non réarmés (manques ouverts) : rouge si un article critique manque
+export function ShortageBadge({ shortages }) {
+  const { t } = useTranslation();
+  if (!shortages?.open) return null;
+  const crit = shortages.critical > 0;
+  return (
+    <span title={crit ? shortages.criticalLabels?.join(', ') : undefined}
+      style={{ fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '2px 8px', background: crit ? '#fee2e2' : '#ffedd5', color: crit ? '#b91c1c' : '#c2410c' }}>
+      {crit ? '⚠ ' : ''}{t('{{count}} non réarmé(s)', { count: shortages.open })}
+    </span>
+  );
+}
 
 export function ReadinessBadge({ readiness }) {
   const { t } = useTranslation();
@@ -66,6 +80,7 @@ export function InventoryWeek({ days, weekStart, week, today, onOpenPdf }) {
 // Contrôles d'une ambulance : départ / retour, une ligne par section
 function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [state, setState] = useState(null);
   const [form, setForm] = useState(null); // { phase, section, mission }
   const [fuel, setFuel] = useState(false);
@@ -164,7 +179,7 @@ function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>{vehicle.label}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4, fontSize: 12, color: 'var(--fg-muted)' }}>
-              {vehicle.immatriculation} <StatusBadge status={vehicle.status} reason={vehicle.unavailableReason} /> <ReadinessBadge readiness={vehicle.readiness} />
+              {vehicle.immatriculation} <StatusBadge status={vehicle.status} reason={vehicle.unavailableReason} /> <ReadinessBadge readiness={vehicle.readiness} /> <ShortageBadge shortages={vehicle.shortages} />
             </div>
             {vehicle.status === 'indisponible' && vehicle.unavailableReason && (
               <div style={{ fontSize: 12, color: '#dc2626', marginTop: 6 }}>{vehicle.unavailableReason}</div>
@@ -192,6 +207,12 @@ function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
                 style={{ marginTop: 10, height: 38, padding: '0 14px', borderRadius: 8, border: inventory.today?.due ? 'none' : '1px solid var(--border)', background: inventory.today?.due ? 'var(--brand)' : 'var(--surface)', color: inventory.today?.due ? '#fff' : 'var(--fg)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 {todayInventory ? t('Refaire l\'inventaire') : t('Faire l\'inventaire')}
               </button>
+              {vehicle.shortages?.open > 0 && (
+                <button type="button" onClick={() => navigate('/vehicules?tab=manques')}
+                  style={{ marginTop: 10, marginLeft: 8, height: 38, padding: '0 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  {t('Réarmer ({{count}} non réarmé(s))', { count: vehicle.shortages.open })}
+                </button>
+              )}
             </div>
           )}
           {phaseBlock('depart', departMission)}
@@ -238,6 +259,7 @@ export default function VehicleChecksTab({ vehicles, loading, onChanged, initial
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <StatusBadge status={v.status} reason={v.unavailableReason} />
               <ReadinessBadge readiness={v.readiness} />
+              <ShortageBadge shortages={v.shortages} />
             </div>
             <div style={{ fontSize: 12, color: 'var(--fg-muted)', minHeight: 16 }}>
               {v.currentMission

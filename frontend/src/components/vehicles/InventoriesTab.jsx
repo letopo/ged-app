@@ -2,24 +2,26 @@
 // Onglet « Inventaires » (cheffe de pôle RO SAU, chef sécurité logistique) :
 // la semaine comme sur la fiche papier — une ligne par jour d'inventaire
 // (lun / mer / ven), une colonne par ambulance — puis, pour chaque ambulance,
-// la liste « à réapprovisionner » du dernier inventaire.
+// ses manques encore ouverts (non réarmés) et où en est la commande.
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Loader, ChevronLeft, ChevronRight, FileText, PackageOpen } from 'lucide-react';
 import { vehiclesAPI } from '../../services/api';
 import { StatusBadge } from './VehicleChecksTab';
 import { WEEKDAYS, fmtDay, fmtDateTime, openCheckPdf } from './fleetUi';
+import { ShortageStatus, shortageWhat } from './ShortagesTab';
 
 const shiftWeek = (monday, n) => {
   const d = new Date(`${monday}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + 7 * n);
   return d.toISOString().slice(0, 10);
 };
-const qtyLabel = (n, unit) => `${n}${unit ? ` ${unit}` : ''}`;
 
 export default function InventoriesTab({ refreshKey }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [week, setWeek] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -109,35 +111,29 @@ export default function InventoriesTab({ refreshKey }) {
         </table>
       </div>
 
-      {/* À réapprovisionner : dernier inventaire de chaque ambulance */}
+      {/* Manques ouverts de chaque ambulance (jusqu'au réarmement) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {data.vehicles.map((v) => {
-          const restock = v.last?.restock || [];
-          const tone = !v.last ? 'var(--fg-muted)' : v.last.critical ? '#dc2626' : restock.length ? '#ea580c' : '#16a34a';
+          const list = v.shortages || [];
+          const tone = list.some((s) => s.critical) ? '#dc2626' : list.length ? '#ea580c' : '#16a34a';
           return (
             <div key={v.id} className="ged-card" style={{ padding: 14, borderColor: `color-mix(in srgb, ${tone} 30%, var(--border))` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <PackageOpen size={17} color={tone} />
-                <div style={{ flex: 1, fontSize: 14, fontWeight: 800, color: 'var(--fg)' }}>{t('À réapprovisionner')} · {v.label}</div>
+                <div style={{ flex: 1, fontSize: 14, fontWeight: 800, color: 'var(--fg)' }}>{t('Non réarmé')} · {v.label}</div>
+                <button type="button" onClick={() => navigate('/vehicules?tab=manques')} style={{ border: 'none', background: 'none', color: 'var(--brand)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{t('Gérer')} →</button>
               </div>
               <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 8 }}>
                 {v.last ? t('Dernier inventaire : {{date}} par {{name}}', { date: fmtDateTime(v.last.at), name: v.last.by }) : t('Aucun inventaire enregistré.')}
               </div>
-              {v.last && !restock.length && <div style={{ fontSize: 13, color: '#15803d', fontWeight: 600 }}>{t('Tout est complet.')}</div>}
-              {restock.map((r) => (
-                <div key={r.itemId} style={{ display: 'flex', gap: 8, fontSize: 13, padding: '6px 0', borderTop: '1px solid var(--surface-3)' }}>
+              {!list.length && <div style={{ fontSize: 13, color: '#15803d', fontWeight: 600 }}>{t('Tout est réarmé.')}</div>}
+              {list.map((s) => (
+                <div key={s.id} style={{ display: 'flex', gap: 8, fontSize: 13, padding: '6px 0', borderTop: '1px solid var(--surface-3)', alignItems: 'center' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: 'var(--fg)' }}>{t(r.label)}</div>
-                    <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t(r.section)}</div>
+                    <div style={{ fontWeight: 600, color: 'var(--fg)' }}>{t(s.label)}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: s.kind === 'manque' ? '#c2410c' : '#dc2626' }}>{shortageWhat(s, t)}</div>
                   </div>
-                  <div style={{ textAlign: 'right', fontSize: 12, fontWeight: 700, color: r.low || r.ko ? '#dc2626' : '#c2410c' }}>
-                    {r.low ? `${r.value} ${r.unit} (min. ${r.min})`
-                      : r.ko ? t('hors service')
-                      : <>
-                        {r.missing ? <div>{t('manque {{n}}', { n: qtyLabel(r.missing, r.unit) })}</div> : null}
-                        {r.expiring ? <div style={{ color: '#dc2626' }}>{t('périme ce mois-ci')}</div> : null}
-                      </>}
-                  </div>
+                  <ShortageStatus s={s} compact />
                 </div>
               ))}
             </div>

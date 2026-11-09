@@ -12,6 +12,7 @@ import { vehiclesAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { SignPadScreen, signButtonStyle } from '../SignatureSession';
 import { openCheckPdf } from './fleetUi';
+import { ShortageStatus, shortageWhat } from './ShortagesTab';
 
 const qtyLabel = (n, unit) => `${n}${unit ? ` ${unit}` : ''}`;
 
@@ -52,6 +53,15 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
 
   const sections = useMemo(() => state?.sections || [], [state]);
   const lastPresent = useMemo(() => new Map((state?.last?.answers || []).map((a) => [a.itemId, a])), [state]);
+  // Manques encore ouverts (non réarmés), par article : l'infirmier voit où en est la commande
+  const openByItem = useMemo(() => {
+    const m = new Map();
+    for (const sh of state?.shortages || []) {
+      if (!m.has(sh.itemId)) m.set(sh.itemId, []);
+      m.get(sh.itemId).push(sh);
+    }
+    return m;
+  }, [state]);
   const all = useMemo(() => sections.flatMap((s) => s.items || []), [sections]);
   const counted = all.filter((it) => it.kind !== 'yesno');
   const answeredCount = counted.filter((it) => isAnswered(it, answers[it.id])).length;
@@ -151,13 +161,23 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
                   </div>
                 ))}
                 <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 8 }}>
+                  {typeof result.fresh === 'number' && (
+                    <div style={{ marginBottom: 4 }}>
+                      {result.fresh
+                        ? t('{{fresh}} nouveau(x) manque(s) signalé(s) ; {{open}} manque(s) ouvert(s) au total.', { fresh: result.fresh, open: result.openShortages })
+                        : t('Rien de nouveau : ces manques étaient déjà signalés ({{open}} ouvert(s)).', { open: result.openShortages })}
+                    </div>
+                  )}
                   {result.inventory?.critical
                     ? t('Point critique en défaut : l\'ambulance est déclarée indisponible. La cheffe de pôle est prévenue.')
-                    : t('La cheffe de pôle a reçu cette liste.')}
+                    : result.fresh === 0 ? null : t('La cheffe de pôle a reçu cette liste.')}
                 </div>
               </div>
             ) : (
-              <div className="ged-card" style={{ padding: 16, fontSize: 13, color: '#15803d', fontWeight: 600 }}>{t('Tout est complet, rien à réapprovisionner.')}</div>
+              <div className="ged-card" style={{ padding: 16, fontSize: 13, color: '#15803d', fontWeight: 600 }}>
+                {t('Tout est complet, rien à réapprovisionner.')}
+                {result?.closedShortages > 0 && <div style={{ fontWeight: 400, marginTop: 4 }}>{t('{{count}} manque(s) précédent(s) constaté(s) réarmé(s).', { count: result.closedShortages })}</div>}
+              </div>
             )}
             <button type="button" onClick={onClose} style={{ ...signButtonStyle(true), alignSelf: 'flex-end' }}>{t('Fermer')}</button>
           </div>
@@ -182,6 +202,17 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
 
           <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 14px 20px', WebkitOverflowScrolling: 'touch', position: 'relative' }}>
             <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {state.shortages?.length > 0 && (
+                <div style={{ fontSize: 13, padding: '10px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a' }}>
+                  <strong>{t('{{count}} article(s) pas encore réarmé(s) depuis les inventaires précédents', { count: state.shortages.length })}</strong>
+                  {' — '}
+                  {t('{{ordered}} commandé(s) (attend en pharmacie), {{toOrder}} à commander.', {
+                    ordered: state.shortages.filter((x) => x.status === 'commande').length,
+                    toOrder: state.shortages.filter((x) => x.status === 'a_commander').length,
+                  })}
+                  <div style={{ fontSize: 12, marginTop: 2 }}>{t('Leur état est rappelé sur chaque ligne. Comptez ce qui est présent : un manque déjà commandé ne repart pas en commande.')}</div>
+                </div>
+              )}
               {state.last && (
                 <div style={{ fontSize: 12, color: 'var(--fg-muted)', padding: '8px 10px', borderRadius: 8, background: 'var(--surface-2)' }}>
                   {t('Dernier inventaire : {{date}} par {{name}}. Les quantités relevées ce jour-là sont rappelées en gris.', { date: new Date(state.last.at).toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }), name: state.last.by })}
@@ -214,6 +245,12 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
                             {short && it.kind === 'qty' && <strong style={{ color: '#c2410c' }}> · {t('manque {{n}}', { n: qtyLabel((it.required || 0) - Number(a.present), it.unit) })}</strong>}
                             {short && it.kind === 'level' && <strong style={{ color: '#dc2626' }}> · {t('sous le minimum')}</strong>}
                           </div>
+                          {(openByItem.get(it.id) || []).map((sh) => (
+                            <div key={sh.id} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 3, fontSize: 11, color: 'var(--fg-muted)' }}>
+                              <span>{t('Déjà signalé : {{what}}', { what: shortageWhat(sh, t) })}</span>
+                              <ShortageStatus s={sh} />
+                            </div>
+                          ))}
                         </div>
 
                         {it.kind === 'qty' && (

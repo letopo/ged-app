@@ -334,7 +334,64 @@ initModel(VehicleInventory, {
   tenantId,
 }, opts('VehicleInventory', 'vehicle_inventories'));
 
+// Manque « ouvert » d'une ambulance : relevé à l'inventaire, il reste ouvert
+// jusqu'au réarmement (circuit a_commander → commande → rearme).
+export interface ShortageEvent { at: string; by: string | null; action: string; qty?: number | null; note?: string | null }
+export class VehicleShortage extends Model<InferAttributes<VehicleShortage>, InferCreationAttributes<VehicleShortage>> {
+  declare id: Id;
+  declare vehicleId: string;
+  declare itemId: string;
+  declare kind: CreationOptional<string>;
+  declare label: string;
+  declare section: string | null;
+  declare unit: string | null;
+  declare critical: CreationOptional<boolean>;
+  declare quantity: number | null;
+  declare orderedQty: CreationOptional<number>;
+  declare restockedQty: CreationOptional<number>;
+  declare status: CreationOptional<string>;
+  declare openedAt: Date;
+  declare openedInventoryId: string | null;
+  declare lastSeenAt: Date | null;
+  declare orderedAt: CreationOptional<Date | null>;
+  declare orderedByName: CreationOptional<string | null>;
+  declare orderNote: CreationOptional<string | null>;
+  declare closedAt: CreationOptional<Date | null>;
+  declare closedByName: CreationOptional<string | null>;
+  declare closedReason: CreationOptional<string | null>;
+  declare history: CreationOptional<ShortageEvent[]>;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleShortage, {
+  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  vehicleId: { type: DataTypes.UUID, allowNull: false, field: 'vehicle_id' },
+  itemId: { type: DataTypes.STRING(60), allowNull: false, field: 'item_id' },
+  kind: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'manque' },
+  label: { type: DataTypes.STRING(200), allowNull: false },
+  section: { type: DataTypes.STRING(120), allowNull: true },
+  unit: { type: DataTypes.STRING(30), allowNull: true },
+  critical: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  quantity: { type: DataTypes.INTEGER, allowNull: true },
+  orderedQty: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'ordered_qty' },
+  restockedQty: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'restocked_qty' },
+  status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'a_commander' },
+  openedAt: { type: DataTypes.DATE, allowNull: false, field: 'opened_at' },
+  openedInventoryId: { type: DataTypes.UUID, allowNull: true, field: 'opened_inventory_id' },
+  lastSeenAt: { type: DataTypes.DATE, allowNull: true, field: 'last_seen_at' },
+  orderedAt: { type: DataTypes.DATE, allowNull: true, field: 'ordered_at' },
+  orderedByName: { type: DataTypes.STRING(150), allowNull: true, field: 'ordered_by_name' },
+  orderNote: { type: DataTypes.STRING(255), allowNull: true, field: 'order_note' },
+  closedAt: { type: DataTypes.DATE, allowNull: true, field: 'closed_at' },
+  closedByName: { type: DataTypes.STRING(150), allowNull: true, field: 'closed_by_name' },
+  closedReason: { type: DataTypes.STRING(30), allowNull: true, field: 'closed_reason' },
+  history: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+  tenantId,
+}, opts('VehicleShortage', 'vehicle_shortages'));
+
 Vehicle.hasMany(VehicleInventory, { as: 'inventories', foreignKey: 'vehicleId' });
+Vehicle.hasMany(VehicleShortage, { as: 'shortages', foreignKey: 'vehicleId' });
 Vehicle.hasMany(VehicleDeadline, { as: 'deadlines', foreignKey: 'vehicleId' });
 Vehicle.hasMany(VehicleFuelLog, { as: 'fuelLogs', foreignKey: 'vehicleId' });
 Vehicle.hasMany(VehicleMaintenance, { as: 'maintenances', foreignKey: 'vehicleId' });
