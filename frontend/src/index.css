@@ -794,6 +794,13 @@ a.kpi-card:active { transform: scale(0.98); }
   .docviewer-list   { display: none !important; }
   .docviewer-center { flex: none !important; min-height: 50vh; width: 100%; }
   .docviewer-side   { width: 100%; border-left: none !important; border-top: 1px solid var(--border); }
+
+  /* En-tête de la visionneuse : titre sur une ligne, boutons (icônes) sur la suivante */
+  .dv-header { flex-wrap: wrap; row-gap: 8px; padding: 8px 12px !important; }
+  .dv-header-title { flex: 1 1 100% !important; }
+  .dv-header-crumb { display: none !important; }
+  .dv-header-actions { flex: 1 1 100% !important; justify-content: flex-end; flex-wrap: wrap; gap: 6px !important; }
+  .dv-header-actions > button, .dv-header-actions > div > button { height: 40px !important; min-width: 40px; padding: 0 10px !important; justify-content: center; }
 }
 
 /* Paramètres › Messagerie : serveur | port | sécurité, puis 2 colonnes */

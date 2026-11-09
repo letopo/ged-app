@@ -428,16 +428,16 @@ const DocumentViewer = ({
     <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0, minHeight: 48 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 13, padding: '2px 4px', borderRadius: 'var(--radius-2)', fontWeight: 500 }}>{t('Documents')}</button>
-          <ChevronRight size={13} color="var(--fg-subtle)" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</span>
+      <div className="dv-header" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0, minHeight: 48 }}>
+        <div className="dv-header-title" style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
+          <button className="dv-header-crumb" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 13, padding: '2px 4px', borderRadius: 'var(--radius-2)', fontWeight: 500 }}>{t('Documents')}</button>
+          <ChevronRight className="dv-header-crumb" size={13} color="var(--fg-subtle)" style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</span>
           <span className={`ged-badge ${st.cls}`} style={{ fontSize: 10, flexShrink: 0, marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.dot, display: 'inline-block' }} />{t(st.label)}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+        <div className="dv-header-actions" style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
           {isFormResponse ? (
             <button onClick={() => {
               const el = document.querySelector('#form-response-print-area');
@@ -455,12 +455,12 @@ const DocumentViewer = ({
               win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${(doc.title || 'Formulaire').replace(/</g,'&lt;')}</title><style>*{box-sizing:border-box;}body{margin:0;padding:0;font-family:Inter,system-ui,sans-serif;background:#fff;}@page{margin:8mm;}img{max-width:100%;}</style></head><body>${clone.outerHTML}<script>window.onload=function(){window.print();}<\/script></body></html>`);
               win.document.close();
             }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-              <Printer size={13} /> {t('Imprimer / PDF')}
+              <Printer size={13} /> <span className="dv-btn-label">{t('Imprimer / PDF')}</span>
             </button>
           ) : (
             <>
-              <button onClick={handleDownload} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-                <Download size={13} /> {t('Télécharger')}
+              <button onClick={handleDownload} title={t('Télécharger')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                <Download size={13} /> <span className="dv-btn-label">{t('Télécharger')}</span>
               </button>
               {canSign && (
                 <button onClick={() => setShowSign(true)} title={t('Faire signer le document (patient, client…)')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
@@ -521,7 +521,7 @@ const DocumentViewer = ({
               <Check size={13} /> {t('Approuver')}
             </button>
           )}
-          <button onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 32, width: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer' }}>
+          <button onClick={onClose} title={t('Fermer')} aria-label={t('Fermer')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 32, width: 32, borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer' }}>
             <X size={15} />
           </button>
         </div>
