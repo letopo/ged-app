@@ -11,7 +11,7 @@ import {
   ShoppingCart, Wrench, Stethoscope, Pill, Shield, Archive, Scissors,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
-  MessageSquare, FileSpreadsheet, Sparkles, Ambulance, HardDrive,
+  MessageSquare, FileSpreadsheet, Sparkles, Ambulance, HardDrive, Server,
 } from 'lucide-react';
 import { workflowAPI, tenantBrandingAPI, usersAPI, authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,6 +25,7 @@ import { useFestive, Snowfall, Garland, SantaHat } from './Festive';
 import { CampaignBadge, CampaignConfetti } from './Campaign';
 import toast from 'react-hot-toast';
 import { phpAccess } from '../utils/phpAccess';
+import { isAndroidApp, changerServeurGed } from '../utils/androidApp';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
 
@@ -392,6 +393,15 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
             </div>
             <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{t(getRoleLabel(user?.role))}</div>
           </div>
+          {isAndroidApp() && (
+            <button
+              onClick={changerServeurGed}
+              title={`${t('Changer de serveur')} (${window.location.host})`}
+              style={{ padding: 4, border: 'none', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', borderRadius: 4 }}
+            >
+              <Server size={14} />
+            </button>
+          )}
           <button
             onClick={onLogout}
             title={t('Déconnexion')}

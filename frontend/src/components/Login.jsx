@@ -7,6 +7,7 @@ import { authAPI } from '../services/api';
 import { LogIn, Mail, Lock, Loader, AlertCircle, Fingerprint } from 'lucide-react';
 import { passkeySupport, loginWithPasskey, isCancelled } from '../utils/passkeys';
 import TwoFactorVerify from './TwoFactorVerify';
+import { isAndroidApp, changerServeurGed } from '../utils/androidApp';
 
 const REMEMBER_KEY = 'ged-remember-device';
 
@@ -215,6 +216,17 @@ export default function Login({ onLogin }) {
                 {t('Vérifier un document signé')}
               </Link>
             </p>
+            {isAndroidApp() && (
+              <p style={{ color: 'var(--fg-muted)', fontSize: 13, marginTop: 8 }}>
+                {t('Serveur')} : {window.location.host}{' · '}
+                <button type="button" onClick={changerServeurGed} style={{
+                  border: 'none', background: 'none', padding: 0, cursor: 'pointer',
+                  color: 'var(--brand)', fontWeight: 500, fontSize: 13,
+                }}>
+                  {t('Changer de serveur')}
+                </button>
+              </p>
+            )}
           </div>
         </div>
       </div>

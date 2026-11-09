@@ -19,6 +19,7 @@
 
 import { isFestiveSeason } from './components/Festive';
 import { phpAccess } from './utils/phpAccess';
+import { isAndroidApp } from './utils/androidApp';
 
 const isAdmin = (user) => ['admin', 'superadmin'].includes(user?.role);
 
@@ -1068,6 +1069,17 @@ const RELEASE_NOTES = [
       'Le secteur PENJA EST dépend désormais de l\'Infirmerie PHP Bas (et non plus de Nyombe). Ses patients et toutes ses consultations, y compris passées, comptent dans les statistiques de PHP Bas.',
       '« P EST » et « P OUEST » étaient les mêmes secteurs saisis en abrégé : ils sont fusionnés dans PENJA EST et PENJA OUEST (qui reste rattaché à Nyombe).',
       'Secteurs en double à cause d\'une faute de frappe, regroupés : LOUM1 et IOUM1 → LOUM 1, LOUM2 et LOUN2 → LOUM 2, BOUBOPU → BOUBOU, NJOMBE → NYOMBE.',
+    ],
+  },
+  {
+    id: '2026-11-09-apk-choix-serveur',
+    date: '2026-11-09',
+    target: 'app',
+    title: 'Application Android : choix du serveur',
+    access: () => isAndroidApp(),
+    items: [
+      "Au premier lancement, l'application demande l'adresse du serveur GED (production ou développement). Elle s'en souvient ensuite.",
+      "Pour changer de serveur : lien « Changer de serveur » sous le formulaire de connexion, ou icône serveur à côté du bouton de déconnexion.",
     ],
   },
 ];
