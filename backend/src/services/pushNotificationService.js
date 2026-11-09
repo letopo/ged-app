@@ -1,7 +1,13 @@
 // backend/src/services/pushNotificationService.js
 
 import webpush from 'web-push';
-import { PushSubscription } from '../models/index.js';
+import { Op } from 'sequelize';
+import { PushSubscription, User } from '../models/index.js';
+import { envoyerFcm } from './fcmService.js';
+
+// Abonnements de l'application Android : endpoint « fcm:<jeton> » et
+// subscription = { type: 'fcm', token } dans la même table que le Web Push.
+const PREFIXE_FCM = 'fcm:';
 
 // Configuration VAPID
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -24,8 +30,17 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 export const pushDisabled = (env = process.env) => /^(true|1|oui|yes)$/i.test(String(env.PUSH_DISABLED || '').trim());
 if (pushDisabled()) console.warn('🔕 PUSH_DISABLED : aucune notification push ne partira (installation de développement).');
 
+// Exception pour les essais en développement : PUSH_DEV_USERS = e-mails (séparés
+// par des virgules) des comptes qui reçoivent quand même les notifications.
+const autoriseEnDev = async (userId, env = process.env) => {
+  const emails = String(env.PUSH_DEV_USERS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+  if (!emails.length) return false;
+  const u = await User.findByPk(userId, { attributes: ['email'] }).catch(() => null);
+  return !!u?.email && emails.includes(u.email.toLowerCase());
+};
+
 export const sendPushNotification = async (userId, payload) => {
-  if (pushDisabled()) {
+  if (pushDisabled() && !(await autoriseEnDev(userId))) {
     console.log(`🔕 [PUSH NON ENVOYÉ — PUSH_DISABLED] ${userId} : ${payload?.title || ''}`);
     return { success: false, message: 'Push disabled (development)' };
   }
@@ -50,7 +65,21 @@ export const sendPushNotification = async (userId, payload) => {
     for (const sub of subscriptions) {
       try {
         const pushConfig = JSON.parse(sub.subscription);
-        
+
+        if (pushConfig?.type === 'fcm') {
+          const r = await envoyerFcm(pushConfig.token, payload);
+          if (r.ok) {
+            console.log(`✅ Push Android envoyé à l'utilisateur ${userId}`);
+            results.success++;
+          } else {
+            console.error(`❌ Erreur envoi push Android: ${r.erreur}`);
+            results.failed++;
+            results.errors.push(r.erreur);
+            if (r.jetonInvalide) await sub.destroy();
+          }
+          continue;
+        }
+
         await webpush.sendNotification(
           pushConfig,
           JSON.stringify(payload)
@@ -166,6 +195,31 @@ export const unsubscribePush = async (userId, endpoint) => {
 };
 
 /**
+ * Enregistre le jeton Firebase d'un téléphone (application Android).
+ * Un téléphone n'appartient qu'au dernier compte connecté : le jeton est retiré
+ * des autres comptes.
+ */
+export const subscribeFcm = async (userId, token) => {
+  const endpoint = PREFIXE_FCM + token;
+  await PushSubscription.destroy({ where: { endpoint, userId: { [Op.ne]: userId } } });
+  const subscription = JSON.stringify({ type: 'fcm', token });
+  const existing = await PushSubscription.findOne({ where: { userId, endpoint } });
+  if (existing) {
+    await existing.update({ subscription, active: true });
+    return { success: true, updated: true };
+  }
+  await PushSubscription.create({ userId, endpoint, subscription, active: true });
+  console.log(`✅ Téléphone Android enregistré pour les notifications (utilisateur ${userId})`);
+  return { success: true, created: true };
+};
+
+/** Retire le jeton Firebase (déconnexion depuis l'application Android). */
+export const unsubscribeFcm = async (userId, token) => {
+  const n = await PushSubscription.destroy({ where: { userId, endpoint: PREFIXE_FCM + token } });
+  return { success: true, removed: n };
+};
+
+/**
  * Récupère la clé publique VAPID
  */
 export const getPublicVapidKey = () => {
@@ -177,5 +231,7 @@ export default {
   sendNewTaskPushNotification,
   subscribePush,
   unsubscribePush,
+  subscribeFcm,
+  unsubscribeFcm,
   getPublicVapidKey
 };

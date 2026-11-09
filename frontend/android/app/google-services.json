@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "410888600046",
+    "project_id": "ged-hsjm",
+    "storage_bucket": "ged-hsjm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:410888600046:android:6396c81143b23ffeac76ff",
+        "android_client_info": {
+          "package_name": "cm.hsjm.ged"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbMJ0AVW6I0HemKgLblCH7F4FBWdFLJ-s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

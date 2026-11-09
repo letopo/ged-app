@@ -1101,6 +1101,18 @@ const RELEASE_NOTES = [
       "Les fichiers téléchargés (documents, exports Excel, PDF, pièces jointes) sont enregistrés dans le dossier Téléchargements du téléphone, puis s'ouvrent automatiquement.",
     ],
   },
+  {
+    id: '2026-11-09-apk-notifications',
+    date: '2026-11-09',
+    target: 'app',
+    title: 'Application Android : notifications',
+    access: () => isAndroidApp(),
+    items: [
+      "Le téléphone reçoit les notifications de la GED même application fermée : tâche à valider, message du chat, document reçu…",
+      "Toucher la notification ouvre directement la page concernée.",
+      "À la déconnexion, le téléphone ne reçoit plus les notifications de votre compte.",
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

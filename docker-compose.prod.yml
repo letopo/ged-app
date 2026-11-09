@@ -63,6 +63,8 @@ services:
       - signatures_data:/app/signatures
       # État de la dernière sauvegarde nocturne (écrit par scripts/backup-nightly.sh)
       - ./backup-status:/app/backup-status:ro
+      # Clé Firebase (notifications de l'application Android), hors Git
+      - ./secrets:/app/secrets:ro
       # Sauvegardes nocturnes en lecture seule : points de restauration, journaux
       # et taille réelle (page État du serveur, superadministrateur)
       - /home/ged/backups:/app/host-backups:ro

@@ -36,6 +36,12 @@ public class GedFichiers {
         return true;
     }
 
+    /** Jeton Firebase de ce téléphone (vide tant qu'il n'est pas connu). */
+    @JavascriptInterface
+    public String jetonPush() {
+        return GedMessagingService.jeton(activity);
+    }
+
     /** @return vrai si le fichier a été enregistré. */
     @JavascriptInterface
     public boolean enregistrer(String base64, String nom, String mime) {
