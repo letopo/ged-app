@@ -1155,6 +1155,16 @@ const RELEASE_NOTES = [
       "Pour l'envoyer à un collègue dans la GED, utilisez toujours « Transmettre ».",
     ],
   },
+  {
+    id: '2026-11-09-application-android-telechargement',
+    date: '2026-11-09',
+    target: 'app',
+    title: 'Application Android à télécharger',
+    items: [
+      "La GED existe en application Android : menu Système › Application Android (ou Plus › Application Android sur téléphone). Scannez le QR code avec le téléphone, ou touchez « Télécharger ».",
+      "L'application signale elle-même les nouvelles versions et propose de se mettre à jour.",
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

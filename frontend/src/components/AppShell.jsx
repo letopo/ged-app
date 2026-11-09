@@ -11,7 +11,7 @@ import {
   ShoppingCart, Wrench, Stethoscope, Pill, Shield, Archive, Scissors,
   Search, Sun, Moon, GitBranch, Menu, MoreHorizontal,
   Activity, X, ChevronRight, ClipboardList, Briefcase, Calculator,
-  MessageSquare, FileSpreadsheet, Sparkles, Ambulance, HardDrive, Server,
+  MessageSquare, FileSpreadsheet, Sparkles, Ambulance, HardDrive, Server, Smartphone,
 } from 'lucide-react';
 import { workflowAPI, tenantBrandingAPI, usersAPI, authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,7 +25,7 @@ import { useFestive, Snowfall, Garland, SantaHat } from './Festive';
 import { CampaignBadge, CampaignConfetti } from './Campaign';
 import toast from 'react-hot-toast';
 import { phpAccess } from '../utils/phpAccess';
-import { isAndroidApp, changerServeurGed } from '../utils/androidApp';
+import { isAndroidApp, changerServeurGed, verifierMiseAJourAndroid } from '../utils/androidApp';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
 
@@ -371,6 +371,7 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
 
         <NavSection title={t('Système')}>
           <NavItem icon={Sparkles} label={t('Nouveautés')} to="/nouveautes" active={isActive('/nouveautes')} />
+          <NavItem icon={Smartphone} label={t('Application Android')} to="/application-android" active={isActive('/application-android')} />
           <NavItem icon={Settings} label={t('Paramètres')} to="/settings" active={isActive('/settings')} />
         </NavSection>
       </div>
@@ -816,6 +817,7 @@ const MoreSheet = ({ onClose, onNavigate, user }) => {
     ...buildOrgGroups(t, user),
     { id: 'systeme', label: t('Système'), color: '#64748B', items: [
       { path: '/nouveautes', icon: Sparkles, label: t('Nouveautés') },
+      { path: '/application-android', icon: Smartphone, label: t('Application Android') },
       { path: '/settings',   icon: Settings, label: t('Paramètres') },
     ]},
   ];
@@ -883,6 +885,23 @@ export default function AppShell({ onLogout }) {
   // Choix d'un module : remplace l'étape « menu ouvert » (retour = page d'avant)
   const navigateFromSheet = (path) => navigate(path, { replace: true });
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+  // APK : nouvelle version publiée sur le serveur → proposition de mise à jour
+  useEffect(() => {
+    if (!user) return;
+    verifierMiseAJourAndroid().then((v) => {
+      if (!v) return;
+      toast((tt) => (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {i18n.t('Nouvelle version de l’application : {{v}}', { v: v.versionName })}
+          <button onClick={() => { toast.dismiss(tt.id); navigate('/application-android'); }}
+            style={{ border: 'none', background: 'var(--brand)', color: '#fff', borderRadius: 8, padding: '6px 10px', fontWeight: 600 }}>
+            {i18n.t('Mettre à jour')}
+          </button>
+        </span>
+      ), { duration: 15000 });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
   // Page rechargée avec le menu ouvert dans l'historique : on le referme proprement
   useEffect(() => {
     if (location.state?.plusOuvert) {

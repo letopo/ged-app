@@ -107,6 +107,8 @@ services:
       - "443:443"    # HTTPS
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      # Application Android publiée (scripts/publier-apk.sh)
+      - ./telechargements:/usr/share/nginx/telechargements:ro
       - letsencrypt_data:/etc/letsencrypt:ro
     networks:
       - ged-network

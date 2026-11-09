@@ -36,6 +36,38 @@ public class GedFichiers {
         return true;
     }
 
+    /**
+     * Ouvre une adresse http(s) dans le navigateur du téléphone (mise à jour de
+     * l'appli : c'est le navigateur qui télécharge et installe l'APK ; l'appli
+     * n'a pas la permission d'installer d'autres applis, que Play Protect
+     * considère comme suspecte).
+     */
+    @JavascriptInterface
+    public boolean ouvrirNavigateur(String url) {
+        if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) return false;
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            i.addCategory(Intent.CATEGORY_BROWSABLE);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(i);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            return false;
+        }
+    }
+
+    /** Version installée de l'APK : {"code": 10, "nom": "1.9"} (JSON). */
+    @JavascriptInterface
+    public String versionApp() {
+        try {
+            android.content.pm.PackageInfo i = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0);
+            long code = Build.VERSION.SDK_INT >= 28 ? i.getLongVersionCode() : i.versionCode;
+            return new org.json.JSONObject().put("code", code).put("nom", i.versionName).toString();
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
     /** Jeton Firebase de ce téléphone (vide tant qu'il n'est pas connu). */
     @JavascriptInterface
     public String jetonPush() {
