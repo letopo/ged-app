@@ -1113,6 +1113,17 @@ const RELEASE_NOTES = [
       "À la déconnexion, le téléphone ne reçoit plus les notifications de votre compte.",
     ],
   },
+  {
+    id: '2026-11-09-apk-verrouillage',
+    date: '2026-11-09',
+    target: 'app',
+    title: 'Application Android : verrouillage par empreinte',
+    access: () => isAndroidApp(),
+    items: [
+      "À l'ouverture de l'application, et quand vous y revenez après 1 minute, le téléphone demande votre empreinte, votre visage ou son code avant d'afficher la GED.",
+      "Réglage dans Paramètres › Sécurité : activer ou non, et choisir le délai (immédiatement, 1 min, 5 min…).",
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

@@ -13,6 +13,8 @@ import LicenseManager from '../components/LicenseManager';
 import TwoFactorSetup from '../components/TwoFactorSetup';
 import DeviceSessionsPanel from '../components/DeviceSessionsPanel';
 import PasskeysPanel from '../components/PasskeysPanel';
+import AppLockPanel from '../components/AppLockPanel';
+import { isAndroidApp } from '../utils/androidApp';
 import NotificationSettings from './NotificationSettings';
 import UserManagement from './UserManagement';
 import MailSettingsPanel from '../components/MailSettingsPanel';
@@ -486,7 +488,8 @@ export default function Settings() {
 
             {/* ── 2FA ─────────────────────────────────────────────────────── */}
             <TwoFactorSetup />
-            <PasskeysPanel />
+            {/* Dans l'APK, les passkeys du navigateur ne fonctionnent pas : verrouillage natif à la place */}
+            {isAndroidApp() ? <AppLockPanel /> : <PasskeysPanel />}
             <DeviceSessionsPanel />
             </>
           )}

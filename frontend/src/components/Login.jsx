@@ -62,7 +62,8 @@ export default function Login({ onLogin }) {
   };
 
   // Connexion sans mot de passe : empreinte, Face ID ou code PIN de l'appareil
-  const passkeys = passkeySupport();
+  // Dans l’APK Android, la WebView ne gère pas les passkeys : verrouillage natif à la place
+  const passkeys = isAndroidApp() ? { supported: false } : passkeySupport();
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const handlePasskey = async () => {
     setError('');

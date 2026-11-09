@@ -239,7 +239,9 @@ async function cacheFirst(request, cacheName) {
 
 async function networkFirstNav(request) {
   try {
-    const response = await fetch(request);
+    // cache: 'no-cache' : toujours revalider la page auprès du serveur, même si le
+    // cache HTTP du navigateur en garde une copie (anciens en-têtes « 1 an »).
+    const response = await fetch(request, { cache: 'no-cache' });
     if (response.ok) {
       const cache = await caches.open(STATIC_CACHE);
       cache.put(request, response.clone());

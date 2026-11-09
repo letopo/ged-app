@@ -42,6 +42,28 @@ public class GedFichiers {
         return GedMessagingService.jeton(activity);
     }
 
+    /** Réglages du verrouillage par empreinte : {"disponible","actif","delai"} (JSON). */
+    @JavascriptInterface
+    public String verrouillage() {
+        return ((MainActivity) activity).verrouillage().etatJson();
+    }
+
+    /**
+     * Change les réglages du verrouillage après confirmation par empreinte ou code.
+     * Le résultat est renvoyé à la GED par l'événement « ged-verrouillage »
+     * (detail = { ok, disponible, actif, delai }).
+     */
+    @JavascriptInterface
+    public void reglerVerrouillage(boolean actif, int delaiSecondes) {
+        MainActivity a = (MainActivity) activity;
+        a.runOnUiThread(() -> a.verrouillage().regler(actif, delaiSecondes, ok -> {
+            String etat = a.verrouillage().etatJson();
+            String js = "window.dispatchEvent(new CustomEvent('ged-verrouillage',{detail:Object.assign("
+                + etat + ",{ok:" + ok + "})}))";
+            a.getBridge().getWebView().evaluateJavascript(js, null);
+        }));
+    }
+
     /** @return vrai si le fichier a été enregistré. */
     @JavascriptInterface
     public boolean enregistrer(String base64, String nom, String mime) {
