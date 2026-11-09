@@ -64,6 +64,14 @@ public class GedFichiers {
         }));
     }
 
+    /** Couleurs CSS du haut et du bas de l'écran de la GED (barres système). */
+    @JavascriptInterface
+    public void couleursBarres(String haut, String bas) {
+        Integer h = GedBarres.lire(haut), b = GedBarres.lire(bas);
+        if (h == null || b == null) return;
+        activity.runOnUiThread(() -> GedBarres.appliquer(activity, h, b));
+    }
+
     /** @return vrai si le fichier a été enregistré. */
     @JavascriptInterface
     public boolean enregistrer(String base64, String nom, String mime) {
