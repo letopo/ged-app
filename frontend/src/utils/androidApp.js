@@ -133,3 +133,16 @@ export const retirerNotificationsAndroid = (jetonSession) => {
   if (!jeton || !jetonSession) return;
   appelPush('fcm-unsubscribe', jetonSession, jeton).catch(() => {});
 };
+
+// ── Verrouillage par empreinte (APK) ─────────────────────────────────────────
+// État : { disponible, actif, delai } ; null hors de l'APK.
+export const lireVerrouillageAndroid = () => {
+  if (!isAndroidApp() || !pontFichiers() || typeof window.GedAndroid.verrouillage !== 'function') return null;
+  try { return JSON.parse(window.GedAndroid.verrouillage()); } catch { return null; }
+};
+
+// La réponse arrive par l'événement « ged-verrouillage » (après l'empreinte).
+export const reglerVerrouillageAndroid = (actif, delaiSecondes) => {
+  if (!lireVerrouillageAndroid()) return;
+  window.GedAndroid.reglerVerrouillage(!!actif, Number(delaiSecondes) || 0);
+};

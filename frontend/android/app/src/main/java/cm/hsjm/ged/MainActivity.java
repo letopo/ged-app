@@ -14,6 +14,10 @@ import com.google.firebase.messaging.FirebaseMessaging;
 
 public class MainActivity extends BridgeActivity {
 
+    private GedVerrouillage verrouillage;
+
+    GedVerrouillage verrouillage() { return verrouillage; }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -21,6 +25,8 @@ public class MainActivity extends BridgeActivity {
         // enregistrement des fichiers téléchargés et jeton des notifications.
         // Il est visible à partir du chargement suivant, c'est-à-dire dès l'ouverture
         // du serveur GED après la page locale de choix du serveur.
+        viderCacheApresMiseAJour();
+        verrouillage = new GedVerrouillage(this);
         getBridge().getWebView().addJavascriptInterface(new GedFichiers(this), "GedAndroid");
 
         GedMessagingService.creerCanal(this);
@@ -38,10 +44,42 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        if (verrouillage != null) verrouillage.revient();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (verrouillage != null) verrouillage.quitte();
+    }
+
+    @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         String url = intent.getStringExtra(GedMessagingService.EXTRA_URL);
         if (url != null) ouvrirDepuisNotification(url, false);
+    }
+
+    /**
+     * Après installation d'une nouvelle version de l'APK, vide le cache HTTP de la
+     * WebView (pages et scripts de la GED) : évite d'afficher une ancienne version
+     * du site. Le stockage local (serveur choisi, session) est conservé.
+     */
+    private void viderCacheApresMiseAJour() {
+        try {
+            long version = Build.VERSION.SDK_INT >= 28
+                ? getPackageManager().getPackageInfo(getPackageName(), 0).getLongVersionCode()
+                : getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+            android.content.SharedPreferences p = getSharedPreferences(GedMessagingService.PREFS, MODE_PRIVATE);
+            if (p.getLong("versionCache", -1) != version) {
+                getBridge().getWebView().clearCache(true);
+                p.edit().putLong("versionCache", version).apply();
+            }
+        } catch (Exception e) {
+            // sans conséquence
+        }
     }
 
     private void demanderPermissionNotifications() {
