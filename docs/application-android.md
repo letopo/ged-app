@@ -1,22 +1,41 @@
 # Application Android (APK) de la GED
 
 L'APK est une vraie application Android construite avec **Capacitor**. Elle
-affiche la GED du serveur (`https://192.168.1.186`) dans une fenêtre native :
-mêmes écrans, mêmes droits et mêmes données que le site. L'application ne parle
-jamais directement à la base : elle passe par l'API du backend, comme le
-navigateur.
+affiche la GED du serveur choisi dans une fenêtre native : mêmes écrans, mêmes
+droits et mêmes données que le site. L'application ne parle jamais directement
+à la base : elle passe par l'API du backend, comme le navigateur.
 
-Chaque déploiement sur la VM met donc l'application à jour automatiquement.
+## Choix du serveur
+
+- **Au premier lancement**, l'APK demande l'adresse du serveur GED. Deux
+  raccourcis sont proposés : Production (`192.168.1.186`) et Développement
+  (`192.168.1.138`, le Mac). On peut aussi saisir une autre adresse IP ou un nom
+  `*.hsjm.local` / `*.hsjmcam.net`. Le préfixe `https://` est ajouté
+  automatiquement.
+- Avant d'enregistrer l'adresse, l'APK vérifie que le serveur répond en HTTPS
+  avec un certificat accepté.
+- **Aux lancements suivants**, l'APK se connecte directement au serveur
+  mémorisé. S'il ne répond pas, elle propose « Réessayer » ou « Changer de
+  serveur ».
+- **Pour changer de serveur** en cours d'utilisation : lien « Changer de
+  serveur » sous le formulaire de connexion, ou icône serveur à côté du bouton
+  de déconnexion. Ces liens n'apparaissent que dans l'APK : elle ajoute
+  `GEDHSJM-Android` à son user-agent, voir `src/utils/androidApp.js`.
+
+L'adresse est enregistrée dans la page locale de l'APK (`capacitor-shell/index.html`,
+servie sur `https://localhost`).
+
+Chaque déploiement sur le serveur met donc l'application à jour automatiquement.
 Il n'est nécessaire de recompiler l'APK que si l'on change ce qui se trouve
-dans `frontend/android/` ou `frontend/capacitor.config.json` (adresse du
-serveur, icône, certificat, permissions).
+dans `frontend/android/`, `frontend/capacitor-shell/` ou
+`frontend/capacitor.config.json` (raccourcis, icône, certificat, permissions).
 
 ## Fichiers
 
 | Fichier | Rôle |
 |---|---|
-| `frontend/capacitor.config.json` | Nom, identifiant (`cm.hsjm.ged`), adresse du serveur, domaines autorisés |
-| `frontend/capacitor-shell/` | Pages locales embarquées : `erreur.html` s'affiche si le serveur est injoignable |
+| `frontend/capacitor.config.json` | Nom, identifiant (`cm.hsjm.ged`), domaines autorisés dans l'appli (toute IPv4, `*.hsjm.local`, `*.hsjmcam.net`) |
+| `frontend/capacitor-shell/` | Pages locales embarquées : `index.html` (choix du serveur) et `erreur.html` (serveur injoignable en cours d'utilisation) |
 | `frontend/android/` | Projet Android Studio |
 | `android/app/src/main/res/raw/ca_hsjm.crt` | CA interne de l'hôpital embarquée (copie de `nginx/ssl/ca.crt`) |
 | `android/app/src/main/res/xml/network_security_config.xml` | Autorités acceptées : système + CA HSJM + CA installée à la main ; http interdit |
@@ -45,14 +64,15 @@ Copiez `app-debug.apk` sur le téléphone (câble, WhatsApp, e-mail), ouvrez-le,
 puis autorisez « Installer des applications inconnues ». Vous pouvez aussi
 utiliser `adb install app-debug.apk` avec le débogage USB activé.
 
-Le téléphone doit être sur le Wi-Fi de l'hôpital, sinon la page « Serveur
-injoignable » s'affiche.
+Le téléphone doit être sur le même réseau Wi-Fi que le serveur choisi.
 
 ## Points à surveiller
 
-- **Changement d'IP ou de CA du serveur** : modifiez `capacitor.config.json`
-  (`server.url`, `allowNavigation`) et/ou recopiez `nginx/ssl/ca.crt` de la VM
-  dans `res/raw/ca_hsjm.crt`, puis recompilez. En attendant, un téléphone sur
+- **Changement d'IP du serveur** : il suffit de saisir la nouvelle adresse
+  dans « Changer de serveur ». Il faut recompiler seulement si l'on veut mettre
+  à jour les raccourcis.
+- **Changement de CA du serveur** : recopiez `nginx/ssl/ca.crt` dans
+  `res/raw/ca_hsjm.crt`, puis recompilez. En attendant, un téléphone sur
   lequel la nouvelle CA a été installée à la main continue de fonctionner.
 - **Version de diffusion** : l'APK `debug` suffit pour les essais. Pour une
   diffusion large, il faudra une APK `release` signée avec une clé de

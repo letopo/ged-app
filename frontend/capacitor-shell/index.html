@@ -1,4 +1,162 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GED HSJM</title></head>
-<body style="margin:0;background:#1B3A6B"></body></html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GED HSJM</title>
+<!--
+  Page de démarrage de l'APK (embarquée, servie sur https://localhost).
+  - 1er lancement (ou ?changer=1) : on demande l'adresse du serveur GED.
+  - Lancements suivants : on vérifie que le serveur répond, puis on l'ouvre.
+  L'adresse est mémorisée dans le localStorage de cette page locale.
+-->
+<style>
+  :root{--brand:#1B3A6B;--fg:#14213d;--muted:#5b6475;--bg:#fff;--border:#d8dde6;--danger:#b42318}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       font-family:system-ui,-apple-system,Roboto,sans-serif;background:var(--bg);color:var(--fg);padding:24px 16px}
+  .carte{width:100%;max-width:420px}
+  img{display:block;width:88px;height:88px;margin:0 auto 12px}
+  h1{font-size:1.25rem;text-align:center;margin:0 0 4px}
+  .sous{text-align:center;color:var(--muted);margin:0 0 24px;font-size:.95rem}
+  label{display:block;font-weight:600;margin:0 0 6px;font-size:.95rem}
+  input{width:100%;font-size:1.05rem;padding:13px 12px;border:1px solid var(--border);border-radius:10px;outline:none}
+  input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(27,58,107,.15)}
+  .aide{color:var(--muted);font-size:.85rem;margin:6px 0 16px}
+  .raccourcis{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
+  .raccourcis button{flex:1 1 140px;background:#f2f4f8;color:var(--fg);border:1px solid var(--border);
+       border-radius:10px;padding:10px;font-size:.9rem;text-align:left}
+  .raccourcis small{display:block;color:var(--muted);font-size:.8rem}
+  .principal{width:100%;background:var(--brand);color:#fff;border:0;border-radius:10px;padding:14px;font-size:1rem;font-weight:600}
+  .principal:disabled{opacity:.6}
+  .lien{display:block;margin:16px auto 0;background:none;border:0;color:var(--brand);font-size:.95rem;text-decoration:underline}
+  .msg{margin:14px 0 0;font-size:.92rem;text-align:center}
+  .msg.erreur{color:var(--danger)}
+  .actuel{text-align:center;font-weight:600;word-break:break-all}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="carte">
+  <img src="icon.png" alt="">
+  <h1>GED HSJM</h1>
+
+  <!-- Écran 1 : choix du serveur -->
+  <form id="form" hidden>
+    <p class="sous">Adresse du serveur GED</p>
+    <label for="adresse">Adresse IP ou nom du serveur</label>
+    <input id="adresse" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+           placeholder="192.168.1.186">
+    <p class="aide">Exemple : 192.168.1.186. Le préfixe https:// est ajouté automatiquement.</p>
+    <div class="raccourcis">
+      <button type="button" data-url="https://192.168.1.186">Production<small>192.168.1.186</small></button>
+      <button type="button" data-url="https://192.168.1.138">Développement<small>192.168.1.138</small></button>
+    </div>
+    <button class="principal" id="valider" type="submit">Se connecter</button>
+    <p class="msg" id="msgForm" hidden></p>
+  </form>
+
+  <!-- Écran 2 : connexion au serveur mémorisé -->
+  <div id="connexion" hidden>
+    <p class="sous">Connexion au serveur…</p>
+    <p class="actuel" id="serveurActuel"></p>
+    <p class="msg" id="msgConnexion" hidden></p>
+    <button class="principal" id="reessayer" type="button" hidden>Réessayer</button>
+    <button class="lien" id="changer" type="button">Changer de serveur</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var CLE = 'gedServeur';
+  var DELAI_MS = 7000;
+
+  function lire() { try { return localStorage.getItem(CLE); } catch (e) { return null; } }
+  function ecrire(v) { try { localStorage.setItem(CLE, v); } catch (e) {} }
+
+  // « 192.168.1.186 », « https://192.168.1.186/ », « ged.hsjm.local:8443 » → « https://hôte[:port] »
+  function normaliser(saisie) {
+    var s = (saisie || '').trim();
+    if (!s) return null;
+    if (/^http:\/\//i.test(s)) s = s.replace(/^http:/i, 'https:');
+    if (!/^https:\/\//i.test(s)) s = 'https://' + s;
+    try {
+      var u = new URL(s);
+      if (!u.hostname) return null;
+      return 'https://' + u.host;
+    } catch (e) { return null; }
+  }
+
+  // Le serveur répond-il, avec un certificat accepté ? (no-cors : on ne lit pas la
+  // réponse, on veut seulement savoir si la connexion HTTPS aboutit.)
+  function tester(url) {
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, DELAI_MS);
+    return fetch(url + '/api/health?_=' + Date.now(), { mode: 'no-cors', cache: 'no-store', signal: ctrl && ctrl.signal })
+      .then(function () { clearTimeout(minuteur); return true; },
+            function () { clearTimeout(minuteur); return false; });
+  }
+
+  var MSG_ECHEC = "Serveur injoignable. Vérifiez que le téléphone est sur le bon Wi-Fi, " +
+                  "que l'adresse est correcte et que le serveur est démarré.";
+
+  var form = document.getElementById('form');
+  var champ = document.getElementById('adresse');
+  var valider = document.getElementById('valider');
+  var msgForm = document.getElementById('msgForm');
+  var connexion = document.getElementById('connexion');
+  var msgConnexion = document.getElementById('msgConnexion');
+  var reessayer = document.getElementById('reessayer');
+
+  function afficher(el, texte, erreur) {
+    el.textContent = texte; el.hidden = !texte;
+    el.className = 'msg' + (erreur ? ' erreur' : '');
+  }
+
+  function ouvrirFormulaire() {
+    connexion.hidden = true; form.hidden = false;
+    var actuel = lire();
+    champ.value = actuel ? actuel.replace(/^https:\/\//, '') : '';
+    afficher(msgForm, '');
+    champ.focus();
+  }
+
+  function seConnecter(url) {
+    form.hidden = true; connexion.hidden = false;
+    document.getElementById('serveurActuel').textContent = url.replace(/^https:\/\//, '');
+    afficher(msgConnexion, ''); reessayer.hidden = true;
+    tester(url).then(function (ok) {
+      if (ok) { location.replace(url + '/'); return; }
+      afficher(msgConnexion, MSG_ECHEC, true);
+      reessayer.hidden = false;
+    });
+  }
+
+  document.querySelectorAll('.raccourcis button').forEach(function (b) {
+    b.addEventListener('click', function () { champ.value = b.getAttribute('data-url').replace(/^https:\/\//, ''); });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var url = normaliser(champ.value);
+    if (!url) { afficher(msgForm, 'Adresse invalide.', true); return; }
+    valider.disabled = true; afficher(msgForm, 'Vérification…');
+    tester(url).then(function (ok) {
+      valider.disabled = false;
+      if (!ok) { afficher(msgForm, MSG_ECHEC, true); return; }
+      ecrire(url);
+      location.replace(url + '/');
+    });
+  });
+
+  reessayer.addEventListener('click', function () { seConnecter(lire()); });
+  document.getElementById('changer').addEventListener('click', ouvrirFormulaire);
+
+  var params = new URLSearchParams(location.search);
+  var serveur = lire();
+  if (!serveur || params.has('changer')) ouvrirFormulaire();
+  else seConnecter(serveur);
+})();
+</script>
+</body>
+</html>

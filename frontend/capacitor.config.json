@@ -2,10 +2,10 @@
   "appId": "cm.hsjm.ged",
   "appName": "GED HSJM",
   "webDir": "capacitor-shell",
+  "appendUserAgent": "GEDHSJM-Android",
   "server": {
-    "url": "https://192.168.1.186",
     "errorPath": "erreur.html",
-    "allowNavigation": ["192.168.1.186", "ged.hsjm.local", "ged.hsjmcam.net"]
+    "allowNavigation": ["*.*.*.*", "*.hsjm.local", "*.hsjmcam.net"]
   },
   "android": {
     "allowMixedContent": false,
