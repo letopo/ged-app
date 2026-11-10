@@ -1200,6 +1200,16 @@ const RELEASE_NOTES = [
       'Chacun ne voit que sa partie, selon sa fonction dans le service (Chauffeur ou soignant). Le chauffeur n’a pas l’inventaire du matériel médical à faire.',
     ],
   },
+  {
+    id: '2026-11-10-ambulances-commande-soignants',
+    date: '2026-11-10',
+    target: '/vehicules',
+    title: 'Ambulances : commande par le personnel soignant',
+    items: [
+      'Onglet « Manques » : le personnel soignant peut maintenant marquer lui-même un article « Commandé » (et annuler une commande notée par erreur), comme la responsable.',
+      'Inventaire : « Poubelle » retirée et « Masque FFP1 » devient « Masque ». Prise de poste : « Sac d’urgence complet » retiré.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

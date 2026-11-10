@@ -3244,5 +3244,6 @@
   "{{name}} le {{date}}": "{{name}} on {{date}}",
   "Prise de poste : véhicule": "Shift check: vehicle",
   "Prise de poste : matériel médical": "Shift check: medical equipment",
-  "Véhicule : carburant, freins, pneus, gyrophare… et kilométrage": "Vehicle: fuel, brakes, tyres, beacon… and mileage"
+  "Véhicule : carburant, freins, pneus, gyrophare… et kilométrage": "Vehicle: fuel, brakes, tyres, beacon… and mileage",
+  "Point critique en défaut : l'ambulance reste indisponible jusqu'au réarmement.": "Critical point failing: the ambulance stays unavailable until restocked."
 }
