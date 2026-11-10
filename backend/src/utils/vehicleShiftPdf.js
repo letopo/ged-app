@@ -26,7 +26,7 @@ export const OXYGEN_TEXT = {
 };
 
 /** @returns {Promise<Buffer>} */
-export async function buildVehicleShiftPdf({ tenantName, shift, oxygen }) {
+export async function buildVehicleShiftPdf({ tenantName, shift, oxygen, partLabel = null }) {
   const pdf = await PDFDocument.create();
   const [reg, bold, ital] = await Promise.all([
     pdf.embedFont(StandardFonts.Helvetica), pdf.embedFont(StandardFonts.HelveticaBold), pdf.embedFont(StandardFonts.HelveticaOblique),
@@ -41,7 +41,7 @@ export async function buildVehicleShiftPdf({ tenantName, shift, oxygen }) {
 
   text(tenantName || 'Hôpital', M, y, { font: bold, size: 11, color: MUTED });
   y -= 22;
-  text('Fiche de PRISE DE POSTE — Ambulances', M, y, { font: bold, size: 16 });
+  text(`Fiche de PRISE DE POSTE — ${partLabel || 'Ambulances'}`, M, y, { font: bold, size: 16 });
   y -= 8;
   page.drawLine({ start: { x: M, y }, end: { x: M + W, y }, thickness: 1.5, color: rgb(0.86, 0.15, 0.15) });
   y -= 20;
@@ -102,15 +102,23 @@ export async function buildVehicleShiftPdf({ tenantName, shift, oxygen }) {
     y -= h;
     page.drawLine({ start: { x: M, y: y + 10 }, end: { x: M + W, y: y + 10 }, thickness: 0.3, color: LINE });
   }
-  // Bouteilles à bord
+  const chauffeur = shift.part === 'chauffeur';
   ensure(20);
-  text("Bouteilles d'oxygène dans l'ambulance", M, y, { font: bold, size: 9.5 });
-  vehicles.forEach((v, i) => text(v.bottles === null || v.bottles === undefined ? '—' : String(v.bottles), colX(i), y, { font: bold, size: 9.5, color: (v.bottles ?? 0) < 2 ? RED : GREEN }));
+  if (chauffeur) {
+    // Kilométrage relevé par le chauffeur
+    text('Kilométrage', M, y, { font: bold, size: 9.5 });
+    vehicles.forEach((v, i) => text(v.mileage === null || v.mileage === undefined ? '—' : `${Number(v.mileage).toLocaleString('fr-FR')} km`, colX(i), y, { font: bold, size: 9.5 }));
+  } else {
+    // Bouteilles à bord
+    text("Bouteilles d'oxygène dans l'ambulance", M, y, { font: bold, size: 9.5 });
+    vehicles.forEach((v, i) => text(v.bottles === null || v.bottles === undefined ? '—' : String(v.bottles), colX(i), y, { font: bold, size: 9.5, color: (v.bottles ?? 0) < 2 ? RED : GREEN }));
+  }
   y -= 16;
   text('* point critique : en anomalie, l\'ambulance est déclarée indisponible.', M, y, { font: ital, size: 7.5, color: MUTED });
   y -= 24;
 
-  // Réserve d'oxygène
+  // Réserve d'oxygène (partie soignant)
+  if (!chauffeur) {
   ensure(70);
   text('Réserve d\'oxygène', M, y, { font: bold, size: 11 });
   y -= 16;
@@ -121,6 +129,7 @@ export async function buildVehicleShiftPdf({ tenantName, shift, oxygen }) {
     page.drawRectangle({ x: M, y: y - 8, width: W, height: 22, color: shift.oxygenLevel === 'ok' ? rgb(0.93, 0.98, 0.94) : shift.oxygenLevel === 'commander' ? rgb(1, 0.96, 0.9) : rgb(1, 0.93, 0.93) });
     text(OXYGEN_TEXT[shift.oxygenLevel] || '', M + 8, y, { font: bold, size: 10, color: tone });
     y -= 30;
+  }
   }
 
   if (shift.comment) {

@@ -106,20 +106,28 @@ async function closePastMissions(tenantId, noChecks) {
   }
 }
 
-// Prise de poste du matin pas faite à 10 h : une alerte par jour et par ambulance
+// Prise de poste du matin pas faite à 10 h (partie soignant ou chauffeur) :
+// une alerte par jour, par ambulance et par partie
 async function shiftAlerts(vehicles) {
   const now = new Date();
   if ((now.getUTCHours() + 1) % 24 < 10) return;
   const today = doualaDay(now).date;
   for (const v of vehicles) {
-    if (v.inventoryAlerts?.shift === today) continue;
-    if (await shiftDoneToday(v.id)) continue;
+    const missing = [];
+    for (const part of ['soignant', 'chauffeur']) {
+      if (v.inventoryAlerts?.[`shift_${part}`] === today) continue;
+      if (!(await shiftDoneToday(v.id, part))) missing.push(part);
+    }
+    if (!missing.length) continue;
+    const what = missing.map((p) => (p === 'chauffeur' ? 'partie chauffeur (véhicule)' : 'partie soignant (matériel médical et oxygène)')).join(' et ');
     await notifyVehicleManagers(v, {
       title: `🚑 ${v.label} : prise de poste non faite`,
-      body: `${v.label} (${v.immatriculation}) — la fiche de prise de poste de ce matin n'a pas été enregistrée.`,
+      body: `${v.label} (${v.immatriculation}) — ${what} de la prise de poste de ce matin non enregistrée.`,
       url: '/vehicules?tab=prise',
     });
-    await v.update({ inventoryAlerts: { ...(v.inventoryAlerts || {}), shift: today } });
+    const flags = { ...(v.inventoryAlerts || {}) };
+    missing.forEach((p) => { flags[`shift_${p}`] = today; });
+    await v.update({ inventoryAlerts: flags });
   }
 }
 

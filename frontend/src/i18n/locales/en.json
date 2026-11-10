@@ -3229,5 +3229,20 @@
   "rien n'a changé": "nothing changed",
   "Stock d'oxygène normal": "Oxygen stock normal",
   "Passer commande d'oxygène : plus aucune bouteille pleine en réserve": "Order oxygen: no full cylinder left in reserve",
-  "URGENT : plus de bouteille pleine en réserve et une ambulance n'a pas ses 2 bouteilles": "URGENT: no full cylinder in reserve and an ambulance does not have its 2 cylinders"
+  "URGENT : plus de bouteille pleine en réserve et une ambulance n'a pas ses 2 bouteilles": "URGENT: no full cylinder in reserve and an ambulance does not have its 2 cylinders",
+  "Matériel médical et oxygène": "Medical equipment and oxygen",
+  "Véhicule (chauffeur)": "Vehicle (driver)",
+  "Les points non remplis passent à OK (les niveaux restent à saisir)": "Unfilled points are set to OK (levels still to be entered)",
+  "Partie chauffeur : véhicule": "Driver part: vehicle",
+  "Partie soignant : matériel médical et oxygène": "Caregiver part: medical equipment and oxygen",
+  "Carburant, huile, freins, pneus, feux, gyrophare… et kilométrage, pour chaque ambulance.": "Fuel, oil, brakes, tyres, lights, beacon… and mileage, for each ambulance.",
+  "Matériel vital de chaque ambulance, bouteilles d'oxygène à bord et stock en réserve.": "Vital equipment of each ambulance, oxygen cylinders on board and reserve stock.",
+  "Chauffeur": "Driver",
+  "Soignant": "Caregiver",
+  "Matériel médical": "Medical equipment",
+  "Contrôlée chaque matin à la prise de poste, pas à chaque mission : le chauffeur fait la partie véhicule, l'infirmier le matériel médical et l'oxygène.": "Checked every morning at the shift check, not at each mission: the driver does the vehicle part, the nurse the medical equipment and oxygen.",
+  "{{name}} le {{date}}": "{{name}} on {{date}}",
+  "Prise de poste : véhicule": "Shift check: vehicle",
+  "Prise de poste : matériel médical": "Shift check: medical equipment",
+  "Véhicule : carburant, freins, pneus, gyrophare… et kilométrage": "Vehicle: fuel, brakes, tyres, beacon… and mileage"
 }

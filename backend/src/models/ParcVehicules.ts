@@ -403,6 +403,8 @@ initModel(VehicleShortage, {
 export class VehicleShiftCheck extends Model<InferAttributes<VehicleShiftCheck>, InferCreationAttributes<VehicleShiftCheck>> {
   declare id: Id;
   declare shiftDate: string;
+  /** soignant (matériel médical + oxygène) | chauffeur (véhicule) */
+  declare part: CreationOptional<string>;
   declare vehicles: CreationOptional<unknown[]>;
   declare reserveFull: number | null;
   declare reserveEmpty: number | null;
@@ -423,6 +425,7 @@ export class VehicleShiftCheck extends Model<InferAttributes<VehicleShiftCheck>,
 initModel(VehicleShiftCheck, {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   shiftDate: { type: DataTypes.DATEONLY, allowNull: false, field: 'shift_date' },
+  part: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'soignant' },
   vehicles: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
   reserveFull: { type: DataTypes.INTEGER, allowNull: true, field: 'reserve_full' },
   reserveEmpty: { type: DataTypes.INTEGER, allowNull: true, field: 'reserve_empty' },

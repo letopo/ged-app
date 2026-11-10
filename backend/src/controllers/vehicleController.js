@@ -56,7 +56,7 @@ async function chauffeursServiceId(tenantId) {
 export async function fleetAccess(user) {
   const [posteCodes, memberships, chauffeursId, adminOk] = await Promise.all([
     getUserPosteCodes(user.id),
-    ServiceMember.findAll({ where: { userId: user.id, isActive: true }, attributes: ['serviceId'] }),
+    ServiceMember.findAll({ where: { userId: user.id, isActive: true }, attributes: ['serviceId', 'fonction'] }),
     chauffeursServiceId(user.tenantId),
     user.role === 'admin' ? adminsAllowed(user.tenantId) : Promise.resolve(false),
   ]);
@@ -65,9 +65,23 @@ export async function fleetAccess(user) {
     user,
     posteCodes,
     serviceIds,
+    // Services où l'utilisateur a la fonction « Chauffeur » (ex. chauffeur du SAU)
+    driverServiceIds: memberships.filter((m) => /chauffeur|conducteur/i.test(m.fonction || '')).map((m) => m.serviceId),
     fleetManager: isSuperAdmin(user) || adminOk || posteCodes.includes(FLEET_POSTE),
     chauffeur: !!chauffeursId && serviceIds.includes(chauffeursId),
   };
+}
+
+/**
+ * Parties de la prise de poste que l'utilisateur remplit pour ce véhicule :
+ * chauffeur → « Véhicule » ; soignant → « Matériel médical » (et oxygène) ;
+ * responsable → les deux.
+ */
+export function shiftPartsFor(acc, v) {
+  if (canManage(acc, v)) return ['soignant', 'chauffeur'];
+  const driver = acc.chauffeur || (!!v.serviceId && (acc.driverServiceIds || []).includes(v.serviceId));
+  if (driver) return ['chauffeur'];
+  return canCheck(acc, v, null) ? ['soignant'] : [];
 }
 
 export const canManage = (acc, v) => acc.fleetManager || (!!v.managerPosteCode && acc.posteCodes.includes(v.managerPosteCode));
@@ -140,7 +154,10 @@ async function shiftReadiness(vehicle) {
   const s = await lastShiftFor(vehicle.id);
   if (!s) return { pct: 0, level: 'aucun', phase: 'prise', at: null, anomalies: 0, sections: [] };
   const pct = completionPct(s.answered || 0, s.total || 0);
-  return { pct, level: completionLevel(pct), phase: 'prise', at: s.at, by: s.by, anomalies: s.anomalies || 0, critical: !!s.critical, bottles: s.bottles, today: s.date === doualaDay().date, sections: [] };
+  return {
+    pct, level: completionLevel(pct), phase: 'prise', at: s.at, by: s.by, anomalies: s.anomalies || 0, critical: !!s.critical, bottles: s.bottles,
+    today: s.todayParts.length >= 2, todayParts: s.todayParts, parts: s.parts, sections: [],
+  };
 }
 
 const activeMissionOf = (vehicleId) => VehicleMission.findOne({
@@ -536,6 +553,7 @@ export const getVehicleState = async (req, res) => {
         vehicle: await serializeVehicle(v, acc),
         sections: template.sections,
         missionChecks: missionChecksOn(template),
+        shiftParts: shiftPartsFor(acc, v),
         mission: mission ? { id: mission.id, status: mission.status, title: mission.title, urgent: mission.urgent, crew: mission.crew, documentId: mission.documentId, plannedDepartureAt: mission.plannedDepartureAt, plannedReturnAt: mission.plannedReturnAt, departedAt: mission.departedAt } : null,
         lastFinishedMission: lastDone ? { id: lastDone.id, title: lastDone.title, returnedAt: lastDone.returnedAt } : null,
         checks,

@@ -188,7 +188,7 @@ function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
           <button onClick={onClose} aria-label={t('Fermer')} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {inventory?.sections?.length > 0 && (
+          {inventory?.sections?.length > 0 && (state.shiftParts || ['soignant']).includes('soignant') && (
             <div style={{ border: `1px solid ${inventory.today?.due ? '#fcd34d' : 'var(--border)'}`, borderRadius: 'var(--radius-3)', padding: 12, background: inventory.today?.due ? '#fffbeb' : 'transparent' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>
                 <ClipboardList size={16} color="#ea580c" /> {t('Inventaire du matériel')}
@@ -221,18 +221,25 @@ function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
                 <Sunrise size={16} color="#ea580c" /> {t('Prise de poste')}
               </div>
               <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 8 }}>
-                {t('Le matériel vital et l\'oxygène sont contrôlés chaque matin à la prise de poste, pas à chaque mission.')}
+                {t('Contrôlée chaque matin à la prise de poste, pas à chaque mission : le chauffeur fait la partie véhicule, l\'infirmier le matériel médical et l\'oxygène.')}
               </div>
-              {vehicle.readiness?.at && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: vehicle.readiness.today ? '#15803d' : 'var(--fg-muted)' }}>
-                  <CheckCircle2 size={16} /> {t('Dernière prise de poste : {{name}} le {{date}}', { name: vehicle.readiness.by, date: fmtDateTime(vehicle.readiness.at) })}
-                  {vehicle.readiness.anomalies > 0 && <span style={{ color: '#c2410c' }}>· {t('{{count}} anomalie(s)', { count: vehicle.readiness.anomalies })}</span>}
+              {(vehicle.readiness?.parts || []).map((p) => (
+                <div key={p.part} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, flexWrap: 'wrap', color: (vehicle.readiness.todayParts || []).includes(p.part) ? '#15803d' : 'var(--fg-muted)' }}>
+                  <CheckCircle2 size={16} /> {p.part === 'chauffeur' ? t('Véhicule') : t('Matériel médical')} : {t('{{name}} le {{date}}', { name: p.by, date: fmtDateTime(p.at) })}
+                  {p.anomalies > 0 && <span style={{ color: '#c2410c' }}>· {t('{{count}} anomalie(s)', { count: p.anomalies })}</span>}
                 </div>
-              )}
-              <button type="button" onClick={() => navigate('/vehicules?tab=prise&open=1')}
-                style={{ marginTop: 10, height: 38, padding: '0 14px', borderRadius: 8, border: vehicle.readiness?.today ? '1px solid var(--border)' : 'none', background: vehicle.readiness?.today ? 'var(--surface)' : 'var(--brand)', color: vehicle.readiness?.today ? 'var(--fg)' : '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                {vehicle.readiness?.today ? t('Refaire une prise de poste') : t('Faire la prise de poste')}
-              </button>
+              ))}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {(state.shiftParts || []).map((p) => {
+                  const doneToday = (vehicle.readiness?.todayParts || []).includes(p);
+                  return (
+                    <button key={p} type="button" onClick={() => navigate(`/vehicules?tab=prise&open=${p}`)}
+                      style={{ marginTop: 10, height: 38, padding: '0 14px', borderRadius: 8, border: doneToday ? '1px solid var(--border)' : 'none', background: doneToday ? 'var(--surface)' : 'var(--brand)', color: doneToday ? 'var(--fg)' : '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                      {p === 'chauffeur' ? t('Prise de poste : véhicule') : t('Prise de poste : matériel médical')}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <>

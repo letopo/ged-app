@@ -1,8 +1,10 @@
 // frontend/src/components/vehicles/ShiftForm.jsx
 // Fiche « Prise de poste » du matin (RO SAU) : les ambulances sur une seule
-// fiche — on coche le matériel vital de l'une puis de l'autre, on compte les
-// bouteilles d'oxygène à bord — puis le stock d'oxygène en réserve (pleines /
-// vides). Signée puis figée (fiche PDF transmise au Chef de pôle RO SAU).
+// fiche, l'une puis l'autre, selon la partie de chacun :
+//  - soignant  : matériel vital, bouteilles d'oxygène à bord, puis le stock en
+//                réserve (pleines / vides)
+//  - chauffeur : section Véhicule (carburant, freins, pneus…) et kilométrage
+// Signée puis figée (fiche PDF transmise au Chef de pôle RO SAU).
 import React, { useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -49,11 +51,16 @@ export function Counter({ value, onChange, label, hint }) {
   );
 }
 
-export default function ShiftForm({ state, onClose, onDone }) {
+export default function ShiftForm({ state, part = 'soignant', onClose, onDone }) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const ambulances = state.ambulances;
+  const soignant = part === 'soignant';
+  // Chaque ambulance avec les points de la partie choisie
+  const ambulances = useMemo(() => state.ambulances
+    .filter((v) => v.parts?.[part])
+    .map((v) => ({ ...v, items: v.parts[part].items || [], askMileage: !!v.parts[part].askMileage })), [state, part]);
   const per = state.perAmbulance || 2;
+  const [mileage, setMileage] = useState({}); // vehicleId → km
   const [answers, setAnswers] = useState({}); // vehicleId → itemId → { status, value }
   const [bottles, setBottles] = useState({}); // vehicleId → n
   const [reserveFull, setReserveFull] = useState(null);
@@ -75,27 +82,29 @@ export default function ShiftForm({ state, onClose, onDone }) {
     const a = answers[v.id] || {};
     return {
       v, done: v.items.filter((it) => isAnswered(it, a[it.id])).length, total: v.items.length,
-      bad: v.items.filter((it) => isBad(it, a[it.id])).length, bottles: bottles[v.id] ?? null,
+      bad: v.items.filter((it) => isBad(it, a[it.id])).length, bottles: soignant ? (bottles[v.id] ?? null) : 0,
     };
-  }), [ambulances, answers, bottles]);
-  const anyDone = stats.some((s) => s.done || s.bottles !== null);
-  const incomplete = stats.some((s) => s.done < s.total || s.bottles === null) || reserveFull === null || reserveEmpty === null;
+  }), [ambulances, answers, bottles, soignant]);
+  const anyDone = stats.some((s) => s.done || (soignant && s.bottles !== null)) || Object.values(mileage).some((m) => m !== null && m !== '');
+  const incomplete = stats.some((s) => s.done < s.total || s.bottles === null) || (soignant && (reserveFull === null || reserveEmpty === null));
   const level = oxygenLevel(reserveFull, ambulances.map((v) => ({ bottles: bottles[v.id] ?? null })), per);
   const short = ambulances.filter((v) => bottles[v.id] !== undefined && bottles[v.id] !== null && bottles[v.id] < per).map((v) => v.label);
-  const lastBottles = (vid) => state.last?.vehicles?.find((x) => x.vehicleId === vid)?.bottles;
+  const lastSoignant = state.last?.soignant || null;
+  const lastBottles = (vid) => lastSoignant?.vehicles?.find((x) => x.vehicleId === vid)?.bottles;
 
   const submit = async ({ png }) => {
     setStep('saving');
     try {
       const res = await vehiclesAPI.submitShift({
+        part,
         vehicles: ambulances.map((v) => ({
-          vehicleId: v.id, bottles: bottles[v.id] ?? null,
+          vehicleId: v.id, bottles: soignant ? (bottles[v.id] ?? null) : null, mileage: soignant ? null : (mileage[v.id] ?? null),
           answers: v.items.map((it) => {
             const a = answers[v.id]?.[it.id] || {};
             return { itemId: it.id, status: it.kind === 'level' ? undefined : a.status, value: a.value };
           }),
         })),
-        reserveFull, reserveEmpty, comment, signature: png,
+        reserveFull: soignant ? reserveFull : null, reserveEmpty: soignant ? reserveEmpty : null, comment, signature: png,
       });
       setResult(res.data.data);
       setStep('done');
@@ -114,8 +123,8 @@ export default function ShiftForm({ state, onClose, onDone }) {
     <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'var(--bg, #f6f7f9)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{t('Prise de poste')}</div>
-          <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{ambulances.map((v) => v.label).join(' · ')} · {t('oxygène')}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>{t('Prise de poste')} — {soignant ? t('Matériel médical et oxygène') : t('Véhicule (chauffeur)')}</div>
+          <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{ambulances.map((v) => v.label).join(' · ')}</div>
         </div>
         <button onClick={onClose} disabled={step === 'saving'} aria-label={t('Fermer')}
           style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={18} /></button>
@@ -134,7 +143,7 @@ export default function ShiftForm({ state, onClose, onDone }) {
               </div>
               {result?.shift?.id && <button type="button" onClick={() => openCheckPdf(vehiclesAPI, result.shift.id, 'shift')} style={{ ...signButtonStyle(false), height: 38 }}><FileText size={15} /> {t('Fiche PDF')}</button>}
             </div>
-            <OxygenBanner level={result?.oxygen?.level} short={result?.oxygen?.short} />
+            {soignant && <OxygenBanner level={result?.oxygen?.level} short={result?.oxygen?.short} />}
             <button type="button" onClick={onClose} style={{ ...signButtonStyle(true), alignSelf: 'flex-end' }}>{t('Fermer')}</button>
           </div>
         </div>
@@ -150,10 +159,10 @@ export default function ShiftForm({ state, onClose, onDone }) {
                 </button>
               );
             })}
-            <button type="button" onClick={() => goTo('reserve')}
+            {soignant && <button type="button" onClick={() => goTo('reserve')}
               style={{ flexShrink: 0, height: 32, padding: '0 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${reserveFull !== null && reserveEmpty !== null ? '#86efac' : 'var(--border)'}`, background: 'var(--surface)', color: 'var(--fg)' }}>
               {t('Réserve d\'oxygène')}
-            </button>
+            </button>}
           </div>
 
           <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 14px 20px', position: 'relative' }}>
@@ -167,7 +176,7 @@ export default function ShiftForm({ state, onClose, onDone }) {
                         <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg)' }}>{v.label} <span style={{ fontWeight: 500, fontSize: 12, color: 'var(--fg-muted)' }}>{v.immatriculation}</span></div>
                         {v.shortages?.open > 0 && <div style={{ fontSize: 12, color: v.shortages.critical ? '#b91c1c' : '#c2410c', fontWeight: 600 }}>{t('{{count}} article(s) non réarmé(s)', { count: v.shortages.open })}</div>}
                       </div>
-                      <button type="button" onClick={() => allOk(v)} title={t('Les points non remplis passent à OK (la pression reste à saisir)')}
+                      <button type="button" onClick={() => allOk(v)} title={t('Les points non remplis passent à OK (les niveaux restent à saisir)')}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#15803d', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                         <CheckCheck size={14} /> {t('Tout est OK')}
                       </button>
@@ -198,22 +207,34 @@ export default function ShiftForm({ state, onClose, onDone }) {
                         </div>
                       );
                     })}
-                    <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)', background: 'color-mix(in srgb, #0ea5e9 6%, transparent)' }}>
-                      <Counter value={bottles[v.id] ?? null} onChange={(n) => setBottles((p) => ({ ...p, [v.id]: n }))}
-                        label={t('Bouteilles d\'oxygène dans l\'ambulance')}
-                        hint={[t('Normalement {{n}}', { n: per }), lastBottles(v.id) !== undefined && lastBottles(v.id) !== null ? t('dernier : {{n}}', { n: lastBottles(v.id) }) : null].filter(Boolean).join(' · ')} />
-                    </div>
+                    {soignant ? (
+                      <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)', background: 'color-mix(in srgb, #0ea5e9 6%, transparent)' }}>
+                        <Counter value={bottles[v.id] ?? null} onChange={(n) => setBottles((p) => ({ ...p, [v.id]: n }))}
+                          label={t('Bouteilles d\'oxygène dans l\'ambulance')}
+                          hint={[t('Normalement {{n}}', { n: per }), lastBottles(v.id) !== undefined && lastBottles(v.id) !== null ? t('dernier : {{n}}', { n: lastBottles(v.id) }) : null].filter(Boolean).join(' · ')} />
+                      </div>
+                    ) : v.askMileage && (
+                      <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>{t('Kilométrage au compteur')}</div>
+                          {v.mileage ? <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{t('dernier : {{n}}', { n: `${Number(v.mileage).toLocaleString('fr-FR')} km` })}</div> : null}
+                        </div>
+                        <input type="number" inputMode="numeric" min="0" value={mileage[v.id] ?? ''} placeholder="km" aria-label={t('Kilométrage au compteur')}
+                          onChange={(e) => setMileage((p) => ({ ...p, [v.id]: e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value))) }))}
+                          style={{ boxSizing: 'border-box', width: 130, height: 40, textAlign: 'center', fontWeight: 700, fontSize: 15, border: `1px solid ${mileage[v.id] ? '#86efac' : 'var(--border)'}`, borderRadius: 8, background: 'var(--surface)', color: 'var(--fg)' }} />
+                      </div>
+                    )}
                   </div>
                 );
               })}
 
-              <div ref={(el) => { refs.current.reserve = el; }} className="ged-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {soignant && <div ref={(el) => { refs.current.reserve = el; }} className="ged-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg)' }}>{t('Réserve d\'oxygène')}</div>
-                <Counter value={reserveFull} onChange={setReserveFull} label={t('Bouteilles pleines en réserve')} hint={state.last?.reserveFull !== null && state.last?.reserveFull !== undefined ? t('dernier : {{n}}', { n: state.last.reserveFull }) : null} />
-                <Counter value={reserveEmpty} onChange={setReserveEmpty} label={t('Bouteilles vides en réserve')} hint={state.last?.reserveEmpty !== null && state.last?.reserveEmpty !== undefined ? t('dernier : {{n}}', { n: state.last.reserveEmpty }) : null} />
+                <Counter value={reserveFull} onChange={setReserveFull} label={t('Bouteilles pleines en réserve')} hint={lastSoignant?.reserveFull !== null && lastSoignant?.reserveFull !== undefined ? t('dernier : {{n}}', { n: lastSoignant.reserveFull }) : null} />
+                <Counter value={reserveEmpty} onChange={setReserveEmpty} label={t('Bouteilles vides en réserve')} hint={lastSoignant?.reserveEmpty !== null && lastSoignant?.reserveEmpty !== undefined ? t('dernier : {{n}}', { n: lastSoignant.reserveEmpty }) : null} />
                 <OxygenBanner level={level} short={short} />
                 <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{t('Commander dès qu\'il ne reste plus aucune bouteille pleine en réserve ; urgent si une ambulance n\'a plus ses 2 bouteilles.')}</div>
-              </div>
+              </div>}
 
               <label style={{ display: 'block' }}>
                 <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--fg)', marginBottom: 6 }}>{t('Observations')}</span>
