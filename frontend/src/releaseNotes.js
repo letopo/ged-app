@@ -1222,6 +1222,17 @@ const RELEASE_NOTES = [
     ],
     access: (user) => !!user?.canSeeSageBl || user?.role === 'superadmin',
   },
+  {
+    id: '2026-11-10-caisse-pharmacie',
+    date: '2026-11-10',
+    target: 'app',
+    title: 'État de la caisse pharmacie',
+    access: (user) => user?.role === 'superadmin' || !!user?.canSeeCaissePharmacie,
+    items: [
+      'Finances › Caisse pharmacie : choisissez la date, la GED affiche le relevé des factures de la caisse de vente (client comptant pharmacie) lu directement dans Sage, avec le total général.',
+      '« Envoyer l’état de caisse en signature » crée le PDF et l’envoie à la caissière puis à la comptable. Plus besoin de l’imprimer depuis Sage.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

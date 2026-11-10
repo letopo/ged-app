@@ -152,3 +152,10 @@ export const phpPharmacieAPI = {
 };
 
 export default { phpReferenceAPI, phpPatientAPI, phpConsultationAPI, phpStatsAPI, phpRendezVousAPI, phpFactureAPI };
+
+// État de la caisse de vente pharmacie (lecture Sage) — envoi en signature Caissière → Comptable
+export const caissePharmacieAPI = {
+  get: (from, to) => api.get('/caisse-pharmacie', { params: { from, to } }),
+  pdf: (from, to) => api.get('/caisse-pharmacie/pdf', { params: { from, to }, responseType: 'blob' }),
+  create: (data) => api.post('/caisse-pharmacie', data),
+};

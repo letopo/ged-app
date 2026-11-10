@@ -58,6 +58,7 @@ import phpImportRoutes from './routes/phpImport.js';
 import phpPharmacieRoutes from './routes/phpPharmacie.js';
 import sageFacturesRoutes from './routes/sageFactures.js'; // ✅ Import auto factures PHP depuis Sage
 import sageBlRoutes from './routes/sageBl.js'; // ✅ BL PHP en attente de facturation (lecture Sage)
+import caissePharmacieRoutes from './routes/caissePharmacie.js'; // État de la caisse de vente pharmacie (lecture Sage)
 import comptaRoutes from './routes/compta.js';           // ✅ Module Comptabilité
 import blocRoutes from './routes/bloc.js';               // ✅ Programme opératoire de la semaine
 import templatePermissionRoutes from './routes/templatePermissionRoutes.js';
@@ -268,6 +269,7 @@ app.use('/api/php/import-excel', phpImportRoutes); // Import du classeur Excel d
 app.use('/api/php/pharmacie', phpPharmacieRoutes); // Registre de pharmacie
 app.use('/api/sage-factures', sageFacturesRoutes); // ✅ Import auto factures PHP depuis Sage
 app.use('/api/sage-bl', sageBlRoutes); // ✅ BL PHP en attente de facturation (lecture Sage)
+app.use('/api/caisse-pharmacie', caissePharmacieRoutes);
 app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
 app.use('/api/bloc',         blocRoutes);         // ✅ Programme opératoire de la semaine
 app.use('/api/template-permissions', templatePermissionRoutes);

@@ -8,6 +8,11 @@ import { fleetModuleFlags } from './vehicleController.js';
 
 // Accès au module Parc véhicules (menu) : jamais bloquant pour la connexion
 const fleetFlagsSafe = (user) => fleetModuleFlags(user).catch(() => ({ hasModule: false }));
+// État de la caisse pharmacie : personnel de la pharmacie, caissières, comptables…
+const canSeeCaisseSafe = async (user, tenantId) => {
+  const { canAccessCaissePharmacie } = await import('./caissePharmacieController.js');
+  return canAccessCaissePharmacie(user, tenantId).catch(() => false);
+};
 import { getTenantSettings } from '../utils/tenantSettings.js';
 import { sendEmailOtp, EmailOtpError, maskEmail } from '../utils/emailOtp.js';
 import { signSessionToken, revokeSessions, recordDeviceSession, revokeDeviceSession } from '../utils/sessionTokens.js';
@@ -146,6 +151,7 @@ export async function completeLogin(req, res, user, { remember = false, method =
   delete userResult.tokenVersion;
   userResult.postes = await getUserPosteCodes(user.id);
   userResult.canSeeSageBl = await canAccessSageBl(userResult, req.tenantId);
+  userResult.canSeeCaissePharmacie = await canSeeCaisseSafe(userResult, req.tenantId);
   userResult.fleet = await fleetFlagsSafe(user);
 
   // Audit login
@@ -163,6 +169,7 @@ export const getProfile = async (req, res, next) => {
       const userObj = req.user?.toJSON ? req.user.toJSON() : { ...req.user };
       userObj.postes = await getUserPosteCodes(req.user.id); // ex: ['comptable']
       userObj.canSeeSageBl = await canAccessSageBl(userObj, req.tenantId);
+      userObj.canSeeCaissePharmacie = await canSeeCaisseSafe(userObj, req.tenantId);
       userObj.fleet = await fleetFlagsSafe(req.user);
       res.json({ success: true, user: userObj });
     } catch (error) {

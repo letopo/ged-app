@@ -686,13 +686,17 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
       // Les zones suivent l'ordre du circuit (étape N → zone N) ; la caissière
       // (dernière étape) paie sans signer, donc on ne peut pas raisonner « depuis la fin ».
       const isPieceDeCaisse = document.category === 'Pièce de caisse';
+      // Documents générés dont les cadres suivent l'ordre du circuit (étape N →
+      // cadre N), même si la comptable est la dernière (ex. état de caisse
+      // pharmacie : Caissière → Comptable) : metadata.zonesParEtape
+      const zonesParEtape = isPieceDeCaisse || document.metadata?.zonesParEtape === true;
 
       // Vérification de la zone de signature
       // Bon de prise en charge : médecin (étape 1) → VISA MÉDECIN, DG (étape 3) → VISA DG ;
       // le RH (étape 2) complète le bon sans signer.
       const isInSignatureRange = isBpc
         ? Boolean(BPC_STEP_ZONES[task.step])
-        : isPieceDeCaisse
+        : zonesParEtape
           ? task.step <= numberOfSignatures
           : task.step > (totalStepsWithoutComptable - numberOfSignatures);
 
@@ -749,7 +753,7 @@ async function reactivateLinkedWorkRequest(originDocument, transaction) {
         // CALCUL POSITION
         let positionInSignatureGroup = isBpc
           ? BPC_STEP_ZONES[task.step]
-          : isPieceDeCaisse
+          : zonesParEtape
             ? task.step
             : task.step - (totalStepsWithoutComptable - numberOfSignatures);
         // Utiliser le nombre de signataires effectif pour le calcul des positions X

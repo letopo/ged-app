@@ -3293,5 +3293,21 @@
   "À transformer dans Sage": "To convert in Sage",
   "Facture incomplète": "Incomplete invoice",
   "Facturée": "Invoiced",
-  "Sage injoignable.": "Sage unreachable."
+  "Sage injoignable.": "Sage unreachable.",
+  "Caisse pharmacie": "Pharmacy till",
+  "Un état de caisse existe déjà pour cette période.": "A till statement already exists for this period.",
+  "En créer un nouveau": "Create a new one",
+  "État de la caisse pharmacie": "Pharmacy till statement",
+  "Le relevé des factures de la caisse de vente (client comptant pharmacie), lu directement dans Sage, puis envoyé en signature à la caissière et à la comptable.": "The statement of the sales till invoices (pharmacy cash customer), read directly from Sage, then sent for signature to the cashier and the accountant.",
+  "Payeur {{p}}": "Payer {{p}}",
+  "{{n}} facture(s)": "{{n}} invoice(s)",
+  "N° facture": "Invoice no.",
+  "Total HT": "Total excl. tax",
+  "Acomptes": "Deposits",
+  "Net à payer": "Net payable",
+  "Aucune facture de la caisse pharmacie sur cette période.": "No pharmacy till invoice in this period.",
+  "TOTAL GÉNÉRAL": "GRAND TOTAL",
+  "Déjà envoyé pour cette période :": "Already sent for this period:",
+  "Envoyer l’état de caisse en signature": "Send the till statement for signature",
+  "Caissière": "Cashier"
 }
