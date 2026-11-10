@@ -142,6 +142,7 @@ const makeCanAccess = (user) => (item) => {
   if (item.sageBlOnly)      return user.role === 'superadmin' || !!user.canSeeSageBl;
   // Même règle que le serveur (routes/sageFactures.js) : admins + poste Finances + postes BL
   if (item.sageFacturesOnly) return isAdmin || !!user.canSeeSageBl;
+  if (item.caissePharmacieOnly) return user.role === 'superadmin' || !!user.canSeeCaissePharmacie;
   if (item.fleetOnly)       return !!user.fleet?.hasModule;
   if (item.blocOnly)        return isAdmin || ['director','dds','medical_chief'].includes(user.role) || (user.postes || []).some(p => ['bloc_saisie','bloc_responsable'].includes(p));
   return true;
@@ -179,6 +180,7 @@ const buildOrgGroups = (t, user) => {
       { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
       { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageFacturesOnly: true },
       { path: '/sage-bl-php',        icon: ClipboardList,   label: t('BL PHP en attente'),   sageBlOnly: true },
+      { path: '/caisse-pharmacie',   icon: Pill,            label: t('Caisse pharmacie'),    caissePharmacieOnly: true },
     ]},
     { id: 'bloc', color: '#0F766E', icon: Scissors, label: t('Bloc opératoire'), items: [
       { path: '/bloc-operatoire',    icon: Scissors,    label: t('Programme opératoire'), blocOnly: true },
@@ -453,6 +455,7 @@ const ROUTE_CRUMBS = {
   '/php/pharmacie':       ['Module PHP', 'Registre de pharmacie'],
   '/sage-factures-php':   ['Factures PHP (Sage)'],
   '/sage-bl-php':         ['Finances', 'BL PHP en attente'],
+  '/caisse-pharmacie':    ['Finances', 'Caisse pharmacie'],
 };
 
 const timeAgo = (date) => {
@@ -861,8 +864,8 @@ export default function AppShell({ onLogout }) {
     authAPI.getProfile().then((res) => {
       const fresh = res.data?.user;
       if (!fresh) return;
-      const same = JSON.stringify([fresh.postes, fresh.canSeeSageBl, fresh.fleet]) === JSON.stringify([user.postes, user.canSeeSageBl, user.fleet]);
-      if (!same) updateUser({ ...user, postes: fresh.postes, canSeeSageBl: fresh.canSeeSageBl, fleet: fresh.fleet });
+      const same = JSON.stringify([fresh.postes, fresh.canSeeSageBl, fresh.fleet, fresh.canSeeCaissePharmacie]) === JSON.stringify([user.postes, user.canSeeSageBl, user.fleet, user.canSeeCaissePharmacie]);
+      if (!same) updateUser({ ...user, postes: fresh.postes, canSeeSageBl: fresh.canSeeSageBl, fleet: fresh.fleet, canSeeCaissePharmacie: fresh.canSeeCaissePharmacie });
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
