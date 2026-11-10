@@ -1190,6 +1190,16 @@ const RELEASE_NOTES = [
       'Inventaire : « Rien n’a changé » confirme en un geste les quantités de la veille quand l’ambulance n’est pas sortie et que rien n’a été réarmé. Après une sortie — même si l’OM n’est classé qu’après coup — le recomptage complet est redemandé.',
     ],
   },
+  {
+    id: '2026-11-10-prise-de-poste-chauffeur',
+    date: '2026-11-10',
+    target: '/vehicules',
+    title: 'Prise de poste : une partie pour le chauffeur',
+    items: [
+      'La prise de poste des ambulances a deux parties : le chauffeur contrôle le véhicule (carburant, freins, pneus, gyrophare…) et note le kilométrage ; l’infirmier contrôle le matériel médical et l’oxygène.',
+      'Chacun ne voit que sa partie, selon sa fonction dans le service (Chauffeur ou soignant). Le chauffeur n’a pas l’inventaire du matériel médical à faire.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
