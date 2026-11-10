@@ -2,7 +2,8 @@
 // Finances › Caisse pharmacie (demande du 10/11/2026) : l'état de la caisse de
 // vente de la pharmacie, tiré directement de Sage (lecture seule) — le même
 // « Relevé de factures » que Sage (payeur CLIENT COMPTANT PHARMACIE) — puis
-// envoyé en signature : Caissière → Comptable. Plus besoin d'imprimer en PDF
+// envoyé en signature : la personne de la pharmacie qui l'envoie → Caissière →
+// Comptable. Aperçu dans la visionneuse de la GED. Plus besoin d'imprimer en PDF
 // depuis Sage puis de le déposer dans la GED.
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Loader, Pill, FileText, Send, AlertCircle, RefreshCw } from 'lucide-react';
 import { caissePharmacieAPI } from '../services/phpService';
+import PdfPreviewModal from '../components/PdfPreviewModal';
 
 const today = () => new Date(Date.now() + 3600 * 1000).toISOString().slice(0, 10);
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR');
@@ -25,6 +27,7 @@ export default function CaissePharmacie() {
   const [error, setError] = useState(null);
   const [selections, setSelections] = useState({});
   const [sending, setSending] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -34,14 +37,8 @@ export default function CaissePharmacie() {
   }, [from, to, t]);
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const preview = async () => {
-    const win = window.open('', '_blank');
-    try {
-      const r = await caissePharmacieAPI.pdf(from, to);
-      const url = URL.createObjectURL(r.data);
-      if (win) win.location.href = url; else window.location.href = url;
-    } catch (e) { win?.close(); toast.error(t('Aperçu impossible.')); }
-  };
+  // Aperçu dans la visionneuse de la GED (fenêtre par-dessus la page, pas de nouvel onglet)
+  const preview = () => setShowPreview(true);
 
   const send = async (force = false) => {
     setSending(true);
@@ -73,7 +70,7 @@ export default function CaissePharmacie() {
     <div className="animate-pageFade" style={{ maxWidth: 900, margin: '0 auto', padding: '8px 4px 40px' }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}><Pill size={20} /> {t('État de la caisse pharmacie')}</h1>
       <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
-        {t('Le relevé des factures de la caisse de vente (client comptant pharmacie), lu directement dans Sage, puis envoyé en signature à la caissière et à la comptable.')}
+        {t('Le relevé des factures de la caisse de vente (client comptant pharmacie), lu directement dans Sage, puis signé par vous, la caissière et la comptable.')}
       </div>
 
       <div className="ged-card" style={{ padding: 14, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', marginBottom: 14 }}>
@@ -167,6 +164,14 @@ export default function CaissePharmacie() {
             </div>
           </div>
         </>
+      )}
+      {showPreview && (
+        <PdfPreviewModal
+          title={t('Aperçu · état de caisse pharmacie {{p}}', { p: from === to ? fmtDate(from) : `${fmtDate(from)} → ${fmtDate(to)}` })}
+          fileName={`caisse-pharmacie-${from}${to !== from ? `-${to}` : ''}.pdf`}
+          load={() => caissePharmacieAPI.pdf(from, to).then((r) => r.data)}
+          onClose={() => setShowPreview(false)}
+        />
       )}
     </div>
   );

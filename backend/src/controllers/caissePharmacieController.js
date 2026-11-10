@@ -2,7 +2,8 @@
 // État de la caisse de vente de la pharmacie (demande du 10/11/2026) : au lieu
 // d'imprimer le « Relevé de factures » dans Sage puis de l'envoyer en PDF, le
 // personnel de la pharmacie le tire depuis la GED (Sage en lecture seule) et
-// l'envoie en signature : Caissière → Comptable.
+// l'envoie en signature : la personne de la pharmacie qui l'envoie (son nom sur
+// la fiche) → Caissière → Comptable (retour du 10/11/2026 : trois signatures).
 // Accès : personnel du service Pharmacie, caissières, comptables, Finances, superadmin.
 import fs from 'fs/promises';
 import path from 'path';
@@ -12,7 +13,7 @@ import { decryptSecret } from '../utils/secretBox.js';
 import { SAGE_DEFAULTS } from '../utils/integrations.js';
 import { openSagePool } from '../utils/sageFactureSync.js';
 import { CAISSE_PHARMACIE_PAYEUR, fetchCaisseFactures, totauxCaisse } from '../utils/caissePharmacie.js';
-import { buildCaissePharmaciePdf, periodeLabel, CAISSE_SIGNATURE_LABELS } from '../utils/caissePharmaciePdf.js';
+import { buildCaissePharmaciePdf, periodeLabel, caisseSignatureLabels } from '../utils/caissePharmaciePdf.js';
 import { isPharmacieStaff } from '../utils/pieceDeCaisseChain.js';
 import { getPosteHoldersForAssignment, getUserPosteCodes } from '../utils/posteResolver.js';
 import { createWorkflowForDocument } from '../utils/workflowEngine.js';
@@ -64,9 +65,9 @@ async function readCaisse(tenantId, from, to) {
   } finally { await pool.close().catch(() => {}); }
 }
 
-/** Circuit : Caissière puis Comptable (choix si plusieurs titulaires). */
-async function resolveCircuit(selections = {}) {
-  const steps = [];
+/** Circuit : la personne qui envoie (pharmacie), puis Caissière, puis Comptable (choix si plusieurs titulaires). */
+async function resolveCircuit(sender, selections = {}) {
+  const steps = [{ key: 'pharmacie', label: 'Pharmacie', holders: [{ id: sender.id, name: fullName(sender) }], chosenId: sender.id, needsSelection: false }];
   const caissiers = await User.findAll({ where: { role: 'caissier', isActive: true, isAbsent: false }, attributes: ['id', 'firstName', 'lastName', 'email'] });
   const comptables = await getPosteHoldersForAssignment('comptable');
   for (const [key, label, list, err] of [
@@ -89,7 +90,7 @@ export const getCaisse = guard(async (req, res) => {
     where: { tenantId: req.tenantId, category: CAISSE_CATEGORY, metadata: { caisseFrom: from, caisseTo: to } },
     attributes: ['id', 'title', 'status', 'createdAt'], order: [['createdAt', 'DESC']], limit: 3,
   });
-  const circuit = await resolveCircuit();
+  const circuit = await resolveCircuit(req.user);
   res.json({ success: true, from, to, payeur, payeurNom, lignes, totaux: totauxCaisse(lignes), deja, circuit });
 });
 
@@ -97,7 +98,7 @@ export const getCaisse = guard(async (req, res) => {
 export const getCaissePdf = guard(async (req, res) => {
   const { from, to } = period(req.query);
   const data = await readCaisse(req.tenantId, from, to);
-  const { buffer } = await buildCaissePharmaciePdf({ from, to, ...data });
+  const { buffer } = await buildCaissePharmaciePdf({ from, to, ...data, labels: caisseSignatureLabels(fullName(req.user)) });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="caisse-pharmacie-${from}${to !== from ? `-${to}` : ''}.pdf"`);
   res.send(buffer);
@@ -110,14 +111,14 @@ export const createCaisse = guard(async (req, res) => {
   if (existing && !req.body?.force) {
     return res.status(409).json({ success: false, message: 'Un état de caisse existe déjà pour cette période.', documentId: existing.id });
   }
-  const circuit = await resolveCircuit(req.body?.selections || {});
+  const circuit = await resolveCircuit(req.user, req.body?.selections || {});
   if (circuit.error) return res.status(400).json({ success: false, message: circuit.error });
   const missing = circuit.steps.find((s) => s.needsSelection);
   if (missing) return res.status(400).json({ success: false, message: `Choisissez le titulaire pour « ${missing.label} ».`, circuit });
 
   const data = await readCaisse(req.tenantId, from, to);
   if (!data.lignes.length) return res.status(400).json({ success: false, message: 'Aucune facture de la caisse pharmacie sur cette période.' });
-  const pdf = await buildCaissePharmaciePdf({ from, to, ...data, labels: CAISSE_SIGNATURE_LABELS });
+  const pdf = await buildCaissePharmaciePdf({ from, to, ...data, labels: caisseSignatureLabels(fullName(req.user)) });
   const fileName = `caisse-pharmacie-${from}${to !== from ? `-${to}` : ''}-${Date.now()}.pdf`;
   await fs.writeFile(path.resolve(process.cwd(), 'uploads', fileName), pdf.buffer);
   const title = `État de caisse pharmacie ${periodeLabel(from, to)}`;
@@ -128,7 +129,8 @@ export const createCaisse = guard(async (req, res) => {
       sourceType: 'caisse_pharmacie', caisseFrom: from, caisseTo: to, payeur: data.payeur,
       nbFactures: pdf.totaux.count, montantTotal: pdf.totaux.net, factures: data.lignes.map((l) => l.piece),
       signatureZones: pdf.signatureZones, signaturePage: pdf.signaturePage,
-      zonesParEtape: true, // Caissière → cadre 1, Comptable → cadre 2
+      zonesParEtape: true, // Pharmacie → cadre 1, Caissière → cadre 2, Comptable → cadre 3
+      envoyePar: fullName(req.user),
     },
     tenantId: req.tenantId,
   });
