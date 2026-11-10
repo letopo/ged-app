@@ -21,6 +21,7 @@ export const DEFAULT_BL_ACCESS_POSTES = ['facturation', 'dg', 'ccg'];
 export const FINANCES_POSTE = 'finances';
 const CACHE_MS = 60_000;
 const cache = new Map(); // tenantId → { at, data }
+export const clearBlCache = (tenantId) => cache.delete(tenantId);
 
 export async function getBlAccessPostes(tenantId) {
   const row = await TenantSettings.findOne({ where: { tenantId }, attributes: ['sageBlAccessPostes'] });
@@ -94,6 +95,10 @@ export const getSummary = guard(async (req, res) => {
   if (hit && !req.query.refresh && Date.now() - hit.at < CACHE_MS) return res.json({ success: true, ...hit.data, cached: true });
   const rows = await withSage(req.tenantId, fetchPendingBl);
   const bpcs = groupIntoBpc(rows);
+  // Facturation assistée : BPC déjà préparés (en attente de transformation dans Sage)
+  const { openPreparationsByBpc } = await import('./sagePreparationController.js');
+  const preps = await openPreparationsByBpc(req.tenantId);
+  for (const b of bpcs) if (preps.has(b.id)) b.preparation = preps.get(b.id);
   const data = { generatedAt: new Date().toISOString(), kpis: summarize(bpcs), bpcs };
   cache.set(req.tenantId, { at: Date.now(), data });
   res.json({ success: true, ...data });

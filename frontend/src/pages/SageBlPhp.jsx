@@ -4,12 +4,15 @@
 // familles PHP pas encore transformés en facture, regroupés en BPC de 3 jours
 // (BPC en cours = Date Entrée du Malade → +2 jours). Onglet « Contrôle des
 // 3 jours » : factures qui regroupent des BL au-delà de la durée d'un BPC.
+// Onglet « Facturation assistée » (10/11/2026) : la GED prépare la facture d'un
+// BPC, la facturation la crée dans Sage, la GED la vérifie et l'envoie en signature.
 import React, { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader, RefreshCw, Download, Search, ChevronDown, ChevronRight, AlertCircle, Shield, X, Users, Clock, FileWarning, Hourglass } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Pagination, { usePageSize } from '../components/Pagination';
 import { sageBlAPI } from '../services/phpService';
+import { PrepareBox, PreparationsTab, PrepBadge } from '../components/sage/FacturationAssistee';
 
 const fmtMoney = (n) => `${Number(n || 0).toLocaleString('fr-FR')} FCFA`;
 const fmtMoneyShort = (n) => {
@@ -65,7 +68,7 @@ function Kpi({ icon: Icon, label, value, sub, color = 'var(--fg)', active, onCli
 }
 
 // Détail d'un BPC : ses BL et leurs actes (chargés à l'ouverture)
-function BpcDetail({ bpc, t }) {
+function BpcDetail({ bpc, t, onPrepared, onOpenTab }) {
   const [lines, setLines] = useState(null);
   const [error, setError] = useState(null);
   const [factured, setFactured] = useState(null);
@@ -89,6 +92,7 @@ function BpcDetail({ bpc, t }) {
         <span>{t('Date d’entrée (Sage)')} : <strong style={{ color: 'var(--fg)' }}>{fmtDate(p.dateEntree)}</strong></span>
         {p.plafond && <span style={{ color: bpc.depassePlafond ? 'var(--danger)' : undefined }}>{t('Plafond')} : <strong>{fmtMoney(p.plafond)}</strong></span>}
       </div>
+      <PrepareBox bpc={bpc} t={t} onPrepared={onPrepared} onOpenTab={onOpenTab} />
       {factured?.length > 0 && (
         <div style={{ marginBottom: 10, padding: '8px 10px', border: '1px solid var(--warning)', borderRadius: 'var(--radius-2)', background: 'var(--warning-soft)', fontSize: 12.5 }}>
           <div style={{ fontWeight: 600, color: 'var(--warning)', marginBottom: 4 }}>
@@ -352,12 +356,12 @@ export default function SageBlPhp() {
 
           {/* Onglets */}
           <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 14 }}>
-            {[['bpc', t('BPC en attente')], ['controle', t('Contrôle des BPC')]].map(([id, label]) => (
+            {[['bpc', t('BPC en attente')], ['preparations', t('Facturation assistée')], ['controle', t('Contrôle des BPC')]].map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: tab === id ? 650 : 500, color: tab === id ? 'var(--brand)' : 'var(--fg-muted)', borderBottom: `2px solid ${tab === id ? 'var(--brand)' : 'transparent'}`, marginBottom: -1 }}>{label}</button>
             ))}
           </div>
 
-          {tab === 'controle' ? <ControlTab t={t} /> : (
+          {tab === 'preparations' ? <PreparationsTab t={t} /> : tab === 'controle' ? <ControlTab t={t} /> : (
             <>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                 <div style={{ position: 'relative', flex: '1 1 240px' }}>
@@ -404,13 +408,13 @@ export default function SageBlPhp() {
                         </span>
                       </span>
                       <span className="blphp-period">{fmtDate(b.start)} → {fmtDate(b.end)}</span>
-                      <span className="blphp-status"><StatusBadge b={b} t={t} /></span>
+                      <span className="blphp-status"><StatusBadge b={b} t={t} />{b.preparation && <span style={{ display: 'block', marginTop: 3 }}><PrepBadge status={b.preparation.status} t={t} /></span>}</span>
                       <span className="blphp-services">
                         {t('{{n}} BL', { n: b.bl.length })}{b.services.length ? ` · ${b.services.slice(0, 3).join(', ')}${b.services.length > 3 ? '…' : ''}` : ''}
                       </span>
                       <span className="blphp-amount" style={{ color: b.depassePlafond ? 'var(--danger)' : 'var(--fg)' }}>{fmtMoney(b.total)}</span>
                     </button>
-                    {open === b.id && <BpcDetail bpc={b} t={t} />}
+                    {open === b.id && <BpcDetail bpc={b} t={t} onPrepared={() => load(true)} onOpenTab={() => setTab('preparations')} />}
                   </Fragment>
                 ))}
                 {!filtered.length && <div style={{ padding: 30, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>{t('Aucun BPC ne correspond.')}</div>}

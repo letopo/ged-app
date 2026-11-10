@@ -51,6 +51,7 @@ import DecesTransfertPHP from './DecesTransfertPHP.js';
 import RendezVousPHP from './RendezVousPHP.js';
 import PhpFacture from './PhpFacture.js'; // ✅ Module factures PHP (secrétaire)
 import SageFactureImport from './SageFactureImport.js'; // ✅ Import auto factures patient PHP depuis Sage
+import SagePreparationFacture from './SagePreparationFacture.js'; // Facturation assistée d'un BPC
 import ReleaseNote from './ReleaseNote.js'; // ✅ Nouveautés rédigées depuis l'application
 import DocumentTransmission from './DocumentTransmission.js'; // ✅ Documents transmis à un utilisateur
 import TenantMailSettings from './TenantMailSettings.js'; // ✅ Messagerie (SMTP) par tenant
@@ -144,6 +145,7 @@ const db = {
   RendezVousPHP,
   PhpFacture,
   SageFactureImport,
+  SagePreparationFacture,
   ReleaseNote,
   DocumentTransmission,
   TenantMailSettings,
@@ -333,6 +335,7 @@ export {
   DecesTransfertPHP,
   PhpFacture,
   SageFactureImport,
+  SagePreparationFacture,
   ReleaseNote,
   DocumentTransmission,
   TenantMailSettings,

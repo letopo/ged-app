@@ -121,6 +121,12 @@ export const sageBlAPI = {
   facturePdf: (piece) => api.get(`/sage-bl/factures/${encodeURIComponent(piece)}/pdf`, { responseType: 'blob' }),
   relevePdf: (date) => api.get(`/sage-bl/releve/${date}/pdf`, { responseType: 'blob' }),
   createReleve: (date, force) => api.post('/sage-bl/releve', { date, force }),
+  // Facturation assistée d'un BPC
+  preparations: (status) => api.get('/sage-bl/preparations', { params: { status } }),
+  prepare: (data) => api.post('/sage-bl/preparations', data),
+  checkPreparations: (ids) => api.post('/sage-bl/preparations/verifier', ids ? { ids } : {}),
+  sendToSignature: (id, force) => api.post(`/sage-bl/preparations/${id}/signature`, { force }),
+  cancelPreparation: (id, note) => api.post(`/sage-bl/preparations/${id}/annuler`, { note }),
 };
 
 // Import du classeur Excel du Point Focal (apply=false : simulation)
