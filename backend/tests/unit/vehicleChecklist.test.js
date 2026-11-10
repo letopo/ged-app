@@ -120,9 +120,9 @@ test('inventaire : quantités négatives ou invalides', () => {
   assert.equal(r.answers.find((a) => a.itemId === 'draps').present, 0);
   assert.equal(r.answers.find((a) => a.itemId === 'ballon').present, null);
 });
-test('fiche RO SAU par défaut : 74 lignes, tous les jours, valide une fois nettoyée', () => {
+test('fiche RO SAU par défaut : 73 lignes (sans la poubelle), tous les jours, valide une fois nettoyée', () => {
   const lines = DEFAULT_INVENTORY_SECTIONS.reduce((n, s) => n + s.items.length, 0);
-  assert.equal(lines, 74);
+  assert.equal(lines, 73);
   assert.deepEqual(DEFAULT_INVENTORY_DAYS, [0, 1, 2, 3, 4, 5, 6]);
   assert.deepEqual(sanitizeInventorySections(DEFAULT_INVENTORY_SECTIONS), DEFAULT_INVENTORY_SECTIONS);
 });

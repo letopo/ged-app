@@ -3,7 +3,7 @@
 // ambulance et où en est la commande. Un manque reste affiché jusqu'à ce que
 // quelqu'un le marque réarmé.
 //  - À commander → Commandé (bon papier envoyé à la pharmacie) → Réarmé
-//  - Responsables (Chef de pôle RO SAU…) : cochent les articles → « Commandé »
+//  - Personnel soignant et responsables : cochent les articles → « Commandé »
 //  - Infirmier de garde : « Réarmer » → coche l'article et la quantité remise
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -101,7 +101,7 @@ function VehicleShortages({ v, onChanged }) {
   const tone = list.some((s) => s.critical) ? '#dc2626' : list.length ? '#ea580c' : '#16a34a';
   const btn = (primary, disabled) => ({ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 14px', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1, border: primary ? 'none' : '1px solid var(--border)', background: primary ? 'var(--brand)' : 'var(--surface)', color: primary ? '#fff' : 'var(--fg)' });
   const stepBtn = { width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--fg)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 };
-  const selectable = (s) => (mode === 'restock' ? true : v.canManage && toOrder.includes(s));
+  const selectable = (s) => (mode === 'restock' ? true : v.canOrder && toOrder.includes(s));
   const linkBtn = { display: 'inline-flex', alignItems: 'center', gap: 3, border: 'none', background: 'none', padding: 0, fontSize: 11, color: 'var(--fg-muted)', textDecoration: 'underline', cursor: 'pointer' };
 
   return (
@@ -152,10 +152,10 @@ function VehicleShortages({ v, onChanged }) {
                 {s.orderNote && <span>· {s.orderNote}</span>}
                 {s.section && <span style={{ color: 'var(--fg-subtle)' }}>· {t(s.section)}</span>}
               </div>
-              {v.canManage && mode === 'view' && (
+              {(v.canOrder || v.canManage) && mode === 'view' && (
                 <div style={{ display: 'flex', gap: 10, marginTop: 3 }}>
-                  {s.status === 'commande' && <button type="button" style={linkBtn} onClick={() => setStatus(s, 'a_commander')}><Undo2 size={10} /> {t('Annuler la commande')}</button>}
-                  <button type="button" style={linkBtn} onClick={() => setStatus(s, 'annule')}>{t('Classer sans suite')}</button>
+                  {s.status === 'commande' && v.canOrder && <button type="button" style={linkBtn} onClick={() => setStatus(s, 'a_commander')}><Undo2 size={10} /> {t('Annuler la commande')}</button>}
+                  {v.canManage && <button type="button" style={linkBtn} onClick={() => setStatus(s, 'annule')}>{t('Classer sans suite')}</button>}
                 </div>
               )}
             </div>
@@ -173,7 +173,7 @@ function VehicleShortages({ v, onChanged }) {
       })}
 
       {/* Barre d'action : commande (responsables) ou réarmement */}
-      {mode === 'view' && v.canManage && toOrder.length > 0 && (
+      {mode === 'view' && v.canOrder && toOrder.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderTop: '1px solid var(--border)', background: 'var(--surface-2)', flexWrap: 'wrap' }}>
           <button type="button" style={{ ...linkBtn, fontSize: 12 }} onClick={() => setPicked(Object.fromEntries(toOrder.map((s) => [s.id, true])))}>{t('Tout cocher (à commander)')}</button>
           <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={255} placeholder={t('Bon papier n° … (facultatif)')}

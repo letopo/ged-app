@@ -4,13 +4,16 @@
 // qu'il soit réarmé. Circuit : À commander → Commandé (bon papier envoyé à la
 // pharmacie) → Réarmé. L'infirmier du matin voit où en est chaque manque
 // (« commandé le …, attend en pharmacie ») au lieu de tout reconstater.
-//  - Commandé : responsables de l'ambulance (Chef de pôle RO SAU, chef
-//    sécurité logistique)
+//  - Commandé : le personnel soignant de l'ambulance (celui qui fait
+//    l'inventaire) et les responsables (retour RO SAU du 10/11/2026)
 //  - Réarmé   : l'infirmier de garde (membre du service) ou un responsable,
 //    article par article avec la quantité remise en place
 import { Op } from 'sequelize';
 import { Vehicle, VehicleShortage } from '../models/index.js';
-import { fleetAccess, canManage, canCheck, userName } from './vehicleController.js';
+import { fleetAccess, canManage, canCheck, userName, shiftPartsFor } from './vehicleController.js';
+
+/** Peut marquer « Commandé » : responsables et personnel soignant (pas le chauffeur). */
+const canOrder = (acc, v) => canManage(acc, v) || shiftPartsFor(acc, v).includes('soignant');
 import { inventoryOf } from './vehicleInventoryController.js';
 import { OPEN_STATUSES, shortagesFromRestock, answeredItemIds, reconcileShortages, applyRestock } from '../utils/vehicleShortages.js';
 import { shortagesFromShift, shiftAnsweredIds } from '../utils/vehicleShift.js';
@@ -152,7 +155,7 @@ export const listShortages = async (req, res) => {
       success: true,
       data: vehicles.map((v) => ({
         id: v.id, label: v.label, immatriculation: v.immatriculation, status: v.status, unavailableReason: v.unavailableReason,
-        canManage: canManage(acc, v), canRestock: true,
+        canManage: canManage(acc, v), canOrder: canOrder(acc, v), canRestock: true,
         shortages: (open.get(v.id) || []).map(serializeShortage),
         recent: recent.filter((r) => r.vehicleId === v.id).slice(0, 15).map(serializeShortage),
       })),
@@ -172,8 +175,8 @@ export const orderShortages = async (req, res) => {
     const note = String(req.body?.note || '').trim().slice(0, 255) || null;
     const rows = await VehicleShortage.findAll({ where: { id: ids, status: { [Op.in]: OPEN_STATUSES } } });
     const vehicles = new Map((await Vehicle.findAll({ where: { id: [...new Set(rows.map((r) => r.vehicleId))] } })).map((v) => [v.id, v]));
-    if (rows.some((r) => !canManage(acc, vehicles.get(r.vehicleId)))) {
-      return res.status(403).json({ success: false, message: 'Seuls les responsables de l\'ambulance marquent une commande.' });
+    if (rows.some((r) => !canOrder(acc, vehicles.get(r.vehicleId)))) {
+      return res.status(403).json({ success: false, message: 'Seuls le personnel soignant et les responsables de l\'ambulance marquent une commande.' });
     }
     const now = new Date();
     for (const r of rows) {
@@ -198,8 +201,11 @@ export const setShortageStatus = async (req, res) => {
     const s = await VehicleShortage.findByPk(req.params.sid);
     if (!s || !OPEN_STATUSES.includes(s.status)) return res.status(404).json({ success: false, message: 'Manque introuvable ou déjà réglé.' });
     const v = await Vehicle.findByPk(s.vehicleId);
-    if (!canManage(acc, v)) return res.status(403).json({ success: false, message: 'Accès réservé aux responsables.' });
     const status = req.body?.status;
+    // Annuler une commande : comme pour la passer ; classer sans suite : responsables
+    if (!(status === 'a_commander' ? canOrder(acc, v) : canManage(acc, v))) {
+      return res.status(403).json({ success: false, message: 'Accès réservé aux responsables.' });
+    }
     const note = String(req.body?.note || '').trim().slice(0, 255) || null;
     if (status === 'a_commander') {
       await s.update({ status, orderedAt: null, orderedByName: null, orderNote: null, orderedQty: 0, history: [...(s.history || []), event(req.user, 'commande_annulee', { note })] });

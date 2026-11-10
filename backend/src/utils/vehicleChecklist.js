@@ -20,7 +20,6 @@ const MISSION_MATERIEL_ITEMS = [
   item('aspirateur', 'Aspirateur à mucosités (fonctionnel)', { critical: true }),
   item('dsa', 'DSA fonctionnel (lumière verte qui clignote), électrodes et compresses', { critical: true }),
   item('brancard', 'Brancard et sangles', { critical: true }),
-  item('sac', "Sac d'urgence complet (inventaire de la semaine fait)"),
   item('draps', 'Draps et couvertures de survie'),
   item('dasri', 'Boîte à aiguilles et poubelle'),
 ];
@@ -247,9 +246,8 @@ export const DEFAULT_INVENTORY_SECTIONS = [
       qty('catheter_24', 'Cathéter 24', 3),
       qty('pince_epiler', 'Pince à épiler', 1),
       qty('couverture_survie', 'Couverture de survie', 3),
-      qty('masque_ffp1', 'Masque FFP1', 6),
+      qty('masque_ffp1', 'Masque', 6),
       qty('boite_aiguilles', 'Boîte à aiguilles', 1),
-      qty('poubelle', 'Poubelle', 1),
       qty('casaques', 'Casaques', 3),
     ],
   },

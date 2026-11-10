@@ -170,7 +170,9 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
                     </div>
                   )}
                   {result.inventory?.critical
-                    ? t('Point critique en défaut : l\'ambulance est déclarée indisponible. La cheffe de pôle est prévenue.')
+                    ? (result.fresh === 0
+                      ? t('Point critique en défaut : l\'ambulance reste indisponible jusqu\'au réarmement.')
+                      : t('Point critique en défaut : l\'ambulance est déclarée indisponible. La cheffe de pôle est prévenue.'))
                     : result.fresh === 0 ? null : t('La cheffe de pôle a reçu cette liste.')}
                 </div>
               </div>
