@@ -100,55 +100,7 @@ export async function runSageSyncForTenant(integration) {
         const alreadyImported = await SageFactureImport.findOne({ where: { sageDocPiece: docPiece, tenantId } });
         if (alreadyImported) continue;
 
-        // Facture complète (patient, lignes avec leur BL d'origine) → liasse PDF :
-        // facture + bordereaux de cession des BL en annexe
-        const facture = await loadSageFacture(pool, docPiece);
-        if (!facture) continue;
-        const beneficiaireType = facture.patient.type;
-        const { buffer, signatureZones, signaturePage } = await buildFacturePhpPdf(facture, { signatureLabels: signatureLabelsFor(template, config) });
-
-        const fileName = `facture-php-sage-${docPiece}-${Date.now()}.pdf`;
-        await fs.writeFile(path.resolve(process.cwd(), 'uploads', fileName), buffer);
-
-        const document = await Document.create({
-          title: `Facture PHP - ${facture.patient.nom || 'Patient'}${beneficiaireType ? ` (${beneficiaireType})` : ''} - ${docPiece}`,
-          fileName,
-          originalName: fileName,
-          filePath: `uploads/${fileName}`,
-          fileSize: buffer.length,
-          fileType: 'application/pdf',
-          userId: uploaderId,
-          category: config.documentCategory,
-          status: 'pending_validation',
-          metadata: {
-            signatureZones, signaturePage, sageDocPiece: docPiece, sageCompteCollectif: facture.patient.compteCollectif || null,
-            beneficiaireType, sageComptabilisee: facture.comptabilisee, sageBl: facture.bl.map(x => x.piece),
-            patientMatricule: facture.patient.matricule, patientSecteur: facture.patient.secteur,
-          },
-          tenantId,
-        });
-
-        try {
-          await createWorkflowFromTemplate(document, template.id, tenantId);
-        } catch (err) {
-          // Circuit impossible (ex. poste sans titulaire) : on retire le document,
-          // sinon il serait recréé à chaque synchronisation (pas encore marqué importé)
-          await document.destroy({ force: true }).catch(() => {});
-          await fs.unlink(path.resolve(process.cwd(), 'uploads', fileName)).catch(() => {});
-          throw err;
-        }
-
-        await SageFactureImport.create({
-          sageDocPiece: docPiece,
-          sageClientNum: facture.patient.compteTiers,
-          patientNom: facture.patient.nom,
-          montantHT: facture.totalHT,
-          montantTTC: facture.totalTTC,
-          documentId: document.id,
-          rawSnapshot: facture,
-          tenantId,
-        });
-        imported++;
+        if (await importSageFacture(pool, config, { tenantId, docPiece, template, uploaderId })) imported++;
       }
 
       return await finish(true, imported > 0
@@ -160,6 +112,64 @@ export async function runSageSyncForTenant(integration) {
       try { await pool.close(); } catch { /* déjà fermé */ }
     }
   });
+}
+
+/**
+ * Importe UNE facture Sage dans la GED : liasse PDF (facture + bordereaux des BL)
+ * et circuit de signature du modèle. Renvoie le document créé, ou null si la
+ * facture est introuvable. Utilisé par la synchronisation et par la facturation
+ * assistée (« Envoyer en signature »).
+ */
+export async function importSageFacture(pool, config, { tenantId, docPiece, template, uploaderId }) {
+  // Facture complète (patient, lignes avec leur BL d'origine) → liasse PDF :
+  // facture + bordereaux de cession des BL en annexe
+  const facture = await loadSageFacture(pool, docPiece);
+  if (!facture) return null;
+  const beneficiaireType = facture.patient.type;
+  const { buffer, signatureZones, signaturePage } = await buildFacturePhpPdf(facture, { signatureLabels: signatureLabelsFor(template, config) });
+
+  const fileName = `facture-php-sage-${docPiece}-${Date.now()}.pdf`;
+  await fs.writeFile(path.resolve(process.cwd(), 'uploads', fileName), buffer);
+
+  const document = await Document.create({
+    title: `Facture PHP - ${facture.patient.nom || 'Patient'}${beneficiaireType ? ` (${beneficiaireType})` : ''} - ${docPiece}`,
+    fileName,
+    originalName: fileName,
+    filePath: `uploads/${fileName}`,
+    fileSize: buffer.length,
+    fileType: 'application/pdf',
+    userId: uploaderId,
+    category: config.documentCategory,
+    status: 'pending_validation',
+    metadata: {
+      signatureZones, signaturePage, sageDocPiece: docPiece, sageCompteCollectif: facture.patient.compteCollectif || null,
+      beneficiaireType, sageComptabilisee: facture.comptabilisee, sageBl: facture.bl.map(x => x.piece),
+      patientMatricule: facture.patient.matricule, patientSecteur: facture.patient.secteur,
+    },
+    tenantId,
+  });
+
+  try {
+    await createWorkflowFromTemplate(document, template.id, tenantId);
+  } catch (err) {
+    // Circuit impossible (ex. poste sans titulaire) : on retire le document,
+    // sinon il serait recréé à chaque synchronisation (pas encore marqué importé)
+    await document.destroy({ force: true }).catch(() => {});
+    await fs.unlink(path.resolve(process.cwd(), 'uploads', fileName)).catch(() => {});
+    throw err;
+  }
+
+  await SageFactureImport.create({
+    sageDocPiece: docPiece,
+    sageClientNum: facture.patient.compteTiers,
+    patientNom: facture.patient.nom,
+    montantHT: facture.totalHT,
+    montantTTC: facture.totalTTC,
+    documentId: document.id,
+    rawSnapshot: facture,
+    tenantId,
+  });
+  return document;
 }
 
 // ─── Planificateur ──────────────────────────────────────────────────────────

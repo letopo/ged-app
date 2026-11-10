@@ -1210,6 +1210,18 @@ const RELEASE_NOTES = [
       'Inventaire : « Poubelle » retirée et « Masque FFP1 » devient « Masque ». Prise de poste : « Sac d’urgence complet » retiré.',
     ],
   },
+  {
+    id: '2026-11-10-facturation-assistee-bpc',
+    date: '2026-11-10',
+    target: '/sage-bl-php',
+    title: 'Facturation assistée des BPC',
+    items: [
+      'Dans un BPC, « Préparer la facture » : cochez les BL (tous, normalement). La GED affiche les numéros exacts à transformer en une seule facture dans Sage.',
+      'Après la transformation dans Sage, « Vérifier dans Sage » : la GED retrouve la facture et signale tout BL oublié, en trop, ou un BPC facturé en plusieurs fois.',
+      'Une fois la facture complète, « Envoyer en signature » lance la liasse et le circuit de signature. La GED n’écrit jamais dans Sage.',
+    ],
+    access: (user) => !!user?.canSeeSageBl || user?.role === 'superadmin',
+  },
 ];
 
 export default RELEASE_NOTES;
