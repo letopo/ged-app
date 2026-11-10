@@ -29,13 +29,15 @@ export default function PendingVehicleChecks({ style }) {
         <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#ea580c', borderRadius: 999, padding: '1px 8px' }}>{items.length}</span>
       </div>
       {items.map((it) => (
-        <button key={it.type === 'inventaire' ? `inv-${it.vehicle.id}` : it.type === 'prise_de_poste' ? 'prise' : `${it.missionId}-${it.phase}`} type="button"
-          onClick={() => navigate(it.type === 'prise_de_poste' ? '/vehicules?tab=prise&open=1' : `/vehicules?vehicle=${it.vehicle.id}`)}
+        <button key={it.type === 'inventaire' ? `inv-${it.vehicle.id}` : it.type === 'prise_de_poste' ? `prise-${it.part}` : `${it.missionId}-${it.phase}`} type="button"
+          onClick={() => navigate(it.type === 'prise_de_poste' ? `/vehicules?tab=prise&open=${it.part || 'soignant'}` : `/vehicules?vehicle=${it.vehicle.id}`)}
           style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px', border: 'none', borderTop: '1px solid var(--surface-3)', background: 'none', cursor: 'pointer', textAlign: 'left' }}>
           {it.type === 'prise_de_poste' ? (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{t('Prise de poste')} · {it.vehicles.map((v) => v.label).join(', ')}</div>
-              <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 600 }}>{t('Matériel vital et bouteilles d\'oxygène (ambulances et réserve)')}</div>
+              <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 600 }}>
+                {it.part === 'chauffeur' ? t('Véhicule : carburant, freins, pneus, gyrophare… et kilométrage') : t('Matériel vital et bouteilles d\'oxygène (ambulances et réserve)')}
+              </div>
             </div>
           ) : it.type === 'inventaire' ? (
             <div style={{ flex: 1, minWidth: 0 }}>

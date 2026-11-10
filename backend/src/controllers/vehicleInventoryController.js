@@ -282,13 +282,15 @@ export const getInventoryPdf = async (req, res) => {
   }
 };
 
-/** Inventaires du jour à faire par l'utilisateur (membre du service de l'ambulance). */
+/** Inventaires du jour à faire par l'utilisateur (membre soignant du service de l'ambulance ; pas le chauffeur). */
 export async function myPendingInventories(user) {
   const acc = await fleetAccess(user);
   if (!acc.serviceIds?.length) return [];
   const vehicles = await Vehicle.findAll({ where: { isActive: true, serviceId: acc.serviceIds } });
+  const { doesInventory } = await import('./vehicleShiftController.js');
   const out = [];
   for (const v of vehicles) {
+    if (!doesInventory(acc, v)) continue;
     if (await inventoryDueToday(v)) {
       const rc = await recountState(v);
       out.push({ type: 'inventaire', recount: rc.recountNeeded, outings: rc.outings.slice(0, 3), vehicle: { id: v.id, label: v.label, immatriculation: v.immatriculation } });
