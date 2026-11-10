@@ -3293,5 +3293,16 @@
   "À transformer dans Sage": "To convert in Sage",
   "Facture incomplète": "Incomplete invoice",
   "Facturée": "Invoiced",
-  "Sage injoignable.": "Sage unreachable."
+  "Sage injoignable.": "Sage unreachable.",
+  "Intégrations · DME": "Integrations · EMR",
+  "Dossier Médical Électronique de l’hôpital (base MySQL). La GED y lira les ordonnances signées par les patients et les bulletins d’examens pour les joindre à la liasse des factures PHP. Lecture seule : la GED ne modifie jamais le DME.": "The hospital's Electronic Medical Record (MySQL database). The GED will read the prescriptions signed by patients and the examination reports to attach them to the PHP invoice bundle. Read-only: the GED never modifies the EMR.",
+  "Activer la liaison avec le DME": "Enable the link with the EMR",
+  "Connexion à la base du DME (MySQL)": "Connection to the EMR database (MySQL)",
+  "Adresse du serveur du DME (ex. 192.168.10.79).": "EMR server address (e.g. 192.168.10.79).",
+  "Un compte MySQL en lecture seule (droit SELECT), autorisé depuis le serveur de la GED.": "A read-only MySQL account (SELECT privilege), allowed from the GED server.",
+  "Tables de la base": "Database tables",
+  "noms et nombre de lignes seulement, aucune donnée de patient": "names and row counts only, no patient data",
+  "Filtrer…": "Filter…",
+  "Si le test indique que le serveur refuse la connexion : sur le serveur du DME, MySQL doit écouter le réseau (bind-address) et le pare-feu doit autoriser l’adresse du serveur de la GED sur le port 3306. Donnez au compte uniquement le droit SELECT sur la base.": "If the test says the server refuses the connection: on the EMR server, MySQL must listen on the network (bind-address) and the firewall must allow the GED server address on port 3306. Give the account only the SELECT privilege on the database.",
+  "Autoriser les administrateurs de l’organisation à gérer ce réglage": "Allow the organisation's administrators to manage this setting"
 }
