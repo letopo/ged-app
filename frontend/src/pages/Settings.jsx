@@ -23,6 +23,7 @@ import MailSettingsPanel from '../components/MailSettingsPanel';
 import TenantSettingsPanel from '../components/TenantSettingsPanel';
 import AiSettingsPanel from '../components/AiSettingsPanel';
 import SageSettingsPanel from '../components/SageSettingsPanel';
+import DmeSettingsPanel from '../components/DmeSettingsPanel';
 import ConfidentialityPanel from '../components/ConfidentialityPanel';
 import toast from 'react-hot-toast';
 import { useFestive, setFestiveEnabled } from '../components/Festive';
@@ -53,7 +54,7 @@ const NAV = [
     group: 'Avancé',
     items: [
       { id: 'ia',           label: 'IA · OCR',      icon: Zap,    requires: 'ai', desc: 'Lecture automatique des documents' },
-      { id: 'integrations', label: 'Intégrations',  icon: Shield, requires: 'sage', desc: 'Connexion à Sage' },
+      { id: 'integrations', label: 'Intégrations',  icon: Shield, requires: 'sage', desc: 'Connexion à Sage et au DME' },
       { id: 'api',          label: 'API · Webhooks', icon: Database, desc: 'Accès pour d’autres logiciels' },
     ],
   },
@@ -130,11 +131,11 @@ export default function Settings() {
   const [mailAccess, setMailAccess] = useState(user?.role === 'superadmin');
   // IA · OCR et Intégrations (Sage) : même règle que la messagerie
   const [integrationAccess, setIntegrationAccess] = useState(
-    user?.role === 'superadmin' ? { ai: true, sage: true } : { ai: false, sage: false });
+    user?.role === 'superadmin' ? { ai: true, sage: true, dme: true } : { ai: false, sage: false, dme: false });
   useEffect(() => {
     if (user?.role !== 'admin') return;
     mailSettingsAPI.get().then(res => setMailAccess(Boolean(res.data.canManage))).catch(() => setMailAccess(false));
-    for (const kind of ['ai', 'sage']) {
+    for (const kind of ['ai', 'sage', 'dme']) {
       integrationsAPI.get(kind)
         .then(res => setIntegrationAccess(a => ({ ...a, [kind]: Boolean(res.data.canManage) })))
         .catch(() => {});
@@ -143,7 +144,7 @@ export default function Settings() {
   const isOrgAdmin = ['admin', 'superadmin'].includes(user?.role);
   const nav = NAV.map(g => ({ ...g, items: g.items.filter(i =>
     (i.requires !== 'mail' || mailAccess) && (i.requires !== 'admin' || isOrgAdmin)
-    && (!['ai', 'sage'].includes(i.requires) || integrationAccess[i.requires])) }));
+    && (i.requires !== 'ai' || integrationAccess.ai) && (i.requires !== 'sage' || integrationAccess.sage || integrationAccess.dme)) }));
   const [loading, setLoading]     = useState(false);
 
   const [profileData, setProfileData] = useState({
@@ -639,6 +640,7 @@ export default function Settings() {
 
           {/* ── Intégrations ──────────────────────────────────────────────── */}
           {activeTab === 'integrations' && integrationAccess.sage && <SageSettingsPanel />}
+          {activeTab === 'integrations' && integrationAccess.dme && <DmeSettingsPanel />}
 
           {/* ── API · Webhooks ─────────────────────────────────────────────── */}
           {activeTab === 'api' && <Placeholder title={t('API · Webhooks')} />}

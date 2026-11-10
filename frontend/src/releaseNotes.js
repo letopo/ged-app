@@ -1222,6 +1222,16 @@ const RELEASE_NOTES = [
     ],
     access: (user) => !!user?.canSeeSageBl || user?.role === 'superadmin',
   },
+  {
+    id: '2026-11-10-integration-dme',
+    date: '2026-11-10',
+    target: 'app',
+    title: 'Liaison avec le DME',
+    access: (user) => user?.role === 'superadmin',
+    items: [
+      'Paramètres › Intégrations : nouvelle connexion au DME (base MySQL), en lecture seule, avec « Tester la connexion » et la liste des tables. Première étape pour joindre les ordonnances et les bulletins d’examens à la liasse PHP.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
