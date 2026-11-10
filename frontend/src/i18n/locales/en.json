@@ -3320,5 +3320,8 @@
   "TOTAL GÉNÉRAL": "GRAND TOTAL",
   "Déjà envoyé pour cette période :": "Already sent for this period:",
   "Envoyer l’état de caisse en signature": "Send the till statement for signature",
-  "Caissière": "Cashier"
+  "Caissière": "Cashier",
+  "Préparation de l’aperçu…": "Preparing the preview…",
+  "Le relevé des factures de la caisse de vente (client comptant pharmacie), lu directement dans Sage, puis signé par vous, la caissière et la comptable.": "The statement of the sales till invoices (pharmacy cash customer), read directly from Sage, then signed by you, the cashier and the accountant.",
+  "Aperçu · état de caisse pharmacie {{p}}": "Preview · pharmacy till statement {{p}}"
 }

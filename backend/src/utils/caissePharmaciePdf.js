@@ -2,7 +2,7 @@
 // « Relevé de factures » de la caisse de vente de la pharmacie, comme celui que
 // Sage imprime (payeur CLIENT COMPTANT PHARMACIE) : Date, N° facture, Client,
 // Total HT, Acomptes, Net à payer, TOTAL GÉNÉRAL — plus le montant en lettres et
-// les cadres de signature (Caissière, Comptable) pour le circuit de la GED.
+// les cadres de signature (Pharmacie, Caissière, Comptable) pour le circuit de la GED.
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { montantEnLettres } from './montantEnLettres.js';
 import { totauxCaisse } from './caissePharmacie.js';
@@ -14,7 +14,9 @@ const LINE = rgb(0.82, 0.84, 0.88);
 const BRAND = rgb(0.106, 0.227, 0.42);
 const SOFT = rgb(0.95, 0.96, 0.98);
 
-export const CAISSE_SIGNATURE_LABELS = ['Caissière', 'Comptable'];
+export const CAISSE_SIGNATURE_LABELS = ['Pharmacie', 'Caissière', 'Comptable'];
+/** Cadres : la personne de la pharmacie qui envoie l'état (son nom), la caissière, la comptable. */
+export const caisseSignatureLabels = (pharmacien) => [pharmacien ? `Pharmacie : ${pharmacien}` : 'Pharmacie', 'Caissière', 'Comptable'];
 const fmtDate = (d) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : '—');
 const fmtLong = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 }).replace(/[  ]/g, ' ');
@@ -89,13 +91,13 @@ export async function buildCaissePharmaciePdf({ from, to, payeur, payeurNom, lig
   text(`${montantEnLettres(totaux.net)} (${fmtNum(totaux.net)} FCFA)`, M, y - 14, { size: 10, b: true, maxW: W - 2 * M });
   y -= 36;
   // Cadres de signature (dans l'ordre du circuit)
-  const n = labels.length, gap = 16;
+  const n = labels.length, gap = 12;
   const zw = Math.min(220, (W - 2 * M - gap * (n - 1)) / n), zh = 100;
   const startX = W - M - (n * zw + (n - 1) * gap);
   const signaturePage = pages.length - 1;
   const signatureZones = labels.map((label, i) => {
     const x = startX + i * (zw + gap);
-    text(label, x + zw / 2, y - 10, { size: 9, b: true, align: 'center' });
+    text(label, x + zw / 2, y - 10, { size: 8.5, b: true, align: 'center', maxW: zw - 4 });
     box(x, y - 16 - zh, zw, zh);
     return { index: i + 1, label, x, y: y - 16 - zh, width: zw, height: zh };
   });

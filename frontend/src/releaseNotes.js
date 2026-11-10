@@ -1243,6 +1243,17 @@ const RELEASE_NOTES = [
       '« Envoyer l’état de caisse en signature » crée le PDF et l’envoie à la caissière puis à la comptable. Plus besoin de l’imprimer depuis Sage.',
     ],
   },
+  {
+    id: '2026-11-10-caisse-pharmacie-3-signatures',
+    date: '2026-11-10',
+    target: '/caisse-pharmacie',
+    title: 'Caisse pharmacie : trois signatures',
+    access: (user) => user?.role === 'superadmin' || !!user?.canSeeCaissePharmacie,
+    items: [
+      'L’état de caisse est signé d’abord par la personne de la pharmacie qui l’envoie (son nom figure sur la fiche), puis par la caissière, puis par la comptable.',
+      '« Aperçu PDF » s’ouvre dans la visionneuse de la GED, sans quitter la page.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
