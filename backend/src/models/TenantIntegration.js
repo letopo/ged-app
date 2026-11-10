@@ -4,7 +4,7 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
-export const INTEGRATION_KINDS = ['ai', 'sage'];
+export const INTEGRATION_KINDS = ['ai', 'sage', 'dme'];
 
 const TenantIntegration = sequelize.define('TenantIntegration', {
   id:              { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },

@@ -1,5 +1,5 @@
 // backend/src/controllers/integrationController.js
-// Paramètres › IA · OCR (kind 'ai') et › Intégrations (kind 'sage').
+// Paramètres › IA · OCR (kind 'ai') et › Intégrations (kind 'sage', kind 'dme').
 //
 // Droits (comme la messagerie) : le superadmin règle tous les tenants et
 // décide, par intégration, si les administrateurs du tenant peuvent la gérer
@@ -15,6 +15,7 @@ import {
 import { openSagePool, runSageSyncNow, signatureLabelsFor } from '../utils/sageFactureSync.js';
 import { loadSageFacture } from '../utils/sageFactureData.js';
 import { buildFacturePhpPdf } from '../utils/facturePhpPdfBuilder.js';
+import { DME_DEFAULTS, inspectDme } from '../utils/dmeConnection.js';
 
 const TEST_LIMIT = 5;
 const TEST_WINDOW_MS = 60_000;
@@ -25,7 +26,7 @@ const isSuperAdmin = (user) => user?.role === 'superadmin';
 const AI_MODELS = ['claude-sonnet-5', 'claude-opus-5-5', 'claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
 const AI_DEFAULTS = { model: DEFAULT_AI_MODEL };
 
-const defaultsOf = (kind) => (kind === 'ai' ? AI_DEFAULTS : SAGE_DEFAULTS);
+const defaultsOf = (kind) => (kind === 'ai' ? AI_DEFAULTS : kind === 'dme' ? DME_DEFAULTS : SAGE_DEFAULTS);
 
 function publicView(kind, row) {
   const config = { ...defaultsOf(kind), ...(row?.config || {}) };
@@ -45,7 +46,7 @@ async function view(kind, tenantId, user, row) {
   if (!tenant) { const e = new Error('Tenant introuvable.'); e.status = 404; throw e; }
   const extra = kind === 'ai'
     ? { models: AI_MODELS, server: { configured: Boolean(process.env.ANTHROPIC_API_KEY), model: DEFAULT_AI_MODEL } }
-    : { filterModes: SAGE_FILTER_MODES };
+    : kind === 'dme' ? {} : { filterModes: SAGE_FILTER_MODES };
   return {
     success: true, kind, tenant: { id: tenant.id, name: tenant.name },
     canManage: true, canDelegate: isSuperAdmin(user),
@@ -66,6 +67,16 @@ function validate(kind, body, current, enabled, hasSecret) {
     if (model !== undefined) cfg.model = model;
     if (!/^[a-z0-9][a-z0-9.\-]{2,79}$/i.test(cfg.model || '')) errors.push('Nom de modèle invalide.');
     if (enabled && !hasSecret) errors.push("La clé d'API est obligatoire pour activer la lecture par IA.");
+  } else if (kind === 'dme') {
+    for (const [k, max] of [['host', 255], ['database', 64], ['username', 64]]) {
+      const v = str(input[k], max);
+      if (v !== undefined) cfg[k] = v;
+    }
+    if (input.port !== undefined && input.port !== '') cfg.port = Number(input.port);
+    if (cfg.host && !/^[a-z0-9.\-]+$/i.test(cfg.host)) errors.push('Adresse du serveur du DME invalide (ex. 192.168.10.79).');
+    if (!Number.isInteger(cfg.port) || cfg.port < 1 || cfg.port > 65535) errors.push('Port invalide (1 à 65535).');
+    if (cfg.database && !/^[A-Za-z0-9_$]+$/.test(cfg.database)) errors.push('Nom de base invalide.');
+    if (enabled && (!cfg.host || !cfg.database || !cfg.username || !hasSecret)) errors.push('Serveur, base, utilisateur et mot de passe sont obligatoires pour activer le DME.');
   } else {
     for (const [k, max] of [['host', 255], ['database', 128], ['domain', 128], ['username', 128], ['filterValue', 2000], ['documentCategory', 100], ['workflowTemplateName', 150], ['importFromDate', 10]]) {
       const v = str(input[k], max);
@@ -157,14 +168,21 @@ async function test(req, kind, tenantId, row) {
   if (rateLimited(req)) return { status: 429, body: { success: false, message: 'Trop d’essais : patientez une minute.' } };
   const { errors, config, secret } = formConfig(req, kind, row);
   if (errors.length) return { status: 400, body: { success: false, message: errors.join(' ') } };
-  if (!secret) return { status: 400, body: { success: false, message: kind === 'ai' ? "Saisissez la clé d'API." : 'Saisissez le mot de passe Sage.' } };
+  if (!secret) return { status: 400, body: { success: false, message: kind === 'ai' ? "Saisissez la clé d'API." : kind === 'dme' ? 'Saisissez le mot de passe du DME.' : 'Saisissez le mot de passe Sage.' } };
 
   const record = (fields) => row && TenantIntegration.update(fields, { where: { id: row.id }, silent: true });
   try {
     let message;
+    let extra = {};
     if (kind === 'ai') {
       await testAiConfig({ apiKey: secret, model: config.model });
       message = `Clé valide : le modèle ${config.model} répond.`;
+    } else if (kind === 'dme') {
+      if (!config.host || !config.database || !config.username) return { status: 400, body: { success: false, message: 'Renseignez le serveur, la base et l’utilisateur.' } };
+      const info = await inspectDme(config, secret);
+      message = `Connexion réussie au DME (MySQL ${info.version}, compte ${info.compte}) : ${info.tables.length} table(s) dans la base ${config.database}.`
+        + (info.droitsEcriture ? ' ⚠ Ce compte a des droits d’écriture : pour la GED, un compte en lecture seule (SELECT) suffit.' : ' Compte en lecture seule.');
+      extra = { tables: info.tables, droitsEcriture: info.droitsEcriture };
     } else {
       if (!config.host || !config.database) return { status: 400, body: { success: false, message: 'Renseignez le serveur et la base.' } };
       let pool;
@@ -186,7 +204,7 @@ async function test(req, kind, tenantId, row) {
     }
     await record({ lastTestAt: new Date(), lastTestOk: true, lastTestError: null });
     await audit(req, tenantId, 'INTEGRATION_TESTED', { kind, ok: true });
-    return { status: 200, body: { success: true, message } };
+    return { status: 200, body: { success: true, message, ...extra } };
   } catch (err) {
     const { message } = err;
     console.warn(`Test intégration ${kind} échoué :`, err.raw || err.message);
