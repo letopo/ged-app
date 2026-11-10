@@ -6,7 +6,7 @@ import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Loader, X, CheckCircle2, Circle, FileText, ArrowUpRight, ArrowDownLeft, Truck, Fuel, Gauge, ClipboardList } from 'lucide-react';
+import { Loader, X, CheckCircle2, Circle, FileText, ArrowUpRight, ArrowDownLeft, Truck, Fuel, Gauge, ClipboardList, Sunrise } from 'lucide-react';
 import { FuelForm } from './fleetForms';
 import { vehiclesAPI } from '../../services/api';
 import VehicleCheckForm from './VehicleCheckForm';
@@ -30,7 +30,7 @@ export function ReadinessBadge({ readiness }) {
   const { t } = useTranslation();
   const lv = LEVELS[readiness?.level || 'aucun'];
   return (
-    <span title={readiness?.at ? t('Dernier contrôle ({{phase}}) le {{date}}', { phase: readiness.phase === 'depart' ? t('départ') : t('retour'), date: fmtDateTime(readiness.at) }) : t('Aucun contrôle')}
+    <span title={readiness?.at ? t('Dernier contrôle ({{phase}}) le {{date}}', { phase: readiness.phase === 'prise' ? t('prise de poste') : readiness.phase === 'depart' ? t('départ') : t('retour'), date: fmtDateTime(readiness.at) }) : t('Aucun contrôle')}
       style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: lv.color, background: lv.bg, borderRadius: 999, padding: '3px 9px' }}>
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: lv.color }} />
       {readiness?.at ? `${readiness.pct} %` : t('Non contrôlé')}
@@ -215,8 +215,31 @@ function VehiclePanel({ vehicleId, onClose, onChanged, onOpenDetail }) {
               )}
             </div>
           )}
-          {phaseBlock('depart', departMission)}
-          {phaseBlock('retour', retourMission)}
+          {state.missionChecks === false ? (
+            <div style={{ border: `1px solid ${vehicle.readiness?.today ? 'var(--border)' : '#fcd34d'}`, borderRadius: 'var(--radius-3)', padding: 12, background: vehicle.readiness?.today ? 'transparent' : '#fffbeb' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>
+                <Sunrise size={16} color="#ea580c" /> {t('Prise de poste')}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 8 }}>
+                {t('Le matériel vital et l\'oxygène sont contrôlés chaque matin à la prise de poste, pas à chaque mission.')}
+              </div>
+              {vehicle.readiness?.at && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: vehicle.readiness.today ? '#15803d' : 'var(--fg-muted)' }}>
+                  <CheckCircle2 size={16} /> {t('Dernière prise de poste : {{name}} le {{date}}', { name: vehicle.readiness.by, date: fmtDateTime(vehicle.readiness.at) })}
+                  {vehicle.readiness.anomalies > 0 && <span style={{ color: '#c2410c' }}>· {t('{{count}} anomalie(s)', { count: vehicle.readiness.anomalies })}</span>}
+                </div>
+              )}
+              <button type="button" onClick={() => navigate('/vehicules?tab=prise&open=1')}
+                style={{ marginTop: 10, height: 38, padding: '0 14px', borderRadius: 8, border: vehicle.readiness?.today ? '1px solid var(--border)' : 'none', background: vehicle.readiness?.today ? 'var(--surface)' : 'var(--brand)', color: vehicle.readiness?.today ? 'var(--fg)' : '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                {vehicle.readiness?.today ? t('Refaire une prise de poste') : t('Faire la prise de poste')}
+              </button>
+            </div>
+          ) : (
+            <>
+              {phaseBlock('depart', departMission)}
+              {phaseBlock('retour', retourMission)}
+            </>
+          )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button type="button" onClick={() => setFuel(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
               <Fuel size={15} /> {t('Ajouter un plein')}
@@ -267,7 +290,7 @@ export default function VehicleChecksTab({ vehicles, loading, onChanged, initial
                   + (v.currentMission.status === 'en_cours' ? ` · ${t('partie le {{date}}', { date: fmtDateTime(v.currentMission.departedAt) })}` : ` · ${t('prévue le {{date}}', { date: fmtDateTime(v.currentMission.plannedDepartureAt) })}`)
                 : v.status === 'indisponible' ? v.unavailableReason : t('Aucune mission prévue')}
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)' }}>{t('Faire un contrôle')} →</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand)' }}>{v.missionChecks === false ? t('Ouvrir') : t('Faire un contrôle')} →</span>
           </button>
         ))}
       </div>

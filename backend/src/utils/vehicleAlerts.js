@@ -6,10 +6,14 @@
 // Inventaire hebdomadaire des ambulances : alerte à 14 h s'il n'est pas fait.
 // Étape 2 : rappels à l'équipage (30 min avant le départ, à l'heure de retour)
 // et annulation des missions dont l'ordre de mission est rejeté ou supprimé.
+// Ambulances RO SAU (09/11/2026) : plus de contrôle à chaque mission (prise de
+// poste du matin) — la mission se clôt seule à l'heure de retour, et la prise
+// de poste non faite à 10 h est signalée aux responsables.
 import { Op } from 'sequelize';
 import { tenantNamespace } from '../config/database.js';
 import { Tenant, Vehicle, VehicleMission, VehicleCheck, Document, VehicleDeadline } from '../models/index.js';
-import { notifyVehicleManagers, notifyCrew, sectionsForRole, templateFor } from '../controllers/vehicleController.js';
+import { notifyVehicleManagers, notifyCrew, sectionsForRole, templateFor, missionChecksOn } from '../controllers/vehicleController.js';
+import { shiftDoneToday } from '../controllers/vehicleShiftController.js';
 import { deadlineStatus } from '../controllers/vehicleFleetController.js';
 import { inventoryDueToday } from '../controllers/vehicleInventoryController.js';
 import { doualaDay } from './vehicleChecklist.js';
@@ -90,6 +94,35 @@ async function cancelOrphanedMissions(tenantId) {
   }
 }
 
+// Ambulances sans contrôle de mission : la mission se termine à l'heure de retour prévue
+async function closePastMissions(tenantId, noChecks) {
+  if (!noChecks.size) return;
+  const now = new Date();
+  const planned = await VehicleMission.findAll({ where: { tenantId, status: { [Op.in]: ['planifiee', 'en_cours'] }, vehicleId: [...noChecks] } });
+  for (const m of planned) {
+    const end = m.plannedReturnAt || m.plannedDepartureAt;
+    if (!end || new Date(end) > now) continue;
+    await m.update({ status: 'terminee', departedAt: m.departedAt || m.plannedDepartureAt || end, returnedAt: m.returnedAt || end });
+  }
+}
+
+// Prise de poste du matin pas faite à 10 h : une alerte par jour et par ambulance
+async function shiftAlerts(vehicles) {
+  const now = new Date();
+  if ((now.getUTCHours() + 1) % 24 < 10) return;
+  const today = doualaDay(now).date;
+  for (const v of vehicles) {
+    if (v.inventoryAlerts?.shift === today) continue;
+    if (await shiftDoneToday(v.id)) continue;
+    await notifyVehicleManagers(v, {
+      title: `🚑 ${v.label} : prise de poste non faite`,
+      body: `${v.label} (${v.immatriculation}) — la fiche de prise de poste de ce matin n'a pas été enregistrée.`,
+      url: '/vehicules?tab=prise',
+    });
+    await v.update({ inventoryAlerts: { ...(v.inventoryAlerts || {}), shift: today } });
+  }
+}
+
 async function checkTenant(tenantId) {
   return tenantNamespace.runPromise(async () => {
     tenantNamespace.set('tenantId', tenantId);
@@ -97,6 +130,11 @@ async function checkTenant(tenantId) {
     await cancelOrphanedMissions(tenantId);
     await deadlineAlerts(tenantId);
     await inventoryAlerts(tenantId);
+    const ambulances = await Vehicle.findAll({ where: { tenantId, isActive: true, vehicleType: 'ambulance' } });
+    const noChecks = new Set();
+    for (const v of ambulances) if (!missionChecksOn(await templateFor(v))) noChecks.add(v.id);
+    await closePastMissions(tenantId, noChecks);
+    await shiftAlerts(ambulances.filter((v) => noChecks.has(v.id)));
 
     // Rappels à l'équipage
     const toRemind = await VehicleMission.findAll({
@@ -111,7 +149,7 @@ async function checkTenant(tenantId) {
     for (const m of toRemind) {
       const sent = { ...(m.alertsSent || {}) };
       const vehicle = await Vehicle.findByPk(m.vehicleId);
-      if (!vehicle) continue;
+      if (!vehicle || noChecks.has(vehicle.id)) continue;
       if (m.status === 'planifiee' && !sent.crewDepart) await remindCrew(m, vehicle, 'depart', sent, 'crewDepart');
       else if (m.status === 'en_cours' && !sent.crewRetour) await remindCrew(m, vehicle, 'retour', sent, 'crewRetour');
     }
@@ -128,7 +166,7 @@ async function checkTenant(tenantId) {
     for (const m of candidates) {
       const sent = { ...(m.alertsSent || {}) };
       const vehicle = await Vehicle.findByPk(m.vehicleId);
-      if (!vehicle) continue;
+      if (!vehicle || noChecks.has(vehicle.id)) continue;
       if (m.status === 'planifiee' && !sent.depart) {
         if (await VehicleCheck.count({ where: { missionId: m.id, phase: 'depart' } })) continue;
         await notifyVehicleManagers(vehicle, {

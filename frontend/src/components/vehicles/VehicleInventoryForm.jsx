@@ -40,6 +40,7 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
   const [comment, setComment] = useState('');
   const [step, setStep] = useState('form'); // form | sign | saving | done
   const [result, setResult] = useState(null);
+  const [unchanged, setUnchanged] = useState(false); // « Rien n'a changé » : quantités reprises du dernier inventaire
   const sectionRefs = useRef({});
   const scrollRef = useRef(null);
 
@@ -93,15 +94,15 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
   const submit = async ({ png }) => {
     setStep('saving');
     try {
-      const res = await vehiclesAPI.submitInventory(vehicleId, {
-        answers: all.map((it) => ({ itemId: it.id, ...answers[it.id] })),
-        comment, signature: png,
-      });
+      const res = await vehiclesAPI.submitInventory(vehicleId, unchanged
+        ? { unchanged: true, comment, signature: png }
+        : { answers: all.map((it) => ({ itemId: it.id, ...answers[it.id] })), comment, signature: png });
       setResult(res.data.data);
       setStep('done');
       onDone?.();
     } catch (err) {
       toast.error(err.response?.data?.message || t('Erreur lors de l\'enregistrement de l\'inventaire.'));
+      setUnchanged(false);
       setStep('form');
     }
   };
@@ -202,6 +203,33 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
 
           <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 14px 20px', WebkitOverflowScrolling: 'touch', position: 'relative' }}>
             <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {state.recount?.recountNeeded && (
+                <div style={{ fontSize: 13, padding: '10px 12px', borderRadius: 8, background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
+                  <strong>{t('L\'ambulance est sortie depuis le dernier comptage : recomptez tout le matériel.')}</strong>
+                  {state.recount.outings.map((o) => (
+                    <div key={o.id} style={{ fontSize: 12, marginTop: 2 }}>• {new Date(o.at).toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}{o.title ? ` — ${o.title}` : ''}</div>
+                  ))}
+                </div>
+              )}
+              {state.last && state.recount?.canConfirmUnchanged && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 14px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #86efac' }}>
+                  <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#14532d' }}>{t('Rien n\'a bougé depuis le dernier inventaire ?')}</div>
+                    <div style={{ fontSize: 12, color: '#166534' }}>
+                      {t('Aucune sortie ni réarmement depuis celui du {{date}} par {{name}}. Vous pouvez confirmer ses quantités en un geste, avec votre signature.', { date: new Date(state.last.at).toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }), name: state.last.by })}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => { setUnchanged(true); setStep('sign'); }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 42, padding: '0 16px', borderRadius: 10, border: 'none', background: '#16a34a', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                    <CheckCheck size={16} /> {t('Rien n\'a changé')}
+                  </button>
+                </div>
+              )}
+              {state.last && state.recount?.blocked === 'rearmement' && (
+                <div style={{ fontSize: 12, padding: '8px 10px', borderRadius: 8, background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
+                  {t('Du matériel a été réarmé depuis le dernier inventaire : recomptez pour mettre les quantités à jour.')}
+                </div>
+              )}
               {state.shortages?.length > 0 && (
                 <div style={{ fontSize: 13, padding: '10px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a' }}>
                   <strong>{t('{{count}} article(s) pas encore réarmé(s) depuis les inventaires précédents', { count: state.shortages.length })}</strong>
@@ -325,8 +353,10 @@ export default function VehicleInventoryForm({ vehicleId, onClose, onDone }) {
 
       {(step === 'sign' || step === 'saving') && (
         <SignPadScreen signerName={signer} busy={step === 'saving'}
-          subtitle={t('Inventaire · {{vehicle}} — {{name}} : je certifie avoir effectué cet inventaire.', { vehicle: vehicle.label, name: signer })}
-          onBack={() => setStep('form')} onValidate={submit} />
+          subtitle={unchanged
+            ? t('Inventaire · {{vehicle}} — {{name}} : je certifie que rien n\'a changé depuis l\'inventaire précédent.', { vehicle: vehicle.label, name: signer })
+            : t('Inventaire · {{vehicle}} — {{name}} : je certifie avoir effectué cet inventaire.', { vehicle: vehicle.label, name: signer })}
+          onBack={() => { setUnchanged(false); setStep('form'); }} onValidate={submit} />
       )}
     </div>,
     document.body

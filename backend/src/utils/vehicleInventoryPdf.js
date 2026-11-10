@@ -24,7 +24,7 @@ const qtyText = (n, unit) => `${n}${unit ? ` ${unit}` : ''}`;
 /**
  * @returns {Promise<Buffer>}
  */
-export async function buildVehicleInventoryPdf({ tenantName, vehicle, inventory }) {
+export async function buildVehicleInventoryPdf({ tenantName, vehicle, inventory, basedOnAt = null }) {
   const pdf = await PDFDocument.create();
   const [reg, bold, ital] = await Promise.all([
     pdf.embedFont(StandardFonts.Helvetica), pdf.embedFont(StandardFonts.HelveticaBold), pdf.embedFont(StandardFonts.HelveticaOblique),
@@ -52,6 +52,7 @@ export async function buildVehicleInventoryPdf({ tenantName, vehicle, inventory 
     ['Ambulance', `${vehicle.label} — ${vehicle.immatriculation}`],
     ['Inventaire du', `${fmt(inventory.performedAt)} (heure du serveur)`],
     ['Fait par', inventory.performedByName || '—'],
+    ...(inventory.unchanged ? [['Mode', `« Rien n'a changé » : aucune sortie ni réarmement depuis l'inventaire précédent${basedOnAt ? ` du ${fmt(basedOnAt)}` : ''} ; quantités reprises et confirmées`]] : []),
   ];
   for (const [k, v] of info) {
     text(k, M, y, { font: bold, size: 9, color: MUTED });

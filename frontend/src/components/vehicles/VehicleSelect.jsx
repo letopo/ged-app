@@ -48,7 +48,7 @@ export default function VehicleSelect({ value, onChange, style }) {
             ? t('Sortie urgente partie le {{date}} : ses contrôles seront rattachés à cet ordre de mission.', { date: fmtDateTime(selected.currentMission.departedAt) })
             : selected.readiness?.at
               ? t('Dernier contrôle ({{phase}}) le {{date}} : {{pct}} % de la check-list{{anom}}.', {
-                phase: selected.readiness.phase === 'depart' ? t('départ') : t('retour'),
+                phase: selected.readiness.phase === 'prise' ? t('prise de poste') : selected.readiness.phase === 'depart' ? t('départ') : t('retour'),
                 date: fmtDateTime(selected.readiness.at), pct: selected.readiness.pct,
                 anom: selected.readiness.anomalies ? ` · ${t('{{count}} anomalie(s)', { count: selected.readiness.anomalies })}` : '',
               })

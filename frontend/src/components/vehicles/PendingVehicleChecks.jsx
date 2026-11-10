@@ -29,14 +29,24 @@ export default function PendingVehicleChecks({ style }) {
         <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#ea580c', borderRadius: 999, padding: '1px 8px' }}>{items.length}</span>
       </div>
       {items.map((it) => (
-        <button key={it.type === 'inventaire' ? `inv-${it.vehicle.id}` : `${it.missionId}-${it.phase}`} type="button" onClick={() => navigate(`/vehicules?vehicle=${it.vehicle.id}`)}
+        <button key={it.type === 'inventaire' ? `inv-${it.vehicle.id}` : it.type === 'prise_de_poste' ? 'prise' : `${it.missionId}-${it.phase}`} type="button"
+          onClick={() => navigate(it.type === 'prise_de_poste' ? '/vehicules?tab=prise&open=1' : `/vehicules?vehicle=${it.vehicle.id}`)}
           style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px', border: 'none', borderTop: '1px solid var(--surface-3)', background: 'none', cursor: 'pointer', textAlign: 'left' }}>
-          {it.type === 'inventaire' ? (
+          {it.type === 'prise_de_poste' ? (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{t('Prise de poste')} · {it.vehicles.map((v) => v.label).join(', ')}</div>
+              <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 600 }}>{t('Matériel vital et bouteilles d\'oxygène (ambulances et réserve)')}</div>
+            </div>
+          ) : it.type === 'inventaire' ? (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>
-                {t('Inventaire du jour')} · {it.vehicle.label} <span style={{ fontWeight: 400, color: 'var(--fg-muted)' }}>({it.vehicle.immatriculation})</span>
+                {it.recount ? t('Inventaire à recompter') : t('Inventaire du jour')} · {it.vehicle.label} <span style={{ fontWeight: 400, color: 'var(--fg-muted)' }}>({it.vehicle.immatriculation})</span>
               </div>
-              <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 600 }}>{t('Matériel, consommables, médicaments et DSA')}</div>
+              <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 600 }}>
+                {it.recount && it.outings?.length
+                  ? t('Sortie du {{date}} : recompter le matériel', { date: fmtDateTime(it.outings[it.outings.length - 1].at) })
+                  : t('Matériel, consommables, médicaments et DSA')}
+              </div>
             </div>
           ) : (
             <div style={{ flex: 1, minWidth: 0 }}>

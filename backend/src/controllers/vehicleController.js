@@ -19,7 +19,7 @@ import {
 import { getUserPosteCodes, getPosteHolders } from '../utils/posteResolver.js';
 import {
   DEFAULT_AMBULANCE_SECTIONS, DEFAULT_SERVICE_SECTIONS, DEFAULT_DEADLINES, sanitizeSections, evaluateAnswers, completionPct, completionLevel,
-  DEFAULT_INVENTORY_SECTIONS, DEFAULT_INVENTORY_DAYS, LEGACY_MATERIEL_IDS, MISSION_MATERIEL_ITEMS, sanitizeInventorySections, sanitizeInventoryDays,
+  DEFAULT_INVENTORY_SECTIONS, DEFAULT_INVENTORY_DAYS, LEGACY_MATERIEL_IDS, MISSION_MATERIEL_ITEMS, sanitizeInventorySections, sanitizeInventoryDays, doualaDay,
 } from '../utils/vehicleChecklist.js';
 import { buildVehicleCheckPdf } from '../utils/vehicleCheckPdf.js';
 import { parseSignaturePng } from './manualSignatureController.js';
@@ -81,7 +81,7 @@ async function ensureDefaultTemplate(type = 'ambulance', userId = null) {
   let tpl = await VehicleChecklistTemplate.findOne({ where: { vehicleType: type, isActive: true }, order: [['createdAt', 'ASC']] });
   if (!tpl) {
     tpl = type === 'ambulance'
-      ? await VehicleChecklistTemplate.create({ name: 'Check-list ambulance', vehicleType: 'ambulance', sections: DEFAULT_AMBULANCE_SECTIONS, inventorySections: DEFAULT_INVENTORY_SECTIONS, inventoryDays: DEFAULT_INVENTORY_DAYS, updatedBy: userId })
+      ? await VehicleChecklistTemplate.create({ name: 'Check-list ambulance', vehicleType: 'ambulance', sections: DEFAULT_AMBULANCE_SECTIONS, inventorySections: DEFAULT_INVENTORY_SECTIONS, inventoryDays: DEFAULT_INVENTORY_DAYS, missionChecks: false, updatedBy: userId })
       : await VehicleChecklistTemplate.create({ name: 'Check-list véhicule de service', vehicleType: 'service', sections: DEFAULT_SERVICE_SECTIONS, updatedBy: userId });
   }
   return upgradeAmbulanceTemplate(tpl);
@@ -100,6 +100,9 @@ async function upgradeAmbulanceTemplate(tpl) {
   await tpl.update({ sections, inventorySections: DEFAULT_INVENTORY_SECTIONS, inventoryDays: DEFAULT_INVENTORY_DAYS });
   return tpl;
 }
+
+/** Contrôles départ / retour à chaque mission ? (ambulances : non, faits à la prise de poste) */
+export const missionChecksOn = (tpl) => tpl?.missionChecks !== false;
 
 export async function templateFor(vehicle) {
   if (vehicle.checklistTemplateId) {
@@ -130,6 +133,16 @@ async function lastRound(vehicle, template) {
   };
 }
 
+// Ambulance sans contrôle de mission : l'état « contrôlée » vient de la
+// dernière prise de poste (même code couleur).
+async function shiftReadiness(vehicle) {
+  const { lastShiftFor } = await import('./vehicleShiftController.js');
+  const s = await lastShiftFor(vehicle.id);
+  if (!s) return { pct: 0, level: 'aucun', phase: 'prise', at: null, anomalies: 0, sections: [] };
+  const pct = completionPct(s.answered || 0, s.total || 0);
+  return { pct, level: completionLevel(pct), phase: 'prise', at: s.at, by: s.by, anomalies: s.anomalies || 0, critical: !!s.critical, bottles: s.bottles, today: s.date === doualaDay().date, sections: [] };
+}
+
 const activeMissionOf = (vehicleId) => VehicleMission.findOne({
   where: { vehicleId, status: { [Op.in]: ['en_cours', 'planifiee'] } },
   order: [[VehicleMission.sequelize.literal(`CASE WHEN "VehicleMission"."status" = 'en_cours' THEN 0 ELSE 1 END`), 'ASC'], ['plannedDepartureAt', 'ASC NULLS LAST'], ['createdAt', 'ASC']],
@@ -152,7 +165,8 @@ async function serializeVehicle(v, acc, { withState = true } = {}) {
   const doc = mission?.documentId ? await Document.findByPk(mission.documentId, { attributes: ['id', 'title'] }) : null;
   return {
     ...base,
-    readiness: await lastRound(v, template),
+    missionChecks: missionChecksOn(template),
+    readiness: missionChecksOn(template) ? await lastRound(v, template) : await shiftReadiness(v),
     // Articles non réarmés (manques ouverts) : alerte dans l'OM RO SAU, pas un blocage
     shortages: {
       open: openShortages.length,
@@ -285,10 +299,24 @@ export async function linkOrdreMissionVehicle(document) {
     await orphan.update({ ...fields, crew: merged, omAfterDeparture: !!orphan.departedAt });
     return orphan;
   }
+  const template = await templateFor(vehicle);
+  if (!missionChecksOn(template)) {
+    // Ambulances RO SAU : pas de contrôle à chaque mission (fait à la prise de
+    // poste). L'OM est souvent classé au retour : une sortie passée est
+    // enregistrée comme terminée, et l'inventaire devra être recompté.
+    const end = fields.plannedReturnAt || fields.plannedDepartureAt;
+    const past = end && end.getTime() <= Date.now();
+    return VehicleMission.create({
+      ...fields, vehicleId: vehicle.id, crew, createdBy: document.userId,
+      status: past ? 'terminee' : 'planifiee',
+      departedAt: past ? fields.plannedDepartureAt || end : null,
+      returnedAt: past ? end : null,
+    });
+  }
   const mission = await VehicleMission.create({ ...fields, vehicleId: vehicle.id, crew, status: 'planifiee', createdBy: document.userId });
   // L'équipage est prévenu dès l'ordre de mission : contrôle à faire avant de partir
   try {
-    const sections = (await templateFor(vehicle)).sections || [];
+    const sections = template.sections || [];
     const when = fields.plannedDepartureAt ? ` le ${fmtFr(fields.plannedDepartureAt)}` : '';
     await notifyCrew(mission, vehicle, (c) => ({
       title: `🚑 Mission ${vehicle.label}${when}`,
@@ -473,6 +501,7 @@ export const updateTemplate = async (req, res) => {
       return res.status(400).json({ success: false, message: 'La check-list doit contenir au moins une section avec des points.' });
     }
     const patch = { sections, name: String(req.body?.name || tpl.name).slice(0, 150), updatedBy: req.user.id };
+    if (typeof req.body?.missionChecks === 'boolean') patch.missionChecks = req.body.missionChecks;
     if (req.body?.inventorySections !== undefined) {
       const inv = sanitizeInventorySections(req.body.inventorySections);
       if (!inv) return res.status(400).json({ success: false, message: 'Inventaire invalide.' });
@@ -506,6 +535,7 @@ export const getVehicleState = async (req, res) => {
       data: {
         vehicle: await serializeVehicle(v, acc),
         sections: template.sections,
+        missionChecks: missionChecksOn(template),
         mission: mission ? { id: mission.id, status: mission.status, title: mission.title, urgent: mission.urgent, crew: mission.crew, documentId: mission.documentId, plannedDepartureAt: mission.plannedDepartureAt, plannedReturnAt: mission.plannedReturnAt, departedAt: mission.departedAt } : null,
         lastFinishedMission: lastDone ? { id: lastDone.id, title: lastDone.title, returnedAt: lastDone.returnedAt } : null,
         checks,
@@ -860,6 +890,7 @@ export const myPendingChecks = async (req, res) => {
     for (const m of missions) {
       const v = await Vehicle.findByPk(m.vehicleId);
       if (!v || !v.isActive) continue;
+      if (!missionChecksOn(await templateFor(v))) continue; // ambulances : prise de poste
       const me = (m.crew || []).find((c) => c.userId === req.user.id);
       const phase = m.status === 'planifiee' ? 'depart' : (m.status === 'en_cours' && !(await VehicleCheck.count({ where: { missionId: m.id, phase: 'depart' } }))) ? 'depart' : 'retour';
       // Au retour, seulement une fois l'heure de retour approchée (ou la mission terminée)
@@ -875,6 +906,8 @@ export const myPendingChecks = async (req, res) => {
       });
     }
     // Inventaire de l'ambulance attendu aujourd'hui (lun / mer / ven)
+    const { myPendingShift } = await import('./vehicleShiftController.js');
+    out.push(...await myPendingShift(req.user));
     const { myPendingInventories } = await import('./vehicleInventoryController.js');
     out.push(...await myPendingInventories(req.user));
     res.json({ success: true, data: out });
@@ -900,6 +933,8 @@ export const missionByDocument = async (req, res) => {
       success: true,
       data: {
         id: m.id, status: m.status, omAfterDeparture: m.omAfterDeparture, urgent: m.urgent,
+        missionChecks: missionChecksOn(await templateFor(v)),
+        shift: missionChecksOn(await templateFor(v)) ? null : await (await import('./vehicleShiftController.js')).lastShiftFor(v.id),
         plannedDepartureAt: m.plannedDepartureAt, departedAt: m.departedAt, returnedAt: m.returnedAt,
         vehicle: { id: v.id, label: v.label, immatriculation: v.immatriculation, status: v.status, unavailableReason: v.unavailableReason },
         depart: phaseSummary(checks, sections, 'depart'),

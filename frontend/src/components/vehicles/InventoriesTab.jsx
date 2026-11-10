@@ -62,7 +62,7 @@ export default function InventoriesTab({ refreshKey }) {
             {cell.critical ? `🚨 ${t('Critique')}` : bad ? `⚠ ${t('{{count}} à réassortir', { count: bad })}` : `✓ ${t('Complet')}`}
           </div>
           <div style={{ fontSize: 11, color: 'var(--fg-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {cell.by} · {fmtDateTime(cell.at)}{cell.answered < cell.total ? ` · ${t('partiel {{n}}/{{total}}', { n: cell.answered, total: cell.total })}` : ''}
+            {cell.by} · {fmtDateTime(cell.at)}{cell.unchanged ? ` · ${t('rien n\'a changé')}` : cell.answered < cell.total ? ` · ${t('partiel {{n}}/{{total}}', { n: cell.answered, total: cell.total })}` : ''}
           </div>
         </div>
         <FileText size={15} color="var(--fg-muted)" />

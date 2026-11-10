@@ -14,6 +14,7 @@ import {
 } from '../controllers/vehicleFleetController.js';
 import { getInventoryState, submitInventory, listInventories, getInventoryPdf } from '../controllers/vehicleInventoryController.js';
 import { listShortages, orderShortages, setShortageStatus, restockVehicle } from '../controllers/vehicleShortageController.js';
+import { getShiftState, submitShift, getShiftPdf } from '../controllers/vehicleShiftController.js';
 
 const router = express.Router();
 router.use(protect);
@@ -37,6 +38,10 @@ router.get('/checks/:id/pdf', getCheckPdf);
 router.get('/inventories', listInventories);
 router.get('/inventories/:iid/pdf', getInventoryPdf);
 // Manques ouverts : À commander → Commandé → Réarmé
+// Prise de poste du matin (ambulances + oxygène)
+router.get('/shift', getShiftState);
+router.post('/shift', submitShift);
+router.get('/shift/:sid/pdf', getShiftPdf);
 router.get('/shortages', listShortages);
 router.post('/shortages/order', orderShortages);
 router.post('/shortages/:sid/status', setShortageStatus);

@@ -10,7 +10,7 @@ import { resolveStoredFile } from '../utils/storedFiles.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
-import { Vehicle, VehicleInventory, VehicleShortage, Document, Tenant } from '../models/index.js';
+import { Vehicle, VehicleInventory, VehicleShortage, VehicleMission, Document, Tenant } from '../models/index.js';
 import { fleetAccess, canManage, canCheck, templateFor, notifyVehicleManagers, shareWithVehicleManagers, CHECK_DIR, userName, fmtFr } from './vehicleController.js';
 import { evaluateInventory, doualaDay, weekStart } from '../utils/vehicleChecklist.js';
 import { buildVehicleInventoryPdf } from '../utils/vehicleInventoryPdf.js';
@@ -33,7 +33,7 @@ export async function inventoryOf(vehicle) {
 const summary = (inv) => ({
   id: inv.id, date: inv.inventoryDate, at: inv.performedAt, by: inv.performedByName,
   answered: inv.answeredItems, total: inv.totalItems, shortages: inv.shortages, expiring: inv.expiring,
-  critical: inv.criticalAnomaly, documentId: inv.documentId,
+  critical: inv.criticalAnomaly, documentId: inv.documentId, unchanged: !!inv.unchanged,
 });
 
 /** Inventaires d'une semaine (lundi → dimanche) : le dernier de chaque jour. */
@@ -51,13 +51,50 @@ async function weekOf(vehicleIds, monday) {
   return out;
 }
 
-/** Inventaire attendu aujourd'hui et pas encore fait ? */
+/**
+ * Faut-il recompter ? Une sortie (mission) a eu lieu depuis le dernier
+ * inventaire réellement compté — y compris une sortie dont l'OM n'a été classé
+ * qu'après coup (ex. OM du week-end classés le lundi). Et peut-on confirmer
+ * « Rien n'a changé » : ni sortie ni réarmement depuis le dernier inventaire.
+ */
+export async function recountState(vehicle) {
+  const [last, lastCounted] = await Promise.all([
+    VehicleInventory.findOne({ where: { vehicleId: vehicle.id }, order: [['performedAt', 'DESC']], attributes: ['id', 'performedAt', 'performedByName', 'unchanged'] }),
+    VehicleInventory.findOne({ where: { vehicleId: vehicle.id, unchanged: false }, order: [['performedAt', 'DESC']], attributes: ['id', 'performedAt'] }),
+  ]);
+  if (!last) return { recountNeeded: false, outings: [], canConfirmUnchanged: false, blocked: 'none' };
+  const now = new Date();
+  const since = lastCounted?.performedAt || last.performedAt;
+  const missions = await VehicleMission.findAll({
+    where: {
+      vehicleId: vehicle.id, status: { [Op.ne]: 'annulee' },
+      [Op.or]: [
+        { departedAt: { [Op.gt]: since, [Op.lte]: now } },
+        { departedAt: null, plannedDepartureAt: { [Op.gt]: since, [Op.lte]: now } },
+      ],
+    },
+    order: [['plannedDepartureAt', 'ASC']], limit: 10,
+  });
+  const outings = missions.map((m) => ({ id: m.id, title: m.title, at: m.departedAt || m.plannedDepartureAt, documentId: m.documentId }));
+  // Réarmé depuis le dernier inventaire : les quantités ont changé
+  const touched = await VehicleShortage.findAll({ where: { vehicleId: vehicle.id, updatedAt: { [Op.gt]: last.performedAt } }, attributes: ['history'] });
+  const restocked = touched.some((t) => (t.history || []).some((h) => h.action === 'rearme' && new Date(h.at) > new Date(last.performedAt)));
+  const recountNeeded = outings.length > 0;
+  return {
+    recountNeeded, outings, restocked,
+    canConfirmUnchanged: !recountNeeded && !restocked,
+    blocked: recountNeeded ? 'sortie' : restocked ? 'rearmement' : null,
+    lastCountedAt: lastCounted?.performedAt || null,
+  };
+}
+
+/** Inventaire attendu aujourd'hui (jour prévu, pas encore fait) ou recomptage après une sortie ? */
 export async function inventoryDueToday(vehicle, inv = null) {
   const { sections, days } = inv || await inventoryOf(vehicle);
   if (!sections.length) return false;
   const today = doualaDay();
-  if (!days.includes(today.weekday)) return false;
-  return !(await VehicleInventory.count({ where: { vehicleId: vehicle.id, inventoryDate: today.date } }));
+  if (days.includes(today.weekday) && !(await VehicleInventory.count({ where: { vehicleId: vehicle.id, inventoryDate: today.date } }))) return true;
+  return (await recountState(vehicle)).recountNeeded;
 }
 
 // GET /api/vehicles/:id/inventory — écran d'inventaire
@@ -82,6 +119,7 @@ export const getInventoryState = async (req, res) => {
         week: (await weekOf([v.id], monday)).get(v.id) || {},
         last: last ? { ...summary(last), answers: last.answers, restock: last.restock } : null,
         shortages: ((await openShortagesOf([v.id])).get(v.id) || []).map(serializeShortage),
+        recount: await recountState(v),
       },
     });
   } catch (error) {
@@ -102,7 +140,17 @@ export const submitInventory = async (req, res) => {
     if (!sections.length) return res.status(400).json({ success: false, message: 'Pas d\'inventaire prévu pour ce véhicule.' });
     const sigBytes = parseSignaturePng(req.body?.signature);
     if (!sigBytes) return res.status(400).json({ success: false, message: 'La signature est obligatoire.' });
-    const result = evaluateInventory(sections, req.body?.answers);
+    // « Rien n'a changé » : quantités reprises de l'inventaire précédent, permis
+    // seulement sans sortie ni réarmement depuis (vérifié ici, pas seulement à l'écran)
+    let basedOn = null;
+    if (req.body?.unchanged) {
+      const rc = await recountState(v);
+      if (!rc.canConfirmUnchanged) {
+        return res.status(409).json({ success: false, message: rc.blocked === 'sortie' ? 'L\'ambulance est sortie depuis le dernier comptage : recomptez tout.' : 'Du matériel a été réarmé depuis : recomptez.' });
+      }
+      basedOn = await VehicleInventory.findOne({ where: { vehicleId: v.id }, order: [['performedAt', 'DESC']] });
+    }
+    const result = evaluateInventory(sections, basedOn ? basedOn.answers : req.body?.answers);
     if (!result.answered) return res.status(400).json({ success: false, message: 'Aucune ligne relevée.' });
 
     await fs.mkdir(path.resolve(process.cwd(), CHECK_DIR), { recursive: true });
@@ -115,6 +163,7 @@ export const submitInventory = async (req, res) => {
       criticalAnomaly: result.critical, restock: result.restock,
       comment: String(req.body?.comment || '').trim().slice(0, 2000) || null,
       performedBy: req.user.id, performedByName: userName(req.user), performedAt: now, signaturePath: sigPath,
+      unchanged: !!basedOn, basedOnId: basedOn?.id || null,
     });
 
     // Disponibilité : point critique en défaut → indisponible ; un inventaire
@@ -139,11 +188,11 @@ export const submitInventory = async (req, res) => {
     // Fiche PDF archivée dans la GED
     try {
       const tenant = await Tenant.findByPk(v.tenantId, { attributes: ['name'] });
-      const pdf = await buildVehicleInventoryPdf({ tenantName: tenant?.name, vehicle: v, inventory });
+      const pdf = await buildVehicleInventoryPdf({ tenantName: tenant?.name, vehicle: v, inventory, basedOnAt: basedOn?.performedAt || null });
       const fileName = `inventaire-${v.id.slice(0, 8)}-${Date.now()}.pdf`;
       await fs.writeFile(path.resolve(process.cwd(), 'uploads', fileName), pdf);
       const doc = await Document.create({
-        title: `Inventaire ambulance — ${v.label} (${v.immatriculation}) — ${fmtFr(now)}`,
+        title: `Inventaire ambulance${basedOn ? ' (rien n\'a changé)' : ''} — ${v.label} (${v.immatriculation}) — ${fmtFr(now)}`,
         fileName, originalName: fileName, filePath: `uploads/${fileName}`, fileSize: pdf.length, fileType: 'application/pdf',
         userId: req.user.id, category: 'Contrôle véhicule', status: 'approved',
         visibility: v.serviceId ? 'service' : 'personal', serviceId: v.serviceId || null,
@@ -241,7 +290,8 @@ export async function myPendingInventories(user) {
   const out = [];
   for (const v of vehicles) {
     if (await inventoryDueToday(v)) {
-      out.push({ type: 'inventaire', vehicle: { id: v.id, label: v.label, immatriculation: v.immatriculation } });
+      const rc = await recountState(v);
+      out.push({ type: 'inventaire', recount: rc.recountNeeded, outings: rc.outings.slice(0, 3), vehicle: { id: v.id, label: v.label, immatriculation: v.immatriculation } });
     }
   }
   return out;

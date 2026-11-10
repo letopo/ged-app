@@ -2,18 +2,20 @@
 // Parc véhicules — étape 1 : ambulances RO SAU.
 //  - Contrôles      : équipage (chauffeur → Véhicule, soignant → Matériel), sur téléphone
 //  - Tableau de bord : cheffe de pôle RO SAU / chef sécurité logistique
+//  - Prise de poste : fiche du matin (ambulances + oxygène), remplace départ / retour
 //  - Manques        : à commander → commandé → réarmé (infirmiers et responsables)
 //  - Véhicules      : fiches du parc
 //  - Check-list     : points de contrôle modifiables
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader, ShieldCheck, Gauge, ClipboardList, PackageOpen } from 'lucide-react';
+import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader, ShieldCheck, Gauge, ClipboardList, PackageOpen, Sunrise } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { vehiclesAPI } from '../services/api';
 import VehicleChecksTab from '../components/vehicles/VehicleChecksTab';
 import InventoriesTab from '../components/vehicles/InventoriesTab';
 import ShortagesTab from '../components/vehicles/ShortagesTab';
+import ShiftTab from '../components/vehicles/ShiftTab';
 import FleetDashboard from '../components/vehicles/FleetDashboard';
 import VehiclesAdmin from '../components/vehicles/VehiclesAdmin';
 import ChecklistEditor from '../components/vehicles/ChecklistEditor';
@@ -84,6 +86,7 @@ export default function ParcVehicules() {
   const canManageAny = fleet?.canCreate || vehicles.some((v) => v.canManage);
   const detailVehicle = detail ? vehicles.find((v) => v.id === detail.id) : null;
   const tabs = [
+    { key: 'prise', label: t('Prise de poste'), icon: Sunrise, show: !!fleet?.canCheck || canManageAny },
     { key: 'controles', label: t('Contrôles'), icon: ClipboardCheck, show: true },
     { key: 'tableau', label: t('Tableau de bord'), icon: LayoutDashboard, show: !!fleet?.canDashboard },
     { key: 'manques', label: t('Manques'), icon: PackageOpen, show: !!fleet?.canCheck || canManageAny },
@@ -120,6 +123,7 @@ export default function ParcVehicules() {
       {tab === 'suivi' && <FleetOverview refreshKey={refreshKey} onOpenVehicle={(id, sub) => setDetail({ id, tab: sub })} />}
       {tab === 'controles' && <VehicleChecksTab vehicles={vehicles.filter((v) => v.isActive)} loading={loading} onChanged={() => loadVehicles()} initialVehicleId={params.get('tab') === 'suivi' ? null : params.get('vehicle')} onOpenDetail={(id) => setDetail({ id })} />}
       {tab === 'tableau' && <FleetDashboard onVehiclesChanged={() => loadVehicles()} />}
+      {tab === 'prise' && <ShiftTab refreshKey={refreshKey} onChanged={() => loadVehicles()} />}
       {tab === 'manques' && <ShortagesTab refreshKey={refreshKey} onChanged={() => loadVehicles()} />}
       {tab === 'inventaires' && <InventoriesTab refreshKey={refreshKey} />}
       {tab === 'vehicules' && <VehiclesAdmin vehicles={vehicles} fleet={fleet} onChanged={() => loadVehicles()} onOpen={(id) => setDetail({ id })} />}
