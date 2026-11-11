@@ -4,6 +4,7 @@
 import { Op } from 'sequelize';
 import { PatientPHP, PhpPatientCompteSage } from '../models/index.js';
 import { loadPhpTiers, comptesDuPatient, findPhpTiers, normCompteTiers } from '../utils/phpSageComptes.js';
+import { buildParcours } from '../utils/phpParcours.js';
 
 const userName = (u) => [u?.firstName, u?.lastName].filter(Boolean).join(' ') || u?.username || null;
 const fail = (res, err) => {
@@ -93,5 +94,19 @@ export const resetCompteSage = async (req, res) => {
     const patient = await loadPatient(req, res); if (!patient) return;
     await PhpPatientCompteSage.destroy({ where: { patientId: patient.id, compteTiers: normCompteTiers(req.params.compte) } });
     res.json(await payload(req, patient));
+  } catch (err) { fail(res, err); }
+};
+
+// GET /api/php/patients/:id/parcours?months=12 — parcours hospitalier (étape B) :
+// consultations du Module PHP, passages dans le DME, BL et factures Sage.
+export const getParcours = async (req, res) => {
+  try {
+    const patient = await PatientPHP.findByPk(req.params.id, { attributes: ['id', 'matricule', 'nom', 'prenom'] });
+    if (!patient) return res.status(404).json({ success: false, message: 'Patient introuvable.' });
+    const months = Math.min(24, Math.max(1, parseInt(req.query.months, 10) || 12));
+    const to = new Date();
+    const from = new Date(to); from.setMonth(from.getMonth() - months);
+    const data = await buildParcours({ tenantId: req.tenantId, patient, from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) });
+    res.json({ success: true, months, ...data });
   } catch (err) { fail(res, err); }
 };

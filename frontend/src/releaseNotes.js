@@ -1298,6 +1298,18 @@ const RELEASE_NOTES = [
       'Ces comptes serviront à afficher le parcours hospitalier du patient : BL, factures, consultations et examens du DME.',
     ],
   },
+  {
+    id: '2026-11-11-php-parcours-hospitalier',
+    date: '2026-11-11',
+    target: '/php',
+    title: 'Patients PHP : parcours hospitalier',
+    access: (user) => ['admin', 'superadmin', 'agent_accueil_php', 'agent_accueil_PHP'].includes(user?.role) || (user?.postes || []).some((p) => ['php', 'php_lecture'].includes(p)),
+    items: [
+      'Dans la fiche d’un patient PHP, « Parcours hospitalier » réunit sur une période ses consultations du Module PHP, ses passages dans le DME (consultations, hospitalisations, bulletins d’examens) et ses BL et factures Sage, avec les montants.',
+      'La famille de l’agent apparaît aussi, avec un filtre par personne.',
+      'Contrôle : un passage dans le DME sans BL dans Sage est signalé (oubli de facturation possible). Les BL non facturés sont regroupés dans « À regarder ».',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
