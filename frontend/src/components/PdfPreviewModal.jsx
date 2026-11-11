@@ -5,6 +5,7 @@
 // documents (pdf.js, fonctionne aussi dans l'application Android).
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { useTranslation } from 'react-i18next';
 import { X, Download, Loader } from 'lucide-react';
 import PdfCanvasViewer from './PdfCanvasViewer';
@@ -68,4 +69,18 @@ export default function PdfPreviewModal({ load, title, fileName = 'apercu.pdf', 
     </div>,
     document.body,
   );
+}
+
+/**
+ * Ouvre la visionneuse depuis du code hors composant (ex. un bouton « Fiche PDF »
+ * qui appelait window.open) : monte la fenêtre dans un conteneur à part et la
+ * retire à la fermeture.
+ */
+export function showPdfPreview({ load, title, fileName }) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  const close = () => { root.unmount(); host.remove(); };
+  root.render(<PdfPreviewModal load={load} title={title} fileName={fileName} onClose={close} />);
+  return close;
 }

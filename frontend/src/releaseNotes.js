@@ -1254,6 +1254,15 @@ const RELEASE_NOTES = [
       '« Aperçu PDF » s’ouvre dans la visionneuse de la GED, sans quitter la page.',
     ],
   },
+  {
+    id: '2026-11-11-vehicules-visionneuse-pdf',
+    date: '2026-11-11',
+    target: '/vehicules',
+    title: 'Parc véhicules : fiches PDF dans la visionneuse',
+    items: [
+      'Les fiches PDF (inventaire d’ambulance, contrôle, prise de poste) s’ouvrent maintenant dans la visionneuse de la GED, comme « Voir » dans Documents, sans ouvrir de nouvel onglet. Bouton Télécharger en haut à droite.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
