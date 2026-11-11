@@ -15,6 +15,8 @@ import { buildRelevePhpPdf, DEFAULT_RELEVE_LABELS } from '../utils/relevePhpPdfB
 import { signatureLabelsFor } from '../utils/sageFactureSync.js';
 import { createWorkflowFromTemplate } from '../utils/workflowEngine.js';
 import { getUserPosteCodes } from '../utils/posteResolver.js';
+import { openDme } from '../utils/dmeConnection.js';
+import { fetchPhpBl, fetchDmePatientsByCompte, matchBl, summarizeMatch, MAX_DAYS } from '../utils/dmeMatch.js';
 
 export const DEFAULT_BL_ACCESS_POSTES = ['facturation', 'dg', 'ccg'];
 // Poste attribuable dans Postes & Fonctions : toujours autorisé, en plus de la liste réglable
@@ -125,6 +127,26 @@ export const getBpcFactures = guard(async (req, res) => {
 export const getControl = guard(async (req, res) => {
   const data = await withSage(req.tenantId, pool => fetchInvoiceSpanControl(pool, req.query.days));
   res.json({ success: true, ...data });
+});
+
+// GET /api/sage-bl/dme?from=&to= — rapprochement des BL PHP (Sage) avec les
+// patients du DME par compte tiers (étape 2 de la liasse PHP). Lecture seule.
+export const getDmeMatch = guard(async (req, res) => {
+  const { from, to } = req.query;
+  if (!isoDate(from) || !isoDate(to) || from > to) return res.status(400).json({ success: false, message: 'Période invalide.' });
+  if ((Date.parse(to) - Date.parse(from)) / 86_400_000 > MAX_DAYS) {
+    return res.status(400).json({ success: false, message: `Période trop longue : ${MAX_DAYS} jours au plus.` });
+  }
+  const dmeRow = await TenantIntegration.findOne({ where: { tenantId: req.tenantId, kind: 'dme' } });
+  if (!dmeRow?.secretEncrypted || !dmeRow.config?.host) {
+    return res.status(400).json({ success: false, message: 'Connexion au DME non réglée (Paramètres › Intégrations › DME).' });
+  }
+  const bls = await withSage(req.tenantId, (pool) => fetchPhpBl(pool, from, to));
+  const conn = await openDme(dmeRow.config, decryptSecret(dmeRow.secretEncrypted));
+  let patients;
+  try { patients = await fetchDmePatientsByCompte(conn); } finally { await conn.end().catch(() => {}); }
+  const rows = matchBl(bls, patients);
+  res.json({ success: true, from, to, resume: summarizeMatch(rows), rows });
 });
 
 // GET /api/sage-bl/access — postes autorisés (+ catalogue des postes pour le superadmin)

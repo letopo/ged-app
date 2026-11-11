@@ -2,13 +2,14 @@
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import { listPreparations, createPreparation, checkPreparations, sendToSignature, cancelPreparation } from '../controllers/sagePreparationController.js';
-import { getSummary, getLines, getBpcFactures, getControl, getAccess, updateAccess, getFactures, getFacturePdf, getRelevePdf, createReleve } from '../controllers/sageBlController.js';
+import { getSummary, getLines, getBpcFactures, getControl, getAccess, updateAccess, getFactures, getFacturePdf, getRelevePdf, createReleve, getDmeMatch } from '../controllers/sageBlController.js';
 
 const router = express.Router();
 router.get('/summary', protect, getSummary);
 router.get('/lines', protect, getLines);
 router.get('/bpc-factures', protect, getBpcFactures);
 router.get('/controle', protect, getControl);
+router.get('/dme', protect, getDmeMatch);
 router.get('/access', protect, getAccess);
 router.put('/access', protect, updateAccess);
 router.get('/factures', protect, getFactures);
