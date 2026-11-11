@@ -1310,6 +1310,19 @@ const RELEASE_NOTES = [
       'Contrôle : un passage dans le DME sans BL dans Sage est signalé (oubli de facturation possible). Les BL non facturés sont regroupés dans « À regarder ».',
     ],
   },
+  {
+    id: '2026-11-11-caisse-permanence',
+    date: '2026-11-11',
+    target: '/caisse-pharmacie',
+    title: 'Caisse pharmacie : caisse de permanence',
+    access: (user) => user?.role === 'superadmin' || !!user?.canSeeCaissePharmacie,
+    items: [
+      'Nouvel onglet « Caisse de permanence » : il remplace le classeur Excel « CAISSE HSJM » (une séance de jour 7 h-16 h 30 ou de nuit 16 h 30-7 h).',
+      'À la prise de service, la caissière compte le montant reçu ; le solde est repris automatiquement de la séance précédente.',
+      'Saisie des cautions, autres recettes (pass, carnets…) et sorties (pass remboursés, pièces de caisse, versement DG), en espèces ou Orange Money ; solde calculé en direct.',
+      'Clôture : comptage des espèces (billet par billet si besoin) et écart expliqué. Historique de toutes les séances et recherche d’une caution par nom de patient.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
