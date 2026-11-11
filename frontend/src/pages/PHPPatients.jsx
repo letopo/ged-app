@@ -7,11 +7,13 @@ import {
   Users, Search, Plus, ChevronRight, RefreshCw,
   UserCircle, MapPin, Building2, FileText, Stethoscope,
   ChevronLeft, AlertCircle, Clock, Pencil, Trash2, X,
-  CheckCircle, TriangleAlert, Save
+  CheckCircle, TriangleAlert, Save,
+  Activity,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { phpPatientAPI, phpReferenceAPI } from '../services/phpService';
 import PhpComptesSage from '../components/php/PhpComptesSage';
+import PhpParcoursModal from '../components/php/PhpParcoursModal';
 import PHPPatientRegistration from '../components/php/PHPPatientRegistration';
 import PHPConsultationForm from '../components/php/PHPConsultationForm';
 import PHPBonPrint from '../components/php/PHPBonPrint';
@@ -57,6 +59,7 @@ export default function PHPPatients() {
   // Modales
   const [showRegistration, setShowRegistration] = useState(false);
   const [showConsultation, setShowConsultation] = useState(false);
+  const [showParcours, setShowParcours] = useState(false);
   const [showBonPrint, setShowBonPrint]         = useState(false);
   const [bonData, setBonData]                   = useState(null);
 
@@ -401,6 +404,12 @@ export default function PHPPatients() {
                 </button>
               </div>
 
+              <button onClick={() => setShowParcours(true)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs rounded-lg hover:opacity-90 transition-colors font-semibold"
+                style={{ background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand)' }}>
+                <Activity size={13} /> {t('Parcours hospitalier (DME, BL, factures)')}
+              </button>
+
               {/* Comptes tiers Sage (lien avec la facturation et le DME) */}
               <PhpComptesSage patientId={selectedPatient.id} canWrite={canWrite} t={t} />
 
@@ -486,6 +495,9 @@ export default function PHPPatients() {
       </div>
 
       {/* ── Modales ── */}
+      {showParcours && selectedPatient && (
+        <PhpParcoursModal patient={selectedPatient} onClose={() => setShowParcours(false)} t={t} />
+      )}
       {showRegistration && (
         <PHPPatientRegistration
           onClose={() => setShowRegistration(false)}

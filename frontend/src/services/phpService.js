@@ -34,6 +34,7 @@ export const phpPatientAPI = {
   comptesSage: (id, refresh) => api.get(`/php/patients/${id}/comptes-sage`, { params: refresh ? { refresh: 1 } : {} }),
   decideComptesSage: (id, comptes, statut) => api.put(`/php/patients/${id}/comptes-sage`, { comptes, statut }),
   addCompteSage: (id, compte) => api.post(`/php/patients/${id}/comptes-sage`, { compte }),
+  parcours: (id, months) => api.get(`/php/patients/${id}/parcours`, { params: { months } }),
   resetCompteSage: (id, compte) => api.delete(`/php/patients/${id}/comptes-sage/${encodeURIComponent(compte)}`),
 };
 
