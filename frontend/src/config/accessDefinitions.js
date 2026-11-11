@@ -32,6 +32,7 @@ export const POSTES_STATIC = [
   { code: 'php_lecture',   label: 'Module PHP — consultation', color: '#f87171', description: 'Consultation seule du module PHP : listes, statistiques, exports' },
   { code: 'finances',      label: 'Finances',             color: '#059669', description: 'Accès aux pages Factures PHP (Sage) et BL PHP en attente (sans signer les pièces de caisse)' },
   { code: 'planning',      label: 'Rédacteur des plannings', color: '#0d9488', description: 'Création et saisie des plannings (validation par la direction)' },
+  { code: 'employes_saisie', label: 'Saisie du personnel', color: '#db2777', description: 'Ajouter et modifier les fiches employés (sans désactivation ni import/export)' },
   { code: 'bloc_saisie',   label: 'Saisie du programme opératoire', color: '#0f766e', description: 'Ajoute les interventions de son service au programme opératoire de la semaine' },
   { code: 'bloc_responsable', label: 'Responsable du programme opératoire', color: '#115e59', description: 'Clôt le programme opératoire et l\'envoie au Médecin Chef puis au DG' },
   { code: 'dg',            label: 'Dir. Général',         color: '#7c3aed', description: 'Validation en dernier recours des workflows' },
@@ -143,9 +144,9 @@ export const MODULES = [
   // ── Gestion ──────────────────────────────────────────────────────────────────
   {
     id: 'employees_rh', category: 'Gestion', label: 'Employés (RH)',
-    path: '/employees', description: 'Fiches employés, import/export CSV',
+    path: '/employees', description: 'Fiches employés, import/export CSV (poste « Saisie du personnel » : ajout et modification seulement)',
     roles: ['superadmin','admin'],
-    postes: ['rh'],
+    postes: ['rh','employes_saisie'],
   },
   {
     id: 'plannings', category: 'Gestion', label: 'Plannings',

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { employeesAPI, servicesAPI, usersAPI, missionMealAPI } from '../services/api';
 import { Loader, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -14,6 +15,10 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
   const [users, setUsers] = useState([]);
   const [categories, setCategories] = useState([]);
   const isEditing = !!employee;
+  // Lier un compte utilisateur GED : RH et administrateurs seulement (le poste
+  // « Saisie du personnel » ne voit pas ce champ)
+  const { user: me } = useAuth();
+  const canLinkUser = ['admin', 'superadmin'].includes(me?.role) || (me?.postes || []).includes('rh');
 
   useEffect(() => {
     const loadServices = async () => {
@@ -35,7 +40,7 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
     const loadUsersAndCategories = async () => {
       try {
         const [usersResponse, categoriesResponse] = await Promise.all([
-          usersAPI.getAll(),
+          canLinkUser ? usersAPI.getAll() : Promise.resolve({ data: [] }),
           missionMealAPI.get()
         ]);
 
@@ -185,6 +190,7 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
                 <input type="number" name="childrenCount" value={formData.childrenCount} onChange={handleChange}
                   min="0" max="20" style={inputStyle} />
               </div>
+              {canLinkUser && (
               <div>
                 <label style={labelStyle}>Compte utilisateur GED</label>
 
@@ -214,6 +220,7 @@ const AddEmployeeModal = ({ employee, services: initialServices, onClose, onSave
                   </p>
                 )}
               </div>
+              )}
 
               <div>
                 <label style={labelStyle}>Catégorie de mission</label>

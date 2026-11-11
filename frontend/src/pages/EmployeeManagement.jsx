@@ -8,8 +8,13 @@ import ImportExportEmployees from '../components/ImportExportEmployees.jsx';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../components/ConfirmModal';
 import Pagination, { usePageSize } from '../components/Pagination';
+import { useAuth } from '../contexts/AuthContext';
 
 const EmployeeManagement = () => {
+  const { user } = useAuth();
+  // Poste « Saisie du personnel » : ajouter et modifier seulement (pas de
+  // désactivation, pas d'import/export CSV) — le reste est réservé RH/admin
+  const fullAccess = ['admin', 'superadmin'].includes(user?.role) || (user?.postes || []).includes('rh');
   const { confirm, ConfirmModalRenderer } = useConfirm();
   const [sortConfig, setSortConfig] = useState({ key: 'lastName', dir: 'asc' });
   const [employees, setEmployees] = useState([]);
@@ -169,7 +174,7 @@ const EmployeeManagement = () => {
           </h1>
         </div>
         <div className="emp-actions">
-          <ImportExportEmployees onImportComplete={loadEmployees} />
+          {fullAccess && <ImportExportEmployees onImportComplete={loadEmployees} />}
           <button
             onClick={handleCreate}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2)', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}
@@ -305,6 +310,7 @@ const EmployeeManagement = () => {
                     >
                       <Edit style={{ width: 18, height: 18 }} />
                     </button>
+                    {fullAccess && (
                     <button
                       onClick={() => handleDelete(employee)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: 4 }}
@@ -312,6 +318,7 @@ const EmployeeManagement = () => {
                     >
                       <Trash2 style={{ width: 18, height: 18 }} />
                     </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -339,7 +346,7 @@ const EmployeeManagement = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                 <button onClick={() => handleView(employee)} title="Voir détails" className="emp-icon-btn" style={{ color: 'var(--brand)' }}><Eye size={18} /></button>
                 <button onClick={() => handleEdit(employee)} title="Modifier" className="emp-icon-btn" style={{ color: 'var(--brand)' }}><Edit size={18} /></button>
-                <button onClick={() => handleDelete(employee)} title="Désactiver" className="emp-icon-btn" style={{ color: 'var(--danger)' }}><Trash2 size={18} /></button>
+                {fullAccess && <button onClick={() => handleDelete(employee)} title="Désactiver" className="emp-icon-btn" style={{ color: 'var(--danger)' }}><Trash2 size={18} /></button>}
               </div>
             </div>
           ))}

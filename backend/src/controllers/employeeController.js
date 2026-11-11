@@ -11,12 +11,19 @@ const isRHOrAdmin = async (user) => {
   return ['admin','superadmin'].includes(user.role) || await userHasPoste(user.id, 'rh');
 };
 
+// Poste « Saisie du personnel » (ex. rédacteurs de plannings) : consulter, ajouter
+// et modifier les fiches, sans désactiver, sans import/export CSV et sans lier un
+// compte utilisateur GED (réservés au RH et aux administrateurs)
+const canEditEmployees = async (user) => {
+  return (await isRHOrAdmin(user)) || await userHasPoste(user.id, 'employes_saisie');
+};
+
 // @desc    Récupérer tous les employés (avec pagination et filtres)
 // @route   GET /api/employees
 // @access  Private (RH/Admin)
 export const getEmployees = async (req, res, next) => {
   try {
-    if (!(await isRHOrAdmin(req.user))) {
+    if (!(await canEditEmployees(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -66,7 +73,7 @@ export const getEmployees = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const getEmployeeById = async (req, res, next) => {
   try {
-    if (!(await isRHOrAdmin(req.user))) {
+    if (!(await canEditEmployees(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -93,10 +100,11 @@ export const getEmployeeById = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const createEmployee = async (req, res, next) => {
   try {
-    if (!(await isRHOrAdmin(req.user))) {
+    if (!(await canEditEmployees(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
+    const fullAccess = await isRHOrAdmin(req.user);
     const {
       firstName,
       lastName,
@@ -107,9 +115,10 @@ export const createEmployee = async (req, res, next) => {
       matricule,
       maritalStatus,
       serviceId,
-      userId,
       categorie
     } = req.body;
+    // Lier un compte utilisateur GED : RH et administrateurs seulement
+    const userId = fullAccess ? req.body.userId : undefined;
 
     // Validation des champs requis
     if (!firstName || !lastName || !birthDate || !birthPlace || !gender ||
@@ -179,7 +188,7 @@ export const createEmployee = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const updateEmployee = async (req, res, next) => {
   try {
-    if (!(await isRHOrAdmin(req.user))) {
+    if (!(await canEditEmployees(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -198,10 +207,12 @@ export const updateEmployee = async (req, res, next) => {
       matricule,
       maritalStatus,
       serviceId,
-      userId,
-      categorie,
-      isActive
+      categorie
     } = req.body;
+    // Compte GED lié et désactivation : RH et administrateurs seulement
+    const fullAccess = await isRHOrAdmin(req.user);
+    const userId = fullAccess ? req.body.userId : undefined;
+    const isActive = fullAccess ? req.body.isActive : undefined;
 
     // Vérifier l'unicité du matricule si modifié
     if (matricule && matricule !== employee.matricule) {
@@ -298,7 +309,7 @@ export const deleteEmployee = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const getEmployeesByService = async (req, res, next) => {
   try {
-    if (!(await isRHOrAdmin(req.user))) {
+    if (!(await canEditEmployees(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
@@ -326,7 +337,7 @@ export const getEmployeesByService = async (req, res, next) => {
 // @access  Private (RH/Admin)
 export const getServicesWithEmployees = async (req, res, next) => {
   try {
-    if (!(await isRHOrAdmin(req.user))) {
+    if (!(await canEditEmployees(req.user))) {
       return res.status(403).json({ success: false, error: 'Accès réservé au RH et administrateurs' });
     }
 
