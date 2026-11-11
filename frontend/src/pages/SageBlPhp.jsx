@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import Pagination, { usePageSize } from '../components/Pagination';
 import { sageBlAPI } from '../services/phpService';
 import { PrepareBox, PreparationsTab, PrepBadge } from '../components/sage/FacturationAssistee';
+import RapprochementDme from '../components/sage/RapprochementDme';
 
 const fmtMoney = (n) => `${Number(n || 0).toLocaleString('fr-FR')} FCFA`;
 const fmtMoneyShort = (n) => {
@@ -356,12 +357,12 @@ export default function SageBlPhp() {
 
           {/* Onglets */}
           <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 14 }}>
-            {[['bpc', t('BPC en attente')], ['preparations', t('Facturation assistée')], ['controle', t('Contrôle des BPC')]].map(([id, label]) => (
+            {[['bpc', t('BPC en attente')], ['preparations', t('Facturation assistée')], ['controle', t('Contrôle des BPC')], ['dme', t('Rapprochement DME')]].map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: tab === id ? 650 : 500, color: tab === id ? 'var(--brand)' : 'var(--fg-muted)', borderBottom: `2px solid ${tab === id ? 'var(--brand)' : 'transparent'}`, marginBottom: -1 }}>{label}</button>
             ))}
           </div>
 
-          {tab === 'preparations' ? <PreparationsTab t={t} /> : tab === 'controle' ? <ControlTab t={t} /> : (
+          {tab === 'preparations' ? <PreparationsTab t={t} /> : tab === 'controle' ? <ControlTab t={t} /> : tab === 'dme' ? <RapprochementDme t={t} /> : (
             <>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                 <div style={{ position: 'relative', flex: '1 1 240px' }}>

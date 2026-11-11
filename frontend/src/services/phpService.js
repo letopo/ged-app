@@ -115,6 +115,7 @@ export const sageBlAPI = {
   lines: (pieces) => api.get('/sage-bl/lines', { params: { pieces: pieces.join(',') } }),
   bpcFactures: (tiers, start, end) => api.get('/sage-bl/bpc-factures', { params: { tiers, start, end } }),
   controle: (days) => api.get('/sage-bl/controle', { params: { days } }),
+  dme: (from, to) => api.get('/sage-bl/dme', { params: { from, to } }),
   access: () => api.get('/sage-bl/access'),
   updateAccess: (postes) => api.put('/sage-bl/access', { postes }),
   factures: (from, to) => api.get('/sage-bl/factures', { params: { from, to } }),

@@ -1274,6 +1274,18 @@ const RELEASE_NOTES = [
       'Ce poste ne peut ni désactiver un employé, ni importer/exporter le CSV, ni lier un compte utilisateur GED : cela reste réservé au RH et aux administrateurs.',
     ],
   },
+  {
+    id: '2026-11-11-rapprochement-dme',
+    date: '2026-11-11',
+    target: '/sage-bl-php',
+    title: 'BL PHP : rapprochement avec le DME',
+    access: (user) => user?.role === 'superadmin' || !!user?.canSeeSageBl,
+    items: [
+      'Nouvel onglet « Rapprochement DME » : pour chaque BL PHP de Sage (facturé ou non) d’une période, le patient du DME qui a le même compte tiers.',
+      'Quand plusieurs patients du DME partagent un compte, le nom du client Sage sert à choisir. Les BL sans patient trouvé sont listés pour corriger le compte tiers dans le DME.',
+      'Première étape avant de joindre automatiquement les ordonnances et les bulletins d’examens à la liasse PHP.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
