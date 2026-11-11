@@ -116,6 +116,15 @@ const RHOrAdminRoute = ({ children }) => {
     ? children : <Navigate to="/dashboard" replace />;
 };
 
+// Employés : RH/admin, ou poste « Saisie du personnel » (ajout et modification seulement)
+const EmployeesRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <RouteLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return (isAdminOrSuper(user?.role) || (user?.postes || []).some(p => ['rh', 'employes_saisie'].includes(p)))
+    ? children : <Navigate to="/dashboard" replace />;
+};
+
 const GMAORoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
@@ -373,7 +382,7 @@ function App() {
           <Route path="/audit-log"       element={<AdminRoute><PageWrapper><AuditLogPage /></PageWrapper></AdminRoute>} />
           <Route path="/statistiques"    element={<AdminRoute><PageWrapper><StatistiquesPage /></PageWrapper></AdminRoute>} />
           <Route path="/workflow-templates" element={<AdminRoute><PageWrapper><WorkflowTemplatesPage /></PageWrapper></AdminRoute>} />
-          <Route path="/employees"       element={<RHOrAdminRoute><PageWrapper><EmployeeManagement /></PageWrapper></RHOrAdminRoute>} />
+          <Route path="/employees"       element={<EmployeesRoute><PageWrapper><EmployeeManagement /></PageWrapper></EmployeesRoute>} />
           <Route path="/vehicules"       element={<PageWrapper><ParcVehicules /></PageWrapper>} />
           <Route path="/bloc-operatoire" element={<PageWrapper><ProgrammeOperatoire /></PageWrapper>} />
           <Route path="/gmao"            element={<GMAORoute><PageWrapper><GMAOPage /></PageWrapper></GMAORoute>} />

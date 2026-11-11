@@ -1263,6 +1263,17 @@ const RELEASE_NOTES = [
       'Les fiches PDF (inventaire d’ambulance, contrôle, prise de poste) s’ouvrent maintenant dans la visionneuse de la GED, comme « Voir » dans Documents, sans ouvrir de nouvel onglet. Bouton Télécharger en haut à droite.',
     ],
   },
+  {
+    id: '2026-11-11-poste-saisie-personnel',
+    date: '2026-11-11',
+    target: 'app',
+    title: 'Nouveau poste « Saisie du personnel »',
+    access: (user) => ['admin', 'superadmin'].includes(user?.role) || (user?.postes || []).some((p) => ['rh', 'employes_saisie'].includes(p)),
+    items: [
+      'Admin › Postes & Fonctions : le poste « Saisie du personnel » donne accès à la page Employés pour ajouter et modifier les fiches (par exemple aux personnes qui font les plannings, pour ajouter leur personnel).',
+      'Ce poste ne peut ni désactiver un employé, ni importer/exporter le CSV, ni lier un compte utilisateur GED : cela reste réservé au RH et aux administrateurs.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

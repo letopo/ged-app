@@ -130,6 +130,7 @@ const makeCanAccess = (user) => (item) => {
   if (item.adminOnly && !isAdmin) return false;
   if (item.kanbanOnly)      return isAdmin || (user.postes || []).includes('kanban');
   if (item.rhOrAdminOnly)   return isAdmin || (user.postes || []).includes('rh');
+  if (item.employeesAccess) return isAdmin || (user.postes || []).some(p => ['rh', 'employes_saisie'].includes(p));
   if (item.gardienOnly)     return isAdmin || user.role === 'gardien';
   if (item.accueilOnly)     return isAdmin || ['agent_accueil_php','agent_accueil_normal'].includes(user.role);
   if (item.caisseOnly)      return isAdmin || user.role === 'caissier';
@@ -161,7 +162,7 @@ const buildOrgGroups = (t, user) => {
       { path: '/audit-log',          icon: Shield,      label: t("Journal d'audit"),    adminOnly: true },
     ]},
     { id: 'rh', color: '#0D9488', icon: Users, label: t('Ressources humaines'), items: [
-      { path: '/employees',          icon: Users,       label: t('Employés'),           rhOrAdminOnly: true },
+      { path: '/employees',          icon: Users,       label: t('Employés'),           employeesAccess: true },
       { path: '/schedules',          icon: Calendar,    label: t('Plannings'),          planningOnly: true },
     ]},
     { id: 'parametrage', color: '#8B5CF6', icon: LayoutGrid, label: t('Paramétrage'), items: [
