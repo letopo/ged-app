@@ -7,17 +7,38 @@
 // depuis Sage puis de le déposer dans la GED.
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Loader, Pill, FileText, Send, AlertCircle, RefreshCw } from 'lucide-react';
 import { caissePharmacieAPI } from '../services/phpService';
 import PdfPreviewModal from '../components/PdfPreviewModal';
+import CaissePermanence from '../components/caisse/CaissePermanence';
 
 const today = () => new Date(Date.now() + 3600 * 1000).toISOString().slice(0, 10);
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR');
 const fmtDate = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString('fr-FR') : '—');
 
+// Deux caisses (11/11/2026) : l'état de caisse Sage (caisse de vente) et la
+// caisse de permanence (ancien classeur « CAISSE HSJM.xlsx », séances jour / nuit)
 export default function CaissePharmacie() {
+  const { t } = useTranslation();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('onglet') === 'permanence' ? 'permanence' : 'sage';
+  const setTab = (id) => setParams(id === 'sage' ? {} : { onglet: id }, { replace: true });
+  return (
+    <div className="animate-pageFade" style={{ maxWidth: tab === 'permanence' ? 1100 : 900, margin: '0 auto', padding: '8px 4px 40px' }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 8 }}><Pill size={20} /> {t('Caisse pharmacie')}</h1>
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 14 }}>
+        {[['sage', t('État de caisse Sage')], ['permanence', t('Caisse de permanence')]].map(([id, label]) => (
+          <button key={id} type="button" onClick={() => setTab(id)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: tab === id ? 650 : 500, color: tab === id ? 'var(--brand)' : 'var(--fg-muted)', borderBottom: `2px solid ${tab === id ? 'var(--brand)' : 'transparent'}`, marginBottom: -1 }}>{label}</button>
+        ))}
+      </div>
+      {tab === 'permanence' ? <CaissePermanence t={t} /> : <EtatCaisseSage />}
+    </div>
+  );
+}
+
+function EtatCaisseSage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [from, setFrom] = useState(today());
@@ -67,8 +88,7 @@ export default function CaissePharmacie() {
   const canSend = data && data.lignes.length > 0 && !data.circuit?.error && !missingChoice && !sending;
 
   return (
-    <div className="animate-pageFade" style={{ maxWidth: 900, margin: '0 auto', padding: '8px 4px 40px' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}><Pill size={20} /> {t('État de la caisse pharmacie')}</h1>
+    <div>
       <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
         {t('Le relevé des factures de la caisse de vente (client comptant pharmacie), lu directement dans Sage, puis signé par vous, la caissière et la comptable.')}
       </div>

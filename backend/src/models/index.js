@@ -41,6 +41,7 @@ import Infirmerie from './Infirmerie.js';
 import Secteur from './Secteur.js';
 import PatientPHP from './PatientPHP.js';
 import PhpPatientCompteSage from './PhpPatientCompteSage.js';
+import { CaisseSeance, CaisseMouvement } from './CaissePermanence.js';
 import BonPriseEnCharge from './BonPriseEnCharge.js';
 import ConsultationPHP from './ConsultationPHP.js';
 import HospitalisationPHP from './HospitalisationPHP.js';
@@ -136,6 +137,8 @@ const db = {
   Secteur,
   PatientPHP,
   PhpPatientCompteSage,
+  CaisseSeance,
+  CaisseMouvement,
   BonPriseEnCharge,
   ConsultationPHP,
   HospitalisationPHP,
@@ -330,6 +333,8 @@ export {
   Secteur,
   PatientPHP,
   PhpPatientCompteSage,
+  CaisseSeance,
+  CaisseMouvement,
   BonPriseEnCharge,
   ConsultationPHP,
   HospitalisationPHP,

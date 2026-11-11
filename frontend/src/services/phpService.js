@@ -165,4 +165,13 @@ export const caissePharmacieAPI = {
   get: (from, to) => api.get('/caisse-pharmacie', { params: { from, to } }),
   pdf: (from, to) => api.get('/caisse-pharmacie/pdf', { params: { from, to }, responseType: 'blob' }),
   create: (data) => api.post('/caisse-pharmacie', data),
+  // Caisse de permanence (séances jour / nuit)
+  permanence: () => api.get('/caisse-pharmacie/permanence'),
+  permanenceSeances: (from, to) => api.get('/caisse-pharmacie/permanence/seances', { params: { from, to } }),
+  permanenceSeance: (id) => api.get(`/caisse-pharmacie/permanence/seances/${id}`),
+  permanenceRecherche: (q) => api.get('/caisse-pharmacie/permanence/recherche', { params: { q } }),
+  permanenceOuvrir: (data) => api.post('/caisse-pharmacie/permanence/seances', data),
+  permanenceMouvement: (id, data) => api.post(`/caisse-pharmacie/permanence/seances/${id}/mouvements`, data),
+  permanenceCloturer: (id, data) => api.post(`/caisse-pharmacie/permanence/seances/${id}/cloturer`, data),
+  permanenceAnnuler: (id, motif) => api.post(`/caisse-pharmacie/permanence/mouvements/${id}/annuler`, { motif }),
 };
