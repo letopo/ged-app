@@ -14,6 +14,7 @@ import {
   getHistoriquePatient
 } from '../controllers/phpPatientController.js';
 import { requirePhpWrite } from '../utils/phpAccess.js';
+import { getComptesSage, decideComptesSage, addCompteSage, resetCompteSage } from '../controllers/phpComptesSageController.js';
 
 const router = express.Router();
 
@@ -22,6 +23,11 @@ router.get('/', protect, getPatients);
 router.get('/search/matricule/:matricule', protect, searchByMatricule);
 router.get('/:id', protect, getPatientById);
 router.get('/:id/historique', protect, getHistoriquePatient);
+// Comptes tiers Sage de l'agent (propositions par matricule + décisions)
+router.get('/:id/comptes-sage', protect, getComptesSage);
+router.put('/:id/comptes-sage', protect, requirePhpWrite, decideComptesSage);
+router.post('/:id/comptes-sage', protect, requirePhpWrite, addCompteSage);
+router.delete('/:id/comptes-sage/:compte', protect, requirePhpWrite, resetCompteSage);
 
 router.post('/',        protect, requirePhpWrite, createPatient);
 router.put('/:id',     protect, requirePhpWrite, updatePatient);

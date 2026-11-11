@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { phpPatientAPI, phpReferenceAPI } from '../services/phpService';
+import PhpComptesSage from '../components/php/PhpComptesSage';
 import PHPPatientRegistration from '../components/php/PHPPatientRegistration';
 import PHPConsultationForm from '../components/php/PHPConsultationForm';
 import PHPBonPrint from '../components/php/PHPBonPrint';
@@ -399,6 +400,9 @@ export default function PHPPatients() {
                   <Stethoscope size={13} /> {t('Consultation')}
                 </button>
               </div>
+
+              {/* Comptes tiers Sage (lien avec la facturation et le DME) */}
+              <PhpComptesSage patientId={selectedPatient.id} canWrite={canWrite} t={t} />
 
               {/* Historique consultations */}
               {selectedPatient.consultations?.length > 0 && (

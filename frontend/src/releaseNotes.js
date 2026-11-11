@@ -1286,6 +1286,18 @@ const RELEASE_NOTES = [
       'Première étape avant de joindre automatiquement les ordonnances et les bulletins d’examens à la liasse PHP.',
     ],
   },
+  {
+    id: '2026-11-11-php-comptes-sage',
+    date: '2026-11-11',
+    target: '/php',
+    title: 'Patients PHP : comptes tiers Sage',
+    access: (user) => ['admin', 'superadmin', 'agent_accueil_php', 'agent_accueil_PHP'].includes(user?.role) || (user?.postes || []).some((p) => ['php', 'php_lecture'].includes(p)),
+    items: [
+      'La fiche d’un patient PHP affiche ses comptes tiers Sage : la GED propose les comptes qui portent son matricule dans Sage, ceux de l’agent et ceux de sa famille.',
+      'Confirmez (✓) ou écartez (✕) chaque proposition, ou ajoutez un compte à la main si le matricule est mal saisi dans Sage.',
+      'Ces comptes serviront à afficher le parcours hospitalier du patient : BL, factures, consultations et examens du DME.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

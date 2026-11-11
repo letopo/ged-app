@@ -40,6 +40,7 @@ import BudgetDepense from './BudgetDepense.js'; // ✅ GMAO Phase 4
 import Infirmerie from './Infirmerie.js';
 import Secteur from './Secteur.js';
 import PatientPHP from './PatientPHP.js';
+import PhpPatientCompteSage from './PhpPatientCompteSage.js';
 import BonPriseEnCharge from './BonPriseEnCharge.js';
 import ConsultationPHP from './ConsultationPHP.js';
 import HospitalisationPHP from './HospitalisationPHP.js';
@@ -134,6 +135,7 @@ const db = {
   Infirmerie,
   Secteur,
   PatientPHP,
+  PhpPatientCompteSage,
   BonPriseEnCharge,
   ConsultationPHP,
   HospitalisationPHP,
@@ -273,6 +275,8 @@ Ticket.hasMany(BonPriseEnCharge, { as: 'ticketBons', foreignKey: 'ticket_id' });
 User.hasMany(ConsultationPHP, { as: 'consultationsMedecin', foreignKey: 'medecin_id' });
 User.hasMany(ConsultationPHP, { as: 'consultationsAccueil', foreignKey: 'agent_accueil_id' });
 User.hasMany(ReposPHP, { as: 'reposPrescrit', foreignKey: 'medecin_id' });
+PatientPHP.hasMany(PhpPatientCompteSage, { as: 'comptesSage', foreignKey: 'patientId' });
+PhpPatientCompteSage.belongsTo(PatientPHP, { as: 'patient', foreignKey: 'patientId' });
 PatientPHP.hasMany(DecesTransfertPHP, { as: 'decesTransferts', foreignKey: 'patient_id' });
 User.hasMany(DecesTransfertPHP, { as: 'decesEnregistres', foreignKey: 'enregistre_par_id' });
 
@@ -325,6 +329,7 @@ export {
   Infirmerie,
   Secteur,
   PatientPHP,
+  PhpPatientCompteSage,
   BonPriseEnCharge,
   ConsultationPHP,
   HospitalisationPHP,

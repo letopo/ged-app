@@ -30,6 +30,11 @@ export const phpPatientAPI = {
   update: (id, data) => api.put(`/php/patients/${id}`, data),
   delete: (id, mode = 'desactiver') => api.delete(`/php/patients/${id}?mode=${mode}`),
   genererBon: (id, data) => api.post(`/php/patients/${id}/bon`, data),
+  // Comptes tiers Sage de l'agent (propositions par matricule + décisions)
+  comptesSage: (id, refresh) => api.get(`/php/patients/${id}/comptes-sage`, { params: refresh ? { refresh: 1 } : {} }),
+  decideComptesSage: (id, comptes, statut) => api.put(`/php/patients/${id}/comptes-sage`, { comptes, statut }),
+  addCompteSage: (id, compte) => api.post(`/php/patients/${id}/comptes-sage`, { compte }),
+  resetCompteSage: (id, compte) => api.delete(`/php/patients/${id}/comptes-sage/${encodeURIComponent(compte)}`),
 };
 
 // ============================================
