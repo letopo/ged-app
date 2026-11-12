@@ -178,3 +178,11 @@ export const caissePharmacieAPI = {
   permanenceSoumettre: (id, selections) => api.post(`/caisse-pharmacie/permanence/seances/${id}/soumettre`, { selections }),
   permanenceSupprimer: (id, motif) => api.delete(`/caisse-pharmacie/permanence/seances/${id}`, { data: { motif } }),
 };
+
+// Bons de commande fournisseurs préparés dans Sage → signature (12/11/2026)
+export const bonsCommandeAPI = {
+  list: (params) => api.get('/sage-bons-commande', { params }),
+  get: (piece) => api.get(`/sage-bons-commande/${encodeURIComponent(piece)}`),
+  pdf: (piece) => api.get(`/sage-bons-commande/${encodeURIComponent(piece)}/pdf`, { responseType: 'blob' }),
+  send: (piece, data) => api.post(`/sage-bons-commande/${encodeURIComponent(piece)}`, data),
+};

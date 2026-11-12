@@ -1336,6 +1336,19 @@ const RELEASE_NOTES = [
       'Nouveau poste « Caisse pharmacie » (Admin › Postes & Fonctions) : donne accès au module et permet de tenir la caisse de permanence.',
     ],
   },
+  {
+    id: '2026-11-12-bons-commande-sage',
+    date: '2026-11-12',
+    target: '/bons-commande',
+    title: 'Bons de commande depuis Sage',
+    access: (user) => ['admin', 'superadmin'].includes(user?.role) || (user?.postes || []).includes('bons_commande'),
+    items: [
+      'Préparez le bon de commande dans Sage comme d’habitude, puis saisissez son numéro (BCF… ou BLF…) dans Finances › Bons de commande.',
+      'La GED lit le bon dans Sage et produit le même document que l’impression Sage, plus le montant en lettres et les cadres de signature.',
+      'Envoi en signature en un clic : vous → DG ou DGA → Comptable (pour paiement). Plus besoin d’imprimer le PDF dans Sage pour l’importer.',
+      'La liste des pièces d’achat récentes (par dépôt) indique celles déjà envoyées et signées.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;
