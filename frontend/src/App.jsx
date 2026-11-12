@@ -20,6 +20,7 @@ import UserManagement from './pages/UserManagement';
 import SageFacturesPHP from './pages/SageFacturesPHP';
 import SageBlPhp from './pages/SageBlPhp';
 import CaissePharmacie from './pages/CaissePharmacie';
+import BonsCommande from './pages/BonsCommande';
 import PostesManagement from './pages/PostesManagement';
 import CreateFromTemplate from './pages/CreateFromTemplate';
 import CreateWorkRequest from './pages/CreateWorkRequest';
@@ -377,6 +378,7 @@ function App() {
           <Route path="/sage-factures-php" element={<PageWrapper><SageFacturesPHP /></PageWrapper>} />
           <Route path="/sage-bl-php"       element={<PageWrapper><SageBlPhp /></PageWrapper>} />
           <Route path="/caisse-pharmacie"  element={<PageWrapper><CaissePharmacie /></PageWrapper>} />
+          <Route path="/bons-commande"     element={<PageWrapper><BonsCommande /></PageWrapper>} />
           <Route path="/postes"          element={<AdminRoute><PageWrapper><PostesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/services"        element={<AdminRoute><PageWrapper><ServicesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/audit-log"       element={<AdminRoute><PageWrapper><AuditLogPage /></PageWrapper></AdminRoute>} />

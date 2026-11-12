@@ -144,6 +144,7 @@ const makeCanAccess = (user) => (item) => {
   // Même règle que le serveur (routes/sageFactures.js) : admins + poste Finances + postes BL
   if (item.sageFacturesOnly) return isAdmin || !!user.canSeeSageBl;
   if (item.caissePharmacieOnly) return user.role === 'superadmin' || !!user.canSeeCaissePharmacie;
+  if (item.bonsCommandeOnly) return isAdmin || (user.postes || []).includes('bons_commande');
   if (item.fleetOnly)       return !!user.fleet?.hasModule;
   if (item.blocOnly)        return isAdmin || ['director','dds','medical_chief'].includes(user.role) || (user.postes || []).some(p => ['bloc_saisie','bloc_responsable'].includes(p));
   return true;
@@ -182,6 +183,7 @@ const buildOrgGroups = (t, user) => {
       { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageFacturesOnly: true },
       { path: '/sage-bl-php',        icon: ClipboardList,   label: t('BL PHP en attente'),   sageBlOnly: true },
       { path: '/caisse-pharmacie',   icon: Pill,            label: t('Caisse pharmacie'),    caissePharmacieOnly: true },
+      { path: '/bons-commande',      icon: ShoppingCart,    label: t('Bons de commande'),    bonsCommandeOnly: true },
     ]},
     { id: 'bloc', color: '#0F766E', icon: Scissors, label: t('Bloc opératoire'), items: [
       { path: '/bloc-operatoire',    icon: Scissors,    label: t('Programme opératoire'), blocOnly: true },

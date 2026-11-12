@@ -58,6 +58,7 @@ import phpImportRoutes from './routes/phpImport.js';
 import phpPharmacieRoutes from './routes/phpPharmacie.js';
 import sageFacturesRoutes from './routes/sageFactures.js'; // ✅ Import auto factures PHP depuis Sage
 import sageBlRoutes from './routes/sageBl.js'; // ✅ BL PHP en attente de facturation (lecture Sage)
+import sageBonsCommandeRoutes from './routes/sageBonsCommande.js'; // Bons de commande fournisseurs (lecture Sage → signature)
 import caissePharmacieRoutes from './routes/caissePharmacie.js'; // État de la caisse de vente pharmacie (lecture Sage)
 import comptaRoutes from './routes/compta.js';           // ✅ Module Comptabilité
 import blocRoutes from './routes/bloc.js';               // ✅ Programme opératoire de la semaine
@@ -270,6 +271,7 @@ app.use('/api/php/pharmacie', phpPharmacieRoutes); // Registre de pharmacie
 app.use('/api/sage-factures', sageFacturesRoutes); // ✅ Import auto factures PHP depuis Sage
 app.use('/api/sage-bl', sageBlRoutes); // ✅ BL PHP en attente de facturation (lecture Sage)
 app.use('/api/caisse-pharmacie', caissePharmacieRoutes);
+app.use('/api/sage-bons-commande', sageBonsCommandeRoutes);
 app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
 app.use('/api/bloc',         blocRoutes);         // ✅ Programme opératoire de la semaine
 app.use('/api/template-permissions', templatePermissionRoutes);
@@ -968,11 +970,13 @@ const startServer = async () => {
             (gen_random_uuid(), 'kanban', 'Suivi Technique',     'Accès au tableau de suivi technique (MG, Informatique, Biomédical)', :tenantId, NOW(), NOW()),
             (gen_random_uuid(), 'planning', 'Rédacteur des plannings', 'Création et saisie des plannings de travail et de garde', :tenantId, NOW(), NOW()),
             (gen_random_uuid(), 'employes_saisie', 'Saisie du personnel', 'Ajouter et modifier les fiches employés (sans désactivation ni import/export)', :tenantId, NOW(), NOW()),
-            (gen_random_uuid(), 'caisse_pharmacie', 'Caisse pharmacie', 'Accès au module Caisse pharmacie (état de caisse Sage) et tenue de la caisse de permanence', :tenantId, NOW(), NOW())
+            (gen_random_uuid(), 'caisse_pharmacie', 'Caisse pharmacie', 'Accès au module Caisse pharmacie (état de caisse Sage) et tenue de la caisse de permanence', :tenantId, NOW(), NOW()),
+            (gen_random_uuid(), 'bons_commande', 'Bons de commande', 'Envoyer en signature les bons de commande fournisseurs préparés dans Sage (BCF / BLF)', :tenantId, NOW(), NOW()),
+            (gen_random_uuid(), 'dga', 'Directeur Général Adjoint', 'Signe les bons de commande à la place du DG (au choix de l''émetteur)', :tenantId, NOW(), NOW())
           ON CONFLICT DO NOTHING;
         `, { replacements: { tenantId: t.id } });
       }
-      console.log('✅ Postes gmao/kanban/planning/employes_saisie/caisse_pharmacie vérifiés.');
+      console.log('✅ Postes gmao/kanban/planning/employes_saisie/caisse_pharmacie/bons_commande/dga vérifiés.');
     } catch (e) { console.warn('⚠️ postes gmao/kanban:', e.message); }
 
     // 3️⃣ Créer l'utilisateur admin par défaut
