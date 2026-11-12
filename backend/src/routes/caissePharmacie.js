@@ -5,6 +5,7 @@ import { getCaisse, getCaissePdf, createCaisse } from '../controllers/caissePhar
 
 import {
   getEtat, ouvrirSeance, ajouterMouvement, annulerMouvement, cloturerSeance, listSeances, getSeance, rechercher,
+  getSeancePdf, soumettreSeance, supprimerSeance,
 } from '../controllers/caissePermanenceController.js';
 
 const router = express.Router();
@@ -20,4 +21,7 @@ router.post('/permanence/seances', protect, ouvrirSeance);
 router.post('/permanence/seances/:id/mouvements', protect, ajouterMouvement);
 router.post('/permanence/seances/:id/cloturer', protect, cloturerSeance);
 router.post('/permanence/mouvements/:id/annuler', protect, annulerMouvement);
+router.get('/permanence/seances/:id/pdf', protect, getSeancePdf);
+router.post('/permanence/seances/:id/soumettre', protect, soumettreSeance);
+router.delete('/permanence/seances/:id', protect, supprimerSeance);
 export default router;

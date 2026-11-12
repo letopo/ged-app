@@ -1323,6 +1323,19 @@ const RELEASE_NOTES = [
       'Clôture : comptage des espèces (billet par billet si besoin) et écart expliqué. Historique de toutes les séances et recherche d’une caution par nom de patient.',
     ],
   },
+  {
+    id: '2026-11-12-caisse-permanence-signature',
+    date: '2026-11-12',
+    target: '/caisse-pharmacie',
+    title: 'Caisse de permanence : envoi en signature',
+    access: (user) => user?.role === 'superadmin' || !!user?.canSeeCaissePharmacie,
+    items: [
+      'Après la clôture, la séance s’envoie en signature : une fiche PDF (mouvements, totaux, comptage, écart) est signée par la caissière de la pharmacie puis par la Caissière.',
+      'Aperçu PDF de la séance à tout moment ; l’historique indique pour chaque séance « À envoyer », « En signature » ou « Signée ».',
+      'Les administrateurs peuvent supprimer une séance (par exemple une séance de test), avec un motif gardé dans le journal d’audit.',
+      'Nouveau poste « Caisse pharmacie » (Admin › Postes & Fonctions) : donne accès au module et permet de tenir la caisse de permanence.',
+    ],
+  },
 ];
 
 export default RELEASE_NOTES;

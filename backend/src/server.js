@@ -967,11 +967,12 @@ const startServer = async () => {
             (gen_random_uuid(), 'gmao',   'Responsable GMAO',    'Accès au module de maintenance préventive des équipements', :tenantId, NOW(), NOW()),
             (gen_random_uuid(), 'kanban', 'Suivi Technique',     'Accès au tableau de suivi technique (MG, Informatique, Biomédical)', :tenantId, NOW(), NOW()),
             (gen_random_uuid(), 'planning', 'Rédacteur des plannings', 'Création et saisie des plannings de travail et de garde', :tenantId, NOW(), NOW()),
-            (gen_random_uuid(), 'employes_saisie', 'Saisie du personnel', 'Ajouter et modifier les fiches employés (sans désactivation ni import/export)', :tenantId, NOW(), NOW())
+            (gen_random_uuid(), 'employes_saisie', 'Saisie du personnel', 'Ajouter et modifier les fiches employés (sans désactivation ni import/export)', :tenantId, NOW(), NOW()),
+            (gen_random_uuid(), 'caisse_pharmacie', 'Caisse pharmacie', 'Accès au module Caisse pharmacie (état de caisse Sage) et tenue de la caisse de permanence', :tenantId, NOW(), NOW())
           ON CONFLICT DO NOTHING;
         `, { replacements: { tenantId: t.id } });
       }
-      console.log('✅ Postes gmao/kanban/planning/employes_saisie vérifiés.');
+      console.log('✅ Postes gmao/kanban/planning/employes_saisie/caisse_pharmacie vérifiés.');
     } catch (e) { console.warn('⚠️ postes gmao/kanban:', e.message); }
 
     // 3️⃣ Créer l'utilisateur admin par défaut

@@ -4,7 +4,8 @@
 // personnel de la pharmacie le tire depuis la GED (Sage en lecture seule) et
 // l'envoie en signature : la personne de la pharmacie qui l'envoie (son nom sur
 // la fiche) → Caissière → Comptable (retour du 10/11/2026 : trois signatures).
-// Accès : personnel du service Pharmacie, caissières, comptables, Finances, superadmin.
+// Accès : personnel du service Pharmacie, poste « Caisse pharmacie », caissières,
+// comptables, Finances, administrateurs.
 import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
@@ -20,14 +21,17 @@ import { createWorkflowForDocument } from '../utils/workflowEngine.js';
 import { canAccessSageBl } from './sageBlController.js';
 
 export const CAISSE_CATEGORY = 'Caisse pharmacie';
+// Poste « Caisse pharmacie » (12/11/2026) : accès au module et tenue de la caisse de permanence
+export const CAISSE_POSTE = 'caisse_pharmacie';
 const isoDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) && !Number.isNaN(Date.parse(v));
 const today = () => new Date(Date.now() + 3600 * 1000).toISOString().slice(0, 10); // Douala
 const fullName = (u) => `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
 
 export async function canAccessCaissePharmacie(user, tenantId) {
   if (!user) return false;
-  if (user.role === 'superadmin' || user.role === 'caissier') return true;
-  if ((await getUserPosteCodes(user.id)).includes('comptable')) return true;
+  if (['superadmin', 'admin', 'caissier'].includes(user.role)) return true;
+  const postes = await getUserPosteCodes(user.id);
+  if (postes.includes('comptable') || postes.includes(CAISSE_POSTE)) return true;
   if (await isPharmacieStaff(user.id)) return true;
   return canAccessSageBl(user, tenantId);
 }

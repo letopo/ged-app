@@ -4,11 +4,18 @@
 // 7 h-16 h 30, nuit 16 h 30-7 h) : ouverture avec passation (montant reçu
 // compté), mouvements (cautions, autres recettes, sorties ; espèces ou Orange
 // Money), clôture avec comptage des espèces et écart.
-// Lecture : accès Caisse pharmacie ; saisie : personnel du service Pharmacie, superadmin.
+// Lecture : accès Caisse pharmacie ; saisie : personnel du service Pharmacie,
+// poste « Caisse pharmacie », superadmin. Suppression d'une séance : administrateurs.
+// 12/11/2026 : une séance clôturée part en signature (PDF) Caissière pharmacie → Caissière.
+import fs from 'fs/promises';
+import path from 'path';
 import { Op } from 'sequelize';
-import { CaisseSeance, CaisseMouvement, AuditLog } from '../models/index.js';
+import { CaisseSeance, CaisseMouvement, AuditLog, Document, User, Workflow } from '../models/index.js';
 import { isPharmacieStaff } from '../utils/pieceDeCaisseChain.js';
-import { canAccessCaissePharmacie } from './caissePharmacieController.js';
+import { getUserPosteCodes } from '../utils/posteResolver.js';
+import { createWorkflowForDocument } from '../utils/workflowEngine.js';
+import { buildCaissePermanencePdf, permanenceSignatureLabels, seanceTitre } from '../utils/caissePermanencePdf.js';
+import { canAccessCaissePharmacie, CAISSE_CATEGORY, CAISSE_POSTE } from './caissePharmacieController.js';
 import {
   TYPES, MODES, LIBELLES, periodeAt, seanceKey, nextSeance, seancesSautees,
   totauxSeance, soldesCourants, totalBilletage, parseMontant,
@@ -22,8 +29,12 @@ const httpError = (status, message) => Object.assign(new Error(message), { statu
 export async function canWritePermanence(user) {
   if (!user) return false;
   if (user.role === 'superadmin') return true;
+  if ((await getUserPosteCodes(user.id)).includes(CAISSE_POSTE)) return true;
   return isPharmacieStaff(user.id);
 }
+
+/** Supprimer une séance (séances de test, erreurs) : administrateurs et superadmin. */
+export const canDeleteSeance = (user) => ['admin', 'superadmin'].includes(user?.role);
 
 const guard = (fn, { write = false } = {}) => async (req, res) => {
   try {
@@ -84,6 +95,33 @@ async function loadSeance(req, id) {
 
 const canEditSeance = (req, s) => req.user.role === 'superadmin' || s.caissiereId === req.user.id;
 
+// Document de signature d'une séance (le plus récent non refusé)
+const seanceDocument = (tenantId, seanceId) => Document.findOne({
+  where: { tenantId, category: CAISSE_CATEGORY, metadata: { sourceType: 'caisse_permanence', seanceId }, status: { [Op.ne]: 'rejected' } },
+  attributes: ['id', 'title', 'status', 'createdAt'], order: [['createdAt', 'DESC']],
+});
+
+/** Circuit : la caissière de la pharmacie qui a tenu la séance, puis la Caissière (choix si plusieurs). */
+async function resolveCircuit(seance, sender, selections = {}) {
+  const tenue = seance.caissiereId ? await User.findByPk(seance.caissiereId, { attributes: ['id', 'firstName', 'lastName', 'email'] }) : null;
+  const first = tenue || sender;
+  const steps = [{ key: 'pharmacie', label: 'Caissière pharmacie', holders: [{ id: first.id, name: fullName(first) }], chosenId: first.id, needsSelection: false }];
+  const caissiers = (await User.findAll({ where: { role: 'caissier', isActive: true, isAbsent: false }, attributes: ['id', 'firstName', 'lastName', 'email'] }))
+    .filter((u) => u.id !== first.id);
+  if (!caissiers.length) return { error: 'Aucune caissière active (rôle « caissier »).' };
+  const holders = caissiers.map((u) => ({ id: u.id, name: fullName(u) }));
+  const chosenId = holders.length === 1 ? holders[0].id : (holders.some((h) => h.id === selections.caissier) ? selections.caissier : null);
+  steps.push({ key: 'caissier', label: 'Caissière', holders, chosenId, needsSelection: !chosenId });
+  return { steps };
+}
+
+async function signatureInfo(req, s) {
+  if (s.statut !== 'cloturee') return { document: null, circuit: null, canSubmit: false };
+  const document = await seanceDocument(req.tenantId, s.id);
+  const canSubmit = !document && canEditSeance(req, s);
+  return { document, circuit: canSubmit ? await resolveCircuit(s, req.user) : null, canSubmit };
+}
+
 // GET /api/caisse-pharmacie/permanence — séance ouverte, ou ce qu'il faut pour en ouvrir une
 export const getEtat = guard(async (req, res) => {
   const canWrite = await canWritePermanence(req.user);
@@ -104,7 +142,7 @@ export const getEtat = guard(async (req, res) => {
     };
   }
   res.json({
-    success: true, canWrite, me: req.user.id, courante, libelles: LIBELLES,
+    success: true, canWrite, canDelete: canDeleteSeance(req.user), me: req.user.id, courante, libelles: LIBELLES,
     ouverte: ouverte ? seanceJson(ouverte, ouverte.mouvements) : null,
     derniere: derniere ? seanceJson(derniere) : null,
     proposition,
@@ -217,7 +255,12 @@ export const listSeances = guard(async (req, res) => {
     include: [{ model: CaisseMouvement, as: 'mouvements' }],
     order: [['date', 'DESC'], ['periode', 'DESC']],
   });
-  const seances = rows.map((s) => { const j = seanceJson(s, s.mouvements); delete j.mouvements; return j; });
+  const docs = rows.length ? await Document.findAll({
+    where: { tenantId: req.tenantId, category: CAISSE_CATEGORY, metadata: { sourceType: 'caisse_permanence', seanceId: { [Op.in]: rows.map((r) => r.id) } }, status: { [Op.ne]: 'rejected' } },
+    attributes: ['id', 'status', 'metadata'],
+  }) : [];
+  const docBySeance = new Map(docs.map((d) => [d.metadata?.seanceId, { id: d.id, status: d.status }]));
+  const seances = rows.map((s) => { const j = seanceJson(s, s.mouvements); delete j.mouvements; j.document = docBySeance.get(s.id) || null; return j; });
   const sum = (k) => seances.reduce((a, s) => a + (s.totaux?.[k] || 0), 0);
   res.json({
     success: true, from, to, seances,
@@ -231,7 +274,91 @@ export const listSeances = guard(async (req, res) => {
 // GET /api/caisse-pharmacie/permanence/seances/:id — détail d'une séance
 export const getSeance = guard(async (req, res) => {
   const s = await loadSeance(req, req.params.id);
-  res.json({ success: true, seance: seanceJson(s, s.mouvements), canEdit: canEditSeance(req, s) && s.statut === 'ouverte' });
+  res.json({
+    success: true, seance: seanceJson(s, s.mouvements), canEdit: canEditSeance(req, s) && s.statut === 'ouverte',
+    canDelete: canDeleteSeance(req.user), ...(await signatureInfo(req, s)),
+  });
+});
+
+// GET /api/caisse-pharmacie/permanence/seances/:id/pdf — aperçu de la fiche (rien n'est créé)
+export const getSeancePdf = guard(async (req, res) => {
+  const s = await loadSeance(req, req.params.id);
+  const { buffer } = await buildCaissePermanencePdf(seanceJson(s, s.mouvements));
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="caisse-permanence-${s.date}-${s.periode}.pdf"`);
+  res.send(buffer);
+});
+
+// POST /api/caisse-pharmacie/permanence/seances/:id/soumettre { selections: { caissier } }
+export const soumettreSeance = guard(async (req, res) => {
+  const s = await loadSeance(req, req.params.id);
+  if (s.statut !== 'cloturee') throw httpError(400, 'Clôturez la séance avant de l’envoyer en signature.');
+  if (!canEditSeance(req, s)) throw httpError(403, `Seule ${s.caissiereNom} (caissière de cette séance) peut l’envoyer en signature.`);
+  const existing = await seanceDocument(req.tenantId, s.id);
+  if (existing) return res.status(409).json({ success: false, message: 'Cette séance est déjà en signature.', documentId: existing.id });
+  const circuit = await resolveCircuit(s, req.user, req.body?.selections || {});
+  if (circuit.error) throw httpError(400, circuit.error);
+  const missing = circuit.steps.find((st) => st.needsSelection);
+  if (missing) return res.status(400).json({ success: false, message: `Choisissez le titulaire pour « ${missing.label} ».`, circuit });
+
+  const json = seanceJson(s, s.mouvements);
+  const pdf = await buildCaissePermanencePdf(json, permanenceSignatureLabels(circuit.steps[0].holders[0].name));
+  const fileName = `caisse-permanence-${s.date}-${s.periode}-${Date.now()}.pdf`;
+  await fs.writeFile(path.resolve(process.cwd(), 'uploads', fileName), pdf.buffer);
+  const title = seanceTitre(json);
+  const document = await Document.create({
+    title, fileName, originalName: fileName, filePath: `uploads/${fileName}`, fileSize: pdf.buffer.length, fileType: 'application/pdf',
+    userId: req.user.id, category: CAISSE_CATEGORY, status: 'pending_validation',
+    metadata: {
+      sourceType: 'caisse_permanence', seanceId: s.id, seanceDate: s.date, seancePeriode: s.periode,
+      especesComptees: json.especesComptees, ecartCloture: json.ecartCloture, totalEntrees: json.totaux.totalEntrees,
+      signatureZones: pdf.signatureZones, signaturePage: pdf.signaturePage,
+      zonesParEtape: true, // Caissière pharmacie → cadre 1, Caissière → cadre 2
+      envoyePar: fullName(req.user),
+    },
+    tenantId: req.tenantId,
+  });
+  try {
+    await createWorkflowForDocument(document, circuit.steps.map((st) => st.chosenId), req.tenantId);
+  } catch (err) {
+    await document.destroy({ force: true }).catch(() => {});
+    await fs.unlink(path.resolve(process.cwd(), 'uploads', fileName)).catch(() => {});
+    throw httpError(400, err.message);
+  }
+  await AuditLog.log(req, 'UPLOAD', 'document', document.id, { title, caissePermanence: true, seanceId: s.id });
+  audit(req, 'CAISSE_PERMANENCE_SIGNATURE', { seanceId: s.id, documentId: document.id });
+  res.status(201).json({
+    success: true, documentId: document.id,
+    message: `Séance envoyée en signature : ${circuit.steps.map((st) => st.holders.find((h) => h.id === st.chosenId)?.name).join(' → ')}.`,
+  });
+}, { write: true });
+
+// DELETE /api/caisse-pharmacie/permanence/seances/:id { motif } — administrateurs
+export const supprimerSeance = guard(async (req, res) => {
+  if (!canDeleteSeance(req.user)) throw httpError(403, 'Seuls les administrateurs peuvent supprimer une séance.');
+  const s = await loadSeance(req, req.params.id);
+  const motif = clean(req.body?.motif, 300);
+  if (!motif) throw httpError(400, 'Indiquez le motif de la suppression.');
+  const doc = await seanceDocument(req.tenantId, s.id);
+  if (doc && doc.status === 'approved') {
+    throw httpError(409, 'Cette séance a déjà été signée : son document ne peut pas être effacé. Supprimez d’abord le document signé si c’était un test.');
+  }
+  // Instantané complet dans le journal, pour pouvoir retrouver ce qui a été supprimé
+  const snapshot = seanceJson(s, s.mouvements);
+  if (doc) {
+    // Le document en cours de signature est arrêté (refusé), comme un rejet dans le circuit
+    const full = await Document.findByPk(doc.id);
+    await full.update({ status: 'rejected', metadata: { ...(full.metadata || {}), seanceSupprimee: true, motifSuppression: motif } });
+    await Workflow.update({ status: 'rejected' }, { where: { documentId: doc.id, status: { [Op.in]: ['pending', 'queued'] } } });
+  }
+  await CaisseSeance.update({ precedenteId: null }, { where: { tenantId: req.tenantId, precedenteId: s.id } });
+  await CaisseMouvement.destroy({ where: { tenantId: req.tenantId, seanceId: s.id } });
+  await s.destroy();
+  await AuditLog.create({
+    userId: req.user.id, userEmail: req.user.email, userName: fullName(req.user), action: 'CAISSE_PERMANENCE_SUPPRESSION', resource: 'caisse_permanence',
+    resourceId: s.id, details: { motif, documentAnnule: doc?.id || null, seance: snapshot }, tenantId: req.tenantId,
+  }).catch(() => {});
+  res.json({ success: true, message: 'Séance supprimée.' });
 });
 
 // GET /api/caisse-pharmacie/permanence/recherche?q= — retrouver une caution par nom de patient

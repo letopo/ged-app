@@ -3,11 +3,14 @@
 // le classeur « CAISSE HSJM.xlsx ». Séances de jour (7 h-16 h 30) et de nuit
 // (16 h 30-7 h) : passation (montant reçu compté), mouvements (cautions, autres
 // recettes, sorties ; espèces ou Orange Money), clôture avec comptage et écart.
+// 12/11/2026 : fiche PDF de la séance envoyée en signature (Caissière pharmacie →
+// Caissière) ; suppression d'une séance par les administrateurs (séances de test).
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import toast from 'react-hot-toast';
-import { Loader, Sun, Moon, Plus, X, Lock, Search, AlertTriangle, History, Ban } from 'lucide-react';
+import { Loader, Sun, Moon, Plus, X, Lock, Search, AlertTriangle, History, Ban, Eye, Send, Trash2, FileCheck } from 'lucide-react';
 import { caissePharmacieAPI } from '../../services/phpService';
+import { showPdfPreview } from '../PdfPreviewModal';
 
 const fmt = (n) => (n == null ? '—' : `${Number(n).toLocaleString('fr-FR')}`);
 const fmtF = (n) => (n == null ? '—' : `${Number(n).toLocaleString('fr-FR')} FCFA`);
@@ -297,8 +300,112 @@ function Ouverture({ etat, onOpened, t }) {
   );
 }
 
+// ── Suppression (administrateurs) ───────────────────────────────────────────
+function SupprimerModal({ seance, onClose, onDone, t }) {
+  const [motif, setMotif] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    try { await caissePharmacieAPI.permanenceSupprimer(seance.id, motif); toast.success(t('Séance supprimée.')); onDone(); } catch (e) { toast.error(errMsg(e, t)); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title={t('Supprimer la séance')} onClose={onClose} width={460}>
+      <div style={{ fontSize: 13.5, marginBottom: 8 }}>
+        <span style={{ textTransform: 'capitalize' }}>{fmtDate(seance.date)}</span> · {t(PERIODES[seance.periode].label)} · {seance.caissiereNom}
+      </div>
+      <div style={{ fontSize: 12.5, color: 'var(--danger)', marginBottom: 10, display: 'flex', gap: 6 }}>
+        <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+        <span>{t('La séance et tous ses mouvements seront effacés. Si elle était en signature, le document est arrêté. Le contenu reste consultable dans le journal d’audit.')}</span>
+      </div>
+      <label style={label}>{t('Motif')} *<input autoFocus value={motif} onChange={(e) => setMotif(e.target.value)} style={input} placeholder={t('ex. séance de test')} /></label>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+        <button type="button" onClick={onClose} style={btn(false)}>{t('Retour')}</button>
+        <button type="button" onClick={submit} disabled={busy || !motif.trim()} style={btn(false, busy || !motif.trim(), true)}>{busy ? <Loader size={14} className="animate-spin" /> : <Trash2 size={14} />} {t('Supprimer')}</button>
+      </div>
+    </Modal>
+  );
+}
+
+const DOC_STATUS = { approved: 'Signée', pending_validation: 'En signature', in_progress: 'En signature' };
+const apercu = (seance, t) => showPdfPreview({
+  title: t('Caisse de permanence · {{d}} · {{p}}', { d: fmtShort(seance.date), p: t(PERIODES[seance.periode].label) }),
+  fileName: `caisse-permanence-${seance.date}-${seance.periode}.pdf`,
+  load: () => caissePharmacieAPI.permanencePdf(seance.id).then((r) => r.data),
+});
+
+// ── Détail d'une séance : aperçu PDF, envoi en signature, suppression ────────
+function SeanceDetail({ id, onClose, onChanged, t }) {
+  const [data, setData] = useState(null);
+  const [selections, setSelections] = useState({});
+  const [sending, setSending] = useState(false);
+  const [suppr, setSuppr] = useState(false);
+  const load = () => caissePharmacieAPI.permanenceSeance(id).then((r) => setData(r.data)).catch((e) => { toast.error(errMsg(e, t)); onClose(); });
+  useEffect(() => { load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!data) return null;
+  const detail = data.seance;
+  const steps = data.circuit?.steps || [];
+  const missing = steps.some((s) => s.needsSelection && !selections[s.key]);
+  const send = async () => {
+    setSending(true);
+    try {
+      const r = await caissePharmacieAPI.permanenceSoumettre(detail.id, selections);
+      toast.success(r.data.message);
+      await load(); onChanged?.();
+    } catch (e) { toast.error(errMsg(e, t)); } finally { setSending(false); }
+  };
+  return (
+    <Modal title={`${fmtDate(detail.date)} · ${t(PERIODES[detail.periode].label)} · ${detail.caissiereNom}`} onClose={onClose} width={860}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+        <button type="button" onClick={() => apercu(detail, t)} style={btn(false)}><Eye size={14} /> {t('Aperçu PDF')}</button>
+        {data.document && (
+          <a href={`/documents/${data.document.id}`} style={{ ...btn(false), textDecoration: 'none', color: 'var(--success)' }}>
+            <FileCheck size={14} /> {t(DOC_STATUS[data.document.status] || 'En signature')} · {t('voir le document')}
+          </a>
+        )}
+        <span style={{ flex: 1 }} />
+        {data.canDelete && <button type="button" onClick={() => setSuppr(true)} style={btn(false)}><Trash2 size={14} color="var(--danger)" /> {t('Supprimer la séance')}</button>}
+      </div>
+      {data.canSubmit && (
+        <div style={{ padding: 12, borderRadius: 10, border: '1px solid var(--brand)', background: 'var(--brand-soft)', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <strong style={{ fontSize: 14 }}>{t('Envoyer la séance en signature')}</strong>
+          {data.circuit?.error ? <div style={{ color: 'var(--danger)', fontSize: 13 }}>{data.circuit.error}</div> : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', fontSize: 13 }}>
+              {steps.map((s, i) => (
+                <React.Fragment key={s.key}>
+                  {i > 0 && <span style={{ color: 'var(--fg-subtle)' }}>→</span>}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: 'var(--fg-muted)' }}>{t(s.label)} :</span>
+                    {s.holders.length === 1 ? <strong>{s.holders[0].name}</strong> : (
+                      <select value={selections[s.key] || ''} onChange={(e) => setSelections((p) => ({ ...p, [s.key]: e.target.value }))} style={{ ...input, height: 32, fontSize: 13 }}>
+                        <option value="">{t('— choisir —')}</option>
+                        {s.holders.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+                      </select>
+                    )}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+          <div>
+            <button type="button" onClick={send} disabled={sending || missing || !!data.circuit?.error} style={btn(true, sending || missing || !!data.circuit?.error)}>
+              {sending ? <Loader size={14} className="animate-spin" /> : <Send size={14} />} {t('Envoyer en signature')}
+            </button>
+          </div>
+        </div>
+      )}
+      <Totaux seance={detail} t={t} />
+      <div style={{ fontSize: 12.5, color: 'var(--fg-muted)', margin: '10px 0' }}>
+        {t('Reçu à la prise de service')} : {fmtF(detail.montantRecu)} ({t('écart')} <Ecart value={detail.ecartReception} t={t} />){detail.noteOuverture ? ` — ${detail.noteOuverture}` : ''}
+        {detail.statut === 'cloturee' && <> · {t('Compté à la clôture')} : {fmtF(detail.especesComptees)} ({t('écart')} <Ecart value={detail.ecartCloture} t={t} />){detail.noteCloture ? ` — ${detail.noteCloture}` : ''}</>}
+      </div>
+      <Mouvements seance={detail} canEdit={false} t={t} />
+      {suppr && <SupprimerModal seance={detail} onClose={() => setSuppr(false)} onDone={() => { setSuppr(false); onChanged?.(); onClose(); }} t={t} />}
+    </Modal>
+  );
+}
+
 // ── Historique ──────────────────────────────────────────────────────────────
-function Historique({ refreshKey, t }) {
+function Historique({ refreshKey, onChanged, t }) {
   const [from, setFrom] = useState(isoAgo(7));
   const [to, setTo] = useState(isoToday());
   const [data, setData] = useState(null);
@@ -312,7 +419,7 @@ function Historique({ refreshKey, t }) {
     const h = setTimeout(() => caissePharmacieAPI.permanenceRecherche(q.trim()).then((r) => setResultats(r.data.resultats)).catch(() => {}), 300);
     return () => clearTimeout(h);
   }, [q]);
-  const open = (id) => caissePharmacieAPI.permanenceSeance(id).then((r) => setDetail(r.data.seance)).catch((e) => toast.error(errMsg(e, t)));
+  const open = (id) => setDetail(id);
   const th = { padding: '7px 8px', textAlign: 'right', fontSize: 11.5, fontWeight: 600, color: 'var(--fg-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' };
   const td = { padding: '7px 8px', borderBottom: '1px solid var(--border)', fontSize: 13, textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' };
   const x = data?.totaux;
@@ -355,7 +462,7 @@ function Historique({ refreshKey, t }) {
           <thead><tr>
             <th style={{ ...th, textAlign: 'left' }}>{t('Séance')}</th><th style={{ ...th, textAlign: 'left' }}>{t('Caissière')}</th>
             <th style={th}>{t('Ouverture')}</th><th style={th}>{t('Cautions')}</th><th style={th}>{t('Autres')}</th><th style={th}>{t('Sorties')}</th>
-            <th style={th}>Orange Money</th><th style={th}>{t('Espèces comptées')}</th><th style={th}>{t('Écart')}</th>
+            <th style={th}>Orange Money</th><th style={th}>{t('Espèces comptées')}</th><th style={th}>{t('Écart')}</th><th style={{ ...th, textAlign: 'left' }}>{t('Signature')}</th>
           </tr></thead>
           <tbody>
             {data?.seances.map((s) => (
@@ -366,22 +473,18 @@ function Historique({ refreshKey, t }) {
                 <td style={td}>{fmt(s.totaux.sorties)}</td><td style={td}>{fmt(s.totaux.orangeMoney)}</td>
                 <td style={td}>{s.statut === 'ouverte' ? <span style={{ color: 'var(--brand)' }}>{t('En cours')}</span> : fmt(s.especesComptees)}</td>
                 <td style={td}>{s.statut === 'cloturee' && <Ecart value={s.ecartCloture} t={t} />}</td>
+                <td style={{ ...td, textAlign: 'left' }}>
+                  {s.statut !== 'cloturee' ? '' : s.document
+                    ? <span style={{ color: s.document.status === 'approved' ? 'var(--success)' : 'var(--brand)', fontWeight: 600 }}>{t(DOC_STATUS[s.document.status] || 'En signature')}</span>
+                    : <span style={{ color: 'var(--warning)' }}>{t('À envoyer')}</span>}
+                </td>
               </tr>
             ))}
-            {data && !data.seances.length && <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: 'var(--fg-subtle)', padding: 20 }}>{t('Aucune séance sur cette période.')}</td></tr>}
+            {data && !data.seances.length && <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: 'var(--fg-subtle)', padding: 20 }}>{t('Aucune séance sur cette période.')}</td></tr>}
           </tbody>
         </table>
       </div>
-      {detail && (
-        <Modal title={`${fmtDate(detail.date)} · ${t(PERIODES[detail.periode].label)} · ${detail.caissiereNom}`} onClose={() => setDetail(null)} width={860}>
-          <Totaux seance={detail} t={t} />
-          <div style={{ fontSize: 12.5, color: 'var(--fg-muted)', margin: '10px 0' }}>
-            {t('Reçu à la prise de service')} : {fmtF(detail.montantRecu)} ({t('écart')} <Ecart value={detail.ecartReception} t={t} />){detail.noteOuverture ? ` — ${detail.noteOuverture}` : ''}
-            {detail.statut === 'cloturee' && <> · {t('Compté à la clôture')} : {fmtF(detail.especesComptees)} ({t('écart')} <Ecart value={detail.ecartCloture} t={t} />){detail.noteCloture ? ` — ${detail.noteCloture}` : ''}</>}
-          </div>
-          <Mouvements seance={detail} canEdit={false} t={t} />
-        </Modal>
-      )}
+      {detail && <SeanceDetail id={detail} onClose={() => setDetail(null)} onChanged={() => { load(); onChanged?.(); }} t={t} />}
     </div>
   );
 }
@@ -393,6 +496,8 @@ export default function CaissePermanence({ t }) {
   const [cloture, setCloture] = useState(false);
   const [annuler, setAnnuler] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [aEnvoyer, setAEnvoyer] = useState(null); // séance qu'on vient de clôturer → proposer l'envoi en signature
+  const [suppr, setSuppr] = useState(false);
   const load = () => caissePharmacieAPI.permanence().then((r) => { setEtat(r.data); setError(null); }).catch((e) => setError(errMsg(e, t)));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -418,7 +523,9 @@ export default function CaissePermanence({ t }) {
         <div className="ged-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <div style={{ flex: 1, minWidth: 0 }}>{title}</div>
+            {canEdit && <button type="button" onClick={() => apercu(seance, t)} style={btn(false)}><Eye size={14} /> {t('Aperçu PDF')}</button>}
             {canEdit && <button type="button" onClick={() => setCloture(true)} style={btn(false)}><Lock size={14} /> {t('Clôturer la séance')}</button>}
+            {etat.canDelete && <button type="button" onClick={() => setSuppr(true)} title={t('Supprimer la séance')} style={btn(false)}><Trash2 size={14} color="var(--danger)" /></button>}
           </div>
           {!canEdit && <div style={{ fontSize: 12.5, color: 'var(--fg-muted)' }}>{t('Seule la caissière de la séance peut saisir et clôturer.')}</div>}
           <Totaux seance={seance} t={t} />
@@ -431,9 +538,11 @@ export default function CaissePermanence({ t }) {
         <div className="ged-card" style={{ padding: 16, fontSize: 13, color: 'var(--fg-muted)' }}>{t('Aucune séance ouverte pour le moment.')}</div>
       )}
 
-      <Historique refreshKey={refreshKey} t={t} />
+      <Historique refreshKey={refreshKey} onChanged={load} t={t} />
 
-      {cloture && seance && <ClotureModal seance={seance} onClose={() => setCloture(false)} onDone={() => { setCloture(false); afterChange(); }} t={t} />}
+      {cloture && seance && <ClotureModal seance={seance} onClose={() => setCloture(false)} onDone={(s) => { setCloture(false); afterChange(); setAEnvoyer(s.id); }} t={t} />}
+      {aEnvoyer && <SeanceDetail id={aEnvoyer} onClose={() => setAEnvoyer(null)} onChanged={afterChange} t={t} />}
+      {suppr && seance && <SupprimerModal seance={seance} onClose={() => setSuppr(false)} onDone={() => { setSuppr(false); afterChange(); }} t={t} />}
       {annuler && <AnnulerModal mouvement={annuler} onClose={() => setAnnuler(null)} onDone={(s) => { setAnnuler(null); setSeance(s); }} t={t} />}
     </div>
   );

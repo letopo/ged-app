@@ -174,4 +174,7 @@ export const caissePharmacieAPI = {
   permanenceMouvement: (id, data) => api.post(`/caisse-pharmacie/permanence/seances/${id}/mouvements`, data),
   permanenceCloturer: (id, data) => api.post(`/caisse-pharmacie/permanence/seances/${id}/cloturer`, data),
   permanenceAnnuler: (id, motif) => api.post(`/caisse-pharmacie/permanence/mouvements/${id}/annuler`, { motif }),
+  permanencePdf: (id) => api.get(`/caisse-pharmacie/permanence/seances/${id}/pdf`, { responseType: 'blob' }),
+  permanenceSoumettre: (id, selections) => api.post(`/caisse-pharmacie/permanence/seances/${id}/soumettre`, { selections }),
+  permanenceSupprimer: (id, motif) => api.delete(`/caisse-pharmacie/permanence/seances/${id}`, { data: { motif } }),
 };
