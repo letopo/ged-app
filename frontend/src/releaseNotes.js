@@ -1337,6 +1337,19 @@ const RELEASE_NOTES = [
     ],
   },
   {
+    id: '2026-11-13-caisse-permanence-versee',
+    date: '2026-11-13',
+    target: '/caisse-pharmacie',
+    title: 'Caisse de permanence : versement, transmission et week-end',
+    access: (user) => user?.role === 'superadmin' || !!user?.canSeeCaissePharmacie,
+    items: [
+      'Quand la séance précédente a été clôturée et envoyée en signature, ses espèces sont considérées comme versées : la séance suivante démarre à 0 FCFA, sans écart à justifier, même si les signatures ne sont pas encore terminées.',
+      'En semaine, la séance précédente doit être envoyée en signature avant de prendre la caisse (bouton « Transmettre la séance précédente »).',
+      'Le week-end (du vendredi soir au dimanche jour), les espèces peuvent se cumuler d’une séance à l’autre jusqu’au lundi ; l’historique indique « Cumulée ».',
+      'À l’envoi en signature, choisissez à qui les espèces sont versées : la Caissière, ou la DG si la caisse est arrêtée avec la DG.',
+    ],
+  },
+  {
     id: '2026-11-12-bons-commande-sage',
     date: '2026-11-12',
     target: '/bons-commande',

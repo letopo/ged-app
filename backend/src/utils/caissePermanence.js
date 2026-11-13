@@ -37,6 +37,22 @@ export function periodeAt(now = new Date()) {
 export const seanceKey = (s) => `${s.date}#${s.periode === 'nuit' ? 1 : 0}`;
 export const nextSeance = (s) => (s.periode === 'jour' ? { date: s.date, periode: 'nuit' } : { date: addDays(s.date, 1), periode: 'jour' });
 
+/**
+ * Week-end (13/11/2026) : la Caissière principale est absente du vendredi soir
+ * au lundi matin. Une séance de ce créneau (vendredi nuit, samedi, dimanche jour)
+ * peut être transmise de main en main sans envoi en signature : les espèces se
+ * cumulent jusqu'au lundi (sauf si la caisse est arrêtée avec la DG). La nuit du
+ * dimanche se termine le lundi à 7 h : elle est versée à la Caissière.
+ * En semaine, une séance doit être envoyée en signature (versée) avant la suivante.
+ */
+export function cumulAutorise(s) {
+  const jour = new Date(`${s.date}T00:00:00Z`).getUTCDay(); // 0 = dimanche, 5 = vendredi, 6 = samedi
+  if (jour === 5) return s.periode === 'nuit';
+  if (jour === 6) return true;
+  if (jour === 0) return s.periode === 'jour';
+  return false;
+}
+
 /** Nombre de séances sautées entre deux séances (0 = consécutives). */
 export function seancesSautees(prev, next) {
   let n = 0;

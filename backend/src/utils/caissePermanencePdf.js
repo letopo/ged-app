@@ -18,9 +18,9 @@ const RED = rgb(0.75, 0.15, 0.15);
 const GREEN = rgb(0.1, 0.5, 0.25);
 
 /** Cadres : la caissière de la pharmacie qui a tenu la séance (son nom), puis la caissière. */
-export const permanenceSignatureLabels = (caissierePharmacie) => [
+export const permanenceSignatureLabels = (caissierePharmacie, destinataire = 'Caissière') => [
   caissierePharmacie ? `Caissière pharmacie : ${caissierePharmacie}` : 'Caissière pharmacie',
-  'Caissière',
+  destinataire,
 ];
 const PERIODES = { jour: 'Jour (7 h - 16 h 30)', nuit: 'Nuit (16 h 30 - 7 h)' };
 const fmtLong = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });

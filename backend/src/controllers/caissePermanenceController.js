@@ -7,17 +7,20 @@
 // Lecture : accès Caisse pharmacie ; saisie : personnel du service Pharmacie,
 // poste « Caisse pharmacie », superadmin. Suppression d'une séance : administrateurs.
 // 12/11/2026 : une séance clôturée part en signature (PDF) Caissière pharmacie → Caissière.
+// 13/11/2026 : séance envoyée en signature = espèces versées (la suivante démarre à 0) ;
+// en semaine, la précédente doit être envoyée avant d'ouvrir ; le week-end les espèces
+// peuvent se cumuler ; la caisse peut aussi être arrêtée avec la DG (circuit → DG).
 import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
 import { CaisseSeance, CaisseMouvement, AuditLog, Document, User, Workflow } from '../models/index.js';
 import { isPharmacieStaff } from '../utils/pieceDeCaisseChain.js';
-import { getUserPosteCodes } from '../utils/posteResolver.js';
+import { getUserPosteCodes, getPosteHoldersForAssignment } from '../utils/posteResolver.js';
 import { createWorkflowForDocument } from '../utils/workflowEngine.js';
 import { buildCaissePermanencePdf, permanenceSignatureLabels, seanceTitre } from '../utils/caissePermanencePdf.js';
 import { canAccessCaissePharmacie, CAISSE_CATEGORY, CAISSE_POSTE } from './caissePharmacieController.js';
 import {
-  TYPES, MODES, LIBELLES, periodeAt, seanceKey, nextSeance, seancesSautees,
+  TYPES, MODES, LIBELLES, periodeAt, cumulAutorise, seanceKey, nextSeance, seancesSautees,
   totauxSeance, soldesCourants, totalBilletage, parseMontant,
 } from '../utils/caissePermanence.js';
 
@@ -101,26 +104,59 @@ const seanceDocument = (tenantId, seanceId) => Document.findOne({
   attributes: ['id', 'title', 'status', 'createdAt'], order: [['createdAt', 'DESC']],
 });
 
-/** Circuit : la caissière de la pharmacie qui a tenu la séance, puis la Caissière (choix si plusieurs). */
+const DESTINATAIRES = {
+  caissier: { label: 'Caissière', error: 'Aucune caissière active (rôle « caissier »).' },
+  dg: { label: 'Directeur Général', error: 'Aucun titulaire actif du poste « DG ».' },
+};
+
+/**
+ * Circuit : la caissière de la pharmacie qui a tenu la séance, puis la personne
+ * qui reçoit les espèces : la Caissière (par défaut) ou la DG (caisse arrêtée avec
+ * la DG, surtout le week-end). Choix du titulaire si plusieurs.
+ */
 async function resolveCircuit(seance, sender, selections = {}) {
+  const destinataire = selections.destinataire === 'dg' ? 'dg' : 'caissier';
   const tenue = seance.caissiereId ? await User.findByPk(seance.caissiereId, { attributes: ['id', 'firstName', 'lastName', 'email'] }) : null;
   const first = tenue || sender;
   const steps = [{ key: 'pharmacie', label: 'Caissière pharmacie', holders: [{ id: first.id, name: fullName(first) }], chosenId: first.id, needsSelection: false }];
-  const caissiers = (await User.findAll({ where: { role: 'caissier', isActive: true, isAbsent: false }, attributes: ['id', 'firstName', 'lastName', 'email'] }))
-    .filter((u) => u.id !== first.id);
-  if (!caissiers.length) return { error: 'Aucune caissière active (rôle « caissier »).' };
-  const holders = caissiers.map((u) => ({ id: u.id, name: fullName(u) }));
-  const chosenId = holders.length === 1 ? holders[0].id : (holders.some((h) => h.id === selections.caissier) ? selections.caissier : null);
-  steps.push({ key: 'caissier', label: 'Caissière', holders, chosenId, needsSelection: !chosenId });
-  return { steps };
+  const users = destinataire === 'dg'
+    ? await getPosteHoldersForAssignment('dg')
+    : await User.findAll({ where: { role: 'caissier', isActive: true, isAbsent: false }, attributes: ['id', 'firstName', 'lastName', 'email'] });
+  const holders = users.filter((u) => u.id !== first.id).map((u) => ({ id: u.id, name: fullName(u) }));
+  const { label, error } = DESTINATAIRES[destinataire];
+  if (!holders.length) return { destinataire, error };
+  const chosenId = holders.length === 1 ? holders[0].id : (holders.some((h) => h.id === selections[destinataire]) ? selections[destinataire] : null);
+  steps.push({ key: destinataire, label, holders, chosenId, needsSelection: !chosenId });
+  return { destinataire, steps };
+}
+
+/**
+ * Solde que la séance suivante doit recevoir (13/11/2026). Une séance clôturée
+ * et envoyée en signature (document non refusé) a vu ses espèces versées à la
+ * Caissière : la suivante démarre à 0, même si les signatures ne sont pas finies.
+ * Sinon, les espèces comptées passent de main en main.
+ */
+async function passation(tenantId, derniere) {
+  if (!derniere) return { solde: null, versee: false };
+  const doc = derniere.statut === 'cloturee' ? await seanceDocument(tenantId, derniere.id) : null;
+  return doc ? { solde: 0, versee: true } : { solde: Number(derniere.especesComptees) || 0, versee: false };
 }
 
 async function signatureInfo(req, s) {
-  if (s.statut !== 'cloturee') return { document: null, circuit: null, canSubmit: false };
+  if (s.statut !== 'cloturee') return { document: null, circuit: null, circuitDg: null, canSubmit: false, cumulee: false };
   const document = await seanceDocument(req.tenantId, s.id);
-  const canSubmit = !document && canEditSeance(req, s);
-  return { document, circuit: canSubmit ? await resolveCircuit(s, req.user) : null, canSubmit };
+  // Espèces déjà reprises par la séance suivante (cumul du week-end) : rien à verser
+  const cumulee = !document && !!(await CaisseSeance.findOne({ where: { tenantId: req.tenantId, precedenteId: s.id }, attributes: ['id'] }));
+  const canSubmit = !document && !cumulee && canEditSeance(req, s);
+  return {
+    document, cumulee, canSubmit,
+    circuit: canSubmit ? await resolveCircuit(s, req.user) : null,
+    circuitDg: canSubmit ? await resolveCircuit(s, req.user, { destinataire: 'dg' }) : null,
+  };
 }
+
+/** En semaine, la séance précédente doit être envoyée en signature avant d'ouvrir la suivante. */
+const aTransmettre = (derniere, pass) => !!derniere && !pass.versee && !cumulAutorise(derniere);
 
 // GET /api/caisse-pharmacie/permanence — séance ouverte, ou ce qu'il faut pour en ouvrir une
 export const getEtat = guard(async (req, res) => {
@@ -133,12 +169,17 @@ export const getEtat = guard(async (req, res) => {
     const suite = derniere ? nextSeance(derniere) : courante;
     // On propose la séance en cours si elle est après la dernière, sinon la suivante
     const choix = derniere && seanceKey(courante) <= seanceKey(derniere) ? suite : courante;
+    const pass = await passation(req.tenantId, derniere);
     proposition = {
       ...choix,
       premiere: !derniere,
-      soldeOuverture: derniere ? Number(derniere.especesComptees) : null,
+      soldeOuverture: pass.solde,
+      versee: pass.versee,
+      especesVersees: pass.versee ? Number(derniere.especesComptees) || 0 : null,
       sautees: derniere ? seancesSautees(derniere, choix) : 0,
-      precedente: derniere ? { date: derniere.date, periode: derniere.periode, caissiereNom: derniere.caissiereNom } : null,
+      precedente: derniere ? { id: derniere.id, date: derniere.date, periode: derniere.periode, caissiereNom: derniere.caissiereNom } : null,
+      aTransmettre: aTransmettre(derniere, pass),
+      cumul: !!derniere && !pass.versee && !aTransmettre(derniere, pass),
     };
   }
   res.json({
@@ -161,7 +202,11 @@ export const ouvrirSeance = guard(async (req, res) => {
   let soldeOuverture;
   if (derniere) {
     if (seanceKey({ date, periode }) <= seanceKey(derniere)) throw httpError(400, 'Cette séance est antérieure ou égale à la dernière séance enregistrée.');
-    soldeOuverture = Number(derniere.especesComptees) || 0;
+    const pass = await passation(req.tenantId, derniere);
+    if (aTransmettre(derniere, pass)) {
+      throw httpError(409, `Transmettez d’abord la séance précédente (${derniere.caissiereNom || 'caissière'}, ${new Date(`${derniere.date}T12:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' })} ${derniere.periode}) : clôturez-la et envoyez-la en signature à la Caissière ou à la DG.`);
+    }
+    soldeOuverture = pass.solde;
   } else {
     soldeOuverture = parseMontant(req.body.soldeInitial, { allowZero: true });
     if (soldeOuverture == null) throw httpError(400, 'Première séance : saisissez le solde de départ (espèces en caisse).');
@@ -259,8 +304,15 @@ export const listSeances = guard(async (req, res) => {
     where: { tenantId: req.tenantId, category: CAISSE_CATEGORY, metadata: { sourceType: 'caisse_permanence', seanceId: { [Op.in]: rows.map((r) => r.id) } }, status: { [Op.ne]: 'rejected' } },
     attributes: ['id', 'status', 'metadata'],
   }) : [];
-  const docBySeance = new Map(docs.map((d) => [d.metadata?.seanceId, { id: d.id, status: d.status }]));
-  const seances = rows.map((s) => { const j = seanceJson(s, s.mouvements); delete j.mouvements; j.document = docBySeance.get(s.id) || null; return j; });
+  const docBySeance = new Map(docs.map((d) => [d.metadata?.seanceId, { id: d.id, status: d.status, versementA: d.metadata?.versementA || 'caissier' }]));
+  const suivantes = rows.length ? await CaisseSeance.findAll({ where: { tenantId: req.tenantId, precedenteId: { [Op.in]: rows.map((r) => r.id) } }, attributes: ['precedenteId'] }) : [];
+  const reprises = new Set(suivantes.map((x) => x.precedenteId));
+  const seances = rows.map((s) => {
+    const j = seanceJson(s, s.mouvements); delete j.mouvements;
+    j.document = docBySeance.get(s.id) || null;
+    j.cumulee = !j.document && reprises.has(s.id);
+    return j;
+  });
   const sum = (k) => seances.reduce((a, s) => a + (s.totaux?.[k] || 0), 0);
   res.json({
     success: true, from, to, seances,
@@ -296,13 +348,16 @@ export const soumettreSeance = guard(async (req, res) => {
   if (!canEditSeance(req, s)) throw httpError(403, `Seule ${s.caissiereNom} (caissière de cette séance) peut l’envoyer en signature.`);
   const existing = await seanceDocument(req.tenantId, s.id);
   if (existing) return res.status(409).json({ success: false, message: 'Cette séance est déjà en signature.', documentId: existing.id });
+  if (await CaisseSeance.findOne({ where: { tenantId: req.tenantId, precedenteId: s.id }, attributes: ['id'] })) {
+    throw httpError(409, 'Les espèces de cette séance ont été reprises par la séance suivante (cumul) : c’est la dernière séance du cumul qui est versée.');
+  }
   const circuit = await resolveCircuit(s, req.user, req.body?.selections || {});
   if (circuit.error) throw httpError(400, circuit.error);
   const missing = circuit.steps.find((st) => st.needsSelection);
   if (missing) return res.status(400).json({ success: false, message: `Choisissez le titulaire pour « ${missing.label} ».`, circuit });
 
   const json = seanceJson(s, s.mouvements);
-  const pdf = await buildCaissePermanencePdf(json, permanenceSignatureLabels(circuit.steps[0].holders[0].name));
+  const pdf = await buildCaissePermanencePdf(json, permanenceSignatureLabels(circuit.steps[0].holders[0].name, circuit.steps[1].label));
   const fileName = `caisse-permanence-${s.date}-${s.periode}-${Date.now()}.pdf`;
   await fs.writeFile(path.resolve(process.cwd(), 'uploads', fileName), pdf.buffer);
   const title = seanceTitre(json);
@@ -313,7 +368,8 @@ export const soumettreSeance = guard(async (req, res) => {
       sourceType: 'caisse_permanence', seanceId: s.id, seanceDate: s.date, seancePeriode: s.periode,
       especesComptees: json.especesComptees, ecartCloture: json.ecartCloture, totalEntrees: json.totaux.totalEntrees,
       signatureZones: pdf.signatureZones, signaturePage: pdf.signaturePage,
-      zonesParEtape: true, // Caissière pharmacie → cadre 1, Caissière → cadre 2
+      zonesParEtape: true, // Caissière pharmacie → cadre 1, Caissière (ou DG) → cadre 2
+      versementA: circuit.destinataire,
       envoyePar: fullName(req.user),
     },
     tenantId: req.tenantId,

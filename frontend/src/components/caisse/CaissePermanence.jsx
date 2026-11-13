@@ -252,7 +252,7 @@ function AnnulerModal({ mouvement, onClose, onDone, t }) {
 }
 
 // ── Ouverture d'une séance (passation) ───────────────────────────────────────
-function Ouverture({ etat, onOpened, t }) {
+function Ouverture({ etat, onOpened, onTransmettre, t }) {
   const p = etat.proposition;
   const [date, setDate] = useState(p.date);
   const [periode, setPeriode] = useState(p.periode);
@@ -262,7 +262,7 @@ function Ouverture({ etat, onOpened, t }) {
   const [busy, setBusy] = useState(false);
   const transmis = p.premiere ? toNum(initial) : p.soldeOuverture;
   const ecart = recu !== '' && Number.isFinite(toNum(recu)) && Number.isFinite(transmis) ? toNum(recu) - transmis : null;
-  const ok = recu !== '' && ecart != null && (ecart === 0 || note.trim()) && (!p.premiere || initial !== '');
+  const ok = !p.aTransmettre && recu !== '' && ecart != null && (ecart === 0 || note.trim()) && (!p.premiere || initial !== '');
   const submit = async () => {
     setBusy(true);
     try {
@@ -285,10 +285,25 @@ function Ouverture({ etat, onOpened, t }) {
       {p.sautees > 0 && date === p.date && periode === p.periode && (
         <div style={{ fontSize: 12.5, color: 'var(--warning)', display: 'flex', gap: 6 }}><AlertTriangle size={14} /> {t('{{n}} séance(s) sans caisse depuis la dernière clôture.', { n: p.sautees })}</div>
       )}
+      {p.aTransmettre && (
+        <div style={{ padding: 10, borderRadius: 8, border: '1px solid var(--warning)', fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+          <AlertTriangle size={15} color="var(--warning)" />
+          <span style={{ flex: 1, minWidth: 220 }}>
+            {t('La séance précédente ({{n}}, {{s}}) n’a pas été transmise : envoyez-la en signature (Caissière ou DG) avant de prendre la caisse.', { n: p.precedente.caissiereNom, s: `${fmtShort(p.precedente.date)} ${t(PERIODES[p.precedente.periode].label).toLowerCase()}` })}
+          </span>
+          <button type="button" onClick={() => onTransmettre(p.precedente.id)} style={btn(true)}><Send size={14} /> {t('Transmettre la séance précédente')}</button>
+        </div>
+      )}
       {p.premiere ? (
         <label style={label}>{t('Solde de départ (espèces en caisse, première séance)')} *<input value={initial} onChange={(e) => setInitial(e.target.value)} inputMode="numeric" style={input} /></label>
+      ) : p.versee ? (
+        <div style={{ fontSize: 13.5 }}>
+          {t('La caisse de {{n}} ({{s}}) a été clôturée et envoyée en signature : ses espèces ({{m}}) sont versées à la Caissière.', { n: p.precedente.caissiereNom, s: `${fmtShort(p.precedente.date)} ${t(PERIODES[p.precedente.periode].label).toLowerCase()}`, m: fmtF(p.especesVersees) })}{' '}
+          {t('Solde de départ :')} <strong>{fmtF(0)}</strong>
+        </div>
       ) : (
         <div style={{ fontSize: 13.5 }}>
+          {p.cumul && <span style={{ color: 'var(--fg-muted)' }}>{t('Week-end : les espèces se cumulent jusqu’au lundi.')} </span>}
           {t('Solde transmis par {{n}} ({{s}}) :', { n: p.precedente.caissiereNom, s: `${fmtShort(p.precedente.date)} ${t(PERIODES[p.precedente.periode].label).toLowerCase()}` })} <strong>{fmtF(p.soldeOuverture)}</strong>
         </div>
       )}
@@ -337,18 +352,20 @@ const apercu = (seance, t) => showPdfPreview({
 function SeanceDetail({ id, onClose, onChanged, t }) {
   const [data, setData] = useState(null);
   const [selections, setSelections] = useState({});
+  const [destinataire, setDestinataire] = useState('caissier');
   const [sending, setSending] = useState(false);
   const [suppr, setSuppr] = useState(false);
   const load = () => caissePharmacieAPI.permanenceSeance(id).then((r) => setData(r.data)).catch((e) => { toast.error(errMsg(e, t)); onClose(); });
   useEffect(() => { load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!data) return null;
   const detail = data.seance;
-  const steps = data.circuit?.steps || [];
+  const circuit = destinataire === 'dg' ? data.circuitDg : data.circuit;
+  const steps = circuit?.steps || [];
   const missing = steps.some((s) => s.needsSelection && !selections[s.key]);
   const send = async () => {
     setSending(true);
     try {
-      const r = await caissePharmacieAPI.permanenceSoumettre(detail.id, selections);
+      const r = await caissePharmacieAPI.permanenceSoumettre(detail.id, { ...selections, destinataire });
       toast.success(r.data.message);
       await load(); onChanged?.();
     } catch (e) { toast.error(errMsg(e, t)); } finally { setSending(false); }
@@ -368,7 +385,12 @@ function SeanceDetail({ id, onClose, onChanged, t }) {
       {data.canSubmit && (
         <div style={{ padding: 12, borderRadius: 10, border: '1px solid var(--brand)', background: 'var(--brand-soft)', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <strong style={{ fontSize: 14 }}>{t('Envoyer la séance en signature')}</strong>
-          {data.circuit?.error ? <div style={{ color: 'var(--danger)', fontSize: 13 }}>{data.circuit.error}</div> : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 13 }}>
+            <span style={{ color: 'var(--fg-muted)' }}>{t('Espèces versées à')} :</span>
+            <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}><input type="radio" checked={destinataire === 'caissier'} onChange={() => setDestinataire('caissier')} /> {t('la Caissière')}</label>
+            <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}><input type="radio" checked={destinataire === 'dg'} onChange={() => setDestinataire('dg')} /> {t('la DG (caisse arrêtée avec la DG)')}</label>
+          </div>
+          {circuit?.error ? <div style={{ color: 'var(--danger)', fontSize: 13 }}>{circuit.error}</div> : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', fontSize: 13 }}>
               {steps.map((s, i) => (
                 <React.Fragment key={s.key}>
@@ -387,11 +409,14 @@ function SeanceDetail({ id, onClose, onChanged, t }) {
             </div>
           )}
           <div>
-            <button type="button" onClick={send} disabled={sending || missing || !!data.circuit?.error} style={btn(true, sending || missing || !!data.circuit?.error)}>
+            <button type="button" onClick={send} disabled={sending || missing || !!circuit?.error} style={btn(true, sending || missing || !!circuit?.error)}>
               {sending ? <Loader size={14} className="animate-spin" /> : <Send size={14} />} {t('Envoyer en signature')}
             </button>
           </div>
         </div>
+      )}
+      {data.cumulee && (
+        <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 12 }}>{t('Espèces reprises par la séance suivante (cumul du week-end) : c’est la dernière séance du cumul qui est versée.')}</div>
       )}
       <Totaux seance={detail} t={t} />
       <div style={{ fontSize: 12.5, color: 'var(--fg-muted)', margin: '10px 0' }}>
@@ -475,7 +500,8 @@ function Historique({ refreshKey, onChanged, t }) {
                 <td style={td}>{s.statut === 'cloturee' && <Ecart value={s.ecartCloture} t={t} />}</td>
                 <td style={{ ...td, textAlign: 'left' }}>
                   {s.statut !== 'cloturee' ? '' : s.document
-                    ? <span style={{ color: s.document.status === 'approved' ? 'var(--success)' : 'var(--brand)', fontWeight: 600 }}>{t(DOC_STATUS[s.document.status] || 'En signature')}</span>
+                    ? <span style={{ color: s.document.status === 'approved' ? 'var(--success)' : 'var(--brand)', fontWeight: 600 }}>{t(DOC_STATUS[s.document.status] || 'En signature')}{s.document.versementA === 'dg' ? ` (${t('DG')})` : ''}</span>
+                    : s.cumulee ? <span style={{ color: 'var(--fg-muted)' }}>{t('Cumulée')}</span>
                     : <span style={{ color: 'var(--warning)' }}>{t('À envoyer')}</span>}
                 </td>
               </tr>
@@ -533,7 +559,7 @@ export default function CaissePermanence({ t }) {
           <Mouvements seance={seance} canEdit={canEdit} onAnnuler={setAnnuler} t={t} />
         </div>
       ) : etat.canWrite ? (
-        <Ouverture etat={etat} onOpened={afterChange} t={t} />
+        <Ouverture key={etat.proposition?.precedente?.id || 'premiere'} etat={etat} onOpened={afterChange} onTransmettre={setAEnvoyer} t={t} />
       ) : (
         <div className="ged-card" style={{ padding: 16, fontSize: 13, color: 'var(--fg-muted)' }}>{t('Aucune séance ouverte pour le moment.')}</div>
       )}
