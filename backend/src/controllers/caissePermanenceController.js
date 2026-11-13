@@ -115,6 +115,18 @@ async function resolveCircuit(seance, sender, selections = {}) {
   return { steps };
 }
 
+/**
+ * Solde que la séance suivante doit recevoir (13/11/2026). Une séance clôturée
+ * et envoyée en signature (document non refusé) a vu ses espèces versées à la
+ * Caissière : la suivante démarre à 0, même si les signatures ne sont pas finies.
+ * Sinon, les espèces comptées passent de main en main.
+ */
+async function passation(tenantId, derniere) {
+  if (!derniere) return { solde: null, versee: false };
+  const doc = derniere.statut === 'cloturee' ? await seanceDocument(tenantId, derniere.id) : null;
+  return doc ? { solde: 0, versee: true } : { solde: Number(derniere.especesComptees) || 0, versee: false };
+}
+
 async function signatureInfo(req, s) {
   if (s.statut !== 'cloturee') return { document: null, circuit: null, canSubmit: false };
   const document = await seanceDocument(req.tenantId, s.id);
@@ -133,10 +145,13 @@ export const getEtat = guard(async (req, res) => {
     const suite = derniere ? nextSeance(derniere) : courante;
     // On propose la séance en cours si elle est après la dernière, sinon la suivante
     const choix = derniere && seanceKey(courante) <= seanceKey(derniere) ? suite : courante;
+    const pass = await passation(req.tenantId, derniere);
     proposition = {
       ...choix,
       premiere: !derniere,
-      soldeOuverture: derniere ? Number(derniere.especesComptees) : null,
+      soldeOuverture: pass.solde,
+      versee: pass.versee,
+      especesVersees: pass.versee ? Number(derniere.especesComptees) || 0 : null,
       sautees: derniere ? seancesSautees(derniere, choix) : 0,
       precedente: derniere ? { date: derniere.date, periode: derniere.periode, caissiereNom: derniere.caissiereNom } : null,
     };
@@ -161,7 +176,7 @@ export const ouvrirSeance = guard(async (req, res) => {
   let soldeOuverture;
   if (derniere) {
     if (seanceKey({ date, periode }) <= seanceKey(derniere)) throw httpError(400, 'Cette séance est antérieure ou égale à la dernière séance enregistrée.');
-    soldeOuverture = Number(derniere.especesComptees) || 0;
+    soldeOuverture = (await passation(req.tenantId, derniere)).solde;
   } else {
     soldeOuverture = parseMontant(req.body.soldeInitial, { allowZero: true });
     if (soldeOuverture == null) throw httpError(400, 'Première séance : saisissez le solde de départ (espèces en caisse).');

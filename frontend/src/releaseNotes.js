@@ -1337,6 +1337,16 @@ const RELEASE_NOTES = [
     ],
   },
   {
+    id: '2026-11-13-caisse-permanence-versee',
+    date: '2026-11-13',
+    target: '/caisse-pharmacie',
+    title: 'Caisse de permanence : prise de service après un versement',
+    access: (user) => user?.role === 'superadmin' || !!user?.canSeeCaissePharmacie,
+    items: [
+      'Quand la séance précédente a été clôturée et envoyée en signature, ses espèces sont considérées comme versées à la Caissière : la séance suivante démarre à 0 FCFA, sans écart à justifier, même si les signatures ne sont pas encore terminées.',
+    ],
+  },
+  {
     id: '2026-11-12-bons-commande-sage',
     date: '2026-11-12',
     target: '/bons-commande',

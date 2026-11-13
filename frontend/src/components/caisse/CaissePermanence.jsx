@@ -287,6 +287,11 @@ function Ouverture({ etat, onOpened, t }) {
       )}
       {p.premiere ? (
         <label style={label}>{t('Solde de départ (espèces en caisse, première séance)')} *<input value={initial} onChange={(e) => setInitial(e.target.value)} inputMode="numeric" style={input} /></label>
+      ) : p.versee ? (
+        <div style={{ fontSize: 13.5 }}>
+          {t('La caisse de {{n}} ({{s}}) a été clôturée et envoyée en signature : ses espèces ({{m}}) sont versées à la Caissière.', { n: p.precedente.caissiereNom, s: `${fmtShort(p.precedente.date)} ${t(PERIODES[p.precedente.periode].label).toLowerCase()}`, m: fmtF(p.especesVersees) })}{' '}
+          {t('Solde de départ :')} <strong>{fmtF(0)}</strong>
+        </div>
       ) : (
         <div style={{ fontSize: 13.5 }}>
           {t('Solde transmis par {{n}} ({{s}}) :', { n: p.precedente.caissiereNom, s: `${fmtShort(p.precedente.date)} ${t(PERIODES[p.precedente.periode].label).toLowerCase()}` })} <strong>{fmtF(p.soldeOuverture)}</strong>
