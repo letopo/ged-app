@@ -4,6 +4,7 @@ import { verifySessionToken, sessionRejection } from './sessionTokens.js';
 import os from 'os';
 import { attachSignatureKiosk } from './signatureRequests.js';
 import { tenantNamespace } from '../config/database.js';
+import { isModuleActive } from './tenantModules.js';
 
 // Salles des files d'attente propres à chaque établissement (noms et téléphones des patients)
 const queueRoom = (tenantId, queueType) => `queue_${tenantId}_${queueType}`;
@@ -183,6 +184,8 @@ export const initializeSocket = (server) => {
   socket.on('chat:join', async (conversationId) => {
     if (typeof conversationId !== 'string' || conversationId.length >= 100) return;
     try {
+      // Module « Discussion » coupé : pas d'accès aux salons en temps réel
+      if (socket.tenantId && !(await isModuleActive(socket.tenantId, 'discussion'))) return;
       const { default: ChatMember } = await import('../models/ChatMember.js');
       const { default: Conversation } = await import('../models/Conversation.js');
       const [member, conv] = await Promise.all([

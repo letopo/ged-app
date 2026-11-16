@@ -166,8 +166,8 @@ const buildOrgGroups = (t, user) => {
       { path: '/audit-log',          icon: Shield,      label: t("Journal d'audit"),    adminOnly: true },
     ]},
     { id: 'rh', color: '#0D9488', icon: Users, label: t('Ressources humaines'), items: [
-      { path: '/employees',          icon: Users,       label: t('Employés'),           employeesAccess: true },
-      { path: '/schedules',          icon: Calendar,    label: t('Plannings'),          planningOnly: true },
+      { path: '/employees',          icon: Users,       label: t('Employés'),           employeesAccess: true, module: 'personnel' },
+      { path: '/schedules',          icon: Calendar,    label: t('Plannings'),          planningOnly: true, module: 'plannings' },
     ]},
     { id: 'parametrage', color: '#8B5CF6', icon: LayoutGrid, label: t('Paramétrage'), items: [
       { path: '/workflow-templates', icon: LayoutGrid,    label: t('Modèles workflow'), adminOnly: true },
@@ -356,7 +356,9 @@ const Sidebar = ({ user, onLogout, pendingCount, chatUnread }) => {
           <NavItem icon={Archive}     label={t('Archives')}         to="/archives"             active={isActive('/archives')} />
           <NavItem icon={CheckSquare}    label={t('Mes tâches')}       to="/my-tasks"             active={isActive('/my-tasks')} badge={pendingCount} urgent={pendingCount > 0} />
           <NavItem icon={GitBranch}      label={t('Workflow')}         to="/workflow-dashboard"   active={isActive('/workflow-dashboard')} />
-          <NavItem icon={MessageSquare} label={t('Discussion')}      to="/chat"                 active={isActive('/chat')} badge={chatUnread} urgent={chatUnread > 0} />
+          {hasModule(user, 'discussion') && (
+            <NavItem icon={MessageSquare} label={t('Discussion')}      to="/chat"                 active={isActive('/chat')} badge={chatUnread} urgent={chatUnread > 0} />
+          )}
         </NavSection>
 
         {orgGroups.length > 0 && (
@@ -821,7 +823,7 @@ const MoreSheet = ({ onClose, onNavigate, user }) => {
       { path: '/upload',             icon: Upload,        label: t('Upload') },
       { path: '/archives',           icon: Archive,       label: t('Archives') },
       { path: '/workflow-dashboard', icon: GitBranch,     label: t('Workflow') },
-      { path: '/chat',               icon: MessageSquare, label: t('Discussion') },
+      ...(hasModule(user, 'discussion') ? [{ path: '/chat', icon: MessageSquare, label: t('Discussion') }] : []),
     ]},
     ...buildOrgGroups(t, user),
     { id: 'systeme', label: t('Système'), color: '#64748B', items: [

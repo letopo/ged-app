@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
 import i18n from '../i18n/config';
+import { hasModule } from '../utils/modules';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
@@ -65,7 +66,7 @@ const Centered = ({ children, small }) => (
   </div>
 );
 
-export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
+function GlobalChatBubbleInner({ unreadCount = 0, onUnreadChange }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -474,4 +475,10 @@ export default function GlobalChatBubble({ unreadCount = 0, onUnreadChange }) {
       `}</style>
     </div>
   );
+}
+
+// Module « Discussion » coupé pour l'établissement : pas de bulle
+export default function GlobalChatBubble(props) {
+  const { user } = useAuth();
+  return hasModule(user, 'discussion') ? <GlobalChatBubbleInner {...props} /> : null;
 }

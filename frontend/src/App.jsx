@@ -383,12 +383,12 @@ function App() {
           <Route path="/nouveautes"           element={<PageWrapper><NouveautesPage /></PageWrapper>} />
           <Route path="/application-android"  element={<PageWrapper><ApplicationAndroidPage /></PageWrapper>} />
 
-          <Route path="/schedules"              element={<PageWrapper><SchedulesList /></PageWrapper>} />
-          <Route path="/schedules/create"       element={<PageWrapper><ScheduleCreate /></PageWrapper>} />
-          <Route path="/schedules/:id/edit"     element={<PageWrapper><ScheduleEdit /></PageWrapper>} />
-          <Route path="/schedules/:id/validate" element={<PageWrapper><ScheduleValidate /></PageWrapper>} />
-          <Route path="/schedules/:id"          element={<PageWrapper><ScheduleValidate /></PageWrapper>} />
-          <Route path="/schedules/:id/view"     element={<PageWrapper><ScheduleDetail /></PageWrapper>} />
+          <Route path="/schedules"              element={<ModuleRoute module="plannings"><PageWrapper><SchedulesList /></PageWrapper></ModuleRoute>} />
+          <Route path="/schedules/create"       element={<ModuleRoute module="plannings"><PageWrapper><ScheduleCreate /></PageWrapper></ModuleRoute>} />
+          <Route path="/schedules/:id/edit"     element={<ModuleRoute module="plannings"><PageWrapper><ScheduleEdit /></PageWrapper></ModuleRoute>} />
+          <Route path="/schedules/:id/validate" element={<ModuleRoute module="plannings"><PageWrapper><ScheduleValidate /></PageWrapper></ModuleRoute>} />
+          <Route path="/schedules/:id"          element={<ModuleRoute module="plannings"><PageWrapper><ScheduleValidate /></PageWrapper></ModuleRoute>} />
+          <Route path="/schedules/:id/view"     element={<ModuleRoute module="plannings"><PageWrapper><ScheduleDetail /></PageWrapper></ModuleRoute>} />
 
           {/* Routes avec permission spéciale */}
           <Route path="/user-management" element={<AdminRoute><PageWrapper><UserManagement /></PageWrapper></AdminRoute>} />
@@ -401,7 +401,7 @@ function App() {
           <Route path="/audit-log"       element={<AdminRoute><PageWrapper><AuditLogPage /></PageWrapper></AdminRoute>} />
           <Route path="/statistiques"    element={<AdminRoute><PageWrapper><StatistiquesPage /></PageWrapper></AdminRoute>} />
           <Route path="/workflow-templates" element={<AdminRoute><PageWrapper><WorkflowTemplatesPage /></PageWrapper></AdminRoute>} />
-          <Route path="/employees"       element={<EmployeesRoute><PageWrapper><EmployeeManagement /></PageWrapper></EmployeesRoute>} />
+          <Route path="/employees"       element={<ModuleRoute module="personnel"><EmployeesRoute><PageWrapper><EmployeeManagement /></PageWrapper></EmployeesRoute></ModuleRoute>} />
           <Route path="/vehicules"       element={<ModuleRoute module="vehicules"><PageWrapper><ParcVehicules /></PageWrapper></ModuleRoute>} />
           <Route path="/bloc-operatoire" element={<ModuleRoute module="bloc"><PageWrapper><ProgrammeOperatoire /></PageWrapper></ModuleRoute>} />
           <Route path="/gmao"            element={<ModuleRoute module="gmao"><GMAORoute><PageWrapper><GMAOPage /></PageWrapper></GMAORoute></ModuleRoute>} />
@@ -424,8 +424,8 @@ function App() {
           <Route path="/compta"            element={<ModuleRoute module="compta"><ComptaRoute><PageWrapper><ComptaDocuments /></PageWrapper></ComptaRoute></ModuleRoute>} />
           <Route path="/admin/droits-acces" element={<AdminRoute><PageWrapper><AccessControlPage /></PageWrapper></AdminRoute>} />
           {/* Module Discussion */}
-          <Route path="/chat"       element={<ChatPage />} />
-          <Route path="/chat/:convId" element={<ChatPage />} />
+          <Route path="/chat"       element={<ModuleRoute module="discussion"><ChatPage /></ModuleRoute>} />
+          <Route path="/chat/:convId" element={<ModuleRoute module="discussion"><ChatPage /></ModuleRoute>} />
           {/* Super Admin */}
           <Route path="/super-admin" element={<SuperAdminRoute><PageWrapper><SuperAdminPage /></PageWrapper></SuperAdminRoute>} />
           <Route path="/etat-serveur" element={<SuperAdminRoute><PageWrapper><EtatServeur /></PageWrapper></SuperAdminRoute>} />

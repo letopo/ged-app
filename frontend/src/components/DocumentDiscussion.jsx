@@ -11,8 +11,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
 import { MessageBubble, MessageInput, fmtDay, useReadTracking, readReceipt, SeenLine, useJumpToMessage, quoteOf } from './chat/ChatMessages';
+import { hasModule } from '../utils/modules';
 
-const DocumentDiscussion = ({ documentId, documentTitle }) => {
+const DocumentDiscussionInner = ({ documentId, documentTitle }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -261,6 +262,12 @@ const DocumentDiscussion = ({ documentId, documentTitle }) => {
       `}</style>
     </>
   );
+};
+
+// Module « Discussion » coupé pour l'établissement : pas de discussion de document
+const DocumentDiscussion = (props) => {
+  const { user } = useAuth();
+  return hasModule(user, 'discussion') ? <DocumentDiscussionInner {...props} /> : null;
 };
 
 export default DocumentDiscussion;

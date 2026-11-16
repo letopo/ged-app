@@ -82,7 +82,8 @@ test('nouvel établissement sans licence : modules verrouillés, le superadmin p
 });
 
 test('étape 2 : PHP, Bloc, GMAO et Demandes d’achat coupés → 403 MODULE_DISABLED, puis réactivés', async () => {
-  const cas = { php: '/api/php/patients', bloc: '/api/bloc/me', gmao: '/api/gmao/equipements', achats: '/api/demande-achat', compta: '/api/compta' };
+  const cas = { php: '/api/php/patients', bloc: '/api/bloc/me', gmao: '/api/gmao/equipements', achats: '/api/demande-achat', compta: '/api/compta',
+    discussion: '/api/chat/unread-count', plannings: '/api/schedules', personnel: '/api/employees' };
   for (const [key, url] of Object.entries(cas)) {
     const off = await request(app).put(`/api/modules/${key}`).set(as(f, admin)).send({ enabled: false });
     assert.equal(off.status, 200, `${key} : ${off.body?.message}`);
@@ -94,4 +95,19 @@ test('étape 2 : PHP, Bloc, GMAO et Demandes d’achat coupés → 403 MODULE_DI
     const back = await request(app).get(url).set(as(f, admin));
     assert.notEqual(back.body?.code, 'MODULE_DISABLED', url);
   }
+});
+
+test('Gestion du personnel coupée : la recherche des missionnaires (OM, pièce de caisse) reste ouverte', async () => {
+  await request(app).put('/api/modules/plannings').set(as(f, admin)).send({ enabled: false });
+  const off = await request(app).put('/api/modules/personnel').set(as(f, admin)).send({ enabled: false });
+  assert.equal(off.status, 200, off.body?.message);
+  const liste = await request(app).get('/api/employees/all').set(as(f, admin));
+  assert.equal(liste.body.code, 'MODULE_DISABLED');
+  const recherche = await request(app).get('/api/employees/mission-candidates').set(as(f, admin));
+  assert.notEqual(recherche.status, 403);
+  // Plannings dépend de Personnel : il ne se rallume pas seul
+  const dep = await request(app).put('/api/modules/plannings').set(as(f, admin)).send({ enabled: true });
+  assert.equal(dep.status, 400);
+  await request(app).put('/api/modules/personnel').set(as(f, admin)).send({ enabled: true }).expect(200);
+  await request(app).put('/api/modules/plannings').set(as(f, admin)).send({ enabled: true }).expect(200);
 });
