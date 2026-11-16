@@ -864,7 +864,7 @@ export default function AppShell({ onLogout }) {
   const { user, updateUser } = useAuth();
   const festive = useFestive();
 
-  // Droits d'affichage du menu (postes, BL Sage, parc véhicules) calculés par le
+  // Droits d'affichage du menu (postes, BL Sage, parc véhicules, modules) calculés par le
   // serveur : rafraîchis à l'ouverture, sinon un accès donné depuis la
   // connexion n'apparaîtrait qu'après s'être déconnecté / reconnecté.
   useEffect(() => {
@@ -872,8 +872,9 @@ export default function AppShell({ onLogout }) {
     authAPI.getProfile().then((res) => {
       const fresh = res.data?.user;
       if (!fresh) return;
-      const same = JSON.stringify([fresh.postes, fresh.canSeeSageBl, fresh.fleet, fresh.canSeeCaissePharmacie]) === JSON.stringify([user.postes, user.canSeeSageBl, user.fleet, user.canSeeCaissePharmacie]);
-      if (!same) updateUser({ ...user, postes: fresh.postes, canSeeSageBl: fresh.canSeeSageBl, fleet: fresh.fleet, canSeeCaissePharmacie: fresh.canSeeCaissePharmacie });
+      // modules : activés / désactivés dans Paramètres › Modules depuis la connexion
+      const same = JSON.stringify([fresh.postes, fresh.canSeeSageBl, fresh.fleet, fresh.canSeeCaissePharmacie, fresh.modules]) === JSON.stringify([user.postes, user.canSeeSageBl, user.fleet, user.canSeeCaissePharmacie, user.modules]);
+      if (!same) updateUser({ ...user, postes: fresh.postes, canSeeSageBl: fresh.canSeeSageBl, fleet: fresh.fleet, canSeeCaissePharmacie: fresh.canSeeCaissePharmacie, modules: fresh.modules });
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
