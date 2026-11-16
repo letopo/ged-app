@@ -1337,6 +1337,17 @@ const RELEASE_NOTES = [
     ],
   },
   {
+    id: '2026-11-17-modules-etape-2',
+    date: '2026-11-17',
+    target: 'app',
+    title: 'Paramètres › Modules : quatre modules de plus',
+    access: isAdmin,
+    items: [
+      'Le Module PHP, le Programme opératoire, la GMAO et les Demandes d’achat peuvent maintenant être activés ou désactivés dans Paramètres › Modules.',
+      'Chez vous, ils restent activés : rien ne change tant que personne ne les coupe.',
+    ],
+  },
+  {
     id: '2026-11-16-modules-par-tenant',
     date: '2026-11-16',
     target: 'app',

@@ -40,18 +40,18 @@ export const MODULES = [
   { key: 'plannings',         group: 'rh', label: 'Plannings',             description: 'Plannings de garde et leur validation', deps: ['personnel'] },
   { key: 'rh_documents',      group: 'rh', label: 'Documents RH',          description: 'BPC du personnel, certificat d’aptitude', deps: ['personnel'] },
   // Finances & achats
-  { key: 'achats',            group: 'finances', label: 'Demandes d’achat',       description: 'Demandes d’achat et leur suivi' },
+  { key: 'achats',            group: 'finances', label: 'Demandes d’achat',       description: 'Demandes d’achat et leur suivi', wired: true },
   { key: 'compta',            group: 'finances', label: 'Documents comptables',   description: 'Espace Comptabilité' },
   { key: 'sage',              group: 'finances', label: 'Intégration Sage 100',   description: 'Factures PHP, BL PHP, BPC, bons de commande lus dans Sage', wired: true },
   { key: 'caisse_pharmacie',  group: 'finances', label: 'Caisse pharmacie',       description: 'Relevé de caisse Sage, caisse de permanence jour / nuit', deps: ['sage'], wired: true },
   // Hôpital
-  { key: 'php',               group: 'hopital', label: 'Prise en charge du personnel (PHP)', description: 'Patients, consultations, pharmacie, repos, factures, statistiques' },
+  { key: 'php',               group: 'hopital', label: 'Prise en charge du personnel (PHP)', description: 'Patients, consultations, pharmacie, repos, factures, statistiques', wired: true },
   { key: 'dme',               group: 'hopital', label: 'Liaison DME',             description: 'Rapprochement avec le dossier médical, parcours hospitalier', deps: ['php'] },
-  { key: 'bloc',              group: 'hopital', label: 'Programme opératoire',    description: 'Programme du bloc de la semaine' },
+  { key: 'bloc',              group: 'hopital', label: 'Programme opératoire',    description: 'Programme du bloc de la semaine', wired: true },
   { key: 'affichage',         group: 'hopital', label: 'Affichage public',        description: 'Écran d’affichage des files d’attente' },
   // Logistique & technique
   { key: 'travaux',           group: 'logistique', label: 'Demandes de travaux & tickets', description: 'Demandes de travaux, tickets' },
-  { key: 'gmao',              group: 'logistique', label: 'GMAO',                 description: 'Maintenance des équipements', deps: ['travaux'] },
+  { key: 'gmao',              group: 'logistique', label: 'GMAO',                 description: 'Maintenance des équipements', deps: ['travaux'], wired: true },
   { key: 'vehicules',         group: 'logistique', label: 'Parc véhicules',       description: 'Ambulances, missions, contrôles, inventaire', wired: true },
   { key: 'trello',            group: 'logistique', label: 'Suivi technique',      description: 'Tableaux de suivi des demandes (MG, Biomédical, Informatique)', wired: true },
   // Options
