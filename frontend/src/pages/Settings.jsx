@@ -9,7 +9,7 @@ import {
   Home, Settings as SettingsIcon, Bell, Users, Sparkles, FileText,
   Zap, Shield, Database, Save, Loader, AlertCircle, CheckCircle,
   Lock, Eye, EyeOff, Upload, Pen, X, UploadCloud, Stamp, Mail, Timer, ShieldCheck,
-  ChevronRight, ChevronLeft,
+  ChevronRight, ChevronLeft, LayoutGrid,
 } from 'lucide-react';
 import LicenseManager from '../components/LicenseManager';
 import TwoFactorSetup from '../components/TwoFactorSetup';
@@ -22,6 +22,7 @@ import UserManagement from './UserManagement';
 import MailSettingsPanel from '../components/MailSettingsPanel';
 import TenantSettingsPanel from '../components/TenantSettingsPanel';
 import AiSettingsPanel from '../components/AiSettingsPanel';
+import ModulesPanel from '../components/ModulesPanel';
 import SageSettingsPanel from '../components/SageSettingsPanel';
 import DmeSettingsPanel from '../components/DmeSettingsPanel';
 import ConfidentialityPanel from '../components/ConfidentialityPanel';
@@ -47,6 +48,7 @@ const NAV = [
       { id: 'confidentiality', label: 'Confidentialité', icon: ShieldCheck, requires: 'admin', desc: 'Accès par type de document' },
       // Visible si le super-administrateur ou une délégation le permet (voir mailAccess)
       { id: 'mail',      label: 'Messagerie', icon: Mail, requires: 'mail', desc: 'Serveur d’envoi des e-mails' },
+      { id: 'modules',   label: 'Modules',    icon: LayoutGrid, requires: 'admin', desc: 'Modules activés pour l’établissement' },
       { id: 'templates', label: 'Licence',    icon: FileText, desc: 'Licence de la GED' },
     ],
   },
@@ -315,7 +317,7 @@ export default function Settings() {
 
       {/* ── Right content ───────────────────────────────────────────────── */}
       <main className="settings-main">
-        <div style={{ width:'100%', maxWidth: ['team','notifications'].includes(activeTab) ? 1100 : ['integrations','confidentiality'].includes(activeTab) ? 720 : 560 }}>
+        <div style={{ width:'100%', maxWidth: ['team','notifications'].includes(activeTab) ? 1100 : ['integrations','confidentiality','modules'].includes(activeTab) ? 720 : 560 }}>
 
           {/* Mobile : retour à la liste des rubriques */}
           <button type="button" className="settings-back" onClick={retourListe}>
@@ -623,6 +625,8 @@ export default function Settings() {
 
           {/* ── Confidentialité ───────────────────────────────────────────── */}
           {activeTab === 'confidentiality' && isOrgAdmin && <ConfidentialityPanel />}
+
+          {activeTab === 'modules' && isOrgAdmin && <ModulesPanel />}
 
           {/* ── Licence ───────────────────────────────────────────────────── */}
           {activeTab === 'templates' && (

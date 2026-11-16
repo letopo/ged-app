@@ -7,6 +7,7 @@ import PersonAutocomplete from '../../components/PersonAutocomplete';
 import { getMissionnaires } from '../../utils/omMissionnaires';
 import VehicleSelect from '../../components/vehicles/VehicleSelect';
 import { useFeatureNote } from '../../components/ReleaseNotes';
+import { hasModule } from '../../utils/modules';
 
 // Aperçu (lecture seule) des indemnités de repas calculées pour le missionnaire et
 // le conducteur — sert de référence à la comptable pour la pièce de caisse.
@@ -246,7 +247,7 @@ const OrdreDeMission = ({ formData, setFormData, pdfContainerRef }) => {
             />
           </div>
           <div>
-            {formData.type_mission === 'ro_sau' ? (
+            {formData.type_mission === 'ro_sau' && hasModule(user, 'vehicules') ? (
               <>
                 {/* RO SAU : ambulance du parc, avec l'état de son dernier contrôle */}
                 <label style={labelStyle}>🚑 {t('Ambulance')} *</label>

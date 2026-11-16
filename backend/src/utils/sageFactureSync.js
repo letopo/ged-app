@@ -22,6 +22,7 @@ import { createWorkflowFromTemplate } from './workflowEngine.js';
 import { buildFacturePhpPdf } from './facturePhpPdfBuilder.js';
 import { loadSageFacture } from './sageFactureData.js';
 import { decryptSecret } from './secretBox.js';
+import { isModuleActive } from './tenantModules.js';
 import { SAGE_DEFAULTS, sageConnectionConfig, fetchSageFactures, describeSageError, isIsoDate } from './integrations.js';
 
 // Libellés des cadres de signature = étapes du modèle de workflow (même ordre),
@@ -188,6 +189,13 @@ async function tick() {
     const every = Math.max(5, Number(integration.config?.syncIntervalMinutes) || SAGE_DEFAULTS.syncIntervalMinutes) * 60_000;
     const due = !integration.lastRunAt || now - new Date(integration.lastRunAt).getTime() >= every;
     if (!due || running.has(integration.tenantId)) continue;
+    // Module « Intégration Sage » coupé pour ce tenant : pas d'import automatique
+    try {
+      if (!(await isModuleActive(integration.tenantId, 'sage'))) continue;
+    } catch (err) {
+      console.warn('[Sage Sync] modules illisibles :', err.message);
+      continue;
+    }
     running.add(integration.tenantId);
     runSageSyncForTenant(integration)
       .catch(err => console.error('[Sage Sync] ❌ Erreur non interceptée :', err.message))

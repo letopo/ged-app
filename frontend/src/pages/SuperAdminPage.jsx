@@ -3,11 +3,13 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 import MailSettingsPanel from '../components/MailSettingsPanel';
+import ModulesPanel from '../components/ModulesPanel';
 import AiSettingsPanel from '../components/AiSettingsPanel';
 import SageSettingsPanel from '../components/SageSettingsPanel';
 
 // Réglages d'un client ouverts depuis la liste (fenêtre à onglets)
 const SETTINGS_TABS = [
+  { id: 'modules', label: 'Modules' },
   { id: 'mail', label: 'Messagerie' },
   { id: 'ai', label: 'IA · OCR' },
   { id: 'sage', label: 'Sage' },
@@ -364,7 +366,7 @@ export default function SuperAdminPage() {
       {settingsTenant && (
         <div role="dialog" aria-modal="true" onClick={e => { if (e.target === e.currentTarget) setSettingsTenant(null); }}
           style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}>
-          <div style={{ width: '100%', maxWidth: settingsTab === 'sage' ? 760 : 640, background: 'var(--surface)', borderRadius: 14, boxShadow: 'var(--shadow-3, 0 20px 50px rgba(0,0,0,.25))', padding: '24px 24px 20px', position: 'relative' }}>
+          <div style={{ width: '100%', maxWidth: ['sage', 'modules'].includes(settingsTab) ? 760 : 640, background: 'var(--surface)', borderRadius: 14, boxShadow: 'var(--shadow-3, 0 20px 50px rgba(0,0,0,.25))', padding: '24px 24px 20px', position: 'relative' }}>
             <button onClick={() => setSettingsTenant(null)} aria-label="Fermer"
               style={{ position: 'absolute', top: 14, right: 14, border: 'none', background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', padding: 4 }}>
               <X size={18} />
@@ -375,6 +377,7 @@ export default function SuperAdminPage() {
                 <button key={tab.id} type="button" className={settingsTab === tab.id ? 'is-active' : ''} onClick={() => setSettingsTab(tab.id)}>{tab.label}</button>
               ))}
             </div>
+            {settingsTab === 'modules' && <ModulesPanel tenantId={settingsTenant.id} />}
             {settingsTab === 'mail' && <MailSettingsPanel tenantId={settingsTenant.id} />}
             {settingsTab === 'ai' && <AiSettingsPanel tenantId={settingsTenant.id} />}
             {settingsTab === 'sage' && <SageSettingsPanel tenantId={settingsTenant.id} />}

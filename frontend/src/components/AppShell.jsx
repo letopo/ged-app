@@ -26,6 +26,7 @@ import { CampaignBadge, CampaignConfetti } from './Campaign';
 import toast from 'react-hot-toast';
 import { phpAccess } from '../utils/phpAccess';
 import { isAndroidApp, changerServeurGed, verifierMiseAJourAndroid } from '../utils/androidApp';
+import { hasModule } from '../utils/modules';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
 
@@ -127,6 +128,8 @@ const makeCanAccess = (user) => (item) => {
   if (!user) return false;
   const isAdmin = user.role === 'admin' || user.role === 'superadmin';
   if (item.superAdminOnly) return user.role === 'superadmin';
+  // Module désactivé pour l'établissement (Paramètres › Modules)
+  if (item.module && !hasModule(user, item.module)) return false;
   if (item.adminOnly && !isAdmin) return false;
   if (item.kanbanOnly)      return isAdmin || (user.postes || []).includes('kanban');
   if (item.rhOrAdminOnly)   return isAdmin || (user.postes || []).includes('rh');
@@ -180,10 +183,10 @@ const buildOrgGroups = (t, user) => {
       { path: '/demandes-achat',     icon: ShoppingCart,    label: t("Demandes d'achat"),    demandeAchatOnly: true },
       { path: '/compta',             icon: Calculator,      label: t('Comptabilité'),        comptaOnly: true },
       { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
-      { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageFacturesOnly: true },
-      { path: '/sage-bl-php',        icon: ClipboardList,   label: t('BL PHP en attente'),   sageBlOnly: true },
-      { path: '/caisse-pharmacie',   icon: Pill,            label: t('Caisse pharmacie'),    caissePharmacieOnly: true },
-      { path: '/bons-commande',      icon: ShoppingCart,    label: t('Bons de commande'),    bonsCommandeOnly: true },
+      { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageFacturesOnly: true, module: 'sage' },
+      { path: '/sage-bl-php',        icon: ClipboardList,   label: t('BL PHP en attente'),   sageBlOnly: true, module: 'sage' },
+      { path: '/caisse-pharmacie',   icon: Pill,            label: t('Caisse pharmacie'),    caissePharmacieOnly: true, module: 'caisse_pharmacie' },
+      { path: '/bons-commande',      icon: ShoppingCart,    label: t('Bons de commande'),    bonsCommandeOnly: true, module: 'sage' },
     ]},
     { id: 'bloc', color: '#0F766E', icon: Scissors, label: t('Bloc opératoire'), items: [
       { path: '/bloc-operatoire',    icon: Scissors,    label: t('Programme opératoire'), blocOnly: true },
@@ -194,10 +197,10 @@ const buildOrgGroups = (t, user) => {
       { path: '/php/pharmacie',      icon: Pill,        label: t('Pharmacie PHP'),      phpOnly: true },
     ]},
     { id: 'logistique', color: '#0284C7', icon: Ambulance, label: t('Logistique'), items: [
-      { path: '/vehicules',          icon: Ambulance,   label: t('Parc véhicules'),     fleetOnly: true },
+      { path: '/vehicules',          icon: Ambulance,   label: t('Parc véhicules'),     fleetOnly: true, module: 'vehicules' },
     ]},
     { id: 'technique', color: '#EA580C', icon: Wrench, label: t('Technique'), items: [
-      { path: '/kanban/MG',          icon: Kanban,      label: t('Suivi technique'),    kanbanOnly: true },
+      { path: '/kanban/MG',          icon: Kanban,      label: t('Suivi technique'),    kanbanOnly: true, module: 'trello' },
       { path: '/gmao',               icon: Wrench,      label: t('GMAO'),               gmaoOnly: true },
     ]},
   ]

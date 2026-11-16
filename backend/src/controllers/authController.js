@@ -14,6 +14,10 @@ const canSeeCaisseSafe = async (user, tenantId) => {
   return canAccessCaissePharmacie(user, tenantId).catch(() => false);
 };
 import { getTenantSettings } from '../utils/tenantSettings.js';
+import { getActiveModuleKeys } from '../utils/tenantModules.js';
+// Modules actifs du tenant (menus) ; illisibles → null : le menu reste tel quel,
+// le serveur continue de couper les routes (middleware/requireModule.js)
+const modulesSafe = (tenantId) => getActiveModuleKeys(tenantId).catch(() => null);
 import { sendEmailOtp, EmailOtpError, maskEmail } from '../utils/emailOtp.js';
 import { signSessionToken, revokeSessions, recordDeviceSession, revokeDeviceSession } from '../utils/sessionTokens.js';
 import { describeDevice } from '../utils/deviceLabel.js';
@@ -153,6 +157,7 @@ export async function completeLogin(req, res, user, { remember = false, method =
   userResult.canSeeSageBl = await canAccessSageBl(userResult, req.tenantId);
   userResult.canSeeCaissePharmacie = await canSeeCaisseSafe(userResult, req.tenantId);
   userResult.fleet = await fleetFlagsSafe(user);
+  userResult.modules = await modulesSafe(req.tenantId);
 
   // Audit login
   const { AuditLog } = await import('../models/index.js');
@@ -171,6 +176,7 @@ export const getProfile = async (req, res, next) => {
       userObj.canSeeSageBl = await canAccessSageBl(userObj, req.tenantId);
       userObj.canSeeCaissePharmacie = await canSeeCaisseSafe(userObj, req.tenantId);
       userObj.fleet = await fleetFlagsSafe(req.user);
+      userObj.modules = await modulesSafe(req.tenantId);
       res.json({ success: true, user: userObj });
     } catch (error) {
       next(error);
