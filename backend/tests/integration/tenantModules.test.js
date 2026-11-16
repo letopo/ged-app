@@ -82,7 +82,7 @@ test('nouvel établissement sans licence : modules verrouillés, le superadmin p
 });
 
 test('étape 2 : PHP, Bloc, GMAO et Demandes d’achat coupés → 403 MODULE_DISABLED, puis réactivés', async () => {
-  const cas = { php: '/api/php/patients', bloc: '/api/bloc/me', gmao: '/api/gmao/equipements', achats: '/api/demande-achat' };
+  const cas = { php: '/api/php/patients', bloc: '/api/bloc/me', gmao: '/api/gmao/equipements', achats: '/api/demande-achat', compta: '/api/compta' };
   for (const [key, url] of Object.entries(cas)) {
     const off = await request(app).put(`/api/modules/${key}`).set(as(f, admin)).send({ enabled: false });
     assert.equal(off.status, 200, `${key} : ${off.body?.message}`);

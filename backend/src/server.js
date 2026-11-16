@@ -275,7 +275,7 @@ app.use('/api/sage-factures', requireModule('sage'), sageFacturesRoutes); // ✅
 app.use('/api/sage-bl', requireModule('sage'), sageBlRoutes); // ✅ BL PHP en attente de facturation (lecture Sage)
 app.use('/api/caisse-pharmacie', requireModule('caisse_pharmacie'), caissePharmacieRoutes);
 app.use('/api/sage-bons-commande', requireModule('sage'), sageBonsCommandeRoutes);
-app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
+app.use('/api/compta',       requireModule('compta'), comptaRoutes);       // ✅ Pièces de caisse comptabilité
 app.use('/api/bloc',         requireModule('bloc'), blocRoutes);         // ✅ Programme opératoire de la semaine
 app.use('/api/template-permissions', templatePermissionRoutes);
 app.use('/api/notification-preferences', notificationPreferenceRoutes);

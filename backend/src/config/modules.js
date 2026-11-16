@@ -41,7 +41,8 @@ export const MODULES = [
   { key: 'rh_documents',      group: 'rh', label: 'Documents RH',          description: 'BPC du personnel, certificat d’aptitude', deps: ['personnel'] },
   // Finances & achats
   { key: 'achats',            group: 'finances', label: 'Demandes d’achat',       description: 'Demandes d’achat et leur suivi', wired: true },
-  { key: 'compta',            group: 'finances', label: 'Documents comptables',   description: 'Espace Comptabilité' },
+  // Espace Comptabilité (saisie / OCR / export). Le circuit de la pièce de caisse reste dans le socle.
+  { key: 'compta',            group: 'finances', label: 'Espace Comptabilité',    description: 'Saisie et lecture automatique (OCR) des pièces comptables, export CSV — le circuit des pièces de caisse reste toujours actif', wired: true },
   { key: 'sage',              group: 'finances', label: 'Intégration Sage 100',   description: 'Factures PHP, BL PHP, BPC, bons de commande lus dans Sage', wired: true },
   { key: 'caisse_pharmacie',  group: 'finances', label: 'Caisse pharmacie',       description: 'Relevé de caisse Sage, caisse de permanence jour / nuit', deps: ['sage'], wired: true },
   // Hôpital

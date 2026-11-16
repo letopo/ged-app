@@ -181,7 +181,7 @@ const buildOrgGroups = (t, user) => {
     ]},
     { id: 'finances', color: '#059669', icon: Calculator, label: t('Finances'), items: [
       { path: '/demandes-achat',     icon: ShoppingCart,    label: t("Demandes d'achat"),    demandeAchatOnly: true, module: 'achats' },
-      { path: '/compta',             icon: Calculator,      label: t('Comptabilité'),        comptaOnly: true },
+      { path: '/compta',             icon: Calculator,      label: t('Comptabilité'),        comptaOnly: true, module: 'compta' },
       { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
       { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageFacturesOnly: true, module: 'sage' },
       { path: '/sage-bl-php',        icon: ClipboardList,   label: t('BL PHP en attente'),   sageBlOnly: true, module: 'sage' },

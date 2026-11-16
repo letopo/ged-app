@@ -421,7 +421,7 @@ function App() {
           <Route path="/php/repos"         element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PHPReposHospit /></PageWrapper></PHPRoute></ModuleRoute>} />
           <Route path="/php/pharmacie"     element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PHPPharmacie /></PageWrapper></PHPRoute></ModuleRoute>} />
           <Route path="/php/factures"      element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PhpFactures /></PageWrapper></PHPRoute></ModuleRoute>} />
-          <Route path="/compta"            element={<ComptaRoute><PageWrapper><ComptaDocuments /></PageWrapper></ComptaRoute>} />
+          <Route path="/compta"            element={<ModuleRoute module="compta"><ComptaRoute><PageWrapper><ComptaDocuments /></PageWrapper></ComptaRoute></ModuleRoute>} />
           <Route path="/admin/droits-acces" element={<AdminRoute><PageWrapper><AccessControlPage /></PageWrapper></AdminRoute>} />
           {/* Module Discussion */}
           <Route path="/chat"       element={<ChatPage />} />
