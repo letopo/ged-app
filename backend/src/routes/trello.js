@@ -2,7 +2,6 @@
 
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import { checkLicense } from '../middleware/licenseCheck.js'; // <--- AJOUTER
 import { 
   getBoardByService, 
   createCard, 
@@ -19,7 +18,8 @@ import { fixUploadEncoding } from '../middleware/upload.js';
 
 const router = express.Router();
 
-router.use(protect, checkLicense('trello'));; // <--- PROTÉGER TOUTES LES ROUTES TRELLO
+// Licence : vérifiée par le module « trello » (requireModule dans server.js)
+router.use(protect);
 
 // Récupérer le tableau (Board)
 // GET /api/trello/board/MG

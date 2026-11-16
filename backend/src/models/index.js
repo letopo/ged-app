@@ -61,6 +61,7 @@ import TenantSettings from './TenantSettings.js'; // ✅ Délais et session par 
 import UserSession from './UserSession.js'; // Appareils connectés
 import UserPasskey from './UserPasskey.js'; // Connexion sans mot de passe
 import TenantIntegration from './TenantIntegration.js'; // ✅ Intégrations (IA, Sage) par tenant
+import TenantModule from './TenantModule.js'; // Modules activables par tenant
 import CategoryAccessRule from './CategoryAccessRule.js'; // ✅ Confidentialité par type de document
 import ComptaDoc from './ComptaDoc.js';   // ✅ Module Comptabilité (pièces de caisse)
 import BlocProgramme from './BlocProgramme.js';       // Programme opératoire de la semaine
@@ -158,6 +159,7 @@ const db = {
   UserSession,
   UserPasskey,
   TenantIntegration,
+  TenantModule,
   CategoryAccessRule,
   ComptaDoc,
   BlocProgramme,
@@ -353,6 +355,7 @@ export {
   UserSession,
   UserPasskey,
   TenantIntegration,
+  TenantModule,
   CategoryAccessRule,
   ComptaDoc,
   BlocProgramme,

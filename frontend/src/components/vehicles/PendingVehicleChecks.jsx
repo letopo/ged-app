@@ -9,17 +9,22 @@ import { useNavigate } from 'react-router-dom';
 import { Ambulance, ChevronRight } from 'lucide-react';
 import { vehiclesAPI } from '../../services/api';
 import { fmtDateTime } from './fleetUi';
+import { useAuth } from '../../contexts/AuthContext';
+import { hasModule } from '../../utils/modules';
 
 export default function PendingVehicleChecks({ style }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
+  const { user } = useAuth();
+  const actif = hasModule(user, 'vehicules');
 
   useEffect(() => {
+    if (!actif) return undefined;
     let alive = true;
     vehiclesAPI.myPending().then((r) => { if (alive) setItems(r.data.data || []); }).catch(() => {});
     return () => { alive = false; };
-  }, []);
+  }, [actif]);
 
   if (!items.length) return null;
   return (

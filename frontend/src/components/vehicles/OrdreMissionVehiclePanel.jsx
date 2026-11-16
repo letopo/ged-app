@@ -8,16 +8,21 @@ import { vehiclesAPI } from '../../services/api';
 import { SectionChips } from './FleetDashboard';
 import { MISSION_STATUS, fmtDateTime } from './fleetUi';
 import { StatusBadge } from './VehicleChecksTab';
+import { useAuth } from '../../contexts/AuthContext';
+import { hasModule } from '../../utils/modules';
 
 export default function OrdreMissionVehiclePanel({ documentId, secTitle }) {
   const { t } = useTranslation();
   const [m, setM] = useState(undefined);
+  const { user } = useAuth();
+  const actif = hasModule(user, 'vehicules');
   useEffect(() => {
+    if (!actif) { setM(null); return undefined; }
     let alive = true;
     setM(undefined);
     vehiclesAPI.byDocument(documentId).then((r) => { if (alive) setM(r.data.data); }).catch(() => { if (alive) setM(null); });
     return () => { alive = false; };
-  }, [documentId]);
+  }, [documentId, actif]);
   if (!m) return null;
   return (
     <div style={{ marginBottom: 22 }}>

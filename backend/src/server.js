@@ -84,6 +84,8 @@ import { startWorkflowExpireScheduler, expireOverdueWorkflows } from './utils/wo
 import { resolveTenant } from './middleware/tenant.js';
 import { requireFileAccess } from './utils/fileAccess.js';
 import superAdminRoutes from './routes/superAdmin.js';
+import tenantModulesRouter from './routes/tenantModules.js'; // Paramètres › Modules
+import { requireModule } from './middleware/requireModule.js'; // Modules activables par tenant
 import { Tenant as TenantModel } from './models/index.js';
 import { globalLimiter } from './middleware/rateLimiter.js';
 
@@ -243,6 +245,7 @@ app.use('/api', mailSettingsRouter);
 app.use('/api', tenantSettingsRouter);
 app.use('/api', integrationsRouter);
 app.use('/api', categoryAccessRouter);
+app.use('/api', tenantModulesRouter);
 app.use('/api/lists', listsRoutes);
 app.use('/api/holidays', holidaysRoutes);
 app.use('/api/employees', employeeRoutes);
@@ -252,7 +255,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/departments', departmentsRoutes);
 app.use('/api/shift-types', shiftTypesRoutes);
-app.use('/api/trello', trelloRoutes);
+app.use('/api/trello', requireModule('trello'), trelloRoutes);
 app.use('/api/license', licenseRoutes); // <--- AJOUTER
 app.use('/api/invoices', invoiceRoutes); // ✅ NOUVELLE ROUTE POUR LES FACTURES
 app.use('/api/demande-achat', demandeAchatRoutes); // ✅ NOUVELLE ROUTE POUR LES DEMANDES D'ACHAT
@@ -268,10 +271,10 @@ app.use('/api/php/rendez-vous', phpRendezVousRoutes);
 app.use('/api/php/factures', phpFacturesRoutes); // ✅ Factures prestataires (OCR)
 app.use('/api/php/import-excel', phpImportRoutes); // Import du classeur Excel du Point Focal
 app.use('/api/php/pharmacie', phpPharmacieRoutes); // Registre de pharmacie
-app.use('/api/sage-factures', sageFacturesRoutes); // ✅ Import auto factures PHP depuis Sage
-app.use('/api/sage-bl', sageBlRoutes); // ✅ BL PHP en attente de facturation (lecture Sage)
-app.use('/api/caisse-pharmacie', caissePharmacieRoutes);
-app.use('/api/sage-bons-commande', sageBonsCommandeRoutes);
+app.use('/api/sage-factures', requireModule('sage'), sageFacturesRoutes); // ✅ Import auto factures PHP depuis Sage
+app.use('/api/sage-bl', requireModule('sage'), sageBlRoutes); // ✅ BL PHP en attente de facturation (lecture Sage)
+app.use('/api/caisse-pharmacie', requireModule('caisse_pharmacie'), caissePharmacieRoutes);
+app.use('/api/sage-bons-commande', requireModule('sage'), sageBonsCommandeRoutes);
 app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
 app.use('/api/bloc',         blocRoutes);         // ✅ Programme opératoire de la semaine
 app.use('/api/template-permissions', templatePermissionRoutes);
@@ -279,7 +282,7 @@ app.use('/api/notification-preferences', notificationPreferenceRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/workflow-templates', workflowTemplateRoutes);
 app.use('/api/verify', verificationRoutes);
-app.use('/api/vehicles', vehicleRoutes); // Parc véhicules (ambulances RO SAU)
+app.use('/api/vehicles', requireModule('vehicules'), vehicleRoutes); // Parc véhicules (ambulances RO SAU)
 app.use('/api/signature-public', signaturePublicRoutes); // Tablette du guichet (jeton, sans connexion)
 app.use('/api/forms', formRoutes); // ✅ Form Builder
 app.use('/api/onlyoffice', onlyofficeRoutes);

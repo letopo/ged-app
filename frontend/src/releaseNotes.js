@@ -1337,6 +1337,19 @@ const RELEASE_NOTES = [
     ],
   },
   {
+    id: '2026-11-16-modules-par-tenant',
+    date: '2026-11-16',
+    target: 'app',
+    title: 'Paramètres › Modules',
+    access: isAdmin,
+    items: [
+      'Nouvelle rubrique Paramètres › Modules : chaque module de la GED (Sage, Caisse pharmacie, Parc véhicules, Suivi technique…) peut être activé ou désactivé pour l’établissement en un clic.',
+      'Un module désactivé disparaît des menus et ne répond plus du tout côté serveur ; ses tâches automatiques s’arrêtent.',
+      'Rien n’est supprimé : les documents déjà signés restent consultables dans les Archives, et le module peut être réactivé à tout moment.',
+      'Les modules disponibles dépendent de la licence ; chez vous, tous les modules restent activés.',
+    ],
+  },
+  {
     id: '2026-11-13-caisse-permanence-versee',
     date: '2026-11-13',
     target: '/caisse-pharmacie',

@@ -17,6 +17,7 @@ import { shiftDoneToday } from '../controllers/vehicleShiftController.js';
 import { deadlineStatus } from '../controllers/vehicleFleetController.js';
 import { inventoryDueToday } from '../controllers/vehicleInventoryController.js';
 import { doualaDay } from './vehicleChecklist.js';
+import { isModuleActive } from './tenantModules.js';
 
 const fmt = (d) => new Date(d).toLocaleString('fr-FR', { timeZone: 'Africa/Douala', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -199,7 +200,11 @@ async function checkTenant(tenantId) {
 export async function runVehicleAlerts() {
   try {
     const tenants = await Tenant.findAll({ where: { isActive: true }, attributes: ['id'] });
-    for (const t of tenants) await checkTenant(t.id);
+    for (const t of tenants) {
+      // Module « Parc véhicules » coupé : aucune alerte pour ce tenant
+      if (!(await isModuleActive(t.id, 'vehicules'))) continue;
+      await checkTenant(t.id);
+    }
   } catch (err) {
     console.warn('[Parc véhicules] alertes :', err.message);
   }

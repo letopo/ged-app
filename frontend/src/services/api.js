@@ -763,6 +763,13 @@ export const integrationsAPI = {
   sync:    (tenantId)             => api.post(`${integrationUrl('sage', tenantId)}/sync`),
 };
 
+// Paramètres › Modules : tenant courant, ou un tenant précis pour le superadmin
+const modulesUrl = (tenantId) => (tenantId ? `/super-admin/tenants/${tenantId}/modules` : '/modules');
+export const modulesAPI = {
+  get: (tenantId)            => api.get(modulesUrl(tenantId)),
+  set: (key, data, tenantId) => api.put(`${modulesUrl(tenantId)}/${key}`, data),
+};
+
 // Paramètres › Confidentialité (administrateurs)
 export const categoryAccessAPI = {
   get:  ()      => api.get('/category-access-rules'),

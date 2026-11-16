@@ -94,6 +94,22 @@ const RouteLoader = () => (
 
 /* ── Route guards ─────────────────────────────────────────────── */
 
+// Module désactivé pour l'établissement (Paramètres › Modules) : page d'information
+const ModuleRoute = ({ module, children }) => {
+  const { user } = useAuth();
+  if (hasModule(user, module)) return children;
+  return (
+    <div style={{ maxWidth: 520, margin: '80px auto', padding: '0 16px', textAlign: 'center' }}>
+      <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--fg)', margin: '0 0 8px' }}>Module non activé</h2>
+      <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0, lineHeight: 1.6 }}>
+        Ce module n'est pas activé pour votre établissement. Les documents déjà signés restent consultables dans les Archives.
+        Pour l'activer, contactez votre administrateur (Paramètres › Modules).
+      </p>
+    </div>
+  );
+};
+
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return <RouteLoader />;
@@ -200,6 +216,7 @@ const ManagementRoute = ({ children }) => {
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 import { useEffect, useState } from 'react';
 import { phpAccess } from './utils/phpAccess';
+import { hasModule } from './utils/modules';
 
 // Bannière discrète affichée quand un admin modifie les droits de l'utilisateur connecté
 function RightsBanner() {
@@ -360,7 +377,7 @@ function App() {
           <Route path="/create-work-request"  element={<PageWrapper><CreateWorkRequest /></PageWrapper>} />
           <Route path="/demandes-achat"       element={<PageWrapper><DemandeAchatDashboard /></PageWrapper>} />
           <Route path="/invoices"             element={<ManagementRoute><PageWrapper><InvoiceDashboard /></PageWrapper></ManagementRoute>} />
-          <Route path="/kanban/:serviceType"  element={<KanbanRoute><PageWrapper><TrelloBoard /></PageWrapper></KanbanRoute>} />
+          <Route path="/kanban/:serviceType"  element={<KanbanRoute><ModuleRoute module="trello"><PageWrapper><TrelloBoard /></PageWrapper></ModuleRoute></KanbanRoute>} />
           <Route path="/settings"             element={<PageWrapper><Settings /></PageWrapper>} />
           <Route path="/parametres/notifications" element={<PageWrapper><NotificationSettings /></PageWrapper>} />
           <Route path="/nouveautes"           element={<PageWrapper><NouveautesPage /></PageWrapper>} />
@@ -375,17 +392,17 @@ function App() {
 
           {/* Routes avec permission spéciale */}
           <Route path="/user-management" element={<AdminRoute><PageWrapper><UserManagement /></PageWrapper></AdminRoute>} />
-          <Route path="/sage-factures-php" element={<PageWrapper><SageFacturesPHP /></PageWrapper>} />
-          <Route path="/sage-bl-php"       element={<PageWrapper><SageBlPhp /></PageWrapper>} />
-          <Route path="/caisse-pharmacie"  element={<PageWrapper><CaissePharmacie /></PageWrapper>} />
-          <Route path="/bons-commande"     element={<PageWrapper><BonsCommande /></PageWrapper>} />
+          <Route path="/sage-factures-php" element={<ModuleRoute module="sage"><PageWrapper><SageFacturesPHP /></PageWrapper></ModuleRoute>} />
+          <Route path="/sage-bl-php"       element={<ModuleRoute module="sage"><PageWrapper><SageBlPhp /></PageWrapper></ModuleRoute>} />
+          <Route path="/caisse-pharmacie"  element={<ModuleRoute module="caisse_pharmacie"><PageWrapper><CaissePharmacie /></PageWrapper></ModuleRoute>} />
+          <Route path="/bons-commande"     element={<ModuleRoute module="sage"><PageWrapper><BonsCommande /></PageWrapper></ModuleRoute>} />
           <Route path="/postes"          element={<AdminRoute><PageWrapper><PostesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/services"        element={<AdminRoute><PageWrapper><ServicesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/audit-log"       element={<AdminRoute><PageWrapper><AuditLogPage /></PageWrapper></AdminRoute>} />
           <Route path="/statistiques"    element={<AdminRoute><PageWrapper><StatistiquesPage /></PageWrapper></AdminRoute>} />
           <Route path="/workflow-templates" element={<AdminRoute><PageWrapper><WorkflowTemplatesPage /></PageWrapper></AdminRoute>} />
           <Route path="/employees"       element={<EmployeesRoute><PageWrapper><EmployeeManagement /></PageWrapper></EmployeesRoute>} />
-          <Route path="/vehicules"       element={<PageWrapper><ParcVehicules /></PageWrapper>} />
+          <Route path="/vehicules"       element={<ModuleRoute module="vehicules"><PageWrapper><ParcVehicules /></PageWrapper></ModuleRoute>} />
           <Route path="/bloc-operatoire" element={<PageWrapper><ProgrammeOperatoire /></PageWrapper>} />
           <Route path="/gmao"            element={<GMAORoute><PageWrapper><GMAOPage /></PageWrapper></GMAORoute>} />
           {/* ── Form Builder ── */}

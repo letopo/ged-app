@@ -13,6 +13,7 @@ import { superGetMailSettings, superUpdateMailSettings, superTestMailSettings } 
 import {
   superGetIntegration, superUpdateIntegration, superTestIntegration, superPreviewSage, superSyncSage,
 } from '../controllers/integrationController.js';
+import { superGetModules, superUpdateModule } from '../controllers/tenantModulesController.js';
 
 const router = express.Router();
 
@@ -34,6 +35,9 @@ router.post('/tenants/:id/integrations/sage/sync',    superSyncSage);
 router.get('/tenants/:id/integrations/:kind',         superGetIntegration);
 router.put('/tenants/:id/integrations/:kind',         superUpdateIntegration);
 router.post('/tenants/:id/integrations/:kind/test',   superTestIntegration);
+// Modules activables d'un tenant
+router.get('/tenants/:id/modules',      superGetModules);
+router.put('/tenants/:id/modules/:key', superUpdateModule);
 router.patch('/tenants/:id/status', setTenantStatus);
 router.delete('/tenants/:id',  deleteTenant);
 

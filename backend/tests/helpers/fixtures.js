@@ -6,8 +6,9 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { tenantNamespace } from '../../src/config/database.js';
 import {
-  Tenant, User, Service, ServiceMember, Poste, UserPoste, Document, Workflow, DocumentTransmission, TenantSettings,
+  Tenant, User, Service, ServiceMember, Poste, UserPoste, Document, Workflow, DocumentTransmission, TenantSettings, TenantModule,
 } from '../../src/models/index.js';
+import { MODULE_KEYS } from '../../src/config/modules.js';
 
 const uid = () => crypto.randomBytes(4).toString('hex');
 
@@ -21,9 +22,16 @@ export function inTenant(tenantId, fn) {
 
 // domainSuffix : domaine accepté par CORS (ex. 'hsjmcam.net') pour les tests
 // qui envoient un en-tête Origin, comme le navigateur (connexion par passkey)
-export async function createTenant({ domainSuffix = 'test' } = {}) {
+// modules : 'all' (défaut) = comme un établissement existant, tous les modules
+// accordés et actifs (migration 20261116100000) ; [] = nouvel établissement sans licence.
+export async function createTenant({ domainSuffix = 'test', modules = 'all' } = {}) {
   const slug = `test-${uid()}`;
-  return Tenant.create({ name: `Hôpital ${slug}`, slug, domain: `${slug}.${domainSuffix}` });
+  const tenant = await Tenant.create({ name: `Hôpital ${slug}`, slug, domain: `${slug}.${domainSuffix}` });
+  const keys = modules === 'all' ? MODULE_KEYS : modules;
+  if (keys.length) {
+    await TenantModule.bulkCreate(keys.map(moduleKey => ({ tenantId: tenant.id, moduleKey, enabled: true, granted: true })));
+  }
+  return tenant;
 }
 
 export function makeFactory(tenant) {
