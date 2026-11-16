@@ -56,15 +56,10 @@ export default function ChecklistEditor() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {tpl.vehicleType === 'ambulance' && (
-        <label className="ged-card" style={{ padding: 14, display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-          <input type="checkbox" checked={tpl.missionChecks !== false} onChange={(e) => update((n) => { n.missionChecks = e.target.checked; })} style={{ marginTop: 3 }} />
-          <span>
-            <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{t('Contrôle de départ et de retour à chaque mission')}</span>
-            <span style={{ display: 'block', fontSize: 12, color: 'var(--fg-muted)' }}>
-              {t('Décoché (RO SAU) : le matériel vital et l\'oxygène sont contrôlés une fois par jour sur la fiche « Prise de poste », avec les points de la section du soignant ci-dessous.')}
-            </span>
-          </span>
-        </label>
+        <div className="ged-card" style={{ padding: 14, fontSize: 12, color: 'var(--fg-muted)' }}>
+          <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--fg)', marginBottom: 2 }}>{t('Pas de contrôle de départ ni de retour pour les ambulances')}</span>
+          {t('L\'ordre de mission est monté au retour de l\'ambulance (heures de départ et de retour) : le matériel vital et l\'oxygène sont contrôlés une fois par jour sur la fiche « Prise de poste », avec les points de la section du soignant ci-dessous.')}
+        </div>
       )}
       <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
         {t('Chaque section est contrôlée et signée séparément (ex. Véhicule par le chauffeur, Matériel médical par l\'infirmier). Un point « critique » en anomalie au retour rend le véhicule indisponible.')}

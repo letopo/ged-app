@@ -91,9 +91,9 @@ export default function FleetDashboard({ onVehiclesChanged }) {
       {s && (
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {stat(t('Missions'), s.missions)}
-          {stat(t('Départs contrôlés'), pctOf(s.departComplete, s.relevant), t('{{n}} sur {{total}} (100 % de la check-list)', { n: s.departComplete, total: s.relevant }))}
-          {stat(t('Retours contrôlés'), pctOf(s.retourComplete, s.finished), t('{{n}} sur {{total}} missions terminées', { n: s.retourComplete, total: s.finished }))}
-          {stat(t('Départs sans contrôle'), s.withoutDepartCheck, null, s.withoutDepartCheck ? '#dc2626' : undefined)}
+          {s.checkedMissions > 0 && stat(t('Départs contrôlés'), pctOf(s.departComplete, s.relevant), t('{{n}} sur {{total}} (100 % de la check-list)', { n: s.departComplete, total: s.relevant }))}
+          {s.checkedMissions > 0 && stat(t('Retours contrôlés'), pctOf(s.retourComplete, s.finished), t('{{n}} sur {{total}} missions terminées', { n: s.retourComplete, total: s.finished }))}
+          {s.checkedMissions > 0 && stat(t('Départs sans contrôle'), s.withoutDepartCheck, null, s.withoutDepartCheck ? '#dc2626' : undefined)}
           {stat(t('Anomalies signalées'), s.anomalies, null, s.anomalies ? '#ea580c' : undefined)}
         </div>
       )}
@@ -141,14 +141,22 @@ export default function FleetDashboard({ onVehiclesChanged }) {
                       {m.alerts.retourMissing && <span style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c', background: '#fee2e2', borderRadius: 999, padding: '2px 8px', display: 'inline-flex', gap: 4, alignItems: 'center' }}><AlertTriangle size={11} /> {t('Retour non contrôlé')}</span>}
                     </div>
                   </div>
-                  <div style={{ flex: '1 1 150px' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', marginBottom: 4 }}>{t('Départ')}</div>
-                    <SectionChips phase={m.depart} />
-                  </div>
-                  <div style={{ flex: '1 1 150px' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', marginBottom: 4 }}>{t('Retour')}</div>
-                    {m.status === 'planifiee' ? <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>—</span> : <SectionChips phase={m.retour} />}
-                  </div>
+                  {m.missionChecks === false ? (
+                    <div style={{ flex: '2 1 300px', fontSize: 12, color: 'var(--fg-muted)', alignSelf: 'center' }}>
+                      {t('Ambulance contrôlée à la prise de poste (pas de contrôle de départ ni de retour : l\'OM est monté au retour).')}
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ flex: '1 1 150px' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', marginBottom: 4 }}>{t('Départ')}</div>
+                        <SectionChips phase={m.depart} />
+                      </div>
+                      <div style={{ flex: '1 1 150px' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', marginBottom: 4 }}>{t('Retour')}</div>
+                        {m.status === 'planifiee' ? <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>—</span> : <SectionChips phase={m.retour} />}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             );

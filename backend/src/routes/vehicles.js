@@ -15,6 +15,7 @@ import {
 import { getInventoryState, submitInventory, listInventories, getInventoryPdf } from '../controllers/vehicleInventoryController.js';
 import { listShortages, orderShortages, setShortageStatus, restockVehicle } from '../controllers/vehicleShortageController.js';
 import { getShiftState, submitShift, getShiftPdf } from '../controllers/vehicleShiftController.js';
+import { getOxygen, createOxygenOrder, receiveOxygenOrder, cancelOxygenOrder } from '../controllers/vehicleOxygenController.js';
 
 const router = express.Router();
 router.use(protect);
@@ -42,6 +43,11 @@ router.get('/inventories/:iid/pdf', getInventoryPdf);
 router.get('/shift', getShiftState);
 router.post('/shift', submitShift);
 router.get('/shift/:sid/pdf', getShiftPdf);
+// Oxygène des ambulances : carte, consommation, commandes (Biomédical)
+router.get('/oxygen', getOxygen);
+router.post('/oxygen/orders', createOxygenOrder);
+router.post('/oxygen/orders/:oid/receive', receiveOxygenOrder);
+router.post('/oxygen/orders/:oid/cancel', cancelOxygenOrder);
 router.get('/shortages', listShortages);
 router.post('/shortages/order', orderShortages);
 router.post('/shortages/:sid/status', setShortageStatus);

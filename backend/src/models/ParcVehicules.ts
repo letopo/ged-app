@@ -408,6 +408,8 @@ export class VehicleShiftCheck extends Model<InferAttributes<VehicleShiftCheck>,
   declare vehicles: CreationOptional<unknown[]>;
   declare reserveFull: number | null;
   declare reserveEmpty: number | null;
+  /** Bouteilles commandées non livrées au moment de la prise de poste (commandes en cours) */
+  declare reserveOrdered: CreationOptional<number | null>;
   declare oxygenLevel: string | null;
   declare anomalies: CreationOptional<number>;
   declare criticalAnomaly: CreationOptional<boolean>;
@@ -429,6 +431,7 @@ initModel(VehicleShiftCheck, {
   vehicles: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
   reserveFull: { type: DataTypes.INTEGER, allowNull: true, field: 'reserve_full' },
   reserveEmpty: { type: DataTypes.INTEGER, allowNull: true, field: 'reserve_empty' },
+  reserveOrdered: { type: DataTypes.INTEGER, allowNull: true, field: 'reserve_ordered' },
   oxygenLevel: { type: DataTypes.STRING(20), allowNull: true, field: 'oxygen_level' },
   anomalies: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   criticalAnomaly: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'critical_anomaly' },
@@ -441,6 +444,49 @@ initModel(VehicleShiftCheck, {
   sha256: { type: DataTypes.STRING(64), allowNull: true },
   tenantId,
 }, opts('VehicleShiftCheck', 'vehicle_shift_checks'));
+
+// Commande de bouteilles d'oxygène (17/11/2026) : passée dans la GED ou
+// signalée « déjà faite » par le Biomédical, puis marquée reçue à la livraison.
+export class VehicleOxygenOrder extends Model<InferAttributes<VehicleOxygenOrder>, InferCreationAttributes<VehicleOxygenOrder>> {
+  declare id: Id;
+  declare quantity: number;
+  declare supplier: string | null;
+  /** ged | externe (commande déjà faite hors de la GED) */
+  declare source: CreationOptional<string>;
+  declare orderedOn: string;
+  declare expectedOn: string | null;
+  declare note: string | null;
+  /** commandee | recue | annulee */
+  declare status: CreationOptional<string>;
+  declare orderedBy: string | null;
+  declare orderedByName: string | null;
+  declare receivedQuantity: CreationOptional<number | null>;
+  declare receivedAt: CreationOptional<Date | null>;
+  declare receivedBy: CreationOptional<string | null>;
+  declare receivedByName: CreationOptional<string | null>;
+  declare cancelReason: CreationOptional<string | null>;
+  declare tenantId: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+initModel(VehicleOxygenOrder, {
+  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  quantity: { type: DataTypes.INTEGER, allowNull: false },
+  supplier: { type: DataTypes.STRING(150), allowNull: true },
+  source: { type: DataTypes.STRING(10), allowNull: false, defaultValue: 'ged' },
+  orderedOn: { type: DataTypes.DATEONLY, allowNull: false, field: 'ordered_on' },
+  expectedOn: { type: DataTypes.DATEONLY, allowNull: true, field: 'expected_on' },
+  note: { type: DataTypes.STRING(500), allowNull: true },
+  status: { type: DataTypes.STRING(12), allowNull: false, defaultValue: 'commandee' },
+  orderedBy: { type: DataTypes.UUID, allowNull: true, field: 'ordered_by' },
+  orderedByName: { type: DataTypes.STRING(150), allowNull: true, field: 'ordered_by_name' },
+  receivedQuantity: { type: DataTypes.INTEGER, allowNull: true, field: 'received_quantity' },
+  receivedAt: { type: DataTypes.DATE, allowNull: true, field: 'received_at' },
+  receivedBy: { type: DataTypes.UUID, allowNull: true, field: 'received_by' },
+  receivedByName: { type: DataTypes.STRING(150), allowNull: true, field: 'received_by_name' },
+  cancelReason: { type: DataTypes.STRING(300), allowNull: true, field: 'cancel_reason' },
+  tenantId,
+}, opts('VehicleOxygenOrder', 'vehicle_oxygen_orders'));
 
 Vehicle.hasMany(VehicleInventory, { as: 'inventories', foreignKey: 'vehicleId' });
 Vehicle.hasMany(VehicleShortage, { as: 'shortages', foreignKey: 'vehicleId' });

@@ -92,9 +92,17 @@ export default function ShiftTab({ refreshKey, onChanged }) {
                 <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{t('Réserve vides')}</div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--fg)' }}>{ox.reserveEmpty ?? '—'}</div>
               </div>
+              <div style={{ padding: 10, borderRadius: 8, background: 'var(--surface-2)' }}>
+                <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{t('Commandées')}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: ox.ordered?.quantity ? '#c2410c' : 'var(--fg)' }}>{ox.ordered?.quantity ?? 0}</div>
+              </div>
             </div>
             <OxygenBanner level={ox.level} short={ox.short} />
             <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 6 }}>{t('Compté le {{date}} par {{name}} · {{total}} bouteille(s) au total', { date: fmtDateTime(ox.at), name: ox.by, total: ox.total })}</div>
+            <button type="button" onClick={() => setParams({ tab: 'oxygene' })}
+              style={{ marginTop: 8, height: 34, padding: '0 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              {t('Carte oxygène : consommation et commandes')} →
+            </button>
           </>
         )}
       </div>}

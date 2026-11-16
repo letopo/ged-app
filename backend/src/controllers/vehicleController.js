@@ -356,13 +356,16 @@ export async function fleetModuleFlags(user) {
     || vehicles.some((v) => v.serviceId && acc.serviceIds.includes(v.serviceId))
     || (await VehicleMission.count({ where: { status: { [Op.in]: ['planifiee', 'en_cours'] }, crew: { [Op.contains]: [{ userId: user.id }] } } })) > 0;
   const chefPole = acc.posteCodes.includes(AMBULANCE_MANAGER_POSTE);
+  const { oxygenAccess } = await import('./vehicleOxygenController.js');
+  const oxygen = await oxygenAccess(user, acc);
   return {
+    oxygen: { canView: oxygen.canView && oxygen.hasAmbulances, canOrder: oxygen.canOrder, biomedical: oxygen.biomedical },
     fleetManager: acc.fleetManager,
     superAdmin: isSuperAdmin(user),
     canCreate: acc.fleetManager || chefPole,
     canDashboard: acc.fleetManager || managed.length > 0,
     canCheck: checkable,
-    hasModule: checkable || acc.fleetManager || chefPole,
+    hasModule: checkable || acc.fleetManager || chefPole || (oxygen.canView && oxygen.hasAmbulances),
   };
 }
 
@@ -479,7 +482,7 @@ export const setVehicleStatus = async (req, res) => {
     if (!v) return res.status(404).json({ success: false, message: 'Véhicule introuvable.' });
     if (!canManage(acc, v)) return res.status(403).json({ success: false, message: 'Accès non autorisé.' });
     const status = req.body?.status === 'indisponible' ? 'indisponible' : 'disponible';
-    if (status === 'disponible' && await VehicleMission.count({ where: { vehicleId: v.id, status: 'en_cours' } })) {
+    if (status === 'disponible' && missionChecksOn(await templateFor(v)) && await VehicleMission.count({ where: { vehicleId: v.id, status: 'en_cours' } })) {
       return res.status(409).json({ success: false, message: 'Le véhicule est en mission : faites le contrôle de retour.' });
     }
     await v.update({ status, unavailableReason: status === 'indisponible' ? String(req.body?.reason || 'Indisponible').slice(0, 255) : null });
@@ -518,7 +521,8 @@ export const updateTemplate = async (req, res) => {
       return res.status(400).json({ success: false, message: 'La check-list doit contenir au moins une section avec des points.' });
     }
     const patch = { sections, name: String(req.body?.name || tpl.name).slice(0, 150), updatedBy: req.user.id };
-    if (typeof req.body?.missionChecks === 'boolean') patch.missionChecks = req.body.missionChecks;
+    // Ambulances : pas de contrôle départ / retour (l'OM est monté au retour ; prise de poste)
+    if (typeof req.body?.missionChecks === 'boolean') patch.missionChecks = tpl.vehicleType === 'ambulance' ? false : req.body.missionChecks;
     if (req.body?.inventorySections !== undefined) {
       const inv = sanitizeInventorySections(req.body.inventorySections);
       if (!inv) return res.status(400).json({ success: false, message: 'Inventaire invalide.' });
@@ -771,10 +775,14 @@ export const listMissions = async (req, res) => {
     const rows = [];
     for (const m of missions) {
       const v = vById.get(m.vehicleId);
-      if (!templates.has(v.id)) templates.set(v.id, (await templateFor(v)).sections || []);
-      const sections = templates.get(v.id);
-      const depart = phaseSummary(checksOf(m.id), sections, 'depart');
-      const retour = phaseSummary(checksOf(m.id), sections, 'retour');
+      if (!templates.has(v.id)) {
+        const tpl = await templateFor(v);
+        templates.set(v.id, { sections: tpl.sections || [], missionChecks: missionChecksOn(tpl) });
+      }
+      const { sections, missionChecks } = templates.get(v.id);
+      // Ambulances RO SAU : contrôlées à la prise de poste, pas de départ / retour à suivre
+      const depart = missionChecks ? phaseSummary(checksOf(m.id), sections, 'depart') : null;
+      const retour = missionChecks ? phaseSummary(checksOf(m.id), sections, 'retour') : null;
       const doc = docs.find((d) => d.id === m.documentId);
       const departDue = m.status !== 'planifiee' || (m.plannedDepartureAt && new Date(m.plannedDepartureAt).getTime() < now - 30 * 60000);
       rows.push({
@@ -782,20 +790,23 @@ export const listMissions = async (req, res) => {
         vehicle: { id: v.id, label: v.label, immatriculation: v.immatriculation },
         document: doc ? { id: doc.id, title: doc.title, status: doc.status } : null,
         crew: m.crew, plannedDepartureAt: m.plannedDepartureAt, plannedReturnAt: m.plannedReturnAt, departedAt: m.departedAt, returnedAt: m.returnedAt,
-        depart, retour,
-        alerts: {
+        missionChecks, depart, retour,
+        alerts: missionChecks ? {
           departMissing: departDue && depart.pct === 0,
           retourMissing: m.status === 'terminee' ? retour.pct < 100 : (m.status === 'en_cours' && m.plannedReturnAt && new Date(m.plannedReturnAt).getTime() < now - 2 * 3600000 && retour.pct === 0),
           anomalies: depart.anomalies + retour.anomalies,
-        },
+        } : { departMissing: false, retourMissing: false, anomalies: 0 },
       });
     }
-    const relevant = rows.filter((r) => r.status !== 'planifiee' || r.alerts.departMissing);
+    // Statistiques départ / retour : seulement les véhicules contrôlés à chaque mission
+    const checked = rows.filter((r) => r.missionChecks);
+    const relevant = checked.filter((r) => r.status !== 'planifiee' || r.alerts.departMissing);
     const stats = {
       missions: rows.length,
+      checkedMissions: checked.length,
       departComplete: relevant.filter((r) => r.depart.pct >= 100).length,
-      retourComplete: rows.filter((r) => r.status === 'terminee' && r.retour.pct >= 100).length,
-      finished: rows.filter((r) => r.status === 'terminee').length,
+      retourComplete: checked.filter((r) => r.status === 'terminee' && r.retour.pct >= 100).length,
+      finished: checked.filter((r) => r.status === 'terminee').length,
       relevant: relevant.length,
       anomalies: rows.reduce((n, r) => n + r.alerts.anomalies, 0),
       withoutDepartCheck: rows.filter((r) => r.alerts.departMissing).length,

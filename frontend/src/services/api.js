@@ -283,6 +283,11 @@ export const vehiclesAPI = {
   // Manques ouverts : À commander → Commandé → Réarmé
   // Prise de poste du matin (ambulances + oxygène)
   shiftState: () => api.get('/vehicles/shift'),
+  // Oxygène : carte, consommation, commandes (Biomédical)
+  oxygen: () => api.get('/vehicles/oxygen'),
+  orderOxygen: (data) => api.post('/vehicles/oxygen/orders', data),
+  receiveOxygen: (id, quantity) => api.post(`/vehicles/oxygen/orders/${id}/receive`, quantity === undefined ? {} : { quantity }),
+  cancelOxygen: (id, reason) => api.post(`/vehicles/oxygen/orders/${id}/cancel`, { reason }),
   submitShift: (data) => api.post('/vehicles/shift', data),
   shiftPdf: (sid) => api.get(`/vehicles/shift/${sid}/pdf`, { responseType: 'blob' }),
   shortages: () => api.get('/vehicles/shortages'),

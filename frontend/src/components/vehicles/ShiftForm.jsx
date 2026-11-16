@@ -232,6 +232,18 @@ export default function ShiftForm({ state, part = 'soignant', onClose, onDone })
                 <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--fg)' }}>{t('Réserve d\'oxygène')}</div>
                 <Counter value={reserveFull} onChange={setReserveFull} label={t('Bouteilles pleines en réserve')} hint={lastSoignant?.reserveFull !== null && lastSoignant?.reserveFull !== undefined ? t('dernier : {{n}}', { n: lastSoignant.reserveFull }) : null} />
                 <Counter value={reserveEmpty} onChange={setReserveEmpty} label={t('Bouteilles vides en réserve')} hint={lastSoignant?.reserveEmpty !== null && lastSoignant?.reserveEmpty !== undefined ? t('dernier : {{n}}', { n: lastSoignant.reserveEmpty }) : null} />
+                {/* Bouteilles commandées : reprises des commandes du Biomédical (non livrées) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 10px', borderRadius: 8, background: 'var(--surface-2)' }}>
+                  <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>{t('Bouteilles commandées')}</div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
+                      {(state.oxygen?.ordered?.orders || []).length
+                        ? state.oxygen.ordered.orders.map((o) => t('{{n}} le {{d}}{{by}}', { n: o.quantity, d: String(o.orderedOn).split('-').reverse().join('/'), by: o.by ? ` (${o.by})` : '' })).join(' · ')
+                        : t('Aucune commande en cours : le Biomédical est prévenu quand il faut commander.')}
+                    </div>
+                  </div>
+                  <div style={{ width: 64, textAlign: 'center', fontSize: 18, fontWeight: 800, color: state.oxygen?.ordered?.quantity ? '#c2410c' : 'var(--fg-subtle)' }}>{state.oxygen?.ordered?.quantity ?? 0}</div>
+                </div>
                 <OxygenBanner level={level} short={short} />
                 <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{t('Commander dès qu\'il ne reste plus aucune bouteille pleine en réserve ; urgent si une ambulance n\'a plus ses 2 bouteilles.')}</div>
               </div>}
