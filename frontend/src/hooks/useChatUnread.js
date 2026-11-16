@@ -3,22 +3,25 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket } from '../services/api';
 import chatService from '../services/chatService';
 import { useAuth } from '../contexts/AuthContext';
+import { hasModule } from '../utils/modules';
 
 const useChatUnread = () => {
   const { isAuthenticated, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const intervalRef = useRef(null);
 
+  const actif = hasModule(user, 'discussion');
+
   const refresh = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !actif) return;
     try {
       const count = await chatService.getUnreadCount();
       setUnreadCount(count);
     } catch (_) {}
-  }, [isAuthenticated]);
+  }, [isAuthenticated, actif]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !actif) return;
 
     refresh();
 
@@ -38,7 +41,7 @@ const useChatUnread = () => {
       clearInterval(intervalRef.current);
       if (socket) socket.off('chat:message', handler);
     };
-  }, [isAuthenticated, refresh, user?.id]);
+  }, [isAuthenticated, actif, refresh, user?.id]);
 
   const markAllRead = useCallback(() => setUnreadCount(0), []);
 

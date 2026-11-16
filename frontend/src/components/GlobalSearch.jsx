@@ -5,6 +5,7 @@ import { Search, FileText, Users, CheckSquare, X, Loader, ArrowRight } from 'luc
 import { documentsAPI, employeesAPI, workflowAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { hasModule } from '../utils/modules';
 
 const DEBOUNCE_MS = 300;
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
@@ -121,7 +122,7 @@ export default function GlobalSearch({ hideTrigger = false }) {
     setLoading(true);
     timerRef.current = setTimeout(async () => {
       try {
-        const canSeeEmployees = user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com';
+        const canSeeEmployees = (user?.role === 'admin' || user?.email === 'hsjm.rh@gmail.com') && hasModule(user, 'personnel');
         const promises = [
           documentsAPI.getAll({ search: query, page: 1, limit: 5 }),
           workflowAPI.getMyTasks('all'),

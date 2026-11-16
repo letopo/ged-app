@@ -31,13 +31,13 @@ export const MODULE_GROUPS = [
 export const MODULES = [
   // Bureau
   { key: 'modeles',           group: 'bureau', label: 'Modèles & formulaires',      description: 'Création depuis modèle, formulaires, modèles de workflow' },
-  { key: 'discussion',        group: 'bureau', label: 'Discussion',                 description: 'Messagerie instantanée, pièces jointes, @mention de document' },
+  { key: 'discussion',        group: 'bureau', label: 'Discussion',                 description: 'Messagerie instantanée, pièces jointes, @mention de document', wired: true },
   { key: 'calendrier',        group: 'bureau', label: 'Calendrier & jours fériés',  description: 'Calendrier partagé et jours fériés' },
   { key: 'scanner',           group: 'bureau', label: 'Scanner mobile & OCR',       description: 'Scan en PDF depuis le téléphone, recherche dans le texte' },
   { key: 'signature_patient', group: 'bureau', label: 'Signature sur tablette',     description: '« Faire signer » à l’écran, borne du guichet' },
   // RH & organisation
-  { key: 'personnel',         group: 'rh', label: 'Gestion du personnel',  description: 'Fiches employés, import / export, catégories' },
-  { key: 'plannings',         group: 'rh', label: 'Plannings',             description: 'Plannings de garde et leur validation', deps: ['personnel'] },
+  { key: 'personnel',         group: 'rh', label: 'Gestion du personnel',  description: 'Fiches employés, import / export, catégories — la recherche des missionnaires et bénéficiaires (OM, pièce de caisse) reste toujours active', wired: true },
+  { key: 'plannings',         group: 'rh', label: 'Plannings',             description: 'Plannings de garde et leur validation', deps: ['personnel'], wired: true },
   { key: 'rh_documents',      group: 'rh', label: 'Documents RH',          description: 'BPC du personnel, certificat d’aptitude', deps: ['personnel'] },
   // Finances & achats
   { key: 'achats',            group: 'finances', label: 'Demandes d’achat',       description: 'Demandes d’achat et leur suivi', wired: true },

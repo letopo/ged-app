@@ -3,6 +3,7 @@
 import express from 'express';
 import multer from 'multer';
 import { protect } from '../middleware/auth.js'; // ✅ C'est "protect" pas "authenticate"
+import { requireModule } from '../middleware/requireModule.js';
 import {
   getEmployees,
   getAllEmployees,
@@ -26,9 +27,15 @@ const csvUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
+// Recherche des missionnaires / bénéficiaires (Ordre de mission, Pièce de caisse) :
+// fait partie du socle, reste ouverte même si le module « Gestion du personnel » est coupé
+router.get('/mission-candidates', protect, getMissionCandidates);
+
+// Tout le reste = module « Gestion du personnel » (config/modules.js)
+router.use(requireModule('personnel'));
+
 // ✅ Route pour obtenir TOUS les employés (pour les plannings) - DOIT être AVANT /:id
 router.get('/all', protect, getAllEmployees);
-router.get('/mission-candidates', protect, getMissionCandidates);
 
 // Routes existantes
 router.get('/', protect, getEmployees);

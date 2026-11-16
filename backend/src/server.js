@@ -252,9 +252,9 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/tickets/positions', positionRoutes); // ✅ AJOUTER
 app.use('/api/tickets', ticketRoutes);
-app.use('/api/schedules', schedulesRoutes);
-app.use('/api/departments', departmentsRoutes);
-app.use('/api/shift-types', shiftTypesRoutes);
+app.use('/api/schedules', requireModule('plannings'), schedulesRoutes);
+app.use('/api/departments', requireModule('plannings'), departmentsRoutes);
+app.use('/api/shift-types', requireModule('plannings'), shiftTypesRoutes);
 app.use('/api/trello', requireModule('trello'), trelloRoutes);
 app.use('/api/license', licenseRoutes); // <--- AJOUTER
 app.use('/api/invoices', invoiceRoutes); // ✅ NOUVELLE ROUTE POUR LES FACTURES
@@ -288,7 +288,7 @@ app.use('/api/forms', formRoutes); // ✅ Form Builder
 app.use('/api/onlyoffice', onlyofficeRoutes);
 app.use('/api/postes', postesRoutes); // ✅ Postes organisationnels
 app.use('/api/mission-meal-rates', missionMealRoutes); // ✅ Indemnités de repas de mission
-app.use('/api/chat',   chatRoutes);   // ✅ Module Discussion
+app.use('/api/chat',   requireModule('discussion'), chatRoutes);   // ✅ Module Discussion
 app.use('/api/release-notes', releaseNoteRoutes); // ✅ Nouveautés
 app.use('/api/tenant', tenantBrandingRoutes); // ✅ Branding tenant (logo + couleur)
 app.use('/api/super-admin', superAdminRoutes);

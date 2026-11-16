@@ -1340,10 +1340,11 @@ const RELEASE_NOTES = [
     id: '2026-11-17-modules-etape-2',
     date: '2026-11-17',
     target: 'app',
-    title: 'Paramètres › Modules : cinq modules de plus',
+    title: 'Paramètres › Modules : huit modules de plus',
     access: isAdmin,
     items: [
-      'Le Module PHP, le Programme opératoire, la GMAO, les Demandes d’achat et l’Espace Comptabilité peuvent maintenant être activés ou désactivés dans Paramètres › Modules.',
+      'Le Module PHP, le Programme opératoire, la GMAO, les Demandes d’achat, l’Espace Comptabilité, la Discussion, les Plannings et la Gestion du personnel peuvent maintenant être activés ou désactivés dans Paramètres › Modules.',
+      'Gestion du personnel désactivée : la recherche des missionnaires et bénéficiaires dans l’ordre de mission et la pièce de caisse continue de fonctionner.',
       'Le circuit des pièces de caisse (DG → Comptable → Caissière) reste toujours actif, même si l’Espace Comptabilité est désactivé.',
       'Chez vous, ils restent activés : rien ne change tant que personne ne les coupe.',
     ],

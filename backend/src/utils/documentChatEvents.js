@@ -7,6 +7,7 @@
 import Conversation from '../models/Conversation.js';
 import ChatMessage from '../models/ChatMessage.js';
 import { getIO } from './socketManager.js';
+import { isModuleActive } from './tenantModules.js';
 
 export const personName = (u) => (u ? `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || u.email || 'Quelqu\'un' : 'Quelqu\'un');
 
@@ -21,6 +22,8 @@ export async function postDocumentEvent(documentId, texts) {
     if (!documentId || !lines.length) return;
     const conv = await Conversation.findOne({ where: { type: 'document', documentId } });
     if (!conv) return;
+    // Module « Discussion » coupé pour l'établissement : pas de message automatique
+    if (conv.tenantId && !(await isModuleActive(conv.tenantId, 'discussion'))) return;
     const io = getIO();
     for (const text of lines) {
       const message = await ChatMessage.create({ conversationId: conv.id, authorId: null, content: String(text).slice(0, 2000), isSystem: true });
