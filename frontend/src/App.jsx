@@ -375,7 +375,7 @@ function App() {
           <Route path="/workflow-dashboard"   element={<PageWrapper><WorkflowDashboard /></PageWrapper>} />
           <Route path="/create-from-template" element={<PageWrapper><CreateFromTemplate /></PageWrapper>} />
           <Route path="/create-work-request"  element={<PageWrapper><CreateWorkRequest /></PageWrapper>} />
-          <Route path="/demandes-achat"       element={<PageWrapper><DemandeAchatDashboard /></PageWrapper>} />
+          <Route path="/demandes-achat"       element={<ModuleRoute module="achats"><PageWrapper><DemandeAchatDashboard /></PageWrapper></ModuleRoute>} />
           <Route path="/invoices"             element={<ManagementRoute><PageWrapper><InvoiceDashboard /></PageWrapper></ManagementRoute>} />
           <Route path="/kanban/:serviceType"  element={<KanbanRoute><ModuleRoute module="trello"><PageWrapper><TrelloBoard /></PageWrapper></ModuleRoute></KanbanRoute>} />
           <Route path="/settings"             element={<PageWrapper><Settings /></PageWrapper>} />
@@ -403,8 +403,8 @@ function App() {
           <Route path="/workflow-templates" element={<AdminRoute><PageWrapper><WorkflowTemplatesPage /></PageWrapper></AdminRoute>} />
           <Route path="/employees"       element={<EmployeesRoute><PageWrapper><EmployeeManagement /></PageWrapper></EmployeesRoute>} />
           <Route path="/vehicules"       element={<ModuleRoute module="vehicules"><PageWrapper><ParcVehicules /></PageWrapper></ModuleRoute>} />
-          <Route path="/bloc-operatoire" element={<PageWrapper><ProgrammeOperatoire /></PageWrapper>} />
-          <Route path="/gmao"            element={<GMAORoute><PageWrapper><GMAOPage /></PageWrapper></GMAORoute>} />
+          <Route path="/bloc-operatoire" element={<ModuleRoute module="bloc"><PageWrapper><ProgrammeOperatoire /></PageWrapper></ModuleRoute>} />
+          <Route path="/gmao"            element={<ModuleRoute module="gmao"><GMAORoute><PageWrapper><GMAOPage /></PageWrapper></GMAORoute></ModuleRoute>} />
           {/* ── Form Builder ── */}
           <Route path="/forms"                element={<PageWrapper><FormsListPage /></PageWrapper>} />
           <Route path="/forms/:id/responses"  element={<PageWrapper><FormResponses /></PageWrapper>} />
@@ -414,13 +414,13 @@ function App() {
           <Route path="/caisse"          element={<CaisseRoute><PageWrapper><CaisseDashboard /></PageWrapper></CaisseRoute>} />
 
           {/* Module PHP */}
-          <Route path="/php"               element={<PHPRoute><PageWrapper><PHPModule /></PageWrapper></PHPRoute>} />
-          <Route path="/php/patients"      element={<PHPRoute><PageWrapper><PHPPatients /></PageWrapper></PHPRoute>} />
-          <Route path="/php/consultations" element={<PHPRoute><PageWrapper><PHPConsultations /></PageWrapper></PHPRoute>} />
-          <Route path="/php/statistiques"  element={<PHPRoute><PageWrapper><PHPStatistiques /></PageWrapper></PHPRoute>} />
-          <Route path="/php/repos"         element={<PHPRoute><PageWrapper><PHPReposHospit /></PageWrapper></PHPRoute>} />
-          <Route path="/php/pharmacie"     element={<PHPRoute><PageWrapper><PHPPharmacie /></PageWrapper></PHPRoute>} />
-          <Route path="/php/factures"      element={<PHPRoute><PageWrapper><PhpFactures /></PageWrapper></PHPRoute>} />
+          <Route path="/php"               element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PHPModule /></PageWrapper></PHPRoute></ModuleRoute>} />
+          <Route path="/php/patients"      element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PHPPatients /></PageWrapper></PHPRoute></ModuleRoute>} />
+          <Route path="/php/consultations" element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PHPConsultations /></PageWrapper></PHPRoute></ModuleRoute>} />
+          <Route path="/php/statistiques"  element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PHPStatistiques /></PageWrapper></PHPRoute></ModuleRoute>} />
+          <Route path="/php/repos"         element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PHPReposHospit /></PageWrapper></PHPRoute></ModuleRoute>} />
+          <Route path="/php/pharmacie"     element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PHPPharmacie /></PageWrapper></PHPRoute></ModuleRoute>} />
+          <Route path="/php/factures"      element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PhpFactures /></PageWrapper></PHPRoute></ModuleRoute>} />
           <Route path="/compta"            element={<ComptaRoute><PageWrapper><ComptaDocuments /></PageWrapper></ComptaRoute>} />
           <Route path="/admin/droits-acces" element={<AdminRoute><PageWrapper><AccessControlPage /></PageWrapper></AdminRoute>} />
           {/* Module Discussion */}

@@ -258,11 +258,11 @@ app.use('/api/shift-types', shiftTypesRoutes);
 app.use('/api/trello', requireModule('trello'), trelloRoutes);
 app.use('/api/license', licenseRoutes); // <--- AJOUTER
 app.use('/api/invoices', invoiceRoutes); // ✅ NOUVELLE ROUTE POUR LES FACTURES
-app.use('/api/demande-achat', demandeAchatRoutes); // ✅ NOUVELLE ROUTE POUR LES DEMANDES D'ACHAT
-app.use('/api/gmao', gmaoRoutes); // ✅ GMAO - Maintenance Préventive
+app.use('/api/demande-achat', requireModule('achats'), demandeAchatRoutes); // ✅ NOUVELLE ROUTE POUR LES DEMANDES D'ACHAT
+app.use('/api/gmao', requireModule('gmao'), gmaoRoutes); // ✅ GMAO - Maintenance Préventive
 // ── MODULE PHP ────────────────────────────────────────────────────────────────
 // Module PHP (données médicales) : connexion + accès au module vérifiés pour toutes les routes
-app.use('/api/php', authMiddlewareObject.protect, requirePhpRead);
+app.use('/api/php', requireModule('php'), authMiddlewareObject.protect, requirePhpRead);
 app.use('/api/php/reference', phpReferenceRoutes);
 app.use('/api/php/patients', phpPatientsRoutes);
 app.use('/api/php/consultations', phpConsultationsRoutes);
@@ -276,7 +276,7 @@ app.use('/api/sage-bl', requireModule('sage'), sageBlRoutes); // ✅ BL PHP en a
 app.use('/api/caisse-pharmacie', requireModule('caisse_pharmacie'), caissePharmacieRoutes);
 app.use('/api/sage-bons-commande', requireModule('sage'), sageBonsCommandeRoutes);
 app.use('/api/compta',       comptaRoutes);       // ✅ Pièces de caisse comptabilité
-app.use('/api/bloc',         blocRoutes);         // ✅ Programme opératoire de la semaine
+app.use('/api/bloc',         requireModule('bloc'), blocRoutes);         // ✅ Programme opératoire de la semaine
 app.use('/api/template-permissions', templatePermissionRoutes);
 app.use('/api/notification-preferences', notificationPreferenceRoutes);
 app.use('/api/audit-logs', auditLogRoutes);

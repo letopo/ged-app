@@ -80,3 +80,18 @@ test('nouvel établissement sans licence : modules verrouillés, le superadmin p
   const ok = await request(app).get('/api/vehicles').set(as(nu, nuAdmin));
   assert.notEqual(ok.status, 403);
 });
+
+test('étape 2 : PHP, Bloc, GMAO et Demandes d’achat coupés → 403 MODULE_DISABLED, puis réactivés', async () => {
+  const cas = { php: '/api/php/patients', bloc: '/api/bloc/me', gmao: '/api/gmao/equipements', achats: '/api/demande-achat' };
+  for (const [key, url] of Object.entries(cas)) {
+    const off = await request(app).put(`/api/modules/${key}`).set(as(f, admin)).send({ enabled: false });
+    assert.equal(off.status, 200, `${key} : ${off.body?.message}`);
+    const r = await request(app).get(url).set(as(f, admin));
+    assert.equal(r.status, 403, url);
+    assert.equal(r.body.code, 'MODULE_DISABLED', url);
+    const on = await request(app).put(`/api/modules/${key}`).set(as(f, admin)).send({ enabled: true });
+    assert.equal(on.status, 200);
+    const back = await request(app).get(url).set(as(f, admin));
+    assert.notEqual(back.body?.code, 'MODULE_DISABLED', url);
+  }
+});

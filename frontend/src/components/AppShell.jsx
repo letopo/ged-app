@@ -180,7 +180,7 @@ const buildOrgGroups = (t, user) => {
       { path: '/caisse',             icon: DollarSign,  label: t('Caisse'),             caisseOnly: true },
     ]},
     { id: 'finances', color: '#059669', icon: Calculator, label: t('Finances'), items: [
-      { path: '/demandes-achat',     icon: ShoppingCart,    label: t("Demandes d'achat"),    demandeAchatOnly: true },
+      { path: '/demandes-achat',     icon: ShoppingCart,    label: t("Demandes d'achat"),    demandeAchatOnly: true, module: 'achats' },
       { path: '/compta',             icon: Calculator,      label: t('Comptabilité'),        comptaOnly: true },
       { path: '/invoices',           icon: Receipt,         label: t('Factures'),            managementOnly: true },
       { path: '/sage-factures-php',  icon: FileSpreadsheet, label: t('Factures PHP (Sage)'), sageFacturesOnly: true, module: 'sage' },
@@ -189,19 +189,19 @@ const buildOrgGroups = (t, user) => {
       { path: '/bons-commande',      icon: ShoppingCart,    label: t('Bons de commande'),    bonsCommandeOnly: true, module: 'sage' },
     ]},
     { id: 'bloc', color: '#0F766E', icon: Scissors, label: t('Bloc opératoire'), items: [
-      { path: '/bloc-operatoire',    icon: Scissors,    label: t('Programme opératoire'), blocOnly: true },
+      { path: '/bloc-operatoire',    icon: Scissors,    label: t('Programme opératoire'), blocOnly: true, module: 'bloc' },
     ]},
     { id: 'php', color: '#DC2626', icon: Stethoscope, label: t('Module PHP'), items: [
-      { path: '/php',                icon: Stethoscope, label: t('Module PHP'),         phpOnly: true },
-      { path: '/php/factures',       icon: Receipt,     label: t('Factures PHP'),       phpOnly: true },
-      { path: '/php/pharmacie',      icon: Pill,        label: t('Pharmacie PHP'),      phpOnly: true },
+      { path: '/php',                icon: Stethoscope, label: t('Module PHP'),         phpOnly: true, module: 'php' },
+      { path: '/php/factures',       icon: Receipt,     label: t('Factures PHP'),       phpOnly: true, module: 'php' },
+      { path: '/php/pharmacie',      icon: Pill,        label: t('Pharmacie PHP'),      phpOnly: true, module: 'php' },
     ]},
     { id: 'logistique', color: '#0284C7', icon: Ambulance, label: t('Logistique'), items: [
       { path: '/vehicules',          icon: Ambulance,   label: t('Parc véhicules'),     fleetOnly: true, module: 'vehicules' },
     ]},
     { id: 'technique', color: '#EA580C', icon: Wrench, label: t('Technique'), items: [
       { path: '/kanban/MG',          icon: Kanban,      label: t('Suivi technique'),    kanbanOnly: true, module: 'trello' },
-      { path: '/gmao',               icon: Wrench,      label: t('GMAO'),               gmaoOnly: true },
+      { path: '/gmao',               icon: Wrench,      label: t('GMAO'),               gmaoOnly: true, module: 'gmao' },
     ]},
   ]
     .map(g => ({ ...g, items: g.items.filter(makeCanAccess(user)) }))
