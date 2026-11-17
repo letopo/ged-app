@@ -36,6 +36,10 @@ export const phpPatientAPI = {
   addCompteSage: (id, compte) => api.post(`/php/patients/${id}/comptes-sage`, { compte }),
   parcours: (id, months) => api.get(`/php/patients/${id}/parcours`, { params: { months } }),
   resetCompteSage: (id, compte) => api.delete(`/php/patients/${id}/comptes-sage/${encodeURIComponent(compte)}`),
+  // Fiche(s) du DME liées : « c'est lui » / « ce n'est pas lui » / n° de dossier saisi
+  liensDme: (id) => api.get(`/php/patients/${id}/dme`),
+  decideLienDme: (id, body) => api.post(`/php/patients/${id}/dme`, body),
+  resetLienDme: (id, dmePatientId) => api.delete(`/php/patients/${id}/dme/${dmePatientId}`),
 };
 
 // ============================================

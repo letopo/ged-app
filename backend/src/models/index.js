@@ -41,6 +41,7 @@ import Infirmerie from './Infirmerie.js';
 import Secteur from './Secteur.js';
 import PatientPHP from './PatientPHP.js';
 import PhpPatientCompteSage from './PhpPatientCompteSage.js';
+import PhpPatientDme from './PhpPatientDme.js';
 import { CaisseSeance, CaisseMouvement } from './CaissePermanence.js';
 import BonPriseEnCharge from './BonPriseEnCharge.js';
 import ConsultationPHP from './ConsultationPHP.js';
@@ -138,6 +139,7 @@ const db = {
   Secteur,
   PatientPHP,
   PhpPatientCompteSage,
+  PhpPatientDme,
   CaisseSeance,
   CaisseMouvement,
   BonPriseEnCharge,
@@ -282,6 +284,8 @@ User.hasMany(ConsultationPHP, { as: 'consultationsAccueil', foreignKey: 'agent_a
 User.hasMany(ReposPHP, { as: 'reposPrescrit', foreignKey: 'medecin_id' });
 PatientPHP.hasMany(PhpPatientCompteSage, { as: 'comptesSage', foreignKey: 'patientId' });
 PhpPatientCompteSage.belongsTo(PatientPHP, { as: 'patient', foreignKey: 'patientId' });
+PatientPHP.hasMany(PhpPatientDme, { as: 'liensDme', foreignKey: 'patientId' });
+PhpPatientDme.belongsTo(PatientPHP, { as: 'patient', foreignKey: 'patientId' });
 PatientPHP.hasMany(DecesTransfertPHP, { as: 'decesTransferts', foreignKey: 'patient_id' });
 User.hasMany(DecesTransfertPHP, { as: 'decesEnregistres', foreignKey: 'enregistre_par_id' });
 
@@ -335,6 +339,7 @@ export {
   Secteur,
   PatientPHP,
   PhpPatientCompteSage,
+  PhpPatientDme,
   CaisseSeance,
   CaisseMouvement,
   BonPriseEnCharge,

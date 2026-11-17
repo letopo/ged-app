@@ -14,6 +14,7 @@ import { decryptSecret } from './secretBox.js';
 import { openDme } from './dmeConnection.js';
 import { PhpPatientCompteSage } from '../models/index.js';
 import { indexerDme, rechercherDansDme } from './dmePatientSearch.js';
+import { chargerLiens, lierAutomatiquement } from './phpPatientDme.js';
 import { isModuleActive } from './tenantModules.js';
 
 export const TZ = 'Africa/Douala';
@@ -157,7 +158,12 @@ export async function suiviDme({ tenantId, date, consultationIds }) {
     const index = await indexDuTenant(tenantId, conn);
     const decisions = await PhpPatientCompteSage.findAll({ where: { tenantId, patientId: [...new Set(consults.map((c) => c.patient.id))], statut: 'confirme' }, attributes: ['patientId', 'compteTiers'] });
     const comptesDe = (id) => decisions.filter((d) => d.patientId === id).map((d) => d.compteTiers);
-    const matches = new Map(consults.map((c) => [c.id, rechercherDansDme({ ...c.patient.get({ plain: true }), comptes: comptesDe(c.patient.id) }, index)]));
+    const liens = await chargerLiens(tenantId, [...new Set(consults.map((c) => c.patient.id))]);
+    const matches = new Map(consults.map((c) => [c.id, rechercherDansDme({ ...c.patient.get({ plain: true }), comptes: comptesDe(c.patient.id), liens: liens.get(c.patient.id) }, index)]));
+    // Liens sûrs (même matricule / compte Sage) enregistrés d'office, une fois par patient
+    const parPatient = new Map(consults.map((c) => [c.patient.id, { patientId: c.patient.id, recherche: matches.get(c.id), liens: liens.get(c.patient.id) }]));
+    const ajoutes = await lierAutomatiquement(tenantId, [...parPatient.values()]);
+    const liensApres = ajoutes ? await chargerLiens(tenantId, [...parPatient.keys()]) : liens;
     const ids = [...new Set([...matches.values()].flatMap((m) => m.fiches.map((f) => f.id)))];
     let events = {};
     let services = new Map();
@@ -186,7 +192,16 @@ export async function suiviDme({ tenantId, date, consultationIds }) {
       events = { consultations, labos, imageries, derniers };
     }
     const suivis = {};
-    for (const c of consults) suivis[c.id] = suiviDuPatient(matches.get(c.id), events, { date, today, services });
+    for (const c of consults) {
+      const l = liensApres.get(c.patient.id) || { rows: [] };
+      const decision = new Map(l.rows.map((r) => [r.dmePatientId, r]));
+      const suivi = suiviDuPatient(matches.get(c.id), events, { date, today, services });
+      suivi.patientId = c.patient.id;
+      suivi.fiches = suivi.fiches.map((f) => ({ ...f, lien: decision.get(f.id)?.statut || null, lienSource: decision.get(f.id)?.source || null }));
+      // Fiches écartées : listées pour pouvoir revenir sur la décision
+      suivi.ecartees = l.rows.filter((r) => r.statut === 'ecarte').map((r) => ({ id: r.dmePatientId, dossier: r.dossierNumero, nom: r.dmeNom }));
+      suivis[c.id] = suivi;
+    }
     return { ...base, disponible: true, suivis };
   } catch (err) {
     return { ...base, disponible: true, erreur: err.message };

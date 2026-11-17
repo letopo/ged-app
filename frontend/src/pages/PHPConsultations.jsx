@@ -382,7 +382,7 @@ export default function PHPConsultations() {
                             return (
                               <div className="flex flex-wrap gap-1 justify-center">
                                 {parcours.map(p => (
-                                  <span key={p} className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                                  <span key={p} className="text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap"
                                     style={RESULTAT_STYLE_OBJ[p] || { background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
                                     {PARCOURS_BTNS.find(b => b.value === p)?.icon} {RESULTAT_LABEL[p] || p}
                                   </span>
@@ -391,7 +391,7 @@ export default function PHPConsultations() {
                             );
                           }
                           return (
-                            <span className="text-xs px-2 py-1 rounded-full font-medium"
+                            <span className="text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap"
                               style={RESULTAT_STYLE_OBJ[c.resultat] || { background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
                               {PARCOURS_BTNS.find(b => b.value === c.resultat)?.icon} {RESULTAT_LABEL[c.resultat] || c.resultat || '–'}
                             </span>
@@ -421,7 +421,7 @@ export default function PHPConsultations() {
                     {suivi.actif && ouvert === c.id && (
                       <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
                         <td colSpan={10} className="px-4 py-3">
-                          <DmeSuiviFrise suivi={suivi.data?.suivis?.[c.id]} />
+                          <DmeSuiviFrise suivi={suivi.data?.suivis?.[c.id]} canWrite={canWrite} onChange={suivi.recharger} />
                         </td>
                       </tr>
                     )}
