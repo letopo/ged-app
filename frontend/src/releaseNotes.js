@@ -19,6 +19,7 @@
 
 import { isFestiveSeason } from './components/Festive';
 import { phpAccess } from './utils/phpAccess';
+import { hasModule } from './utils/modules';
 import { isAndroidApp, partageDisponible as partageDisponibleNote } from './utils/androidApp';
 
 const isAdmin = (user) => ['admin', 'superadmin'].includes(user?.role);
@@ -1424,6 +1425,19 @@ const RELEASE_NOTES = [
       'La GED lit le bon dans Sage et produit le même document que l’impression Sage, plus le montant en lettres et les cadres de signature.',
       'Envoi en signature en un clic : vous → DG ou DGA → Comptable (pour paiement). Plus besoin d’imprimer le PDF dans Sage pour l’importer.',
       'La liste des pièces d’achat récentes (par dépôt) indique celles déjà envoyées et signées.',
+    ],
+  },
+  {
+    id: '2026-11-17-php-suivi-dme',
+    date: '2026-11-17',
+    target: '/php/consultations',
+    title: 'Consultations PHP : suivi dans le DME',
+    access: (user) => phpAccess(user).read && hasModule(user, 'dme'),
+    items: [
+      'Nouvelle colonne « Suivi DME » : pour chaque patient inscrit, où il en est dans le DME — à l’accueil, aux paramètres, en attente du médecin, en consultation, vu par le médecin…',
+      'Un clic sur la pastille affiche le parcours du jour : consultation → laboratoire → imagerie, avec l’heure et l’état de chaque étape (résultats prêts, remis…).',
+      'Pour aujourd’hui, la liste se met à jour toute seule chaque minute. « Pas retrouvé dans le DME » signale un patient dont ni le matricule ni le nom ne correspondent à une fiche du DME.',
+      'La pharmacie s’ajoutera dès que le DME ouvrira la lecture des ordonnances à la GED.',
     ],
   },
 ];
