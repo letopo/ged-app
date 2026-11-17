@@ -1440,6 +1440,18 @@ const RELEASE_NOTES = [
       'La pharmacie s’ajoutera dès que le DME ouvrira la lecture des ordonnances à la GED.',
     ],
   },
+  {
+    id: '2026-11-17-php-recherche-dme',
+    date: '2026-11-17',
+    target: '/php/consultations',
+    title: 'Suivi DME : recherche des patients améliorée',
+    access: (user) => phpAccess(user).read && hasModule(user, 'dme'),
+    items: [
+      'Le patient est retrouvé dans le DME même si son nom y est découpé autrement (nom / prénom), s’il manque une partie du nom, s’il y a une petite faute, ou si le matricule diffère d’un chiffre. Le compte Sage confirmé du patient sert aussi.',
+      'Un patient qui a plusieurs fiches dans le DME est signalé (« 2 fiches DME ») avec le n° de dossier de chacune, pour les fusionner dans le DME.',
+      'Un matricule différent entre la GED et le DME est signalé ; une fiche retrouvée seulement par le nom porte un « ? » : à vérifier.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances

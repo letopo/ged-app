@@ -12,7 +12,8 @@ import { Op } from 'sequelize';
 import { ConsultationPHP, PatientPHP, TenantIntegration } from '../models/index.js';
 import { decryptSecret } from './secretBox.js';
 import { openDme } from './dmeConnection.js';
-import { normMatricule } from './phpSageComptes.js';
+import { PhpPatientCompteSage } from '../models/index.js';
+import { indexerDme, rechercherDansDme } from './dmePatientSearch.js';
 import { isModuleActive } from './tenantModules.js';
 
 export const TZ = 'Africa/Douala';
@@ -45,32 +46,20 @@ const DEVENIRS = { SORTIE: 'sortie', HOSPITALISATION: 'hospitalisation', OBSERVA
 
 const hm = (s) => (s ? String(s).slice(11, 16) : null);
 const day = (s) => (s ? String(s).slice(0, 10) : null);
-export const normNom = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
-
-/**
- * Retrouve la fiche DME d'un patient PHP : par matricule (exact une fois
- * normalisé), sinon par nom + prénom parmi les agents PHP sans matricule, si
- * un seul correspond. Plusieurs fiches pour le même matricule : on les garde
- * toutes (doublons du DME), la frise les réunit.
- */
-export function matchDmePatients(patient, dmePatients) {
-  const mat = normMatricule(patient.matricule);
-  if (mat) {
-    const parMat = dmePatients.filter((p) => normMatricule(p.matricule_agent) === mat);
-    if (parMat.length) return { fiches: parMat, par: 'matricule' };
-  }
-  const nom = normNom(`${patient.nom || ''}${patient.prenom || ''}`);
-  if (nom.length < 4) return { fiches: [], par: null };
-  const parNom = dmePatients.filter((p) => p.type_client === 'AGENTS_PHP' && !normMatricule(p.matricule_agent) && normNom(`${p.nom || ''}${p.prenom || ''}`) === nom);
-  return parNom.length === 1 ? { fiches: parNom, par: 'nom' } : { fiches: [], par: null };
-}
-
 /**
  * Suivi d'un patient pour une date, à partir de ses fiches DME et des
  * événements du jour (consultations, demandes labo et imagerie).
  */
-export function suiviDuPatient({ fiches, par }, { consultations = [], labos = [], imageries = [] }, { date, today, services = new Map() }) {
-  if (!fiches.length) return { trouve: false, etat: { code: 'introuvable', label: 'Pas retrouvé dans le DME', tone: 'neutre' }, frise: [] };
+const TYPES_CLIENT = { AGENTS_PHP: 'agent PHP', FAMILLE_PHP: 'famille PHP', PAYANT_COMPTANT: 'payant comptant', BON_PRISE_EN_CHARGE: 'bon de prise en charge', ASSURANCE: 'assurance' };
+const resumeFiche = (f) => ({
+  id: f.id, dossier: f.dossier_numero || null, nom: [f.nom, f.prenom].filter(Boolean).join(' '), type: TYPES_CLIENT[f.type_client] || f.type_client || null,
+  matricule: f.matricule_agent || null, naissance: f.date_naissance ? String(f.date_naissance).slice(0, 10) : null, raisons: f.raisons || [],
+});
+
+export function suiviDuPatient({ fiches, confiance = 'sure', doublons = false, ecartMatricule = null }, { consultations = [], labos = [], imageries = [] }, { date, today, services = new Map() }) {
+  const recherche = { confiance, doublons, ecartMatricule, fiches: fiches.map(resumeFiche) };
+  if (!fiches.length) return { trouve: false, ...recherche, etat: { code: 'introuvable', label: 'Pas retrouvé dans le DME', tone: 'neutre' }, frise: [] };
+  if (confiance === 'ambigu') return { trouve: true, ...recherche, etat: { code: 'ambigu', label: `${fiches.length} fiches possibles`, tone: 'alerte' }, frise: [] };
   const ids = new Set(fiches.map((f) => f.id));
   const mine = (rows) => rows.filter((r) => ids.has(r.patient_id));
   const svc = (id) => services.get(id) || null;
@@ -124,7 +113,22 @@ export function suiviDuPatient({ fiches, par }, { consultations = [], labos = []
     else etat = { code: 'pas_de_passage', label: date === today ? 'Pas encore au DME' : 'Aucun passage au DME', tone: 'neutre' };
   }
   if (vu?.heure && !etat.heure) etat.heure = vu.heure;
-  return { trouve: true, par, etat, frise };
+  return { trouve: true, ...recherche, etat, frise };
+}
+
+// Fiches patients du DME (~11 000), relues au plus toutes les 60 s par établissement.
+// L'étape du parcours change souvent : elle est relue à chaque appel pour les fiches retenues.
+const CACHE_MS = 60_000;
+const cache = new Map();
+async function indexDuTenant(tenantId, conn) {
+  const hit = cache.get(tenantId);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.index;
+  const [rows] = await conn.query(`
+    SELECT id, dossier_numero, nom, prenom, date_naissance, type_client, matricule_agent, numero_compte_sage
+    FROM patients WHERE actif IS NULL OR actif <> 0`);
+  const index = indexerDme(rows);
+  cache.set(tenantId, { at: Date.now(), index });
+  return index;
 }
 
 /**
@@ -141,22 +145,25 @@ export async function suiviDme({ tenantId, date, consultationIds }) {
   const consults = consultationIds.length ? await ConsultationPHP.findAll({
     where: { id: { [Op.in]: consultationIds } },
     attributes: ['id', 'patientId', 'dateConsultation'],
-    include: [{ model: PatientPHP, as: 'patient', attributes: ['id', 'matricule', 'nom', 'prenom'], where: { tenantId }, required: true }],
+    include: [{ model: PatientPHP, as: 'patient', attributes: ['id', 'matricule', 'nom', 'prenom', 'dateNaissance'], where: { tenantId }, required: true }],
   }) : [];
   if (!consults.length) return { ...base, disponible: true };
 
   let conn;
   try {
     conn = await openDme(row.config, decryptSecret(row.secretEncrypted));
-    const [dmePatients] = await conn.query(`
-      SELECT id, nom, prenom, type_client, matricule_agent, statut_parcours, GREATEST(COALESCE(date_modification, '1970-01-01'), COALESCE(updated_at, '1970-01-01')) AS modifie
-      FROM patients WHERE type_client = 'AGENTS_PHP' OR (matricule_agent IS NOT NULL AND matricule_agent <> '')`);
-    const matches = new Map(consults.map((c) => [c.id, matchDmePatients(c.patient, dmePatients)]));
+    const index = await indexDuTenant(tenantId, conn);
+    const decisions = await PhpPatientCompteSage.findAll({ where: { tenantId, patientId: [...new Set(consults.map((c) => c.patient.id))], statut: 'confirme' }, attributes: ['patientId', 'compteTiers'] });
+    const comptesDe = (id) => decisions.filter((d) => d.patientId === id).map((d) => d.compteTiers);
+    const matches = new Map(consults.map((c) => [c.id, rechercherDansDme({ ...c.patient.get({ plain: true }), comptes: comptesDe(c.patient.id) }, index)]));
     const ids = [...new Set([...matches.values()].flatMap((m) => m.fiches.map((f) => f.id)))];
     let events = {};
     let services = new Map();
     if (ids.length) {
       const inIds = ids.map(() => '?').join(', ');
+      const [etapes] = await conn.query(`SELECT id, statut_parcours, GREATEST(COALESCE(date_modification, '1970-01-01'), COALESCE(updated_at, '1970-01-01')) AS modifie FROM patients WHERE id IN (${inIds})`, ids);
+      const etapeDe = new Map(etapes.map((e) => [e.id, e]));
+      for (const m of matches.values()) m.fiches = m.fiches.map((f) => ({ ...f, ...etapeDe.get(f.id) }));
       const range = [date, date];
       const [[svc], [consultations], [labos], [imageries]] = await Promise.all([
         conn.query('SELECT id, nom_service FROM services'),
