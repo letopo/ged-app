@@ -24,6 +24,7 @@ import { buildVehicleShiftPdf, OXYGEN_TEXT } from '../utils/vehicleShiftPdf.js';
 import { parseSignaturePng } from './manualSignatureController.js';
 import { syncShiftShortages, shortageSummary } from './vehicleShortageController.js';
 import { resolveStoredFile } from '../utils/storedFiles.js';
+import { openOrders, notifyBiomedical } from './vehicleOxygenController.js';
 
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const REASON = /^Prise de poste/;
@@ -50,7 +51,7 @@ async function visibleAmbulances(acc) {
 
 export const shiftSummary = (s) => ({
   id: s.id, date: s.shiftDate, part: s.part || 'soignant', at: s.performedAt, by: s.performedByName, anomalies: s.anomalies, critical: s.criticalAnomaly,
-  reserveFull: s.reserveFull, reserveEmpty: s.reserveEmpty, oxygenLevel: s.oxygenLevel, documentId: s.documentId,
+  reserveFull: s.reserveFull, reserveEmpty: s.reserveEmpty, reserveOrdered: s.reserveOrdered ?? null, oxygenLevel: s.oxygenLevel, documentId: s.documentId,
   vehicles: (s.vehicles || []).map((v) => ({ vehicleId: v.vehicleId, label: v.label, bottles: v.bottles, mileage: v.mileage ?? null, anomalies: v.anomalies, critical: v.critical, answered: v.answered, total: v.total })),
 });
 
@@ -89,9 +90,12 @@ export async function shiftDoneToday(vehicleId, part = 'soignant') {
 /** État de l'oxygène d'après la dernière prise de poste. */
 export async function currentOxygen() {
   const last = await VehicleShiftCheck.findOne({ where: { part: 'soignant', reserveFull: { [Op.ne]: null } }, order: [['performedAt', 'DESC']] });
-  if (!last) return null;
+  const open = await openOrders();
+  // Bouteilles commandées, pas encore livrées (commandes du Biomédical)
+  const ordered = { quantity: open.quantity, orders: open.rows.map((o) => ({ id: o.id, quantity: o.quantity, orderedOn: o.orderedOn, expectedOn: o.expectedOn, by: o.orderedByName, source: o.source })) };
+  if (!last) return open.quantity ? { level: null, short: [], total: 0, ordered } : null;
   const st = oxygenStatus({ reserveFull: last.reserveFull, reserveEmpty: last.reserveEmpty, onboard: (last.vehicles || []).map((v) => ({ label: v.label, bottles: v.bottles })) });
-  return { ...st, level: last.oxygenLevel || st.level, at: last.performedAt, by: last.performedByName, reserveFull: last.reserveFull, reserveEmpty: last.reserveEmpty, onboard: (last.vehicles || []).map((v) => ({ vehicleId: v.vehicleId, label: v.label, bottles: v.bottles })) };
+  return { ...st, ordered, level: last.oxygenLevel || st.level, at: last.performedAt, by: last.performedByName, reserveFull: last.reserveFull, reserveEmpty: last.reserveEmpty, onboard: (last.vehicles || []).map((v) => ({ vehicleId: v.vehicleId, label: v.label, bottles: v.bottles })) };
 }
 
 // GET /api/vehicles/shift — écran de la prise de poste
@@ -177,6 +181,9 @@ export const submitShift = async (req, res) => {
     await fs.writeFile(path.resolve(process.cwd(), sigPath), sigBytes);
     const now = new Date();
     const previous = await VehicleShiftCheck.findOne({ where: { part: 'soignant', reserveFull: { [Op.ne]: null } }, order: [['performedAt', 'DESC']], attributes: ['oxygenLevel'] });
+    // Bouteilles commandées (non livrées) au moment du comptage de la réserve
+    const open = part === 'soignant' ? await openOrders() : { quantity: 0, rows: [] };
+    const reserveOrdered = part === 'soignant' ? open.quantity : null;
     const shift = await VehicleShiftCheck.create({
       shiftDate: doualaDay(now).date,
       part,
@@ -184,7 +191,7 @@ export const submitShift = async (req, res) => {
         vehicleId: v.id, label: v.label, immatriculation: v.immatriculation, items, answers: result.answers, bottles, mileage,
         answered: result.answered, total: result.total, anomalies: result.anomalies, critical: result.critical,
       })),
-      reserveFull, reserveEmpty, oxygenLevel: oxygen.level,
+      reserveFull, reserveEmpty, reserveOrdered, oxygenLevel: oxygen.level,
       anomalies: rows.reduce((n, r) => n + r.result.anomalies, 0),
       criticalAnomaly: rows.some((r) => r.result.critical),
       comment: String(req.body?.comment || '').trim().slice(0, 2000) || null,
@@ -241,6 +248,13 @@ export const submitShift = async (req, res) => {
       }).catch(() => {});
     }
     if (part === 'soignant' && oxygenWorsened(previous?.oxygenLevel, oxygen.level)) {
+      // Biomédical : passer la commande dans la GED, ou signaler qu'elle est faite
+      const already = open.quantity ? `\nDéjà commandé (non livré) : ${open.quantity} bouteille(s).` : '';
+      notifyBiomedical({
+        tenantId: req.tenantId,
+        title: `${oxygen.level === 'urgent' ? '🚨 URGENT — ' : '🫧 '}Commande d'oxygène à passer`,
+        body: `${OXYGEN_TEXT[oxygen.level]}.\nRéserve : ${reserveFull} pleine(s), ${reserveEmpty ?? '?'} vide(s)${oxygen.short.length ? `\nMoins de ${BOTTLES_PER_AMBULANCE} bouteilles : ${oxygen.short.join(', ')}` : ''}${already}\nEnregistrez la commande dans la GED (Parc véhicules › Oxygène), ou signalez qu'elle est déjà faite.`,
+      }).catch((err) => console.warn('Oxygène → Biomédical :', err.message));
       notifyVehicleManagers(first, {
         title: `${oxygen.level === 'urgent' ? '🚨' : '🫧'} Oxygène : ${oxygen.level === 'urgent' ? 'URGENT' : 'passer commande'}`,
         body: `${OXYGEN_TEXT[oxygen.level]}.\nRéserve : ${reserveFull} pleine(s), ${reserveEmpty ?? '?'} vide(s)${oxygen.short.length ? `\nMoins de ${BOTTLES_PER_AMBULANCE} bouteilles : ${oxygen.short.join(', ')}` : ''}`,

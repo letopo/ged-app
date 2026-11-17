@@ -1337,6 +1337,19 @@ const RELEASE_NOTES = [
     ],
   },
   {
+    id: '2026-11-17-parc-oxygene',
+    date: '2026-11-17',
+    target: '/vehicules',
+    title: 'Parc véhicules : oxygène et commandes du Biomédical',
+    access: (user) => !!user?.fleet?.hasModule,
+    items: [
+      'Nouvel onglet « Oxygène » : la carte oxygène montre les bouteilles à bord de chaque ambulance, en réserve (pleines et vides), commandées, et la consommation sur 7 et 30 jours.',
+      'Quand il faut commander (plus de bouteille pleine en réserve), le service Biomédical est prévenu : il enregistre la commande dans la GED, ou signale qu’elle est déjà faite.',
+      'À la livraison, cliquez « Reçue » sur la commande. La réserve d’oxygène de la prise de poste affiche les bouteilles commandées.',
+      'Plus de contrôle de départ ni de retour pour les ambulances : l’ordre de mission est monté au retour, l’ambulance est contrôlée à la prise de poste.',
+    ],
+  },
+  {
     id: '2026-11-17-modules-etape-2',
     date: '2026-11-17',
     target: 'app',
@@ -1389,5 +1402,16 @@ const RELEASE_NOTES = [
     ],
   },
 ];
+
+// Parc véhicules : les notes de la page concernent les équipes des ambulances
+// (contrôles, prise de poste, inventaires…). Un compte qui n'a que l'onglet
+// Oxygène (service Biomédical) ne voit que la note de l'oxygène.
+const FLEET_CREW_NOTE_EXCEPTIONS = new Set(['2026-11-17-parc-oxygene']);
+const fleetCrew = (user) => !!(user?.fleet?.canCheck || user?.fleet?.canDashboard || user?.fleet?.canCreate || user?.fleet?.fleetManager);
+for (const note of RELEASE_NOTES) {
+  if (note.target !== '/vehicules' || FLEET_CREW_NOTE_EXCEPTIONS.has(note.id)) continue;
+  const access = note.access;
+  note.access = (user) => fleetCrew(user) && (!access || access(user));
+}
 
 export default RELEASE_NOTES;

@@ -122,7 +122,7 @@ export async function buildVehicleShiftPdf({ tenantName, shift, oxygen, partLabe
   ensure(70);
   text('Réserve d\'oxygène', M, y, { font: bold, size: 11 });
   y -= 16;
-  text(`Bouteilles pleines : ${shift.reserveFull ?? '—'}      Bouteilles vides : ${shift.reserveEmpty ?? '—'}${oxygen?.total ? `      Total compté : ${oxygen.total}` : ''}`, M, y, { size: 10 });
+  text(`Bouteilles pleines : ${shift.reserveFull ?? '—'}      Bouteilles vides : ${shift.reserveEmpty ?? '—'}      Bouteilles commandées : ${shift.reserveOrdered ?? 0}${oxygen?.total ? `      Total compté : ${oxygen.total}` : ''}`, M, y, { size: 10 });
   y -= 18;
   if (shift.oxygenLevel) {
     const tone = shift.oxygenLevel === 'ok' ? GREEN : shift.oxygenLevel === 'commander' ? ORANGE : RED;

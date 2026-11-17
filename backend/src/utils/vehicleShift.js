@@ -63,3 +63,45 @@ export function shortagesFromShift(items, answers, sectionLabel = 'Prise de post
 
 /** Articles relevés à la prise de poste (identifiants de manque). */
 export const shiftAnsweredIds = (answers) => new Set((answers || []).filter((a) => a.status).map((a) => shiftItemId(a.itemId)));
+
+// ─── Suivi de l'oxygène (17/11/2026) ─────────────────────────────────────────
+// Bouteilles pleines d'une prise de poste : réserve pleine + bouteilles à bord.
+// null si la fiche n'a pas tout compté (une ambulance sans nombre fausserait
+// la consommation).
+export function fullBottles(shift) {
+  const reserve = int(shift?.reserveFull);
+  const onboard = (shift?.vehicles || []).map((v) => int(v.bottles));
+  if (reserve === null || !onboard.length || onboard.some((b) => b === null)) return null;
+  return reserve + onboard.reduce((n, b) => n + b, 0);
+}
+
+/**
+ * Consommation d'oxygène entre deux comptages successifs.
+ *  - shifts   : prises de poste (soignant) [{ at, reserveFull, vehicles: [{ bottles }] }]
+ *  - receipts : livraisons [{ at, quantity }]
+ * Entre deux comptages : consommées = pleines avant + reçues entre-temps − pleines après.
+ * Retourne les intervalles du plus ancien au plus récent : [{ from, to, before, received, after, used }].
+ */
+export function oxygenConsumption(shifts = [], receipts = []) {
+  const counted = shifts
+    .map((s) => ({ at: new Date(s.at ?? s.performedAt), full: fullBottles(s) }))
+    .filter((s) => s.full !== null && !Number.isNaN(s.at.getTime()))
+    .sort((a, b) => a.at - b.at);
+  const rec = receipts
+    .map((r) => ({ at: new Date(r.at), quantity: int(r.quantity) || 0 }))
+    .filter((r) => !Number.isNaN(r.at.getTime()));
+  const out = [];
+  for (let i = 1; i < counted.length; i++) {
+    const prev = counted[i - 1];
+    const cur = counted[i];
+    const received = rec.filter((r) => r.at > prev.at && r.at <= cur.at).reduce((n, r) => n + r.quantity, 0);
+    out.push({ from: prev.at, to: cur.at, before: prev.full, received, after: cur.full, used: Math.max(0, prev.full + received - cur.full) });
+  }
+  return out;
+}
+
+/** Bouteilles consommées sur les `days` derniers jours (intervalles terminés dans la période). */
+export function consumedSince(intervals, days, now = new Date()) {
+  const since = now.getTime() - days * 86400000;
+  return intervals.filter((x) => x.to.getTime() > since).reduce((n, x) => n + x.used, 0);
+}

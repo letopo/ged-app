@@ -9,13 +9,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader, ShieldCheck, Gauge, ClipboardList, PackageOpen, Sunrise } from 'lucide-react';
+import { Truck, ClipboardCheck, LayoutDashboard, ListChecks, Loader, ShieldCheck, Gauge, ClipboardList, PackageOpen, Sunrise, Wind } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { vehiclesAPI } from '../services/api';
 import VehicleChecksTab from '../components/vehicles/VehicleChecksTab';
 import InventoriesTab from '../components/vehicles/InventoriesTab';
 import ShortagesTab from '../components/vehicles/ShortagesTab';
 import ShiftTab from '../components/vehicles/ShiftTab';
+import OxygenTab from '../components/vehicles/OxygenTab';
 import FleetDashboard from '../components/vehicles/FleetDashboard';
 import VehiclesAdmin from '../components/vehicles/VehiclesAdmin';
 import ChecklistEditor from '../components/vehicles/ChecklistEditor';
@@ -85,9 +86,12 @@ export default function ParcVehicules() {
 
   const canManageAny = fleet?.canCreate || vehicles.some((v) => v.canManage);
   const detailVehicle = detail ? vehicles.find((v) => v.id === detail.id) : null;
+  // Biomédical : seulement l'onglet Oxygène (commandes de bouteilles)
+  const oxygenOnly = !!fleet?.oxygen?.canView && !fleet?.canCheck && !canManageAny && !fleet?.canDashboard;
   const tabs = [
     { key: 'prise', label: t('Prise de poste'), icon: Sunrise, show: !!fleet?.canCheck || canManageAny },
-    { key: 'controles', label: t('Contrôles'), icon: ClipboardCheck, show: true },
+    { key: 'oxygene', label: t('Oxygène'), icon: Wind, show: !!fleet?.oxygen?.canView },
+    { key: 'controles', label: t('Contrôles'), icon: ClipboardCheck, show: !oxygenOnly },
     { key: 'tableau', label: t('Tableau de bord'), icon: LayoutDashboard, show: !!fleet?.canDashboard },
     { key: 'manques', label: t('Manques'), icon: PackageOpen, show: !!fleet?.canCheck || canManageAny },
     { key: 'inventaires', label: t('Inventaires'), icon: ClipboardList, show: canManageAny },
@@ -96,7 +100,7 @@ export default function ParcVehicules() {
     { key: 'checklist', label: t('Check-list'), icon: ListChecks, show: canManageAny },
   ].filter((x) => x.show);
   const wanted = params.get('tab');
-  const tab = tabs.some((x) => x.key === wanted) ? wanted : (params.get('vehicle') ? 'controles' : (fleet?.canDashboard && !fleet?.canCheck ? 'tableau' : 'controles'));
+  const tab = tabs.some((x) => x.key === wanted) ? wanted : (oxygenOnly ? 'oxygene' : params.get('vehicle') ? 'controles' : (fleet?.canDashboard && !fleet?.canCheck ? 'tableau' : 'controles'));
 
   if (!fleet) return <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}><Loader className="animate-spin" /></div>;
 
@@ -124,6 +128,7 @@ export default function ParcVehicules() {
       {tab === 'controles' && <VehicleChecksTab vehicles={vehicles.filter((v) => v.isActive)} loading={loading} onChanged={() => loadVehicles()} initialVehicleId={params.get('tab') === 'suivi' ? null : params.get('vehicle')} onOpenDetail={(id) => setDetail({ id })} />}
       {tab === 'tableau' && <FleetDashboard onVehiclesChanged={() => loadVehicles()} />}
       {tab === 'prise' && <ShiftTab refreshKey={refreshKey} onChanged={() => loadVehicles()} />}
+      {tab === 'oxygene' && <OxygenTab refreshKey={refreshKey} />}
       {tab === 'manques' && <ShortagesTab refreshKey={refreshKey} onChanged={() => loadVehicles()} />}
       {tab === 'inventaires' && <InventoriesTab refreshKey={refreshKey} />}
       {tab === 'vehicules' && <VehiclesAdmin vehicles={vehicles} fleet={fleet} onChanged={() => loadVehicles()} onOpen={(id) => setDetail({ id })} />}
