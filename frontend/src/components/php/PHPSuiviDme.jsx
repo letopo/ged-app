@@ -3,7 +3,7 @@
 // en est dans le DME (accueil, paramètres, attente du médecin, en consultation,
 // vu…) et la frise du jour : consultation → labo → imagerie. Lecture seule.
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Stethoscope, FlaskConical, ScanLine, Pill, Info, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Stethoscope, FlaskConical, ScanLine, Pill, Info, AlertTriangle, Copy, HelpCircle } from 'lucide-react';
 import { phpConsultationAPI } from '../../services/phpService';
 
 const TONES = {
@@ -67,17 +67,64 @@ export function DmeSuiviBadge({ suivi, chargement, ouvert, onToggle }) {
   if (!suivi) return <span className="text-xs" style={{ color: 'var(--fg-subtle)' }}>–</span>;
   const kinds = [...new Set(suivi.frise.map((e) => e.kind))].filter((k) => k !== 'consultation');
   const Chevron = ouvert ? ChevronDown : ChevronRight;
+  const cliquable = suivi.fiches?.length > 0;
   return (
-    <button type="button" onClick={onToggle} disabled={!suivi.trouve}
-      title={suivi.trouve ? 'Voir le parcours du jour dans le DME' : 'Ni le matricule ni le nom ne correspondent à une fiche du DME'}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, cursor: suivi.trouve ? 'pointer' : 'default' }}>
-      {suivi.trouve && <Chevron size={13} style={{ color: 'var(--fg-subtle)' }} />}
+    <button type="button" onClick={onToggle} disabled={!cliquable}
+      title={cliquable ? 'Voir le parcours du jour et les fiches DME' : 'Ni le matricule, ni le nom, ni le compte Sage ne correspondent à une fiche du DME'}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'none', border: 'none', padding: 0, cursor: cliquable ? 'pointer' : 'default', textAlign: 'left' }}>
+      {cliquable && <Chevron size={13} style={{ color: 'var(--fg-subtle)' }} />}
       <Pastille tone={suivi.etat.tone}>{suivi.etat.label}{suivi.etat.heure ? ` · ${suivi.etat.heure}` : ''}</Pastille>
       {kinds.map((k) => {
         const Icon = KIND_ICON[k];
         return Icon ? <Icon key={k} size={14} style={{ color: 'var(--fg-muted)' }} aria-label={k} /> : null;
       })}
+      {suivi.confiance === 'probable' && <HelpCircle size={14} style={{ color: 'var(--warning)' }} aria-label="à vérifier" />}
+      {suivi.doublons && <span className="text-xs font-semibold" style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Copy size={12} /> {suivi.fiches.length} fiches DME</span>}
+      {suivi.ecartMatricule && <AlertTriangle size={14} style={{ color: 'var(--warning)' }} aria-label="matricule différent" />}
     </button>
+  );
+}
+
+const RAISONS = { 'matricule': 'même matricule', 'compte Sage': 'même compte Sage', 'nom complet': 'même nom', 'nom partiel': 'nom en partie', 'matricule voisin': 'matricule à un chiffre près', 'date de naissance': 'même date de naissance', 'même personne (doublon)': 'même nom et date de naissance' };
+
+function FichesDme({ suivi }) {
+  const { fiches = [], confiance, doublons, ecartMatricule } = suivi;
+  if (!fiches.length) return null;
+  const alerte = doublons || confiance === 'ambigu';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {confiance === 'ambigu' && (
+        <p className="text-xs" style={{ margin: 0, color: 'var(--danger)', display: 'flex', gap: 5, alignItems: 'center' }}>
+          <AlertTriangle size={13} /> Plusieurs fiches du DME peuvent correspondre : impossible de choisir. Vérifiez dans le DME et corrigez le matricule de la bonne fiche.
+        </p>
+      )}
+      {doublons && (
+        <p className="text-xs" style={{ margin: 0, color: 'var(--danger)', display: 'flex', gap: 5, alignItems: 'center' }}>
+          <Copy size={13} /> Ce patient a {fiches.length} fiches dans le DME : à fusionner dans le DME. Le parcours ci-dessus les réunit.
+        </p>
+      )}
+      {confiance === 'probable' && (
+        <p className="text-xs" style={{ margin: 0, color: 'var(--warning)', display: 'flex', gap: 5, alignItems: 'center' }}>
+          <HelpCircle size={13} /> Fiche retrouvée sans matricule ni compte Sage commun : à vérifier.
+        </p>
+      )}
+      {ecartMatricule && (
+        <p className="text-xs" style={{ margin: 0, color: 'var(--warning)', display: 'flex', gap: 5, alignItems: 'center' }}>
+          <AlertTriangle size={13} /> Matricule différent dans le DME : {ecartMatricule.join(', ')}. Un des deux est mal saisi.
+        </p>
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {fiches.map((f) => (
+          <div key={f.id} style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--surface)', border: `1px solid ${alerte ? 'color-mix(in srgb, var(--danger) 35%, var(--border))' : 'var(--border)'}` }}>
+            <div className="text-xs font-semibold" style={{ color: 'var(--fg)' }}>{f.dossier || `Fiche ${f.id}`} · {f.nom}</div>
+            <div className="text-xs" style={{ color: 'var(--fg-muted)' }}>
+              {[f.type, f.matricule && `matricule ${f.matricule}`, f.naissance && `né(e) le ${new Date(`${f.naissance}T12:00:00`).toLocaleDateString('fr-FR')}`].filter(Boolean).join(' · ')}
+            </div>
+            {f.raisons?.length > 0 && <div className="text-xs" style={{ color: 'var(--fg-subtle)' }}>Retrouvée par : {f.raisons.map((r) => RAISONS[r] || r).join(', ')}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -85,7 +132,7 @@ export function DmeSuiviFrise({ suivi }) {
   if (!suivi) return null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {suivi.frise.length === 0 ? (
+      {suivi.confiance === 'ambigu' ? null : suivi.frise.length === 0 ? (
         <p className="text-xs" style={{ color: 'var(--fg-muted)', margin: 0 }}>Aucun passage enregistré dans le DME ce jour-là.</p>
       ) : (
         <ol style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 6, listStyle: 'none', margin: 0, padding: 0 }}>
@@ -110,9 +157,9 @@ export function DmeSuiviFrise({ suivi }) {
           })}
         </ol>
       )}
+      <FichesDme suivi={suivi} />
       <p className="text-xs" style={{ color: 'var(--fg-subtle)', margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
         <Pill size={12} /> La pharmacie n’apparaît pas encore : le DME n’a pas ouvert la lecture des ordonnances à la GED.
-        {suivi.par === 'nom' && <><AlertCircle size={12} style={{ marginLeft: 6 }} /> Fiche DME retrouvée par le nom (matricule absent du DME).</>}
       </p>
     </div>
   );
