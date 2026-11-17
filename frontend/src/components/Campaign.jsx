@@ -4,6 +4,7 @@
 // Rien ne capte les clics hors de la bannière, rien n'apparaît à l'impression.
 import { useEffect, useRef } from 'react';
 import CAMPAIGNS from '../campaigns';
+import { hasModule } from '../utils/modules';
 
 const PREVIEW_KEY = 'campaign-preview';
 const readStorage = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -24,6 +25,8 @@ const daysBetween = (from, to) => Math.round((new Date(`${to}T00:00:00`) - new D
 
 /** Événement du moment pour cet utilisateur : { campaign, phase: 'teaser' | 'live', daysLeft } ou null. */
 export function currentCampaign(user, d = new Date()) {
+  // Module « Décor & événements » coupé : aucun événement
+  if (!hasModule(user, 'evenements')) return null;
   const today = dayKey(d);
   const preview = readStorage(PREVIEW_KEY);
   for (const c of CAMPAIGNS) {

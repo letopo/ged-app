@@ -172,12 +172,12 @@ const buildOrgGroups = (t, user) => {
     { id: 'parametrage', color: '#8B5CF6', icon: LayoutGrid, label: t('Paramétrage'), items: [
       { path: '/workflow-templates', icon: LayoutGrid,    label: t('Modèles workflow'), adminOnly: true },
       { path: '/forms',              icon: ClipboardList, label: t('Formulaires'),      adminOnly: true },
-      { path: '/statistiques',       icon: BarChart3,     label: t('Statistiques'),     adminOnly: true },
+      { path: '/statistiques',       icon: BarChart3,     label: t('Statistiques'),     adminOnly: true, module: 'statistiques' },
     ]},
     { id: 'files', color: '#D97706', icon: DoorOpen, label: t("Files d'attente"), items: [
-      { path: '/portail',            icon: UserPlus,    label: t('Portail'),            gardienOnly: true },
-      { path: '/accueil',            icon: DoorOpen,    label: t('Accueil'),            accueilOnly: true },
-      { path: '/caisse',             icon: DollarSign,  label: t('Caisse'),             caisseOnly: true },
+      { path: '/portail',            icon: UserPlus,    label: t('Portail'),            gardienOnly: true, module: 'affichage' },
+      { path: '/accueil',            icon: DoorOpen,    label: t('Accueil'),            accueilOnly: true, module: 'affichage' },
+      { path: '/caisse',             icon: DollarSign,  label: t('Caisse'),             caisseOnly: true, module: 'affichage' },
     ]},
     { id: 'finances', color: '#059669', icon: Calculator, label: t('Finances'), items: [
       { path: '/demandes-achat',     icon: ShoppingCart,    label: t("Demandes d'achat"),    demandeAchatOnly: true, module: 'achats' },
@@ -732,6 +732,7 @@ const Topbar = ({ onToggleSidebar, largeTitle }) => {
 
 const MobileTabBar = ({ pendingCount, onMore }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const location = useLocation();
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
@@ -739,8 +740,8 @@ const MobileTabBar = ({ pendingCount, onMore }) => {
     { to: '/dashboard',  icon: Home,        label: t('Accueil') },
     { to: '/documents',  icon: FileText,    label: t('Documents') },
     { to: '/my-tasks',   icon: CheckSquare, label: t('Tâches'), badge: pendingCount },
-    { to: '/statistiques', icon: BarChart3, label: t('Stats') },
-  ];
+    { to: '/statistiques', icon: BarChart3, label: t('Stats'), module: 'statistiques' },
+  ].filter(tab => !tab.module || hasModule(user, tab.module));
 
   return (
     <nav className="tabbar-pill" aria-label={t('Navigation principale')}>

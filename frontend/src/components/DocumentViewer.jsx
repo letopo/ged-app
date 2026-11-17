@@ -23,6 +23,7 @@ import TransmitDocumentModal from './TransmitDocumentModal';
 import LinkedDocumentModal from './LinkedDocumentModal';
 import PdfCanvasViewer, { canShowPdfInline } from './PdfCanvasViewer';
 import SignatureSession, { isSignableDocument } from './SignatureSession';
+import { hasModule } from '../utils/modules';
 import GedDocumentPicker from './GedDocumentPicker';
 import OrdreMissionVehiclePanel from './vehicles/OrdreMissionVehiclePanel';
 import { partageDisponible, partagerFichier } from '../utils/androidApp';
@@ -437,7 +438,7 @@ const DocumentViewer = ({
   const isSigned       = !!doc.metadata?.manualSignature;
   const canAddPages    = !isSigned && doc.status !== 'approved' && (isAdmin || doc.userId === user?.id);
   const inCircuit      = ['pending_validation', 'in_progress'].includes(doc.status) || wfSteps.some(w => ['pending', 'queued'].includes(w.status));
-  const canSign        = !isFormResponse && !isSigned && !inCircuit && isSignableDocument(doc) && !isOfficeFile(doc.fileName || doc.filePath);
+  const canSign        = hasModule(user, 'signature_patient') && !isFormResponse && !isSigned && !inCircuit && isSignableDocument(doc) && !isOfficeFile(doc.fileName || doc.filePath);
 
   // ── Styles ────────────────────────────────────────────────────────────────────
   const textareaStyle = { width: '100%', padding: '8px 10px', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 'var(--radius-2)', background: 'var(--surface-2)', color: 'var(--fg)', fontSize: 13, resize: 'vertical', outline: 'none', lineHeight: 1.5, fontFamily: 'inherit' };

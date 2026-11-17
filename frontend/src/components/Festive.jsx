@@ -5,6 +5,8 @@
 // Désactivable par chaque utilisateur (Paramètres › Profil), coupé d'office si
 // le système demande moins d'animations. Aperçu hors saison : ?noel=1 (?noel=0 pour l'arrêter).
 import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { hasModule } from '../utils/modules';
 
 const PREF_KEY = 'festive';          // 'off' = décor désactivé par l'utilisateur
 const PREVIEW_KEY = 'festive-preview';
@@ -43,8 +45,9 @@ export function setFestiveEnabled(enabled) {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
-/** { season, enabled, active } — active = décor affiché. */
+/** { season, enabled, active } — active = décor affiché (module « Décor & événements » requis). */
 export function useFestive() {
+  const { user } = useAuth();
   const [, force] = useState(0);
   useEffect(() => {
     const update = () => force(n => n + 1);
@@ -52,7 +55,7 @@ export function useFestive() {
     window.addEventListener('storage', update);
     return () => { window.removeEventListener(CHANGE_EVENT, update); window.removeEventListener('storage', update); };
   }, []);
-  const season = isFestiveSeason();
+  const season = hasModule(user, 'evenements') && isFestiveSeason();
   const enabled = readStorage(PREF_KEY) !== 'off';
   return { season, enabled, active: season && enabled };
 }
