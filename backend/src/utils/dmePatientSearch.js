@@ -175,3 +175,11 @@ export function rechercherDansDme(patient, index) {
     ecartMatricule: mat && matsDme.length && !matsDme.includes(mat) ? matsDme : null,
   };
 }
+
+// Résumé d'une fiche pour l'écran
+const TYPES_CLIENT = { AGENTS_PHP: 'agent PHP', FAMILLE_PHP: 'famille PHP', PAYANT_COMPTANT: 'payant comptant', BON_PRISE_EN_CHARGE: 'bon de prise en charge', ASSURANCE: 'assurance' };
+export const resumeFiche = (f) => ({
+  id: f.id, dossier: f.dossier_numero || null, nom: [f.nom, f.prenom].filter(Boolean).join(' '), type: TYPES_CLIENT[f.type_client] || f.type_client || null,
+  matricule: f.matricule_agent || null, naissance: f.date_naissance ? String(f.date_naissance).slice(0, 10) : null, raisons: f.raisons || [],
+});
+

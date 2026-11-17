@@ -72,3 +72,31 @@ test('décisions : réservées à la saisie PHP ; DME non réglé = 409 ; annula
   assert.equal((await request(app).delete(`/api/php/patients/${p1.id}/dme/501`).set(as(saisie))).status, 200);
   assert.equal((await request(app).delete(`/api/php/patients/${p1.id}/dme/501`).set(as(saisie))).status, 404);
 });
+
+test('Repos & Hospitalisations : repos échus terminés, DME non réglé = liste inchangée ; patients avec n° DME', async () => {
+  const { ReposPHP, HospitalisationPHP } = await import('../../src/models/index.js');
+  const echu = await ReposPHP.create({ patientId: p1.id, dateDebut: '2026-01-01', dateFin: '2026-01-05', dureeJours: 4, status: 'en_cours' });
+  const futur = await ReposPHP.create({ patientId: p2.id, dateDebut: '2026-11-01', dateFin: '2099-01-05', dureeJours: 4, status: 'en_cours' });
+  const h = await HospitalisationPHP.create({ patientId: p2.id, dateEntree: '2025-01-10', status: 'en_cours' });
+  const r = await request(app).get('/api/php/consultations/hospitalisations/en-cours').set(as(lecteur));
+  assert.equal(r.status, 200);
+  assert.equal(r.body.syncDme.disponible, false);
+  assert.ok(r.body.data.some((x) => x.id === h.id && x.dme === null));
+  assert.equal((await echu.reload()).status, 'termine');
+  assert.equal((await futur.reload()).status, 'en_cours');
+  // actions réservées à la saisie PHP
+  assert.equal((await request(app).post('/api/php/consultations/hospitalisations/sync-dme').set(as(lecteur))).status, 403);
+  const s = await request(app).post('/api/php/consultations/hospitalisations/sync-dme').set(as(saisie));
+  assert.equal(s.status, 200); assert.equal(s.body.disponible, false);
+  const c = await request(app).post('/api/php/consultations/hospitalisations/cloturer-anciennes').set(as(saisie)).send({ joursMin: 30 });
+  assert.equal(c.status, 200); assert.equal(c.body.clotures, 0); // rien n'est « non retrouvé » sans DME
+  assert.equal((await h.reload()).status, 'en_cours');
+  // rapprochement en masse : DME non réglé
+  assert.equal((await request(app).post('/api/php/patients/rapprochement-dme').set(as(lecteur))).status, 403);
+  const rp = await request(app).post('/api/php/patients/rapprochement-dme').set(as(saisie));
+  assert.equal(rp.status, 200); assert.equal(rp.body.disponible, false);
+  // la liste des patients porte les n° DME liés
+  const pats = await request(app).get('/api/php/patients?search=ESSAI').set(as(lecteur));
+  const un = pats.body.data.find((p) => p.id === p1.id);
+  assert.ok(Array.isArray(un.liensDme));
+});

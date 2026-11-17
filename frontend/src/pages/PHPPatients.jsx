@@ -13,6 +13,8 @@ import {
 import { Link } from 'react-router-dom';
 import { phpPatientAPI, phpReferenceAPI } from '../services/phpService';
 import PhpComptesSage from '../components/php/PhpComptesSage';
+import PhpFicheDme from '../components/php/PhpFicheDme';
+import { hasModule } from '../utils/modules';
 import PhpParcoursModal from '../components/php/PhpParcoursModal';
 import PHPPatientRegistration from '../components/php/PHPPatientRegistration';
 import PHPConsultationForm from '../components/php/PHPConsultationForm';
@@ -91,6 +93,20 @@ export default function PHPPatients() {
   }, [search, filterInfirmerie, filterStatus, page, pageSize]);
 
   useEffect(() => { loadPatients(); }, [loadPatients]);
+
+  // Rapprochement de tous les patients avec le DME (n° de dossier sûrs enregistrés)
+  const [rapprochement, setRapprochement] = useState(false);
+  const rapprocherDme = async () => {
+    setRapprochement(true);
+    try {
+      const { data } = await phpPatientAPI.rapprochementDme();
+      if (data.disponible === false) toast.error(data.raison || 'DME indisponible.');
+      else toast.success(`${data.lies} patient(s) sur ${data.total} ont un n° DME (${data.nouveaux} nouveau(x)). À vérifier : ${data.aVerifier} · plusieurs fiches possibles : ${data.ambigus} · introuvables : ${data.introuvables}.`, { duration: 9000 });
+      loadPatients();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Rapprochement impossible.');
+    } finally { setRapprochement(false); }
+  };
 
   useEffect(() => {
     phpReferenceAPI.getInfirmeries()
@@ -184,6 +200,12 @@ export default function PHPPatients() {
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)' }}>
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
+          {canWrite && hasModule(user, 'dme') && <button onClick={rapprocherDme} disabled={rapprochement}
+            title={t('Chercher tous les patients dans le DME et enregistrer les n° de dossier sûrs (même matricule ou compte Sage)')}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg transition-colors"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg)', whiteSpace: 'nowrap' }}>
+            <RefreshCw size={14} className={rapprochement ? 'animate-spin' : ''} /> {t('Rapprocher avec le DME')}
+          </button>}
           {canWrite && <button onClick={() => setShowRegistration(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors font-medium"
             style={{ background: 'var(--brand)', color: '#fff', boxShadow: 'var(--shadow-1)' }}>
@@ -269,6 +291,7 @@ export default function PHPPatients() {
                           </p>
                           <p className="text-xs truncate" style={{ color: 'var(--fg-muted)' }}>
                             <span style={{ fontFamily: 'var(--font-mono)' }}>{p.matricule}</span>
+                            {p.liensDme?.length > 0 && <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)' }} title={t('N° de dossier DME')}> • ✓ {p.liensDme.map((l) => l.dossierNumero).filter(Boolean).join(', ')}</span>}
                             {p.infirmerie && ` • ${p.infirmerie.nom}`}
                             {p.secteur && ` • ${p.secteur.nom}`}
                           </p>
@@ -412,6 +435,9 @@ export default function PHPPatients() {
 
               {/* Comptes tiers Sage (lien avec la facturation et le DME) */}
               <PhpComptesSage patientId={selectedPatient.id} canWrite={canWrite} t={t} />
+
+              {/* Fiche(s) du DME : lien enregistré, « c'est lui » / « ce n'est pas lui » */}
+              {hasModule(user, 'dme') && <PhpFicheDme key={selectedPatient.id} patientId={selectedPatient.id} canWrite={canWrite} t={t} />}
 
               {/* Historique consultations */}
               {selectedPatient.consultations?.length > 0 && (

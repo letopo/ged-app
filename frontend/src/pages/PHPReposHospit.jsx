@@ -7,11 +7,15 @@ import { useTranslation } from 'react-i18next';
 import {
   BedDouble, RefreshCw, ArrowLeft, Clock, CheckCircle,
   AlertCircle, Calendar, ChevronRight, Timer, Activity,
-  X, Plus
+  X, Plus, Database, Link2
 } from 'lucide-react';
 import { phpConsultationAPI } from '../services/phpService';
 import toast from 'react-hot-toast';
 import i18n from '../i18n/config';
+import { useAuth } from '../contexts/AuthContext';
+import { phpAccess } from '../utils/phpAccess';
+import { hasModule } from '../utils/modules';
+import { useConfirm } from '../components/ConfirmModal';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
@@ -22,6 +26,12 @@ export default function PHPReposHospit() {
   const [repos, setRepos] = useState([]);
   const [hospitalisations, setHospitalisations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncDme, setSyncDme] = useState(null);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const { user } = useAuth();
+  const canWrite = phpAccess(user).write;
+  const avecDme = hasModule(user, 'dme');
+  const { confirm, ConfirmModalRenderer } = useConfirm();
 
   // Modal prolonger repos
   const [selectedRepos, setSelectedRepos] = useState(null);
@@ -42,6 +52,7 @@ export default function PHPReposHospit() {
       ]);
       setRepos(reposRes.data.data || []);
       setHospitalisations(hospitRes.data.data || []);
+      setSyncDme(hospitRes.data.syncDme || null);
     } catch (err) {
       console.error('Erreur chargement repos/hospit:', err);
     } finally {
@@ -50,6 +61,36 @@ export default function PHPReposHospit() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const majDme = async () => {
+    setSyncBusy(true);
+    try {
+      const { data } = await phpConsultationAPI.syncHospitalisationsDme();
+      if (data.disponible === false) toast.error(data.raison || 'DME indisponible.');
+      else toast.success(`Mis à jour avec le DME : ${data.clotures} sortie(s), ${data.ajouts} hospitalisation(s) ajoutée(s), ${data.reposTermines} repos terminé(s).`);
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Mise à jour impossible.');
+    } finally { setSyncBusy(false); }
+  };
+
+  const cloturerAnciennes = async () => {
+    const n = syncDme?.anciennesNonRetrouvees || 0;
+    const ok = await confirm({
+      title: `Clôturer ${n} ancienne(s) hospitalisation(s) ?`,
+      message: `Ces hospitalisations sont « en cours » depuis plus de 30 jours et leur patient n’est pas retrouvé dans le DME : impossible de savoir s’il est encore hospitalisé. Elles seront marquées « sorti », sans date de sortie, avec une note. Les hospitalisations suivies par le DME ne sont pas touchées.`,
+      confirmLabel: 'Clôturer', variant: 'warning',
+    });
+    if (!ok) return;
+    setSyncBusy(true);
+    try {
+      const { data } = await phpConsultationAPI.cloturerHospitalisationsAnciennes(30);
+      toast.success(`${data.clotures} hospitalisation(s) clôturée(s).`);
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Clôture impossible.');
+    } finally { setSyncBusy(false); }
+  };
 
   const handleProlonger = async ({ dureeJours, notes }) => {
     if (!selectedRepos) return;
@@ -121,6 +162,43 @@ export default function PHPReposHospit() {
           {t('Actualiser')}
         </button>
       </div>
+
+      {avecDme && syncDme && (
+        <div className="rounded-xl px-4 py-3 mb-4 flex flex-col sm:flex-row sm:items-center gap-3 text-xs"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg-muted)' }}>
+          <div className="flex items-start gap-2 flex-1">
+            <Database size={15} style={{ color: 'var(--brand)', marginTop: 1, flexShrink: 0 }} />
+            <div>
+              {syncDme.disponible === false ? (
+                <span>{t('Liste non reliée au DME')} : {syncDme.raison}</span>
+              ) : syncDme.erreur ? (
+                <span style={{ color: 'var(--warning)' }}>{syncDme.erreur}</span>
+              ) : (
+                <span>
+                  {t('Tenue à jour avec le DME')}{syncDme.at ? ` (${new Date(syncDme.at).toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' })})` : ''} :
+                  {' '}{t('les sorties enregistrées dans le DME ferment l’hospitalisation ici, les agents hospitalisés dans le DME sont ajoutés, les repos échus sont terminés.')}
+                  {!syncDme.enCache && (syncDme.clotures || syncDme.ajouts || syncDme.reposTermines)
+                    ? <b style={{ color: 'var(--fg)' }}> {syncDme.clotures} {t('sortie(s)')}, {syncDme.ajouts} {t('ajout(s)')}, {syncDme.reposTermines} {t('repos terminé(s)')}.</b> : null}
+                </span>
+              )}
+            </div>
+          </div>
+          {canWrite && syncDme.disponible !== false && (
+            <div className="flex gap-2 flex-wrap">
+              {syncDme.anciennesNonRetrouvees > 0 && (
+                <button onClick={cloturerAnciennes} disabled={syncBusy} className="px-3 py-1.5 rounded-lg font-medium"
+                  style={{ background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid var(--warning)', whiteSpace: 'nowrap' }}>
+                  {t('Clôturer {{n}} ancienne(s) non retrouvée(s)', { n: syncDme.anciennesNonRetrouvees })}
+                </button>
+              )}
+              <button onClick={majDme} disabled={syncBusy} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium"
+                style={{ background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand)', whiteSpace: 'nowrap' }}>
+                <RefreshCw size={13} className={syncBusy ? 'animate-spin' : ''} /> {t('Mettre à jour avec le DME')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Onglets */}
       <div className="flex gap-1 rounded-xl p-1 mb-6 w-fit" style={{ background: 'var(--surface-3)' }}>
@@ -344,19 +422,28 @@ export default function PHPReposHospit() {
                           </span>
                         </div>
 
+                        {avecDme && h.dme && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs font-medium" style={{
+                            color: h.dme.code === 'hospitalise' ? 'var(--success)' : h.dme.code === 'introuvable' ? 'var(--fg-subtle)' : 'var(--warning)' }}>
+                            <Link2 size={12} />
+                            {h.dme.label}
+                            {h.dme.depuis && <span style={{ color: 'var(--fg-muted)', fontWeight: 400 }}> · {t('depuis le {{date}}', { date: new Date(`${h.dme.depuis}T12:00:00`).toLocaleDateString(currentLocale()) })}</span>}
+                            {h.dme.dossier && <span style={{ color: 'var(--fg-subtle)', fontWeight: 400, fontFamily: 'var(--font-mono)' }}> · {h.dme.dossier}</span>}
+                          </div>
+                        )}
                         {h.notes && (
-                          <p className="mt-1 text-xs italic" style={{ color: 'var(--fg-muted)' }}>"{h.notes}"</p>
+                          <p className="mt-1 text-xs italic" style={{ color: 'var(--fg-muted)', whiteSpace: 'pre-line' }}>"{h.notes}"</p>
                         )}
                       </div>
 
-                      <button
+                      {canWrite && <button
                         onClick={() => { setSelectedHospit(h); setShowCloture(true); }}
                         className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition-colors shrink-0"
                         style={{ background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid var(--success)' }}
                       >
                         <CheckCircle size={12} />
                         {t('Sortie')}
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 );
@@ -385,6 +472,7 @@ export default function PHPReposHospit() {
           onSubmit={handleCloturerHospit}
         />
       )}
+      {ConfirmModalRenderer}
     </div>
   );
 }

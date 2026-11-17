@@ -6,6 +6,7 @@ import {
   ReposPHP, OperationPHP, DecesTransfertPHP, Infirmerie, Secteur, User
 } from '../models/index.js';
 import { Op } from 'sequelize';
+import { synchroniserHospitalisations, compterAnciennes } from '../utils/phpHospitDme.js';
 import { patientsParDossier } from '../utils/phpPatientDme.js';
 import { sequelize } from '../models/index.js';
 
@@ -482,6 +483,11 @@ export const getReposEnCours = async (req, res) => {
 // ============================================
 export const getHospitalisationsEnCours = async (req, res) => {
   try {
+    // Mise à jour avec le DME (au plus toutes les 10 min) avant d'afficher la liste
+    let syncDme = null;
+    try { syncDme = await synchroniserHospitalisations(req.tenantId, { siPlusVieuxQue: 10 * 60_000 }); }
+    catch (err) { console.error('Synchro hospitalisations DME :', err.message); syncDme = { disponible: true, erreur: 'DME injoignable : liste non mise à jour.' }; }
+    const etats = syncDme?.etats || {};
     const hospitalisations = await HospitalisationPHP.findAll({
       where: { status: 'en_cours' },
       include: [
@@ -497,7 +503,9 @@ export const getHospitalisationsEnCours = async (req, res) => {
       order: [['dateEntree', 'DESC']]
     });
 
-    res.json({ success: true, data: hospitalisations });
+    const { etats: _e, ...resume } = syncDme || {};
+    if (syncDme?.disponible) resume.anciennesNonRetrouvees = await compterAnciennes(req.tenantId, 30);
+    res.json({ success: true, data: hospitalisations.map((h) => ({ ...h.toJSON(), dme: etats[h.id] || null })), syncDme: syncDme ? resume : null });
   } catch (err) {
     console.error('Erreur getHospitalisationsEnCours:', err);
     res.status(500).json({ success: false, message: err.message });

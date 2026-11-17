@@ -14,6 +14,7 @@ import {
 } from '../controllers/phpConsultationController.js';
 import { requirePhpWrite } from '../utils/phpAccess.js';
 import { suiviDme } from '../utils/phpSuiviDme.js';
+import { synchroniserHospitalisations, cloturerAnciennes } from '../utils/phpHospitDme.js';
 
 const router = express.Router();
 
@@ -38,6 +39,26 @@ router.get('/suivi-dme', protect, async (req, res) => {
 // ── Hospitalisations ──────────────────────────
 router.get('/hospitalisations/en-cours', protect, getHospitalisationsEnCours);
 router.put('/hospitalisations/:id/cloturer', protect, requirePhpWrite, cloturerHospitalisation);
+// Mise à jour immédiate avec le DME (sorties, nouvelles hospitalisations, repos terminés)
+router.post('/hospitalisations/sync-dme', protect, requirePhpWrite, async (req, res) => {
+  try {
+    const { etats, ...r } = await synchroniserHospitalisations(req.tenantId);
+    res.json({ success: true, ...r });
+  } catch (err) {
+    console.error('sync-dme', err);
+    res.status(502).json({ success: false, message: 'DME injoignable : mise à jour impossible.' });
+  }
+});
+// Clôture des anciennes hospitalisations que le DME ne permet pas de suivre
+router.post('/hospitalisations/cloturer-anciennes', protect, requirePhpWrite, async (req, res) => {
+  try {
+    const jours = Math.max(7, Math.min(3650, parseInt(req.body?.joursMin, 10) || 30));
+    res.json({ success: true, ...(await cloturerAnciennes(req.tenantId, jours, req.user)) });
+  } catch (err) {
+    console.error('cloturer-anciennes', err);
+    res.status(500).json({ success: false, message: 'Clôture impossible.' });
+  }
+});
 
 // ── Repos Maladie ─────────────────────────────
 router.get('/repos/en-cours', protect, getReposEnCours);
