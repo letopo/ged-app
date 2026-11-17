@@ -111,3 +111,33 @@ test('Gestion du personnel coupée : la recherche des missionnaires (OM, pièce 
   await request(app).put('/api/modules/personnel').set(as(f, admin)).send({ enabled: true }).expect(200);
   await request(app).put('/api/modules/plannings').set(as(f, admin)).send({ enabled: true }).expect(200);
 });
+
+test('étape 4 : Files d’attente, Calendrier, Signature sur tablette et Statistiques coupés → 403, puis réactivés', async () => {
+  const cas = {
+    affichage: ['/api/tickets/queue/accueil_normal', '/api/tickets/positions/accueil_normal'],
+    calendrier: ['/api/calendar/permissions', '/api/holidays'],
+    signature_patient: ['/api/documents/signature-kiosks', '/api/signature-public/jeton-inconnu'],
+    statistiques: ['/api/documents/statistics'],
+  };
+  for (const [key, urls] of Object.entries(cas)) {
+    await request(app).put(`/api/modules/${key}`).set(as(f, admin)).send({ enabled: false }).expect(200);
+    for (const url of urls) {
+      const r = await request(app).get(url).set(as(f, admin));
+      assert.equal(r.status, 403, url);
+      assert.equal(r.body.code, 'MODULE_DISABLED', url);
+    }
+    await request(app).put(`/api/modules/${key}`).set(as(f, admin)).send({ enabled: true }).expect(200);
+    for (const url of urls) {
+      const back = await request(app).get(url).set(as(f, admin));
+      assert.notEqual(back.body?.code, 'MODULE_DISABLED', url);
+    }
+  }
+});
+
+test('Décor & événements : module activable (côté écran uniquement), présent dans le profil', async () => {
+  await request(app).put('/api/modules/evenements').set(as(f, admin)).send({ enabled: false }).expect(200);
+  const off = await request(app).get('/api/auth/profile').set(as(f, agent));
+  const mods = off.body.data?.modules || off.body.user?.modules || off.body.modules;
+  assert.ok(Array.isArray(mods) && !mods.includes('evenements'), JSON.stringify(off.body).slice(0, 200));
+  await request(app).put('/api/modules/evenements').set(as(f, admin)).send({ enabled: true }).expect(200);
+});

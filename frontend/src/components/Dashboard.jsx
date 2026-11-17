@@ -10,11 +10,13 @@ const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 const currentLocale = () => BCP47_LOCALES[i18n.language] || 'fr-FR';
 import PendingVehicleChecks from './vehicles/PendingVehicleChecks';
 import { useFestive, festiveGreeting } from './Festive';
+import { hasModule } from '../utils/modules';
 import { CampaignBanner } from './Campaign';
 import {
   Clock, CheckCircle, FileText, TrendingDown, TrendingUp,
   Upload, BarChart3, ChevronRight, ArrowRight, RefreshCw, Loader, Hourglass,
   AlertTriangle, Sparkles, DatabaseBackup,
+  Archive,
 } from 'lucide-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -552,10 +554,13 @@ function RecentDocs({ documents }) {
 
 function QuickActions({ pendingCount }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const items = [
     { icon: Upload,     color: '#2563EB', label: t('Upload'),        sub: t('Document unique'),        to: '/upload' },
     { icon: FileText,   color: '#D97706', label: t('Mes tâches'),    sub: t('{{count}} en attente', { count: pendingCount || 0 }), to: '/my-tasks' },
-    { icon: BarChart3,  color: '#8B5CF6', label: t('Statistiques'),  sub: t('Vue mensuelle'),           to: '/statistiques' },
+    hasModule(user, 'statistiques')
+      ? { icon: BarChart3,  color: '#8B5CF6', label: t('Statistiques'),  sub: t('Vue mensuelle'),           to: '/statistiques' }
+      : { icon: Archive,    color: '#8B5CF6', label: t('Archives'),      sub: t('Documents classés'),       to: '/archives' },
     { icon: CheckCircle,color: '#059669', label: t('Workflow'),      sub: t('Suivi validation'),        to: '/workflow-dashboard' },
   ];
 
@@ -822,7 +827,7 @@ const Dashboard = () => {
 
         {/* Left: calendar + recent docs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <MiniCalendar tasksByDay={null} />
+          {hasModule(user, 'calendrier') && <MiniCalendar tasksByDay={null} />}
           <RecentDocs documents={recentDocuments.slice(0, 6)} />
         </div>
 

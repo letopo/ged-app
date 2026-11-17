@@ -346,11 +346,11 @@ function App() {
         <Route path="/register"      element={<Register />} />
         <Route path="/verify"        element={<VerifyDocument />} />
         <Route path="/verify/:hash"  element={<VerifyDocument />} />
-        <Route path="/display"       element={<PublicDisplay />} />
+        <Route path="/display"       element={<ModuleRoute module="affichage"><PublicDisplay /></ModuleRoute>} />
         {/* Signature du patient sur une tablette (jeton du QR code, sans connexion) */}
         <Route path="/signer/:token" element={<SignerPage />} />
         {/* Tablette du guichet connectée, qui reçoit les demandes de signature */}
-        <Route path="/borne-signature" element={<ProtectedRoute><SignatureKiosk /></ProtectedRoute>} />
+        <Route path="/borne-signature" element={<ProtectedRoute><ModuleRoute module="signature_patient"><SignatureKiosk /></ModuleRoute></ProtectedRoute>} />
 
         {/* ── Form Designer (plein écran, hors AppShell) ───── */}
         <Route path="/forms/:id/designer" element={
@@ -399,7 +399,7 @@ function App() {
           <Route path="/postes"          element={<AdminRoute><PageWrapper><PostesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/services"        element={<AdminRoute><PageWrapper><ServicesManagement /></PageWrapper></AdminRoute>} />
           <Route path="/audit-log"       element={<AdminRoute><PageWrapper><AuditLogPage /></PageWrapper></AdminRoute>} />
-          <Route path="/statistiques"    element={<AdminRoute><PageWrapper><StatistiquesPage /></PageWrapper></AdminRoute>} />
+          <Route path="/statistiques"    element={<ModuleRoute module="statistiques"><AdminRoute><PageWrapper><StatistiquesPage /></PageWrapper></AdminRoute></ModuleRoute>} />
           <Route path="/workflow-templates" element={<AdminRoute><PageWrapper><WorkflowTemplatesPage /></PageWrapper></AdminRoute>} />
           <Route path="/employees"       element={<ModuleRoute module="personnel"><EmployeesRoute><PageWrapper><EmployeeManagement /></PageWrapper></EmployeesRoute></ModuleRoute>} />
           <Route path="/vehicules"       element={<ModuleRoute module="vehicules"><PageWrapper><ParcVehicules /></PageWrapper></ModuleRoute>} />
@@ -409,9 +409,9 @@ function App() {
           <Route path="/forms"                element={<PageWrapper><FormsListPage /></PageWrapper>} />
           <Route path="/forms/:id/responses"  element={<PageWrapper><FormResponses /></PageWrapper>} />
           <Route path="/forms/approvals"      element={<PageWrapper><FormApprovalsPage /></PageWrapper>} />
-          <Route path="/portail"         element={<PortailRoute><PageWrapper><PortailDashboard /></PageWrapper></PortailRoute>} />
-          <Route path="/accueil"         element={<AccueilRoute><PageWrapper><AccueilDashboard /></PageWrapper></AccueilRoute>} />
-          <Route path="/caisse"          element={<CaisseRoute><PageWrapper><CaisseDashboard /></PageWrapper></CaisseRoute>} />
+          <Route path="/portail"         element={<ModuleRoute module="affichage"><PortailRoute><PageWrapper><PortailDashboard /></PageWrapper></PortailRoute></ModuleRoute>} />
+          <Route path="/accueil"         element={<ModuleRoute module="affichage"><AccueilRoute><PageWrapper><AccueilDashboard /></PageWrapper></AccueilRoute></ModuleRoute>} />
+          <Route path="/caisse"          element={<ModuleRoute module="affichage"><CaisseRoute><PageWrapper><CaisseDashboard /></PageWrapper></CaisseRoute></ModuleRoute>} />
 
           {/* Module PHP */}
           <Route path="/php"               element={<ModuleRoute module="php"><PHPRoute><PageWrapper><PHPModule /></PageWrapper></PHPRoute></ModuleRoute>} />

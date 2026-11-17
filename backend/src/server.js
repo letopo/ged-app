@@ -238,7 +238,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/calendar', calendarRoutes);
+app.use('/api/calendar', requireModule('calendrier'), calendarRoutes);
 app.use('/api', healthRouter);
 app.use('/api', systemRouter);
 app.use('/api', mailSettingsRouter);
@@ -247,11 +247,11 @@ app.use('/api', integrationsRouter);
 app.use('/api', categoryAccessRouter);
 app.use('/api', tenantModulesRouter);
 app.use('/api/lists', listsRoutes);
-app.use('/api/holidays', holidaysRoutes);
+app.use('/api/holidays', requireModule('calendrier'), holidaysRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/push', pushRoutes);
-app.use('/api/tickets/positions', positionRoutes); // ✅ AJOUTER
-app.use('/api/tickets', ticketRoutes);
+app.use('/api/tickets/positions', requireModule('affichage'), positionRoutes); // Files d'attente (guichets)
+app.use('/api/tickets', requireModule('affichage'), ticketRoutes);
 app.use('/api/schedules', requireModule('plannings'), schedulesRoutes);
 app.use('/api/departments', requireModule('plannings'), departmentsRoutes);
 app.use('/api/shift-types', requireModule('plannings'), shiftTypesRoutes);
@@ -283,7 +283,7 @@ app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/workflow-templates', workflowTemplateRoutes);
 app.use('/api/verify', verificationRoutes);
 app.use('/api/vehicles', requireModule('vehicules'), vehicleRoutes); // Parc véhicules (ambulances RO SAU)
-app.use('/api/signature-public', signaturePublicRoutes); // Tablette du guichet (jeton, sans connexion)
+app.use('/api/signature-public', requireModule('signature_patient'), signaturePublicRoutes); // Tablette du guichet (jeton, sans connexion)
 app.use('/api/forms', formRoutes); // ✅ Form Builder
 app.use('/api/onlyoffice', onlyofficeRoutes);
 app.use('/api/postes', postesRoutes); // ✅ Postes organisationnels

@@ -2,6 +2,7 @@
 
 import express from 'express';
 import { protect } from '../middleware/auth.js';
+import { requireModule } from '../middleware/requireModule.js';
 import upload, { fixUploadEncoding } from '../middleware/upload.js';
 import {
   uploadDocument,
@@ -248,7 +249,7 @@ router.get('/categories', protect, async (req, res) => {
 // @route   GET /api/documents/statistics
 // @desc    Statistiques avancées sur les documents et workflows
 // @access  Private (admin only)
-router.get('/statistics', protect, async (req, res) => {
+router.get('/statistics', protect, requireModule('statistiques'), async (req, res) => {
   try {
     if (!['admin','superadmin'].includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Accès réservé aux administrateurs' });
@@ -423,14 +424,17 @@ router.use(protect);
 router.post('/upload', upload.single('file'), fixUploadEncoding, uploadDocument);
 
 // Signature manuscrite (patient au guichet) : apposition + vérification d'intégrité
-router.post('/:id/manual-signature', signDocumentManually);
+// Module « Signature sur tablette » : coupé = plus de nouvelle signature ; la
+// vérification d'une signature déjà apposée (GET) reste ouverte.
+const signaturePatient = requireModule('signature_patient');
+router.post('/:id/manual-signature', signaturePatient, signDocumentManually);
 router.get('/:id/manual-signature', getManualSignature);
 // Signature sur une tablette du guichet (lien / QR code, ou borne connectée)
-router.get('/signature-kiosks', listSignatureKiosks);
-router.post('/:id/signature-requests', createSignatureRequest);
-router.get('/signature-requests/:token', getSignatureRequestStatus);
-router.post('/signature-requests/:token/send', sendSignatureRequest);
-router.delete('/signature-requests/:token', cancelSignatureRequest);
+router.get('/signature-kiosks', signaturePatient, listSignatureKiosks);
+router.post('/:id/signature-requests', signaturePatient, createSignatureRequest);
+router.get('/signature-requests/:token', signaturePatient, getSignatureRequestStatus);
+router.post('/signature-requests/:token/send', signaturePatient, sendSignatureRequest);
+router.delete('/signature-requests/:token', signaturePatient, cancelSignatureRequest);
 
 // ✅ NOUVELLE ROUTE : Ajouter une page (fusionner)
 router.post('/:id/add-page', upload.single('file'), fixUploadEncoding, addPageToDocument);

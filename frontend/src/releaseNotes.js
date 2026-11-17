@@ -1337,6 +1337,18 @@ const RELEASE_NOTES = [
     ],
   },
   {
+    id: '2026-11-17-modules-etape-4',
+    date: '2026-11-17',
+    target: 'app',
+    title: 'Paramètres › Modules : cinq modules de plus',
+    access: isAdmin,
+    items: [
+      'Les Files d’attente (Portail, Accueil, Caisse et écran d’affichage), le Calendrier des permissions, la Signature sur tablette, les Statistiques et le Décor & événements peuvent maintenant être activés ou désactivés.',
+      'Signature sur tablette désactivée : plus de « Faire signer » ni de borne, mais les signatures déjà apposées restent vérifiables sur les documents.',
+      'Chez vous, ils restent activés : rien ne change tant que personne ne les coupe.',
+    ],
+  },
+  {
     id: '2026-11-17-parc-oxygene',
     date: '2026-11-17',
     target: '/vehicules',

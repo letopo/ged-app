@@ -115,6 +115,12 @@ export function attachSignatureKiosk(socket, io) {
       const { User } = await import('../models/index.js');
       const user = await User.findByPk(socket.userId, { attributes: ['id', 'firstName', 'lastName', 'tenantId', 'role', 'isActive'] });
       if (!user || user.isActive === false) return;
+      // Module « Signature sur tablette » coupé : la borne ne s'enregistre pas
+      const { isModuleActive } = await import('./tenantModules.js');
+      if (user.tenantId && !(await isModuleActive(user.tenantId, 'signature_patient'))) {
+        socket.emit('signature-kiosk:refused', { message: 'Le module « Signature sur tablette » n’est pas activé pour votre établissement.' });
+        return;
+      }
       // Seuls les comptes de guichet (ou un poste « Borne de signature ») peuvent
       // servir de tablette : un autre compte recevrait les documents des patients
       if (!(await canBeKiosk(user))) {
