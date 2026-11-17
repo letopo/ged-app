@@ -354,15 +354,15 @@ function App() {
 
         {/* ── Form Designer (plein écran, hors AppShell) ───── */}
         <Route path="/forms/:id/designer" element={
-          <ProtectedRoute>
+          <ProtectedRoute><ModuleRoute module="modeles">
             <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <FormDesigner />
             </div>
-          </ProtectedRoute>
+          </ModuleRoute></ProtectedRoute>
         } />
 
         {/* ── Form Fill (remplissage) ───────────────────────── */}
-        <Route path="/forms/:id/fill" element={<ProtectedRoute><FormFill /></ProtectedRoute>} />
+        <Route path="/forms/:id/fill" element={<ProtectedRoute><ModuleRoute module="modeles"><FormFill /></ModuleRoute></ProtectedRoute>} />
 
         {/* ── Routes protégées (dans AppShell) ─────────────── */}
         <Route element={<ProtectedRoute><AppShell onLogout={logout} /></ProtectedRoute>}>
@@ -374,7 +374,7 @@ function App() {
           <Route path="/my-tasks"             element={<PageWrapper><MyTasks /></PageWrapper>} />
           <Route path="/workflow-dashboard"   element={<PageWrapper><WorkflowDashboard /></PageWrapper>} />
           <Route path="/create-from-template" element={<PageWrapper><CreateFromTemplate /></PageWrapper>} />
-          <Route path="/create-work-request"  element={<PageWrapper><CreateWorkRequest /></PageWrapper>} />
+          <Route path="/create-work-request"  element={<ModuleRoute module="travaux"><PageWrapper><CreateWorkRequest /></PageWrapper></ModuleRoute>} />
           <Route path="/demandes-achat"       element={<ModuleRoute module="achats"><PageWrapper><DemandeAchatDashboard /></PageWrapper></ModuleRoute>} />
           <Route path="/invoices"             element={<ManagementRoute><PageWrapper><InvoiceDashboard /></PageWrapper></ManagementRoute>} />
           <Route path="/kanban/:serviceType"  element={<KanbanRoute><ModuleRoute module="trello"><PageWrapper><TrelloBoard /></PageWrapper></ModuleRoute></KanbanRoute>} />
@@ -406,9 +406,9 @@ function App() {
           <Route path="/bloc-operatoire" element={<ModuleRoute module="bloc"><PageWrapper><ProgrammeOperatoire /></PageWrapper></ModuleRoute>} />
           <Route path="/gmao"            element={<ModuleRoute module="gmao"><GMAORoute><PageWrapper><GMAOPage /></PageWrapper></GMAORoute></ModuleRoute>} />
           {/* ── Form Builder ── */}
-          <Route path="/forms"                element={<PageWrapper><FormsListPage /></PageWrapper>} />
-          <Route path="/forms/:id/responses"  element={<PageWrapper><FormResponses /></PageWrapper>} />
-          <Route path="/forms/approvals"      element={<PageWrapper><FormApprovalsPage /></PageWrapper>} />
+          <Route path="/forms"                element={<ModuleRoute module="modeles"><PageWrapper><FormsListPage /></PageWrapper></ModuleRoute>} />
+          <Route path="/forms/:id/responses"  element={<ModuleRoute module="modeles"><PageWrapper><FormResponses /></PageWrapper></ModuleRoute>} />
+          <Route path="/forms/approvals"      element={<ModuleRoute module="modeles"><PageWrapper><FormApprovalsPage /></PageWrapper></ModuleRoute>} />
           <Route path="/portail"         element={<ModuleRoute module="affichage"><PortailRoute><PageWrapper><PortailDashboard /></PageWrapper></PortailRoute></ModuleRoute>} />
           <Route path="/accueil"         element={<ModuleRoute module="affichage"><AccueilRoute><PageWrapper><AccueilDashboard /></PageWrapper></AccueilRoute></ModuleRoute>} />
           <Route path="/caisse"          element={<ModuleRoute module="affichage"><CaisseRoute><PageWrapper><CaisseDashboard /></PageWrapper></CaisseRoute></ModuleRoute>} />

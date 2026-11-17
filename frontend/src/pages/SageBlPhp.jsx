@@ -14,6 +14,8 @@ import Pagination, { usePageSize } from '../components/Pagination';
 import { sageBlAPI } from '../services/phpService';
 import { PrepareBox, PreparationsTab, PrepBadge } from '../components/sage/FacturationAssistee';
 import RapprochementDme from '../components/sage/RapprochementDme';
+import { useAuth } from '../contexts/AuthContext';
+import { hasModule } from '../utils/modules';
 
 const fmtMoney = (n) => `${Number(n || 0).toLocaleString('fr-FR')} FCFA`;
 const fmtMoneyShort = (n) => {
@@ -253,6 +255,7 @@ function ControlTab({ t }) {
 
 export default function SageBlPhp() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -357,7 +360,7 @@ export default function SageBlPhp() {
 
           {/* Onglets */}
           <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 14 }}>
-            {[['bpc', t('BPC en attente')], ['preparations', t('Facturation assistée')], ['controle', t('Contrôle des BPC')], ['dme', t('Rapprochement DME')]].map(([id, label]) => (
+            {[['bpc', t('BPC en attente')], ['preparations', t('Facturation assistée')], ['controle', t('Contrôle des BPC')], ['dme', t('Rapprochement DME')]].filter(([id]) => id !== 'dme' || hasModule(user, 'dme')).map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: tab === id ? 650 : 500, color: tab === id ? 'var(--brand)' : 'var(--fg-muted)', borderBottom: `2px solid ${tab === id ? 'var(--brand)' : 'transparent'}`, marginBottom: -1 }}>{label}</button>
             ))}
           </div>

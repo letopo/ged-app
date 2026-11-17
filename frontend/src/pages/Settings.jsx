@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { hasModule } from '../utils/modules';
 import { useLanguage } from '../contexts/LanguageContext';
 import { authAPI, usersAPI, tenantBrandingAPI, mailSettingsAPI, integrationsAPI } from '../services/api';
 import {
@@ -132,8 +133,14 @@ export default function Settings() {
   // Messagerie : super-administrateur, ou administrateur autorisé par lui
   const [mailAccess, setMailAccess] = useState(user?.role === 'superadmin');
   // IA · OCR et Intégrations (Sage) : même règle que la messagerie
-  const [integrationAccess, setIntegrationAccess] = useState(
+  const [integrationRights, setIntegrationAccess] = useState(
     user?.role === 'superadmin' ? { ai: true, sage: true, dme: true } : { ai: false, sage: false, dme: false });
+  // Réglages d'une intégration : seulement si son module est actif (IA, Sage, DME)
+  const integrationAccess = {
+    ai: integrationRights.ai && hasModule(user, 'ia'),
+    sage: integrationRights.sage && hasModule(user, 'sage'),
+    dme: integrationRights.dme && hasModule(user, 'dme'),
+  };
   useEffect(() => {
     if (user?.role !== 'admin') return;
     mailSettingsAPI.get().then(res => setMailAccess(Boolean(res.data.canManage))).catch(() => setMailAccess(false));

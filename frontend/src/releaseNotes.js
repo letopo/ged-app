@@ -1337,6 +1337,19 @@ const RELEASE_NOTES = [
     ],
   },
   {
+    id: '2026-11-17-modules-etape-5',
+    date: '2026-11-17',
+    target: 'app',
+    title: 'Paramètres › Modules : tous les modules sont activables',
+    access: isAdmin,
+    items: [
+      'Derniers modules activables : Formulaires, Scanner mobile & OCR, Documents RH (BPC du personnel, certificat d’aptitude), Liaison DME, Demandes de travaux et IA · OCR avancé.',
+      'Un module désactivé retire aussi ses modèles de « Nouveau document » : par exemple, plus de Demande de travaux si le module est coupé. Les documents déjà créés restent consultables.',
+      'IA désactivée : la lecture automatique des factures et pièces comptables ne passe plus par l’IA. DME désactivé : le parcours hospitalier se limite au Module PHP et à Sage.',
+      'Chez vous, ils restent activés : rien ne change tant que personne ne les coupe.',
+    ],
+  },
+  {
     id: '2026-11-17-modules-etape-4',
     date: '2026-11-17',
     target: 'app',

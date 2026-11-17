@@ -29,6 +29,16 @@ export async function resolveAiConfig(tenantId = tenantNamespace.get('tenantId')
 
 // Pour les services d'extraction : configuration utilisable, sinon erreur claire
 export async function requireAiConfig() {
+  // Module « IA · OCR avancé » coupé : même erreur qu'une clé absente (les appelants la gèrent)
+  const tenantId = tenantNamespace.get('tenantId');
+  if (tenantId) {
+    const { isModuleActive } = await import('./tenantModules.js');
+    if (!(await isModuleActive(tenantId, 'ia'))) {
+      const err = new Error('Le module « IA · OCR avancé » n’est pas activé pour votre établissement.');
+      err.code = 'NO_API_KEY';
+      throw err;
+    }
+  }
   const cfg = await resolveAiConfig();
   if (!cfg.apiKey) {
     const err = new Error(cfg.disabled

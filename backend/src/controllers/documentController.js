@@ -1,6 +1,8 @@
 ﻿// backend/src/controllers/documentController.js - VERSION FINALE AVEC GESTION FACTURES AUTOMATIQUE
 
 import { Op } from 'sequelize';
+import { templateModuleOff } from '../utils/tenantModules.js';
+import { MODULE_BY_KEY } from '../config/modules.js';
 
 import {
   buildCategoryRestrictionWhere,
@@ -42,6 +44,14 @@ export const uploadDocument = async (req, res) => {
         console.warn('Metadata invalide, ignoré:', err.message);
         parsedMetadata = {};
       }
+    }
+
+    // Modèle rattaché à un module coupé (Demande de travaux, Certificat d'aptitude…) : refusé
+    const moduleOff = await templateModuleOff(req.tenantId, category || parsedMetadata.type);
+    if (moduleOff) {
+      await fs.unlink(req.file.path).catch(() => {});
+      return res.status(403).json({ success: false, code: 'MODULE_DISABLED', module: moduleOff,
+        message: `Le module « ${MODULE_BY_KEY[moduleOff].label} » n’est pas activé pour votre établissement.` });
     }
 
     // Demande de permission : au moins 2 jours ouvrables à l'avance, sauf administrateurs

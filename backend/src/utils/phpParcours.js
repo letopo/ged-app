@@ -236,7 +236,9 @@ export async function buildParcours({ tenantId, patient, from, to }) {
   const personnesDme = new Set();
   const dmePatients = [];
   const dmeRow = await TenantIntegration.findOne({ where: { tenantId, kind: 'dme' } });
-  if (dmeRow?.secretEncrypted && dmeRow.config?.host) {
+  // Module « Liaison DME » coupé : le parcours se limite au Module PHP et à Sage
+  const { isModuleActive } = await import('./tenantModules.js');
+  if (dmeRow?.secretEncrypted && dmeRow.config?.host && await isModuleActive(tenantId, 'dme')) {
     try {
       const conn = await openDme(dmeRow.config, decryptSecret(dmeRow.secretEncrypted));
       let dme;
