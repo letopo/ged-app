@@ -133,7 +133,7 @@ function AssocierDossier({ actions }) {
   );
 }
 
-function FichesDme({ suivi, canWrite, onChange }) {
+export function FichesDme({ suivi, canWrite, onChange }) {
   const { fiches = [], confiance, doublons, ecartMatricule, ecartees = [] } = suivi;
   const actions = useLienDme(suivi.patientId, onChange);
   const alerte = doublons || confiance === 'ambigu';

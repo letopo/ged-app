@@ -40,6 +40,8 @@ export const phpPatientAPI = {
   liensDme: (id) => api.get(`/php/patients/${id}/dme`),
   decideLienDme: (id, body) => api.post(`/php/patients/${id}/dme`, body),
   resetLienDme: (id, dmePatientId) => api.delete(`/php/patients/${id}/dme/${dmePatientId}`),
+  rechercheDme: (id) => api.get(`/php/patients/${id}/dme/recherche`),
+  rapprochementDme: () => api.post('/php/patients/rapprochement-dme'),
 };
 
 // ============================================
@@ -59,6 +61,9 @@ export const phpConsultationAPI = {
   // Repos
   getReposEnCours: () => api.get('/php/consultations/repos/en-cours'),
   prolongerRepos: (id, data) => api.put(`/php/consultations/repos/${id}/prolonger`, data),
+  // Mise à jour avec le DME
+  syncHospitalisationsDme: () => api.post('/php/consultations/hospitalisations/sync-dme'),
+  cloturerHospitalisationsAnciennes: (joursMin = 30) => api.post('/php/consultations/hospitalisations/cloturer-anciennes', { joursMin }),
 };
 
 // ============================================

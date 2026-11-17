@@ -1475,6 +1475,19 @@ const RELEASE_NOTES = [
       'Recherche par n° de dossier DME dans Consultations PHP et Patients PHP. La recherche de la page Consultations (nom, matricule) fonctionne de nouveau.',
     ],
   },
+  {
+    id: '2026-11-17-php-hospit-dme',
+    date: '2026-11-17',
+    target: '/php',
+    title: 'Module PHP tenu à jour avec le DME',
+    access: (user) => phpAccess(user).read && hasModule(user, 'dme'),
+    items: [
+      'Repos & Hospitalisations : un patient sorti dans le DME est sorti ici aussi (date et type de sortie du DME : guérison, transfert, décès…) ; un agent PHP hospitalisé dans le DME est ajouté à la liste ; chaque hospitalisation indique son état dans le DME.',
+      'Les repos dont la date de fin est passée sont terminés automatiquement.',
+      '« Clôturer les anciennes non retrouvées » : ferme, après confirmation, les hospitalisations ouvertes depuis plus de 30 jours dont le patient n’est pas retrouvé dans le DME.',
+      'Patients PHP : « Rapprocher avec le DME » cherche tous les patients et enregistre leur n° de dossier DME (affiché ✓ dans la liste) ; la fiche du patient montre ses fiches DME avec « C’est lui » / « Ce n’est pas lui ».',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances

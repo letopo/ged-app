@@ -13,7 +13,8 @@ import { ConsultationPHP, PatientPHP, TenantIntegration } from '../models/index.
 import { decryptSecret } from './secretBox.js';
 import { openDme } from './dmeConnection.js';
 import { PhpPatientCompteSage } from '../models/index.js';
-import { indexerDme, rechercherDansDme } from './dmePatientSearch.js';
+import { rechercherDansDme, resumeFiche } from './dmePatientSearch.js';
+import { indexDuTenant } from './dmeIndex.js';
 import { chargerLiens, lierAutomatiquement } from './phpPatientDme.js';
 import { isModuleActive } from './tenantModules.js';
 
@@ -51,12 +52,6 @@ const day = (s) => (s ? String(s).slice(0, 10) : null);
  * Suivi d'un patient pour une date, à partir de ses fiches DME et des
  * événements du jour (consultations, demandes labo et imagerie).
  */
-const TYPES_CLIENT = { AGENTS_PHP: 'agent PHP', FAMILLE_PHP: 'famille PHP', PAYANT_COMPTANT: 'payant comptant', BON_PRISE_EN_CHARGE: 'bon de prise en charge', ASSURANCE: 'assurance' };
-const resumeFiche = (f) => ({
-  id: f.id, dossier: f.dossier_numero || null, nom: [f.nom, f.prenom].filter(Boolean).join(' '), type: TYPES_CLIENT[f.type_client] || f.type_client || null,
-  matricule: f.matricule_agent || null, naissance: f.date_naissance ? String(f.date_naissance).slice(0, 10) : null, raisons: f.raisons || [],
-});
-
 export function suiviDuPatient({ fiches, confiance = 'sure', doublons = false, ecartMatricule = null }, { consultations = [], labos = [], imageries = [], derniers = [] }, { date, today, services = new Map() }) {
   const idsFiches = new Set(fiches.map((f) => f.id));
   const dernierPassage = derniers.filter((d) => idsFiches.has(d.patient_id)).map((d) => String(d.d).slice(0, 16)).sort().pop() || null;
@@ -117,21 +112,6 @@ export function suiviDuPatient({ fiches, confiance = 'sure', doublons = false, e
   }
   if (vu?.heure && !etat.heure) etat.heure = vu.heure;
   return { trouve: true, ...recherche, etat, frise };
-}
-
-// Fiches patients du DME (~11 000), relues au plus toutes les 60 s par établissement.
-// L'étape du parcours change souvent : elle est relue à chaque appel pour les fiches retenues.
-const CACHE_MS = 60_000;
-const cache = new Map();
-async function indexDuTenant(tenantId, conn) {
-  const hit = cache.get(tenantId);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.index;
-  const [rows] = await conn.query(`
-    SELECT id, dossier_numero, nom, prenom, date_naissance, type_client, matricule_agent, numero_compte_sage
-    FROM patients WHERE actif IS NULL OR actif <> 0`);
-  const index = indexerDme(rows);
-  cache.set(tenantId, { at: Date.now(), index });
-  return index;
 }
 
 /**

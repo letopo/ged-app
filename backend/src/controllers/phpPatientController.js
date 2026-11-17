@@ -1,7 +1,7 @@
 // backend/src/controllers/phpPatientController.js - Module PHP
 // Gestion complète des patients PHP
 
-import { PatientPHP, Infirmerie, Secteur, ConsultationPHP, BonPriseEnCharge,
+import { PatientPHP, PhpPatientDme, Infirmerie, Secteur, ConsultationPHP, BonPriseEnCharge,
          HospitalisationPHP, ReposPHP, OperationPHP, User } from '../models/index.js';
 import { Op } from 'sequelize';
 import { patientsParDossier } from '../utils/phpPatientDme.js';
@@ -40,8 +40,11 @@ export const getPatients = async (req, res) => {
       include: [
         { model: Secteur, as: 'secteur', attributes: ['id', 'code', 'nom'] },
         { model: Infirmerie, as: 'infirmerie', attributes: ['id', 'code', 'nom'] },
-        { model: User, as: 'createdBy', attributes: ['id', 'firstName', 'lastName'] }
+        { model: User, as: 'createdBy', attributes: ['id', 'firstName', 'lastName'] },
+        // N° de dossier DME (liens confirmés)
+        { model: PhpPatientDme, as: 'liensDme', attributes: ['dmePatientId', 'dossierNumero', 'source'], where: { statut: 'confirme' }, required: false }
       ],
+      distinct: true,
       order: [['createdAt', 'DESC']],
       limit: parseInt(limit),
       offset

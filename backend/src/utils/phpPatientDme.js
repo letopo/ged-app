@@ -13,6 +13,9 @@ import { PhpPatientDme, PatientPHP, TenantIntegration } from '../models/index.js
 import { decryptSecret } from './secretBox.js';
 import { openDme } from './dmeConnection.js';
 import { isModuleActive } from './tenantModules.js';
+import { PhpPatientCompteSage } from '../models/index.js';
+import { rechercherDansDme, resumeFiche } from './dmePatientSearch.js';
+import { dmeIndisponible, ouvrirDmeTenant, indexDuTenant } from './dmeIndex.js';
 
 const userName = (u) => [u?.firstName, u?.lastName].filter(Boolean).join(' ') || u?.username || null;
 const nomFiche = (f) => [f?.nom, f?.prenom].filter(Boolean).join(' ').slice(0, 220) || null;
@@ -138,4 +141,92 @@ export async function patientsParDossier(tenantId, texte) {
   if (t.length < 4) return [];
   const rows = await PhpPatientDme.findAll({ where: { tenantId, statut: 'confirme', dossierNumero: { [Op.iLike]: `%${t}%` } }, attributes: ['patientId'], limit: 200 });
   return [...new Set(rows.map((r) => r.patientId))];
+}
+
+// ── Rapprochement en masse (Module PHP › Patients) ─────────────────────────
+
+async function rechercherPatients(tenantId, patients, conn) {
+  const index = await indexDuTenant(tenantId, conn);
+  const ids = patients.map((p) => p.id);
+  const [liens, comptes] = await Promise.all([
+    chargerLiens(tenantId, ids),
+    PhpPatientCompteSage.findAll({ where: { tenantId, patientId: { [Op.in]: ids }, statut: 'confirme' }, attributes: ['patientId', 'compteTiers'] }),
+  ]);
+  const comptesDe = new Map();
+  for (const c of comptes) comptesDe.set(c.patientId, [...(comptesDe.get(c.patientId) || []), c.compteTiers]);
+  return patients.map((p) => ({
+    patientId: p.id,
+    liens: liens.get(p.id),
+    recherche: rechercherDansDme({ matricule: p.matricule, nom: p.nom, prenom: p.prenom, comptes: comptesDe.get(p.id) || [], liens: liens.get(p.id) }, index),
+  }));
+}
+
+/**
+ * Recherche tous les patients PHP dans le DME et enregistre les liens sûrs.
+ * → { total, lies (avec un lien confirmé après coup), nouveaux, aVerifier, ambigus, introuvables }
+ */
+const dernierRapprochement = new Map();
+export async function rapprocherTousLesPatients(tenantId, { siPlusVieuxQue = 0 } = {}) {
+  const last = dernierRapprochement.get(tenantId);
+  if (siPlusVieuxQue && last && Date.now() - last < siPlusVieuxQue) return null;
+  const raison = await dmeIndisponible(tenantId);
+  if (raison) return { disponible: false, raison };
+  dernierRapprochement.set(tenantId, Date.now());
+  const patients = await PatientPHP.findAll({ where: { tenantId }, attributes: ['id', 'matricule', 'nom', 'prenom'] });
+  const conn = await ouvrirDmeTenant(tenantId);
+  let resultats;
+  try { resultats = await rechercherPatients(tenantId, patients, conn); } finally { await conn.end().catch(() => {}); }
+  const nouveaux = await lierAutomatiquement(tenantId, resultats);
+  const lies = await PhpPatientDme.count({ where: { tenantId, statut: 'confirme' }, distinct: true, col: 'patientId' });
+  const n = (f) => resultats.filter(f).length;
+  return {
+    disponible: true,
+    total: patients.length,
+    lies,
+    nouveaux,
+    aVerifier: n((r) => r.recherche.confiance === 'probable' && !r.liens?.confirmes.length),
+    ambigus: n((r) => r.recherche.confiance === 'ambigu'),
+    introuvables: n((r) => !r.recherche.fiches.length),
+  };
+}
+
+/** Recherche d'un patient (fiche PHP) : fiches proposées, décisions, fiches écartées. */
+export async function rechercheDuPatient(tenantId, patientId) {
+  const raison = await dmeIndisponible(tenantId);
+  if (raison) return { disponible: false, raison };
+  const patient = await PatientPHP.findOne({ where: { id: patientId, tenantId }, attributes: ['id', 'matricule', 'nom', 'prenom'] });
+  if (!patient) throw httpError(404, 'Patient introuvable.');
+  const conn = await ouvrirDmeTenant(tenantId);
+  let r;
+  try { [r] = await rechercherPatients(tenantId, [patient], conn); } finally { await conn.end().catch(() => {}); }
+  if (await lierAutomatiquement(tenantId, [r])) r.liens = (await chargerLiens(tenantId, [patient.id])).get(patient.id);
+  const decision = new Map((r.liens?.rows || []).map((x) => [x.dmePatientId, x]));
+  const { recherche } = r;
+  return {
+    disponible: true,
+    patientId: patient.id,
+    trouve: recherche.fiches.length > 0,
+    confiance: recherche.confiance,
+    doublons: recherche.doublons,
+    ecartMatricule: recherche.ecartMatricule,
+    fiches: recherche.fiches.map((f) => ({ ...resumeFiche(f), lien: decision.get(f.id)?.statut || null, lienSource: decision.get(f.id)?.source || null })),
+    ecartees: (r.liens?.rows || []).filter((x) => x.statut === 'ecarte').map((x) => ({ id: x.dmePatientId, dossier: x.dossierNumero, nom: x.dmeNom })),
+  };
+}
+
+/** Simulation : liens confirmés + liens sûrs que le rapprochement créerait (rien n'est écrit). */
+export async function liensSursEnMemoire(tenantId) {
+  const patients = await PatientPHP.findAll({ where: { tenantId }, attributes: ['id', 'matricule', 'nom', 'prenom'] });
+  const conn = await ouvrirDmeTenant(tenantId);
+  let resultats;
+  try { resultats = await rechercherPatients(tenantId, patients, conn); } finally { await conn.end().catch(() => {}); }
+  const out = [];
+  for (const r of resultats) {
+    const confirmes = new Set(r.liens?.confirmes || []);
+    for (const f of r.recherche.fiches) {
+      const sur = confirmes.has(f.id) || (r.recherche.confiance === 'sure' && f.raisons.some((x) => x === 'matricule' || x === 'compte Sage'));
+      if (sur) out.push({ patientId: r.patientId, dmePatientId: f.id, dossierNumero: f.dossier_numero || null });
+    }
+  }
+  return out;
 }
