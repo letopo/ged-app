@@ -82,20 +82,22 @@ export function comparerNoms(motsA, motsB) {
 
 /** Index des fiches DME (une fois par requête). */
 export function indexerDme(fiches) {
-  const parMat = new Map(), parCompte = new Map(), parMot = new Map();
+  const parMat = new Map(), parCompte = new Map(), parMot = new Map(), parId = new Map();
   const push = (m, k, v) => { if (!k) return; if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
   const items = fiches.map((f) => ({ f, mat: normMatricule(f.matricule_agent), compte: normCompteTiers(f.numero_compte_sage), mots: motsDuNom(f.nom, f.prenom), dob: f.date_naissance ? String(f.date_naissance).slice(0, 10) : null }));
   for (const it of items) {
+    parId.set(it.f.id, it);
     push(parMat, it.mat, it);
     push(parCompte, it.compte, it);
     for (const w of it.mots) push(parMot, w, it);
   }
-  return { items, parMat, parCompte, parMot };
+  return { items, parMat, parCompte, parMot, parId };
 }
 
 /**
  * Fiches DME d'un patient PHP.
- * patient : { matricule, nom, prenom, dateNaissance?, comptes?: [compte tiers confirmés] }
+ * patient : { matricule, nom, prenom, dateNaissance?, comptes?: [compte tiers confirmés],
+ *             liens?: { confirmes: [id DME], ecartes: [id DME] } (décisions enregistrées) }
  * → { fiches: [{ ...fiche, raisons: [..] }], confiance: 'sure'|'probable'|'ambigu'|null, doublons, ecartMatricule }
  */
 export function rechercherDansDme(patient, index) {
@@ -103,6 +105,8 @@ export function rechercherDansDme(patient, index) {
   const mots = motsDuNom(patient.nom, patient.prenom);
   const dob = patient.dateNaissance ? String(patient.dateNaissance).slice(0, 10) : null;
   const comptes = new Set((patient.comptes || []).map(normCompteTiers).filter(Boolean));
+  const confirmes = new Set(patient.liens?.confirmes || []);
+  const ecartes = new Set(patient.liens?.ecartes || []);
 
   // Candidats : même matricule, même compte, ou au moins un mot du nom en commun
   const cands = new Map();
@@ -110,11 +114,14 @@ export function rechercherDansDme(patient, index) {
   if (mat) (index.parMat.get(mat) || []).forEach(add);
   for (const c of comptes) (index.parCompte.get(c) || []).forEach(add);
   for (const w of mots) (index.parMot.get(w) || []).forEach(add);
+  for (const id of confirmes) { const it = index.parId?.get(id); if (it) add(it); }
+  for (const id of ecartes) cands.delete(id); // « ce n'est pas lui » : jamais reprise
 
   const evals = [];
   for (const it of cands.values()) {
     const raisons = [];
     let fort = false;
+    if (confirmes.has(it.f.id)) { raisons.push('lien confirmé'); fort = true; }
     if (mat && it.mat === mat) { raisons.push('matricule'); fort = true; }
     if (it.compte && comptes.has(it.compte)) { raisons.push('compte Sage'); fort = true; }
     const nom = comparerNoms(mots, it.mots);
@@ -134,7 +141,7 @@ export function rechercherDansDme(patient, index) {
 
   const retenues = new Map();
   const garder = (e) => retenues.set(e.it.f.id, e);
-  evals.filter((e) => e.fort && !(e.dobKo && !e.raisons.includes('matricule') && !e.raisons.includes('compte Sage'))).forEach(garder);
+  evals.filter((e) => e.fort && !(e.dobKo && !['matricule', 'compte Sage', 'lien confirmé'].some((r) => e.raisons.includes(r)))).forEach(garder);
   let confiance = retenues.size ? 'sure' : null;
 
   if (!retenues.size) {

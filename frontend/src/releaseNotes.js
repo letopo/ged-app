@@ -1463,6 +1463,18 @@ const RELEASE_NOTES = [
       '« Fiche trouvée · pas encore arrivé » : le patient est bien dans le DME, mais rien n’y est encore enregistré aujourd’hui (consultation, labo, imagerie) ; la date de son dernier passage au DME est indiquée.',
     ],
   },
+  {
+    id: '2026-11-17-php-lien-dme',
+    date: '2026-11-17',
+    target: '/php/consultations',
+    title: 'Patients PHP : n° de dossier DME enregistré',
+    access: (user) => phpAccess(user).read && hasModule(user, 'dme'),
+    items: [
+      'Quand la fiche DME d’un patient est retrouvée par son matricule ou son compte Sage, la GED enregistre d’elle-même son n° de dossier DME (✓ devant le numéro).',
+      'Dans le détail du suivi DME : « C’est lui » enregistre la fiche, « Ce n’est pas lui » l’écarte définitivement pour ce patient ; on peut aussi saisir un n° de dossier DME, vérifié dans le DME.',
+      'Recherche par n° de dossier DME dans Consultations PHP et Patients PHP. La recherche de la page Consultations (nom, matricule) fonctionne de nouveau.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances

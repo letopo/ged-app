@@ -6,6 +6,7 @@ import {
   ReposPHP, OperationPHP, DecesTransfertPHP, Infirmerie, Secteur, User
 } from '../models/index.js';
 import { Op } from 'sequelize';
+import { patientsParDossier } from '../utils/phpPatientDme.js';
 import { sequelize } from '../models/index.js';
 
 // ============================================
@@ -18,8 +19,22 @@ export const getConsultations = async (req, res) => {
   try {
     const {
       date, dateDebut, dateFin, resultat, serviceName, typeVisite, infirmerieId,
-      patientId, page = 1, limit = 50
+      patientId, search, page = 1, limit = 50
     } = req.query;
+
+    // Recherche (nom, prénom, matricule ou n° de dossier DME) : filtre sur le patient
+    const patientWhere = {};
+    if (infirmerieId) patientWhere.infirmerieId = infirmerieId;
+    const q = String(search || '').trim();
+    if (q) {
+      const parDossier = await patientsParDossier(req.tenantId, q);
+      patientWhere[Op.or] = [
+        { nom: { [Op.iLike]: `%${q}%` } },
+        { prenom: { [Op.iLike]: `%${q}%` } },
+        { matricule: { [Op.iLike]: `%${q}%` } },
+        ...(parDossier.length ? [{ id: { [Op.in]: parDossier } }] : []),
+      ];
+    }
 
     const where = {};
     if (patientId) where.patientId = patientId;
@@ -43,8 +58,8 @@ export const getConsultations = async (req, res) => {
         {
           model: PatientPHP,
           as: 'patient',
-          // Filtre infirmerie (le filtre de la liste était envoyé mais ignoré)
-          ...(infirmerieId ? { where: { infirmerieId }, required: true } : {}),
+          // Filtres infirmerie et recherche (envoyés par la liste)
+          ...(Object.keys(patientWhere).length || patientWhere[Op.or] ? { where: patientWhere, required: true } : {}),
           include: [
             { model: Infirmerie, as: 'infirmerie', attributes: ['id', 'code', 'nom'] },
             { model: Secteur, as: 'secteur', attributes: ['id', 'code', 'nom'] }

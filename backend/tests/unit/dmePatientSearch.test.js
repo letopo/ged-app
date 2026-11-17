@@ -70,3 +70,15 @@ test('agent enregistré « payant comptant » au DME : retenu s’il est le seul
   assert.equal(r.confiance, 'probable'); assert.deepEqual(r.fiches.map((f) => f.id), [1]);
   assert.equal(rechercherDansDme({ matricule: '1', nom: 'NGO', prenom: 'MARIE' }, ix).fiches.length, 0);
 });
+
+test('liens enregistrés : fiche confirmée toujours retenue, fiche écartée jamais reprise', () => {
+  // confirmée à la main alors que rien ne correspond
+  const r = find({ matricule: '123', nom: 'INCONNU', prenom: 'X', liens: { confirmes: [40], ecartes: [] } });
+  assert.equal(r.confiance, 'sure'); assert.deepEqual(r.fiches.map((f) => f.id), [40]);
+  assert.ok(r.fiches[0].raisons.includes('lien confirmé'));
+  // le doublon écarté (« ce n'est pas lui ») disparaît, la bonne fiche reste
+  const e = find({ matricule: '512309', nom: 'BEKONO', prenom: 'ATANGA SOLANGE', liens: { confirmes: [], ecartes: [102] } });
+  assert.deepEqual(e.fiches.map((f) => f.id), [101]); assert.equal(e.doublons, false);
+  // même une fiche au même matricule est ignorée si elle a été écartée
+  assert.equal(find({ matricule: '612345', nom: 'Z', prenom: 'Z', liens: { ecartes: [30] } }).fiches.length, 0);
+});

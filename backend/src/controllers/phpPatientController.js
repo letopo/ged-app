@@ -4,6 +4,7 @@
 import { PatientPHP, Infirmerie, Secteur, ConsultationPHP, BonPriseEnCharge,
          HospitalisationPHP, ReposPHP, OperationPHP, User } from '../models/index.js';
 import { Op } from 'sequelize';
+import { patientsParDossier } from '../utils/phpPatientDme.js';
 import { sequelize } from '../models/index.js';
 
 // ============================================
@@ -22,10 +23,13 @@ export const getPatients = async (req, res) => {
     if (secteurId) where.secteurId = secteurId;
 
     if (search) {
+      // Aussi par n° de dossier DME (liens confirmés)
+      const parDossier = await patientsParDossier(req.tenantId, search);
       where[Op.or] = [
         { nom: { [Op.iLike]: `%${search}%` } },
         { prenom: { [Op.iLike]: `%${search}%` } },
-        { matricule: { [Op.iLike]: `%${search}%` } }
+        { matricule: { [Op.iLike]: `%${search}%` } },
+        ...(parDossier.length ? [{ id: { [Op.in]: parDossier } }] : []),
       ];
     }
 
