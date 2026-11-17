@@ -50,3 +50,12 @@ test('poste php et rôle Point Focal : lecture et saisie', async () => {
     assert.notEqual(r.status, 403, 'saisie autorisée (refus éventuel pour données incomplètes seulement)');
   }
 });
+
+test('suivi DME : réservé au module PHP, date obligatoire, DME non réglé = indisponible', async () => {
+  assert.equal((await request(app).get('/api/php/consultations/suivi-dme?date=2026-11-17').set(as(agent))).status, 403);
+  assert.equal((await request(app).get('/api/php/consultations/suivi-dme?date=hier').set(as(lecteur))).status, 400);
+  const r = await request(app).get('/api/php/consultations/suivi-dme?date=2026-11-17&ids=00000000-0000-0000-0000-000000000000').set(as(lecteur));
+  assert.equal(r.status, 200);
+  assert.equal(r.body.disponible, false);
+  assert.deepEqual(r.body.suivis, {});
+});

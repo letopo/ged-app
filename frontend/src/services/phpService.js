@@ -45,6 +45,8 @@ export const phpConsultationAPI = {
   getAll: (params) => api.get('/php/consultations', { params }),
   create: (data) => api.post('/php/consultations', data),
   cloturer: (id, data) => api.put(`/php/consultations/${id}/cloturer`, data),
+  // Suivi DME : étape + frise du jour des consultations affichées
+  suiviDme: (date, ids) => api.get('/php/consultations/suivi-dme', { params: { date, ids: ids.join(',') } }),
 
   // Hospitalisations
   getHospitalisationsEnCours: () => api.get('/php/consultations/hospitalisations/en-cours'),

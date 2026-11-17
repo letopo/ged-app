@@ -1,7 +1,7 @@
 // frontend/src/pages/PHPConsultations.jsx
 // Liste et gestion des consultations PHP
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,6 +16,8 @@ import Pagination, { usePageSize } from '../components/Pagination';
 import i18n from '../i18n/config';
 import { phpAccess } from '../utils/phpAccess';
 import { useAuth } from '../contexts/AuthContext';
+import { hasModule } from '../utils/modules';
+import { DmeSuiviBadge, DmeSuiviFrise, useSuiviDme } from '../components/php/PHPSuiviDme';
 
 const BCP47_LOCALES = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA' };
 
@@ -94,6 +96,8 @@ export default function PHPConsultations() {
   const canWrite = phpAccess(user).write; // pas de clôture en consultation seule
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize('phpConsultations', 25);
+  const avecDme = hasModule(user, 'dme');
+  const [ouvert, setOuvert] = useState(null);
 
   // Consultation sélectionnée pour clôture
   const [selectedConsult, setSelectedConsult] = useState(null);
@@ -124,6 +128,8 @@ export default function PHPConsultations() {
   }, [search, filterDate, filterResultat, filterInfirmerie, filterType, page, pageSize]);
 
   useEffect(() => { loadConsultations(); }, [loadConsultations]);
+  // Suivi DME des patients affichés (rafraîchi chaque minute pour aujourd'hui)
+  const suivi = useSuiviDme({ enabled: avecDme && !!filterDate && !loading, date: filterDate, consultations });
   useEffect(() => {
     phpReferenceAPI.getInfirmeries()
       .then(r => setInfirmeries(r.data.data || []))
@@ -271,6 +277,11 @@ export default function PHPConsultations() {
         </div>
       </div>
 
+      {suivi.actif && suivi.data?.erreur && (
+        <div className="text-xs rounded-lg px-3 py-2 mb-3" style={{ background: 'var(--warning-soft, var(--surface-2))', color: 'var(--warning)', border: '1px solid var(--border)' }}>
+          {t('Suivi DME indisponible pour le moment')} : {suivi.data.erreur}
+        </div>
+      )}
       {/* Tableau des consultations */}
       {loading ? (
         <div className="space-y-2">
@@ -299,13 +310,14 @@ export default function PHPConsultations() {
                     <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Date')}</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Attente')}</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Résultat')}</th>
+                    {suivi.actif && <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }} title={t('Où en est le patient dans le DME')}>{t('Suivi DME')}</th>}
                     <th className="text-center px-4 py-3 text-xs font-semibold" style={{ color: 'var(--fg-muted)' }}>{t('Action')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {consultations.map((c, i) => (
+                    <Fragment key={c.id}>
                     <tr
-                      key={c.id}
                       style={{
                         borderBottom: '1px solid var(--border)',
                         background: i % 2 === 1 ? 'var(--surface-2)' : 'var(--surface)',
@@ -386,6 +398,12 @@ export default function PHPConsultations() {
                           );
                         })()}
                       </td>
+                      {suivi.actif && (
+                        <td className="px-4 py-3">
+                          <DmeSuiviBadge suivi={suivi.data?.suivis?.[c.id]} chargement={suivi.chargement && !suivi.data}
+                            ouvert={ouvert === c.id} onToggle={() => setOuvert(ouvert === c.id ? null : c.id)} />
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-center">
                         {c.resultat === 'en_cours' && canWrite ? (
                           <button
@@ -400,6 +418,14 @@ export default function PHPConsultations() {
                         )}
                       </td>
                     </tr>
+                    {suivi.actif && ouvert === c.id && (
+                      <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+                        <td colSpan={10} className="px-4 py-3">
+                          <DmeSuiviFrise suivi={suivi.data?.suivis?.[c.id]} />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
