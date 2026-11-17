@@ -53,9 +53,16 @@ test("aujourd'hui : « sorti » après consultation = vu ; étape non modifiée 
     { date: '2026-11-17', today: '2026-11-17' });
   assert.equal(s.etat.code, 'vu'); assert.equal(s.etat.label, 'Vu par le médecin, sorti');
   const ancien = suiviDuPatient({ fiches: [DME[1]] }, {}, { date: '2026-11-17', today: '2026-11-17' });
-  assert.equal(ancien.etat.code, 'pas_de_passage'); assert.equal(ancien.etat.label, 'Pas encore au DME');
+  assert.equal(ancien.etat.code, 'pas_de_passage'); assert.equal(ancien.etat.label, 'Fiche trouvée · pas encore arrivé');
 });
 
 test('date du jour à Douala', () => {
   assert.equal(todayLocal(new Date('2026-11-16T23:30:00Z')), '2026-11-17');
+});
+
+test('dernier passage au DME avant le jour affiché', () => {
+  const s = suiviDuPatient({ fiches: [{ id: 1 }, { id: 2 }] }, { derniers: [{ patient_id: 1, d: '2026-09-29 12:43:10' }, { patient_id: 2, d: '2026-10-21 12:54:09' }, { patient_id: 9, d: '2026-11-01 08:00:00' }] },
+    { date: '2026-11-17', today: '2026-11-17' });
+  assert.equal(s.dernierPassage, '2026-10-21 12:54');
+  assert.equal(s.etat.label, 'Fiche trouvée · pas encore arrivé');
 });

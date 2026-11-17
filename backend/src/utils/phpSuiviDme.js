@@ -56,8 +56,10 @@ const resumeFiche = (f) => ({
   matricule: f.matricule_agent || null, naissance: f.date_naissance ? String(f.date_naissance).slice(0, 10) : null, raisons: f.raisons || [],
 });
 
-export function suiviDuPatient({ fiches, confiance = 'sure', doublons = false, ecartMatricule = null }, { consultations = [], labos = [], imageries = [] }, { date, today, services = new Map() }) {
-  const recherche = { confiance, doublons, ecartMatricule, fiches: fiches.map(resumeFiche) };
+export function suiviDuPatient({ fiches, confiance = 'sure', doublons = false, ecartMatricule = null }, { consultations = [], labos = [], imageries = [], derniers = [] }, { date, today, services = new Map() }) {
+  const idsFiches = new Set(fiches.map((f) => f.id));
+  const dernierPassage = derniers.filter((d) => idsFiches.has(d.patient_id)).map((d) => String(d.d).slice(0, 16)).sort().pop() || null;
+  const recherche = { confiance, doublons, ecartMatricule, dernierPassage, fiches: fiches.map(resumeFiche) };
   if (!fiches.length) return { trouve: false, ...recherche, etat: { code: 'introuvable', label: 'Pas retrouvé dans le DME', tone: 'neutre' }, frise: [] };
   if (confiance === 'ambigu') return { trouve: true, ...recherche, etat: { code: 'ambigu', label: `${fiches.length} fiches possibles`, tone: 'alerte' }, frise: [] };
   const ids = new Set(fiches.map((f) => f.id));
@@ -110,7 +112,7 @@ export function suiviDuPatient({ fiches, confiance = 'sure', doublons = false, e
     if (vu) etat = { code: 'vu', label: 'Vu par le médecin', tone: 'fini' };
     else if (consults.length) etat = { code: 'en_consultation', label: 'En consultation', tone: 'encours' };
     else if (frise.length) etat = { code: 'examens', label: 'Examens en cours', tone: 'encours' };
-    else etat = { code: 'pas_de_passage', label: date === today ? 'Pas encore au DME' : 'Aucun passage au DME', tone: 'neutre' };
+    else etat = { code: 'pas_de_passage', label: date === today ? 'Fiche trouvée · pas encore arrivé' : 'Fiche trouvée · pas de passage ce jour', tone: 'neutre' };
   }
   if (vu?.heure && !etat.heure) etat.heure = vu.heure;
   return { trouve: true, ...recherche, etat, frise };
@@ -145,7 +147,7 @@ export async function suiviDme({ tenantId, date, consultationIds }) {
   const consults = consultationIds.length ? await ConsultationPHP.findAll({
     where: { id: { [Op.in]: consultationIds } },
     attributes: ['id', 'patientId', 'dateConsultation'],
-    include: [{ model: PatientPHP, as: 'patient', attributes: ['id', 'matricule', 'nom', 'prenom', 'dateNaissance'], where: { tenantId }, required: true }],
+    include: [{ model: PatientPHP, as: 'patient', attributes: ['id', 'matricule', 'nom', 'prenom'], where: { tenantId }, required: true }],
   }) : [];
   if (!consults.length) return { ...base, disponible: true };
 
@@ -165,7 +167,7 @@ export async function suiviDme({ tenantId, date, consultationIds }) {
       const etapeDe = new Map(etapes.map((e) => [e.id, e]));
       for (const m of matches.values()) m.fiches = m.fiches.map((f) => ({ ...f, ...etapeDe.get(f.id) }));
       const range = [date, date];
-      const [[svc], [consultations], [labos], [imageries]] = await Promise.all([
+      const [[svc], [consultations], [labos], [imageries], [derniers]] = await Promise.all([
         conn.query('SELECT id, nom_service FROM services'),
         conn.query(`SELECT id, patient_id, date_consultation, date_cloture, statut, service_id, devenir FROM consultations
           WHERE patient_id IN (${inIds}) AND date_consultation >= ? AND date_consultation < DATE_ADD(?, INTERVAL 1 DAY)`, [...ids, ...range]),
@@ -173,9 +175,15 @@ export async function suiviDme({ tenantId, date, consultationIds }) {
           WHERE patient_id IN (${inIds}) AND date_creation >= ? AND date_creation < DATE_ADD(?, INTERVAL 1 DAY)`, [...ids, ...range]),
         conn.query(`SELECT id, patient_id, date_creation, statut, type_examen, type_imagerie, date_resultats FROM demandes_imagerie
           WHERE patient_id IN (${inIds}) AND date_creation >= ? AND date_creation < DATE_ADD(?, INTERVAL 1 DAY)`, [...ids, ...range]),
+        // Dernier passage avant ce jour (consultation, labo ou imagerie)
+        conn.query(`SELECT patient_id, MAX(d) AS d FROM (
+            SELECT patient_id, date_consultation AS d FROM consultations WHERE patient_id IN (${inIds}) AND date_consultation < ?
+            UNION ALL SELECT patient_id, date_creation FROM demandes_laboratoire WHERE patient_id IN (${inIds}) AND date_creation < ?
+            UNION ALL SELECT patient_id, date_creation FROM demandes_imagerie WHERE patient_id IN (${inIds}) AND date_creation < ?
+          ) x GROUP BY patient_id`, [...ids, date, ...ids, date, ...ids, date]),
       ]);
       services = new Map(svc.map((s) => [s.id, s.nom_service]));
-      events = { consultations, labos, imageries };
+      events = { consultations, labos, imageries, derniers };
     }
     const suivis = {};
     for (const c of consults) suivis[c.id] = suiviDuPatient(matches.get(c.id), events, { date, today, services });

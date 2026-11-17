@@ -1452,6 +1452,17 @@ const RELEASE_NOTES = [
       'Un matricule différent entre la GED et le DME est signalé ; une fiche retrouvée seulement par le nom porte un « ? » : à vérifier.',
     ],
   },
+  {
+    id: '2026-11-17-php-suivi-dme-dossier',
+    date: '2026-11-17',
+    target: '/php/consultations',
+    title: 'Suivi DME : n° de dossier et dernier passage',
+    access: (user) => phpAccess(user).read && hasModule(user, 'dme'),
+    items: [
+      'Sous la pastille s’affiche le n° de dossier DME du patient retrouvé.',
+      '« Fiche trouvée · pas encore arrivé » : le patient est bien dans le DME, mais rien n’y est encore enregistré aujourd’hui (consultation, labo, imagerie) ; la date de son dernier passage au DME est indiquée.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances

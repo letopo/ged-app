@@ -15,6 +15,8 @@ const TONES = {
 };
 const KIND_ICON = { consultation: Stethoscope, labo: FlaskConical, imagerie: ScanLine };
 
+const fmtJour = (s) => new Date(`${String(s).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR');
+
 const todayLocal = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Douala' });
 
 /** Charge le suivi DME des consultations affichées ; chaque minute pour aujourd'hui. */
@@ -81,6 +83,12 @@ export function DmeSuiviBadge({ suivi, chargement, ouvert, onToggle }) {
       {suivi.confiance === 'probable' && <HelpCircle size={14} style={{ color: 'var(--warning)' }} aria-label="à vérifier" />}
       {suivi.doublons && <span className="text-xs font-semibold" style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Copy size={12} /> {suivi.fiches.length} fiches DME</span>}
       {suivi.ecartMatricule && <AlertTriangle size={14} style={{ color: 'var(--warning)' }} aria-label="matricule différent" />}
+      {cliquable && suivi.confiance !== 'ambigu' && (
+        <span className="text-xs" style={{ flexBasis: '100%', color: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)', paddingLeft: 19 }}>
+          {suivi.fiches.map((f) => f.dossier || `#${f.id}`).join(' · ')}
+          {suivi.frise.length === 0 && suivi.dernierPassage ? <span style={{ fontFamily: 'inherit' }}> — dernier passage le {fmtJour(suivi.dernierPassage)}</span> : null}
+        </span>
+      )}
     </button>
   );
 }
@@ -133,7 +141,10 @@ export function DmeSuiviFrise({ suivi }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {suivi.confiance === 'ambigu' ? null : suivi.frise.length === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--fg-muted)', margin: 0 }}>Aucun passage enregistré dans le DME ce jour-là.</p>
+        <p className="text-xs" style={{ color: 'var(--fg-muted)', margin: 0 }}>
+          La fiche DME est retrouvée, mais aucun passage (consultation, labo, imagerie) n’y est enregistré ce jour-là.
+          {suivi.dernierPassage ? ` Dernier passage : le ${fmtJour(suivi.dernierPassage)} à ${String(suivi.dernierPassage).slice(11, 16)}.` : ' Aucun passage antérieur.'}
+        </p>
       ) : (
         <ol style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 6, listStyle: 'none', margin: 0, padding: 0 }}>
           {suivi.frise.map((e, i) => {
