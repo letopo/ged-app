@@ -30,15 +30,15 @@ export const MODULE_GROUPS = [
 
 export const MODULES = [
   // Bureau
-  { key: 'modeles',           group: 'bureau', label: 'Modèles & formulaires',      description: 'Création depuis modèle, formulaires, modèles de workflow' },
+  { key: 'modeles',           group: 'bureau', label: 'Formulaires',                description: 'Créateur de formulaires, remplissage, réponses et approbations — les modèles de documents et de circuits restent dans le socle', wired: true },
   { key: 'discussion',        group: 'bureau', label: 'Discussion',                 description: 'Messagerie instantanée, pièces jointes, @mention de document', wired: true },
   { key: 'calendrier',        group: 'bureau', label: 'Calendrier & jours fériés',  description: 'Calendrier partagé et jours fériés', wired: true },
-  { key: 'scanner',           group: 'bureau', label: 'Scanner mobile & OCR',       description: 'Scan en PDF depuis le téléphone, recherche dans le texte' },
+  { key: 'scanner',           group: 'bureau', label: 'Scanner mobile & OCR',       description: 'Scan en PDF depuis le téléphone, recherche dans le texte', wired: true },
   { key: 'signature_patient', group: 'bureau', label: 'Signature sur tablette',     description: '« Faire signer » à l’écran, borne du guichet', wired: true },
   // RH & organisation
   { key: 'personnel',         group: 'rh', label: 'Gestion du personnel',  description: 'Fiches employés, import / export, catégories — la recherche des missionnaires et bénéficiaires (OM, pièce de caisse) reste toujours active', wired: true },
   { key: 'plannings',         group: 'rh', label: 'Plannings',             description: 'Plannings de garde et leur validation', deps: ['personnel'], wired: true },
-  { key: 'rh_documents',      group: 'rh', label: 'Documents RH',          description: 'BPC du personnel, certificat d’aptitude', deps: ['personnel'] },
+  { key: 'rh_documents',      group: 'rh', label: 'Documents RH',          description: 'BPC du personnel, certificat d’aptitude', deps: ['personnel'], wired: true },
   // Finances & achats
   { key: 'achats',            group: 'finances', label: 'Demandes d’achat',       description: 'Demandes d’achat et leur suivi', wired: true },
   // Espace Comptabilité (saisie / OCR / export). Le circuit de la pièce de caisse reste dans le socle.
@@ -47,16 +47,16 @@ export const MODULES = [
   { key: 'caisse_pharmacie',  group: 'finances', label: 'Caisse pharmacie',       description: 'Relevé de caisse Sage, caisse de permanence jour / nuit', deps: ['sage'], wired: true },
   // Hôpital
   { key: 'php',               group: 'hopital', label: 'Prise en charge du personnel (PHP)', description: 'Patients, consultations, pharmacie, repos, factures, statistiques', wired: true },
-  { key: 'dme',               group: 'hopital', label: 'Liaison DME',             description: 'Rapprochement avec le dossier médical, parcours hospitalier', deps: ['php'] },
+  { key: 'dme',               group: 'hopital', label: 'Liaison DME',             description: 'Rapprochement avec le dossier médical, parcours hospitalier', deps: ['php'], wired: true },
   { key: 'bloc',              group: 'hopital', label: 'Programme opératoire',    description: 'Programme du bloc de la semaine', wired: true },
   { key: 'affichage',         group: 'hopital', label: 'Files d’attente & affichage', description: 'Tickets du Portail, guichets Accueil et Caisse, écran d’affichage public', wired: true },
   // Logistique & technique
-  { key: 'travaux',           group: 'logistique', label: 'Demandes de travaux', description: 'Demandes de travaux' },
+  { key: 'travaux',           group: 'logistique', label: 'Demandes de travaux', description: 'Demandes de travaux et leur suivi', wired: true },
   { key: 'gmao',              group: 'logistique', label: 'GMAO',                 description: 'Maintenance des équipements', deps: ['travaux'], wired: true },
   { key: 'vehicules',         group: 'logistique', label: 'Parc véhicules',       description: 'Ambulances, missions, contrôles, inventaire', wired: true },
   { key: 'trello',            group: 'logistique', label: 'Suivi technique',      description: 'Tableaux de suivi des demandes (MG, Biomédical, Informatique)', wired: true },
   // Options
-  { key: 'ia',                group: 'options', label: 'IA · OCR avancé',         description: 'Lecture automatique des documents par l’IA' },
+  { key: 'ia',                group: 'options', label: 'IA · OCR avancé',         description: 'Lecture automatique des documents par l’IA', wired: true },
   { key: 'statistiques',      group: 'options', label: 'Statistiques avancées',   description: 'Tableaux de statistiques globales', wired: true },
   { key: 'evenements',        group: 'options', label: 'Décor & événements',      description: 'Décor de Noël, campagnes d’événements', wired: true },
 ];
@@ -87,3 +87,12 @@ export function dependentsOf(key) {
   walk(key);
   return [...out];
 }
+
+// Modèles de document rattachés à un module : module coupé = modèle absent de
+// la liste et création refusée (les documents existants restent consultables).
+export const TEMPLATE_MODULES = {
+  "Certificat d'aptitude": 'rh_documents',
+  'Bon de prise en charge': 'rh_documents',
+  'Demande de travaux': 'travaux',
+  'Planning Opératoire': 'bloc',
+};

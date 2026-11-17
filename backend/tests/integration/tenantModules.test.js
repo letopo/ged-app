@@ -141,3 +141,44 @@ test('Décor & événements : module activable (côté écran uniquement), prés
   assert.ok(Array.isArray(mods) && !mods.includes('evenements'), JSON.stringify(off.body).slice(0, 200));
   await request(app).put('/api/modules/evenements').set(as(f, admin)).send({ enabled: true }).expect(200);
 });
+
+test('étape 5 : Formulaires, Demandes de travaux, Scanner, DME et IA coupés → 403, puis réactivés', async () => {
+  const cas = {
+    modeles: ['/api/forms'],
+    travaux: ['/api/documents/demandes-travaux/validees'],
+    scanner: ['/api/documents/archives/content-search?q=facture'],
+    dme: ['/api/sage-bl/dme?from=2026-11-01&to=2026-11-02', '/api/integrations/dme'],
+    ia: ['/api/integrations/ai'],
+  };
+  for (const [key, urls] of Object.entries(cas)) {
+    await request(app).put(`/api/modules/${key}`).set(as(f, admin)).send({ enabled: false }).expect(200);
+    for (const url of urls) {
+      const r = await request(app).get(url).set(as(f, admin));
+      assert.equal(r.status, 403, url);
+      assert.equal(r.body.code, 'MODULE_DISABLED', url);
+    }
+    await request(app).put(`/api/modules/${key}`).set(as(f, admin)).send({ enabled: true }).expect(200);
+    for (const url of urls) {
+      const back = await request(app).get(url).set(as(f, admin));
+      assert.notEqual(back.body?.code, 'MODULE_DISABLED', url);
+    }
+  }
+});
+
+test('modèle d’un module coupé : absent de « Mes modèles » et création refusée', async () => {
+  const { default: TemplatePermission } = await import('../../src/models/TemplatePermission.js');
+  const { inTenant } = await import('../helpers/fixtures.js');
+  await inTenant(f.tenant.id, () => TemplatePermission.findOrCreate({ where: { templateName: 'Demande de travaux' }, defaults: { isRestricted: false } }));
+  const names = async () => ((await request(app).get('/api/template-permissions/my-templates').set(as(f, agent))).body.data || []).map(t => t.templateName);
+  assert.ok((await names()).includes('Demande de travaux'));
+
+  await request(app).put('/api/modules/travaux').set(as(f, admin)).send({ enabled: false }).expect(200);
+  assert.ok(!(await names()).includes('Demande de travaux'));
+  const up = await request(app).post('/api/documents/upload').set(as(f, agent))
+    .attach('file', Buffer.from('%PDF-1.4\n%%EOF\n'), { filename: 'dt.pdf', contentType: 'application/pdf' })
+    .field('title', 'DT').field('category', 'Demande de travaux');
+  assert.equal(up.status, 403);
+  assert.equal(up.body.code, 'MODULE_DISABLED');
+  await request(app).put('/api/modules/travaux').set(as(f, admin)).send({ enabled: true }).expect(200);
+  assert.ok((await names()).includes('Demande de travaux'));
+});

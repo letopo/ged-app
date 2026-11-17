@@ -12,7 +12,7 @@
 import jwt from 'jsonwebtoken';
 import { License, TenantModule } from '../models/index.js';
 import { PUBLIC_KEY } from '../config/licenseKeys.js';
-import { MODULES, MODULE_KEYS, MODULE_BY_KEY, OFFRES } from '../config/modules.js';
+import { MODULES, MODULE_KEYS, MODULE_BY_KEY, OFFRES, TEMPLATE_MODULES } from '../config/modules.js';
 
 const TTL_MS = 30_000;
 const cache = new Map(); // tenantId -> { value, at }
@@ -97,6 +97,13 @@ export async function getActiveModuleKeys(tenantId) {
 export async function isModuleActive(tenantId, key) {
   if (!MODULE_BY_KEY[key]) throw new Error(`Module inconnu : ${key}`);
   return (await getTenantModules(tenantId)).active.has(key);
+}
+
+/** Module coupé dont dépend ce modèle de document (clé), sinon null. */
+export async function templateModuleOff(tenantId, templateName) {
+  const key = TEMPLATE_MODULES[templateName];
+  if (!key || !tenantId) return null;
+  return (await getTenantModules(tenantId)).active.has(key) ? null : key;
 }
 
 export const invalidateTenantModules = (tenantId) => cache.delete(tenantId);

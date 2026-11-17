@@ -171,7 +171,7 @@ const buildOrgGroups = (t, user) => {
     ]},
     { id: 'parametrage', color: '#8B5CF6', icon: LayoutGrid, label: t('Paramétrage'), items: [
       { path: '/workflow-templates', icon: LayoutGrid,    label: t('Modèles workflow'), adminOnly: true },
-      { path: '/forms',              icon: ClipboardList, label: t('Formulaires'),      adminOnly: true },
+      { path: '/forms',              icon: ClipboardList, label: t('Formulaires'),      adminOnly: true, module: 'modeles' },
       { path: '/statistiques',       icon: BarChart3,     label: t('Statistiques'),     adminOnly: true, module: 'statistiques' },
     ]},
     { id: 'files', color: '#D97706', icon: DoorOpen, label: t("Files d'attente"), items: [

@@ -43,7 +43,7 @@ import { createBonPriseEnCharge } from '../controllers/bonPriseEnChargeControlle
 const router = express.Router();
 
 // ✅ NOUVELLE ROUTE : Récupérer les Demandes de Travaux validées
-router.get('/demandes-travaux/validees', protect, getValidatedDemandesTravaux); 
+router.get('/demandes-travaux/validees', protect, requireModule('travaux'), getValidatedDemandesTravaux); 
 
 // ✅ NOUVELLE ROUTE : Récupérer les Ordres de Mission validés (accessible à tous les validateurs)
 // ⚠️ CHANGÉ : authenticateToken → protect
@@ -199,7 +199,7 @@ router.get('/archives', protect, getArchivedDocuments);
 // @route   GET /api/documents/archives/content-search?q=
 // @desc    Archives dont le texte reconnu (OCR) contient q : [{ id, snippet }]
 // @access  Private
-router.get('/archives/content-search', protect, searchArchivedContent);
+router.get('/archives/content-search', protect, requireModule('scanner'), searchArchivedContent);
 
 // @route   GET /api/documents/piece-de-caisse-history
 // @desc    Historique des Pièces de caisse payées (rapport caissière), filtrable par date

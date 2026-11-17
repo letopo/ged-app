@@ -284,7 +284,7 @@ app.use('/api/workflow-templates', workflowTemplateRoutes);
 app.use('/api/verify', verificationRoutes);
 app.use('/api/vehicles', requireModule('vehicules'), vehicleRoutes); // Parc véhicules (ambulances RO SAU)
 app.use('/api/signature-public', requireModule('signature_patient'), signaturePublicRoutes); // Tablette du guichet (jeton, sans connexion)
-app.use('/api/forms', formRoutes); // ✅ Form Builder
+app.use('/api/forms', requireModule('modeles'), formRoutes); // ✅ Form Builder
 app.use('/api/onlyoffice', onlyofficeRoutes);
 app.use('/api/postes', postesRoutes); // ✅ Postes organisationnels
 app.use('/api/mission-meal-rates', missionMealRoutes); // ✅ Indemnités de repas de mission

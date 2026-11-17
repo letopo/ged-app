@@ -13,6 +13,8 @@ import toast from 'react-hot-toast';
 import { documentsAPI, templatePermissionsAPI } from '../services/api';
 import useTenantSettings from '../hooks/useTenantSettings';
 import DocumentScanner from './DocumentScanner';
+import { useAuth } from '../contexts/AuthContext';
+import { hasModule } from '../utils/modules';
 import VisibilityChoice, { useDocumentVisibility } from './VisibilityChoice';
 import { guessDocumentType } from '../utils/scanOcr';
 
@@ -20,6 +22,8 @@ const FILE_TYPE_SUGGESTIONS = ['Proforma', 'Devis', 'Bon de commande', 'Facture'
 
 export default function LinkedDocumentModal({ document: doc, onClose }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const canScan = hasModule(user, 'scanner');
   const navigate = useNavigate();
   const [tab, setTab] = useState('template');
   const [templates, setTemplates] = useState(null);
@@ -126,12 +130,12 @@ export default function LinkedDocumentModal({ document: doc, onClose }) {
                     <UploadIcon size={16} style={{ flexShrink: 0 }} />
                     <span>{file ? file.name : t('Choisir un fichier…')}</span>
                   </label>
-                  <button type="button" className="ld-drop" onClick={() => setScan({ file: null })}
+                  {canScan && <button type="button" className="ld-drop" onClick={() => setScan({ file: null })}
                     style={{ flexShrink: 0, color: 'var(--brand)', borderColor: 'var(--brand)', borderStyle: 'solid', fontWeight: 600 }}>
                     <ScanLine size={16} /> {t('Scanner')}
-                  </button>
+                  </button>}
                 </div>
-                {isImage && (
+                {isImage && canScan && (
                   <button type="button" onClick={() => setScan({ file })}
                     style={{ alignSelf: 'flex-start', marginTop: 6, background: 'none', border: 'none', padding: 0, color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
                     <ScanLine size={13} /> {t("C'est une photo ? Recadrez-la et convertissez-la en PDF.")}

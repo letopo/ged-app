@@ -3,6 +3,8 @@ import TemplatePermission from '../models/TemplatePermission.js';
 import { User, Document } from '../models/index.js';
 import sequelize from '../config/database.js';
 import { getUserPosteCodes } from '../utils/posteResolver.js';
+import { getTenantModules } from '../utils/tenantModules.js';
+import { TEMPLATE_MODULES } from '../config/modules.js';
 
 // Templates liés à des postes : leurs titulaires y ont accès, quel que soit l'individu.
 const TEMPLATE_POSTES = {
@@ -28,6 +30,9 @@ function templateAccess(data, user, userPostes) {
  * permission : réservé aux admins et aux postes liés si le template en a.
  */
 export async function canUseTemplate(user, templateName) {
+  // Modèle d'un module coupé (Documents RH, Demandes de travaux, Bloc…) : refusé
+  const mod = TEMPLATE_MODULES[templateName];
+  if (mod && user.tenantId && !(await getTenantModules(user.tenantId)).active.has(mod)) return false;
   if (['admin', 'superadmin'].includes(user.role)) return true;
   const userPostes = await getUserPosteCodes(user.id);
   const row = await TemplatePermission.findOne({ where: { templateName } });
@@ -56,8 +61,9 @@ export const getMyTemplates = async (req, res) => {
     // Postes occupés par l'utilisateur (ex: ['comptable']) — récupérés une fois
     const userPostes = ['admin','superadmin'].includes(user.role) ? [] : await getUserPosteCodes(user.id);
 
-    // Tous les templates définis
-    const result = permissions.map(p => {
+    // Tous les templates définis, sauf ceux d'un module coupé
+    const { active } = user.tenantId ? await getTenantModules(user.tenantId) : { active: null };
+    const result = permissions.filter(p => !active || !TEMPLATE_MODULES[p.templateName] || active.has(TEMPLATE_MODULES[p.templateName])).map(p => {
       const data = p.toJSON();
       data.hasAccess = templateAccess(data, user, userPostes);
       return data;

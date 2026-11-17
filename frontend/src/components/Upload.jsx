@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { documentsAPI, servicesAPI, templatePermissionsAPI } from '../services/api';
 import VisibilityChoice, { useDocumentVisibility } from './VisibilityChoice';
 import { useAuth } from '../contexts/AuthContext';
+import { hasModule } from '../utils/modules';
 import {
   Upload as UploadIcon, CheckCircle, X, Sparkles, Smartphone,
   ArrowRight, ArrowLeft, FileText, Loader, ScanLine,
@@ -114,6 +115,7 @@ const Upload = () => {
   const { maxUploadMb } = useTenantSettings(); // réglé par l'organisation
   const navigate  = useNavigate();
   const { user }  = useAuth();
+  const canScan = hasModule(user, 'scanner'); // module « Scanner mobile & OCR »
   const fileInputRef = useRef();
   // Scanner ouvert : { file } pour convertir une photo existante, { file: null } pour la caméra
   const [scan, setScan] = useState(null);
@@ -273,7 +275,7 @@ const Upload = () => {
           )}
           {step === 1 && (
             <>
-              {!file && (
+              {!file && canScan && (
                 <button onClick={() => setScan({ file: null })} className="upl-scan-btn"
                   style={{ width: '100%', alignItems: 'center', gap: 12, padding: '14px 16px', marginBottom: 14, borderRadius: 'var(--radius-3)', border: '1px solid var(--brand)', background: 'var(--brand)', color: '#fff', cursor: 'pointer', textAlign: 'left' }}>
                   <ScanLine size={26} strokeWidth={1.75} style={{ flexShrink: 0 }} />
@@ -328,7 +330,7 @@ const Upload = () => {
                     </button>
                   </div>
 
-                  {isImage && (
+                  {isImage && canScan && (
                     <div style={{ padding: '10px 16px', background: 'var(--surface-2)', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                       <span style={{ flex: 1, minWidth: 180, fontSize: 12, color: 'var(--fg-muted)' }}>{t("C'est une photo ? Recadrez-la et convertissez-la en PDF.")}</span>
                       <button onClick={() => setScan({ file })}
