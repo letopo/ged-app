@@ -1487,6 +1487,17 @@ const RELEASE_NOTES = [
       '« Clôturer les anciennes non retrouvées » : ferme, après confirmation, les hospitalisations ouvertes depuis plus de 30 jours dont le patient n’est pas retrouvé dans le DME.',
       'Patients PHP : « Rapprocher avec le DME » cherche tous les patients et enregistre leur n° de dossier DME (affiché ✓ dans la liste) ; la fiche du patient montre ses fiches DME avec « C’est lui » / « Ce n’est pas lui ».',
     ],
+  },  {
+    id: '2026-11-18-piece-de-caisse-modifier',
+    date: '2026-11-18',
+    target: 'app',
+    title: 'Corriger une pièce de caisse soumise',
+    access: (user) => isAdmin(user) || (user?.postes || []).includes('comptable'),
+    items: [
+      'Une erreur dans une pièce de caisse déjà soumise ? Ouvrez-la dans Documents et cliquez sur « Modifier » : le formulaire se rouvre avec vos saisies, le PDF est refait et le circuit continue là où il en est.',
+      'Possible tant que personne n’a validé la pièce. Dès la première validation (visa du DG…), elle n’est plus modifiable.',
+      'Chaque correction est tracée (qui, quand, ancien et nouveau total).',
+    ],
   },
 ];
 

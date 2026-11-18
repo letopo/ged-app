@@ -326,6 +326,11 @@ export const documentsAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   delete: (documentId) => api.delete(`/documents/${documentId}`),
+  // Pièce de caisse : peut-elle encore être corrigée (personne ne l'a validée) ?
+  getPieceDeCaisseModification: (documentId) => api.get(`/documents/${documentId}/piece-de-caisse/modification`),
+  modifierPieceDeCaisse: (documentId, formData) => api.put(`/documents/${documentId}/piece-de-caisse`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   updateMetadata: (documentId, data) => api.patch(`/documents/${documentId}/metadata`, data),
   getValidatedOrdreMission: () => api.get('/documents/ordres-mission/valides'),
   getValidatedForPC: () => api.get('/documents/valides-pour-pc'),

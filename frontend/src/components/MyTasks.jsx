@@ -561,6 +561,10 @@ const MyTasks = () => {
       uploadData.append('linkedOrdreMissionId', taskToProcess.document.id);
 
       uploadData.append('metadata', JSON.stringify({
+        // Numéro, date et total en lettres gardés : la pièce peut être corrigée avant validation
+        numero: pieceDeCaisseData.numero,
+        date: pieceDeCaisseData.date,
+        totalEnLettres: pieceDeCaisseData.totalEnLettres,
         nom: pieceDeCaisseData.nom,
         concerne: pieceDeCaisseData.concerne,
         beneficiaireRole: pcTarget?.role,

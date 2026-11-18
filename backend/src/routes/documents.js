@@ -28,6 +28,7 @@ import {
   signDocumentManually, getManualSignature,
   createSignatureRequest, getSignatureRequestStatus, sendSignatureRequest, cancelSignatureRequest, listSignatureKiosks,
 } from '../controllers/manualSignatureController.js';
+import { getEtatModification, modifierPieceDeCaisse } from '../controllers/pieceDeCaisseEditionController.js';
 import {
   listRecipients,
   transmitDocument,
@@ -438,6 +439,10 @@ router.delete('/signature-requests/:token', signaturePatient, cancelSignatureReq
 
 // ✅ NOUVELLE ROUTE : Ajouter une page (fusionner)
 router.post('/:id/add-page', upload.single('file'), fixUploadEncoding, addPageToDocument);
+
+// Pièce de caisse : correction par sa créatrice tant que personne ne l'a validée
+router.get('/:id/piece-de-caisse/modification', getEtatModification);
+router.put('/:id/piece-de-caisse', upload.single('file'), fixUploadEncoding, modifierPieceDeCaisse);
 
 // @route   GET /api/documents
 // @desc    Récupérer tous les documents
