@@ -42,7 +42,7 @@ const ScheduleDetail = () => {
       setSchedule(data);
 
       // Générer les dates
-      const monthDates = scheduleService.generateMonthDates(data.year, data.month);
+      const monthDates = scheduleService.generateScheduleDates(data);
       setDates(monthDates);
 
       // Organiser les affectations par employé
@@ -220,7 +220,7 @@ const ScheduleDetail = () => {
               {scheduleTypeLabels[schedule.scheduleType]}
             </h2>
             <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>
-              {t('MOIS DE {{month}} {{year}}', { month: scheduleService.getMonthName(schedule.month).toUpperCase(), year: schedule.year })}
+              {scheduleService.isSingleWeekend(schedule) ? scheduleService.getPeriodLabel(schedule).toUpperCase() : t('MOIS DE {{month}} {{year}}', { month: scheduleService.getMonthName(schedule.month).toUpperCase(), year: schedule.year })}
             </h3>
             <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>
               ROT/{schedule.scheduleType.toUpperCase()}/{schedule.month}-{schedule.year.toString().slice(-2)}

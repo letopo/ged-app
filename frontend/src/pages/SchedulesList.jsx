@@ -198,7 +198,7 @@ export default function SchedulesList() {
                         <Tag size={11} /> {scheduleTypeLabels[schedule.scheduleType]}
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <CalendarDays size={11} /> {scheduleService.getMonthName(schedule.month)} {schedule.year}
+                        <CalendarDays size={11} /> {scheduleService.getPeriodLabel(schedule)}
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <User size={11} /> {schedule.creator?.firstName} {schedule.creator?.lastName}

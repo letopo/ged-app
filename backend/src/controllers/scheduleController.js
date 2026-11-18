@@ -22,12 +22,14 @@ export const createSchedule = async (req, res) => {
   try {
     const { title, scheduleType, departmentId, month, year, startDate, endDate, notes } = req.body;
     
-    // Vérifier si un planning existe déjà pour cette période
+    // Vérifier si un planning existe déjà pour cette période. Planning du
+    // week-end : un par week-end choisi (mêmes dates), plusieurs dans le mois.
     const existing = await Schedule.findOne({
       where: {
         scheduleType,
         month,
         year,
+        ...(scheduleType === 'weekend' && startDate && endDate ? { startDate, endDate } : {}),
         isActive: true
       }
     });

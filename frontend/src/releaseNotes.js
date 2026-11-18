@@ -1498,6 +1498,15 @@ const RELEASE_NOTES = [
       'Possible tant que personne n’a validé la pièce. Dès la première validation (visa du DG…), elle n’est plus modifiable.',
       'Chaque correction est tracée (qui, quand, ancien et nouveau total).',
     ],
+  },  {
+    id: '2026-11-18-planning-weekend',
+    date: '2026-11-18',
+    target: '/schedules',
+    title: 'Planning du week-end',
+    items: [
+      'À la création d’un planning du week-end, choisissez le week-end (ex. « Week-end du 21-22 novembre 2026 ») : la grille, l’aperçu et le PDF ne montrent plus que ce samedi et ce dimanche.',
+      'Un planning du week-end peut être créé pour chaque week-end du mois. « Tous les week-ends du mois » reste possible : seuls les samedis et dimanches s’affichent.',
+    ],
   },
 ];
 

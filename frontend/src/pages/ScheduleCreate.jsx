@@ -17,8 +17,20 @@ const ScheduleCreate = () => {
     departmentId: '',
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
+    weekend: '', // planning du week-end : samedi choisi (AAAA-MM-JJ) ou 'all'
     notes: ''
   });
+  const isWeekendType = formData.scheduleType === 'weekend';
+  const weekends = isWeekendType ? scheduleService.weekendsOfMonth(Number(formData.year), Number(formData.month)) : [];
+
+  // Week-end proposé : le prochain du mois choisi (sinon le premier)
+  useEffect(() => {
+    if (!isWeekendType) return;
+    if (formData.weekend === 'all' || weekends.some(w => w.startDate === formData.weekend)) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const next = weekends.find(w => w.endDate >= today) || weekends[0];
+    setFormData(prev => ({ ...prev, weekend: next?.startDate || 'all' }));
+  }, [isWeekendType, formData.month, formData.year]);
 
   const scheduleTypeLabels = scheduleService.getScheduleTypeLabels();
 
@@ -31,12 +43,13 @@ const ScheduleCreate = () => {
     if (formData.scheduleType && formData.month && formData.year) {
       const typeLabel = scheduleTypeLabels[formData.scheduleType];
       const monthName = scheduleService.getMonthName(formData.month);
+      const we = isWeekendType ? weekends.find(w => w.startDate === formData.weekend) : null;
       setFormData(prev => ({
         ...prev,
-        title: `${typeLabel} - ${monthName} ${formData.year}`
+        title: we ? `${typeLabel} - Week-end du ${we.label}` : `${typeLabel} - ${monthName} ${formData.year}`
       }));
     }
-  }, [formData.scheduleType, formData.month, formData.year]);
+  }, [formData.scheduleType, formData.month, formData.year, formData.weekend]);
 
   const loadDepartments = async () => {
     try {
@@ -67,18 +80,12 @@ const ScheduleCreate = () => {
       const year = parseInt(formData.year);
       const month = parseInt(formData.month);
 
-      // Premier jour du mois
-      const startDate = new Date(year, month - 1, 1);
-
-      // Dernier jour du mois (jour 0 du mois suivant = dernier jour du mois actuel)
-      const endDate = new Date(year, month, 0);
-
-      console.log('Dates calculées:', {
-        year,
-        month,
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0]
-      });
+      // Dates en heure locale (toISOString décalait d'un jour en UTC+1)
+      const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      // Tout le mois, sauf planning du week-end limité au week-end choisi (samedi → dimanche)
+      const we = isWeekendType ? weekends.find(w => w.startDate === formData.weekend) : null;
+      const startDate = we ? we.startDate : ymd(new Date(year, month - 1, 1));
+      const endDate = we ? we.endDate : ymd(new Date(year, month, 0));
 
       const scheduleData = {
         title: formData.title,
@@ -86,8 +93,8 @@ const ScheduleCreate = () => {
         departmentId: formData.departmentId || null,
         month: month,
         year: year,
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
+        startDate,
+        endDate,
         notes: formData.notes || ''
       };
 
@@ -203,6 +210,23 @@ const ScheduleCreate = () => {
               </select>
             </div>
           </div>
+
+          {isWeekendType && (
+            <div>
+              <label style={labelStyle}>
+                {t('Week-end')} <span style={{ color: 'var(--danger)' }}>*</span>
+              </label>
+              <select value={formData.weekend} onChange={(e) => handleChange('weekend', e.target.value)} style={inputStyle} required>
+                {weekends.map(w => (
+                  <option key={w.startDate} value={w.startDate}>{t('Week-end du {{label}}', { label: w.label })}</option>
+                ))}
+                <option value="all">{t('Tous les week-ends du mois')}</option>
+              </select>
+              <p style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 4 }}>
+                {t('Le planning ne montre que le samedi et le dimanche choisis.')}
+              </p>
+            </div>
+          )}
 
           {/* Titre */}
           <div>

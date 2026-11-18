@@ -135,7 +135,7 @@ export default function ScheduleValidate() {
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 14 }}>{t('Détails du planning')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
               <div><div style={dtStyle}>{t('Type de planning')}</div><div style={ddStyle}>{scheduleService.getScheduleTypeLabels()[schedule.scheduleType]}</div></div>
-              <div><div style={dtStyle}>{t('Période')}</div><div style={ddStyle}>{scheduleService.getMonthName(schedule.month)} {schedule.year}</div></div>
+              <div><div style={dtStyle}>{t('Période')}</div><div style={ddStyle}>{scheduleService.getPeriodLabel(schedule)}</div></div>
               <div><div style={dtStyle}>{t('Créé par')}</div><div style={ddStyle}>{schedule.creator?.firstName} {schedule.creator?.lastName}</div></div>
               <div><div style={dtStyle}>{t('Date de création')}</div><div style={ddStyle}>{new Date(schedule.createdAt).toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR')}</div></div>
             </div>
