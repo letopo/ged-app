@@ -231,8 +231,23 @@ const CreateFromTemplate = () => {
     // Programme opératoire commun (page Bloc opératoire) : lignes saisies par tous les services
     const blocPrefill = templateName === 'Planning Opératoire' ? location.state?.blocPrefill || null : null;
 
+    // Correction d'une pièce de caisse déjà soumise (personne ne l'a encore validée)
+    const editDocument = templateName === 'Pièce de caisse' ? location.state?.editDocument || null : null;
+
     const template = templates[templateName] || templates["Demande de permission"];
-    const [formData, setFormData] = useState(blocPrefill || template.initialState);
+    const [formData, setFormData] = useState(() => {
+        if (blocPrefill) return blocPrefill;
+        if (!editDocument) return template.initialState;
+        const meta = editDocument.metadata || {};
+        return {
+            ...template.initialState,
+            ...meta,
+            // Pièces créées depuis un ordre de mission : date non enregistrée → date de création
+            date: meta.date || (editDocument.createdAt ? new Date(editDocument.createdAt).toLocaleDateString('fr-FR') : template.initialState.date),
+            lines: Array.isArray(meta.lines) && meta.lines.length ? meta.lines.map(l => ({ ...l })) : template.initialState.lines,
+            linkedOrdreMissionId: '',
+        };
+    });
     const pdfContainerRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [visibility, setVisibility, visibilityContext] = useDocumentVisibility(templateName);
@@ -251,7 +266,7 @@ const CreateFromTemplate = () => {
 
     // Auto-save brouillon
     const { draftStatus, hasDraft, restoreDraft, dismissDraft, clearDraft, getDraftAge } = useDraftAutoSave(
-        blocPrefill ? null : templateName, formData, setFormData, template.initialState
+        (blocPrefill || editDocument) ? null : templateName, formData, setFormData, template.initialState
     );
 
     const handleSubmit = async () => {
@@ -478,6 +493,29 @@ const CreateFromTemplate = () => {
 
     // 3. PRÉPARATION DE L'UPLOAD
     setGenStep(t('Envoi vers le serveur…'));
+
+    // Correction d'une pièce déjà soumise : le PDF remplace l'ancien, le circuit continue
+    if (editDocument) {
+        try {
+            const editData = new FormData();
+            editData.append('file', pdfBlob, `Pièce_de_caisse_${Date.now()}.pdf`);
+            editData.append('title', finalTitle);
+            const meta = { ...formData };
+            delete meta.linkedOrdreMissionId;
+            if (signatureZones && signatureZones.length > 0) meta.signatureZones = signatureZones;
+            editData.append('metadata', JSON.stringify(meta));
+            await documentsAPI.modifierPieceDeCaisse(editDocument.id, editData);
+            toast.success(t('Pièce de caisse modifiée. Le validateur verra la version corrigée.'));
+            navigate('/documents');
+        } catch (err) {
+            setError(err.response?.data?.message || t('Erreur lors de la modification de la pièce de caisse.'));
+        } finally {
+            setLoading(false);
+            setGenStep('');
+        }
+        return;
+    }
+
     try {
         const uploadData = new FormData();
         const fileName = `${templateName.replace(/\s/g, '_')}_${Date.now()}.pdf`;
@@ -614,6 +652,7 @@ const CreateFromTemplate = () => {
                     formData={formData}
                     setFormData={setFormData}
                     pdfContainerRef={pdfContainerRef}
+                    {...(editDocument ? { showOrdreMissionSelector: false, editing: true } : {})}
                 />
             );
         }
@@ -622,11 +661,19 @@ const CreateFromTemplate = () => {
     return (
         <div className="max-w-4xl mx-auto p-8" style={{ background: 'var(--surface-2)' }}>
             <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--fg)' }}>
-                {t('Créer : {{name}}', { name: t(templateName) })}
+                {editDocument ? t('Modifier : {{name}}', { name: t(templateName) }) : t('Créer : {{name}}', { name: t(templateName) })}
             </h1>
             <p className="mb-4" style={{ color: 'var(--fg-muted)' }}>
-                {t('Remplissez les champs pour générer le document PDF.')}
+                {editDocument
+                    ? t('Corrigez la pièce puis enregistrez : le PDF est refait et le circuit de validation continue là où il en est.')
+                    : t('Remplissez les champs pour générer le document PDF.')}
             </p>
+            {editDocument?.metadata?.fusionné && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16, padding: '10px 14px', background: 'var(--brand-soft)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, color: 'var(--fg)' }}>
+                    <Link2 size={16} color="var(--brand)" style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>{t('La pièce justificative liée ({{title}}) reste jointe en tête du PDF.', { title: editDocument.metadata.linkedDocumentTitle || t('document lié') })}</span>
+                </div>
+            )}
             {linkedDocument && (
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16, padding: '10px 14px', background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2, var(--border))', borderRadius: 8, fontSize: 13, color: 'var(--fg)' }}>
                     <Link2 size={16} color="var(--brand)" style={{ flexShrink: 0, marginTop: 1 }} />
@@ -698,7 +745,7 @@ const CreateFromTemplate = () => {
             )}
 
             <div className="text-center mt-8" style={{ display: (isOrdreMission && !formData.type_mission) ? 'none' : undefined }}>
-                <VisibilityChoice value={visibility} onChange={setVisibility} context={visibilityContext} align="center" style={{ marginBottom: 20 }} />
+                {!editDocument && <VisibilityChoice value={visibility} onChange={setVisibility} context={visibilityContext} align="center" style={{ marginBottom: 20 }} />}
                 <button
                     onClick={handleSubmit}
                     disabled={loading}
@@ -720,7 +767,7 @@ const CreateFromTemplate = () => {
                     ) : (
                         <>
                             <Send size={18}/>
-                            {t('Générer et Sauvegarder')}
+                            {editDocument ? t('Enregistrer les corrections') : t('Générer et Sauvegarder')}
                         </>
                     )}
                 </button>

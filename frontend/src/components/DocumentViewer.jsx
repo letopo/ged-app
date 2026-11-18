@@ -284,6 +284,21 @@ const DocumentViewer = ({
   const doc = localDoc && localDoc.id === docProp?.id ? localDoc : docProp;
   const [showSign, setShowSign] = useState(false);
   const isAdmin = ['admin', 'superadmin'].includes(user?.role);
+  // Pièce de caisse soumise : sa créatrice peut la corriger tant que personne ne l'a validée
+  const isMyPieceDeCaisse = doc?.category === 'Pièce de caisse' && Array.isArray(doc?.metadata?.lines) && (doc?.userId === user?.id || isAdmin);
+  const [pcModif, setPcModif] = useState(null);
+  useEffect(() => {
+    setPcModif(null);
+    if (!isMyPieceDeCaisse || !doc?.id) return;
+    let alive = true;
+    documentsAPI.getPieceDeCaisseModification(doc.id)
+      .then(res => { if (alive) setPcModif(res.data?.data || null); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [doc?.id, isMyPieceDeCaisse]);
+  const editPieceDeCaisse = () => navigate('/create-from-template', {
+    state: { templateName: 'Pièce de caisse', editDocument: { id: doc.id, metadata: doc.metadata, createdAt: doc.createdAt } },
+  });
   // Ouvrir un maillon de la chaîne : dans la visionneuse si le parent le permet,
   // sinon via la page Documents (/documents/:id ouvre la visionneuse)
   const openChainDocument = async (id) => {
@@ -486,6 +501,13 @@ const DocumentViewer = ({
               {canShareFile && (
                 <button onClick={handleShare} disabled={sharing} title={t('Partager (WhatsApp, e-mail…)')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-muted)', fontSize: 12, fontWeight: 500, cursor: sharing ? 'wait' : 'pointer' }}>
                   {sharing ? <Loader size={13} className="animate-spin" /> : <Share size={13} />} <span className="dv-btn-label">{t('Partager')}</span>
+                </button>
+              )}
+              {pcModif && (
+                <button onClick={pcModif.modifiable ? editPieceDeCaisse : undefined} disabled={!pcModif.modifiable}
+                  title={pcModif.modifiable ? t('Corriger la pièce : personne ne l’a encore validée') : t(pcModif.raison || 'Modification impossible')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 'var(--radius-2)', border: `1px solid ${pcModif.modifiable ? 'var(--brand)' : 'var(--border)'}`, background: pcModif.modifiable ? 'var(--brand-soft)' : 'transparent', color: pcModif.modifiable ? 'var(--brand)' : 'var(--fg-subtle)', fontSize: 12, fontWeight: 600, cursor: pcModif.modifiable ? 'pointer' : 'not-allowed' }}>
+                  {pcModif.modifiable ? <PenLine size={13} /> : <Lock size={13} />} <span className="dv-btn-label">{t('Modifier')}</span>
                 </button>
               )}
               {canSign && (

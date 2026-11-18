@@ -9,7 +9,7 @@ import SignatureFrame, { getImageUrl } from '../../components/SignatureFrame';
 import PersonAutocomplete from '../../components/PersonAutocomplete';
 import { useFeatureNote } from '../../components/ReleaseNotes';
 
-const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissionSelector = true }) => {
+const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissionSelector = true, editing = false }) => {
     const { user } = useAuth();
     const { t } = useTranslation();
     useFeatureNote('piece-de-caisse');
@@ -23,7 +23,8 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
     const [viewingDoc, setViewingDoc] = useState(null);
 
     useEffect(() => {
-        if (formData.numero) return;
+        // Correction d'une pièce existante : on garde son numéro, jamais un nouveau
+        if (formData.numero || editing) return;
         documentsAPI.getNextNumero('Pièce de caisse')
             .then(res => setFormData(prev => ({ ...prev, numero: res.data.numero })))
             .catch(err => console.error('Erreur récupération numéro PC:', err));
@@ -70,10 +71,20 @@ const PieceDeCaisse = ({ formData, setFormData, pdfContainerRef, showOrdreMissio
     const totalEntrees = formData.lines.reduce((acc, line) => acc + (Number(line.entrees) || 0), 0);
     const totalSorties = formData.lines.reduce((acc, line) => acc + (Number(line.sorties) || 0), 0);
 
+    // Ancienne pièce créée depuis un ordre de mission : numéro non enregistré, à ressaisir
+    const [numeroManquant] = useState(editing && !formData.numero);
+
     const cellIn = { background: 'none', border: 'none', outline: 'none', width: '100%', padding: 4, height: 32, fontSize: 12 };
 
     return (
         <>
+            {numeroManquant && (
+                <div className="not-printable" style={{ marginBottom: 16, padding: '10px 14px', background: 'var(--warning-soft)', border: '1px solid var(--warning)', borderRadius: 8, fontSize: 13, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span>{t('Le numéro de cette pièce n’a pas été enregistré : recopiez celui qui figure sur le PDF.')}</span>
+                    <input name="numero" value={formData.numero || ''} onChange={handleChange} placeholder={t('N° de la pièce')}
+                        style={{ height: 30, padding: '0 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg)', fontSize: 13 }} />
+                </div>
+            )}
             {/* Sélecteur d'Ordre de Mission */}
             {showOrdreMissionSelector && (
                 <div className="not-printable" style={{
