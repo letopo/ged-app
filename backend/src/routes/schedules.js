@@ -13,6 +13,7 @@ import {
   getScheduleChangesLog,
   deleteSchedule,
   saveProgrammeWeekend,
+  saveMiseEnPage,
 } from '../controllers/scheduleController.js';
 
 const router = express.Router();
@@ -84,6 +85,17 @@ router.put(
   '/:id/programme',
   canEditPlannings,
   saveProgrammeWeekend
+);
+
+/**
+ * @route   PUT /api/schedules/:id/mise-en-page
+ * @desc    Planning mensuel : ordre des agents et lignes vides entre équipes
+ * @access  Private - rédaction des plannings
+ */
+router.put(
+  '/:id/mise-en-page',
+  canEditPlannings,
+  saveMiseEnPage
 );
 
 /**

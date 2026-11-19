@@ -148,7 +148,7 @@ export default function ScheduleValidate() {
             )}
           </div>
 
-          {!schedule.content && (<>
+          {!schedule.content?.services && (<>
           {/* Stats */}
           <div className="ged-card" style={{ padding: '16px 18px' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 12 }}>{t('Statistiques')}</div>
@@ -203,7 +203,7 @@ export default function ScheduleValidate() {
           </>)}
 
           {/* Programme du week-end : le tableau tel qu'il sera signé */}
-          {schedule.content && (
+          {schedule.content?.services && (
             <div className="ged-card" style={{ padding: 12, overflowX: 'auto' }}>
               <ProgrammeWeekend schedule={schedule} content={schedule.content} validations={schedule.validations} />
             </div>

@@ -1510,6 +1510,18 @@ const RELEASE_NOTES = [
       '« Générer le PDF et soumettre » produit le programme en A4 paysage, avec les cadres de signature Directrice des Soins → Directeur Médical → Directeur général.',
     ],
   },
+  {
+    id: '2026-11-19-planning-moyens-generaux',
+    date: '2026-11-19',
+    target: '/schedules',
+    title: 'Planning des Moyens Généraux, comme le modèle papier',
+    items: [
+      'Le PDF du planning de roulement des Moyens Généraux reprend le papier : NOMS / Prénoms, jours (L M Me J V S D) et dates, samedis et dimanches en orange, légende des codes avec les horaires, signature du Directeur Général.',
+      'Un congé sur plusieurs jours s’affiche en une seule case « EN CONGE ANNUEL » (ou « EN CONGE MALADIE »).',
+      'Nouveau bloc « Ordre des agents et équipes » : ordre des lignes et ligne vide entre deux équipes. Bouton « Aperçu PDF » avant de soumettre.',
+      'Nouveau code J° : journée de 09 h à 17 h 30.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances
