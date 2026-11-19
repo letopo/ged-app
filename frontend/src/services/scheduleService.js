@@ -238,6 +238,100 @@ const scheduleService = {
   },
   
   /**
+   * Week-ends d'un mois : chaque samedi du mois et son dimanche (qui peut tomber
+   * le mois suivant). Dates au format AAAA-MM-JJ, en heure locale.
+   */
+  weekendsOfMonth: (year, month) => {
+    const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const out = [];
+    const last = new Date(year, month, 0).getDate();
+    for (let day = 1; day <= last; day++) {
+      const sat = new Date(year, month - 1, day);
+      if (sat.getDay() !== 6) continue;
+      const sun = new Date(year, month - 1, day + 1);
+      out.push({ startDate: ymd(sat), endDate: ymd(sun), label: scheduleService.formatWeekend(ymd(sat), ymd(sun)) });
+    }
+    return out;
+  },
+
+  /** « 21-22 novembre 2026 » ou « 31 octobre - 1er novembre 2026 » */
+  formatWeekend: (startDate, endDate) => {
+    const [y1, m1, d1] = startDate.split('-').map(Number);
+    const [y2, m2, d2] = endDate.split('-').map(Number);
+    const mois = (m) => scheduleService.getMonthName(m).toLowerCase();
+    const jour = (d) => (d === 1 ? '1er' : String(d));
+    if (m1 === m2 && y1 === y2) return `${jour(d1)}-${jour(d2)} ${mois(m1)} ${y1}`;
+    return `${jour(d1)} ${mois(m1)}${y1 !== y2 ? ` ${y1}` : ''} - ${jour(d2)} ${mois(m2)} ${y2}`;
+  },
+
+  /** Planning du week-end limité à un week-end précis (samedi → dimanche) ? */
+  isSingleWeekend: (schedule) => {
+    if (schedule?.scheduleType !== 'weekend' || !schedule.startDate || !schedule.endDate) return false;
+    const [y, m, d] = String(schedule.startDate).slice(0, 10).split('-').map(Number);
+    const start = new Date(y, m - 1, d);
+    const [y2, m2, d2] = String(schedule.endDate).slice(0, 10).split('-').map(Number);
+    const days = Math.round((new Date(y2, m2 - 1, d2) - start) / 86400000);
+    return start.getDay() === 6 && days >= 0 && days <= 1;
+  },
+
+  /**
+   * Jours affichés par un planning (grille, aperçu, PDF). Planning du week-end :
+   * seulement le samedi et le dimanche du week-end choisi, ou tous les samedis
+   * et dimanches du mois pour les anciens plannings. Autres : tout le mois.
+   * Même format que generateMonthDates (clé `date` des affectations).
+   */
+  generateScheduleDates: (schedule) => {
+    if (!schedule) return [];
+    if (schedule.scheduleType !== 'weekend') return scheduleService.generateMonthDates(schedule.year, schedule.month);
+    if (scheduleService.isSingleWeekend(schedule)) {
+      const [y, m, d] = String(schedule.startDate).slice(0, 10).split('-').map(Number);
+      return [0, 1].map((k) => {
+        const date = new Date(y, m - 1, d + k);
+        return {
+          day: date.getDate(),
+          date: date.toISOString().split('T')[0],
+          dayOfWeek: date.getDay(),
+          dayName: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][date.getDay()],
+        };
+      });
+    }
+    return scheduleService.generateMonthDates(schedule.year, schedule.month).filter((d) => d.dayOfWeek === 0 || d.dayOfWeek === 6);
+  },
+
+  /** Période lisible : « Week-end du 21-22 novembre 2026 » ou « Novembre 2026 » */
+  getPeriodLabel: (schedule) => (scheduleService.isSingleWeekend(schedule)
+    ? `Week-end du ${scheduleService.formatWeekend(String(schedule.startDate).slice(0, 10), String(schedule.endDate).slice(0, 10))}`
+    : `${scheduleService.getMonthName(schedule.month)} ${schedule.year}`),
+
+  /** Programme du week-end : enregistrer le tableau (brouillon uniquement) */
+  saveProgramme: async (scheduleId, content) => {
+    const response = await api.put(`/schedules/${scheduleId}/programme`, { content });
+    return response.data;
+  },
+
+  /**
+   * Programme du week-end : les 5 créneaux du modèle papier, à partir du samedi
+   * (startDate) : vendredi nuit, samedi jour/nuit, dimanche jour/nuit.
+   */
+  programmeJours: (schedule) => {
+    const [y, m, d] = String(schedule?.startDate || '').slice(0, 10).split('-').map(Number);
+    if (!y) return { jours: [], du: '', au: '' };
+    const fr = (k) => {
+      const date = new Date(y, m - 1, d + k);
+      return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+    };
+    return {
+      jours: [
+        { nom: 'VENDREDI', date: fr(-1), creneaux: ['NUIT'] },
+        { nom: 'SAMEDI', date: fr(0), creneaux: ['JOUR', 'NUIT'] },
+        { nom: 'DIMANCHE', date: fr(1), creneaux: ['JOUR', 'NUIT'] },
+      ],
+      du: fr(-1),
+      au: fr(1),
+    };
+  },
+
+  /**
    * Obtenir le nom du mois
    */
   getMonthName: (month) => {

@@ -51,7 +51,7 @@ const ScheduleGrid = ({ schedule, employees, onSave }) => {
   };
 
   const generateDates = () => {
-    const monthDates = scheduleService.generateMonthDates(schedule.year, schedule.month);
+    const monthDates = scheduleService.generateScheduleDates(schedule);
     setDates(monthDates);
   };
 

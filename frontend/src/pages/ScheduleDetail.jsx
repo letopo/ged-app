@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { useTranslation } from 'react-i18next';
 import scheduleService from '../services/scheduleService';
+import ProgrammeWeekend from '../components/schedules/ProgrammeWeekend';
 import toast from 'react-hot-toast';
 import i18n from '../i18n/config';
 
@@ -42,7 +43,7 @@ const ScheduleDetail = () => {
       setSchedule(data);
 
       // Générer les dates
-      const monthDates = scheduleService.generateMonthDates(data.year, data.month);
+      const monthDates = scheduleService.generateScheduleDates(data);
       setDates(monthDates);
 
       // Organiser les affectations par employé
@@ -190,6 +191,12 @@ const ScheduleDetail = () => {
 
       {/* Contenu imprimable */}
       <div ref={printRef} style={{ background: 'var(--surface)' }}>
+        {schedule.content ? (
+          <div className="programme-weekend-print" style={{ overflowX: 'auto', padding: 16, background: '#fff' }}>
+            <style>{'@media print { .programme-weekend-print { padding: 0 !important; overflow: visible !important; zoom: 0.92; } }'}</style>
+            <ProgrammeWeekend schedule={schedule} content={schedule.content} validations={schedule.validations} />
+          </div>
+        ) : (<>
         {/* En-tête du planning */}
         <div style={{ borderBottom: '2px solid var(--fg)', padding: 24 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -220,7 +227,7 @@ const ScheduleDetail = () => {
               {scheduleTypeLabels[schedule.scheduleType]}
             </h2>
             <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', margin: 0 }}>
-              {t('MOIS DE {{month}} {{year}}', { month: scheduleService.getMonthName(schedule.month).toUpperCase(), year: schedule.year })}
+              {scheduleService.isSingleWeekend(schedule) ? scheduleService.getPeriodLabel(schedule).toUpperCase() : t('MOIS DE {{month}} {{year}}', { month: scheduleService.getMonthName(schedule.month).toUpperCase(), year: schedule.year })}
             </h3>
             <p style={{ fontSize: 13, color: 'var(--fg-muted)', marginTop: 4 }}>
               ROT/{schedule.scheduleType.toUpperCase()}/{schedule.month}-{schedule.year.toString().slice(-2)}
@@ -543,10 +550,11 @@ const ScheduleDetail = () => {
             )}
           </div>
         </div>
+        </>)}
       </div>
 
       {/* Statistiques (non imprimées) */}
-      <div className="no-print" style={{ width: '100%', padding: '24px 16px' }}>
+      <div className="no-print" style={{ width: '100%', padding: '24px 16px', display: schedule.content ? 'none' : undefined }}>
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-1)', padding: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)', marginBottom: 16 }}>{t('Statistiques du planning')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>

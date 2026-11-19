@@ -1498,6 +1498,17 @@ const RELEASE_NOTES = [
       'Possible tant que personne n’a validé la pièce. Dès la première validation (visa du DG…), elle n’est plus modifiable.',
       'Chaque correction est tracée (qui, quand, ancien et nouveau total).',
     ],
+  },  {
+    id: '2026-11-18-planning-weekend',
+    date: '2026-11-19',
+    target: '/schedules',
+    title: 'Programme du week-end, comme le modèle papier',
+    items: [
+      'Le planning du week-end devient le « Programme du week-end » : en-tête Direction (numéros, superviseur, pôles), puis chaque service du vendredi nuit au dimanche nuit (jour / nuit).',
+      'À la création, choisissez le week-end : tout est repris du week-end précédent (services, en-tête et noms), il suffit de corriger ce qui change.',
+      'Noms en texte libre (« NOM1/NOM2 »), avec des suggestions tirées de la liste du personnel. Une case peut couvrir plusieurs créneaux (ex. Radiologie d’astreinte tout le week-end).',
+      '« Générer le PDF et soumettre » produit le programme en A4 paysage, avec les cadres de signature Directrice des Soins → Directeur Médical → Directeur général.',
+    ],
   },
 ];
 

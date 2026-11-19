@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import scheduleService from '../services/scheduleService';
 import ScheduleGrid from '../components/ScheduleGrid';
+import ProgrammeWeekendEdit from '../components/schedules/ProgrammeWeekendEdit';
 import api from '../services/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -221,7 +222,7 @@ const ScheduleEdit = () => {
       const filename = `planning-${schedule.scheduleType}-${schedule.month}-${schedule.year}-${Date.now()}.pdf`;
       formData.append('file', pdfBlob, filename);
       formData.append('title', schedule.title);
-      formData.append('description', `${t('Planning')} ${scheduleService.getScheduleTypeLabels()[schedule.scheduleType]} - ${scheduleService.getMonthName(schedule.month)} ${schedule.year}`);
+      formData.append('description', `${t('Planning')} ${scheduleService.getScheduleTypeLabels()[schedule.scheduleType]} - ${scheduleService.getPeriodLabel(schedule)}`);
       formData.append('type', 'planning');
 
       // 🆕 AJOUTER LES ZONES DE SIGNATURE
@@ -277,7 +278,7 @@ const ScheduleEdit = () => {
   };
 
   const generateScheduleHTML = () => {
-    const dates = scheduleService.generateMonthDates(schedule.year, schedule.month);
+    const dates = scheduleService.generateScheduleDates(schedule);
     const employeeAssignments = {};
 
     if (schedule.assignments && Array.isArray(schedule.assignments)) {
@@ -309,7 +310,7 @@ const ScheduleEdit = () => {
             ${scheduleService.getScheduleTypeLabels()[schedule.scheduleType]}
           </h2>
           <h3 style="text-align: center; margin: 10px 0; font-size: 14px;">
-            ${t('MOIS DE {{month}} {{year}}', { month: scheduleService.getMonthName(schedule.month).toUpperCase(), year: schedule.year })}
+            ${scheduleService.isSingleWeekend(schedule) ? scheduleService.getPeriodLabel(schedule).toUpperCase() : t('MOIS DE {{month}} {{year}}', { month: scheduleService.getMonthName(schedule.month).toUpperCase(), year: schedule.year })}
           </h3>
           <p style="text-align: center; margin: 5px 0; font-size: 10px;">
             ROT/${schedule.scheduleType.toUpperCase()}/${schedule.month}-${schedule.year.toString().slice(-2)}
@@ -462,6 +463,11 @@ const ScheduleEdit = () => {
     );
   }
 
+  // Programme du week-end : tableau du modèle papier (services × vendredi nuit → dimanche nuit)
+  if (schedule.scheduleType === 'weekend' && schedule.content) {
+    return <ProgrammeWeekendEdit schedule={schedule} employees={employees} />;
+  }
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -480,7 +486,7 @@ const ScheduleEdit = () => {
           <div>
             <h1 className="text-3xl font-bold" style={{ color: 'var(--fg)' }}>{schedule.title}</h1>
             <p className="mt-1" style={{ color: 'var(--fg-muted)' }}>
-              {scheduleService.getMonthName(schedule.month)} {schedule.year}
+              {scheduleService.getPeriodLabel(schedule)}
             </p>
           </div>
           <span style={{ padding: '3px 12px', borderRadius: 999, fontSize: 13, fontWeight: 500, ...scheduleService.getStatusStyle(schedule.status) }}>

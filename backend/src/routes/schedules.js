@@ -12,6 +12,7 @@ import {
   validateSchedule,
   getScheduleChangesLog,
   deleteSchedule,
+  saveProgrammeWeekend,
 } from '../controllers/scheduleController.js';
 
 const router = express.Router();
@@ -72,6 +73,17 @@ router.post(
   '/:scheduleId/assignments',
   canEditPlannings,
   bulkUpsertAssignments
+);
+
+/**
+ * @route   PUT /api/schedules/:id/programme
+ * @desc    Programme du week-end : enregistrer le tableau
+ * @access  Private - rédaction des plannings
+ */
+router.put(
+  '/:id/programme',
+  canEditPlannings,
+  saveProgrammeWeekend
 );
 
 /**

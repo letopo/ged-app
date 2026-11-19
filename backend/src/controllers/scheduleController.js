@@ -12,6 +12,7 @@ import {
 } from '../models/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../config/database.js';
+import { normaliserProgramme, programmeACopier, casesRemplies } from '../utils/programmeWeekend.js';
 
 /**
  * Créer un nouveau planning
@@ -22,12 +23,14 @@ export const createSchedule = async (req, res) => {
   try {
     const { title, scheduleType, departmentId, month, year, startDate, endDate, notes } = req.body;
     
-    // Vérifier si un planning existe déjà pour cette période
+    // Vérifier si un planning existe déjà pour cette période. Planning du
+    // week-end : un par week-end choisi (mêmes dates), plusieurs dans le mois.
     const existing = await Schedule.findOne({
       where: {
         scheduleType,
         month,
         year,
+        ...(scheduleType === 'weekend' && startDate && endDate ? { startDate, endDate } : {}),
         isActive: true
       }
     });
@@ -41,6 +44,13 @@ export const createSchedule = async (req, res) => {
     
     // Déterminer le workflow de validation selon le type
     const validationWorkflow = Schedule.getValidationWorkflow(scheduleType);
+
+    // Programme du week-end : repris du week-end précédent (noms à corriger)
+    let content = null;
+    if (scheduleType === 'weekend') {
+      content = normaliserProgramme(req.body.content)
+        || (await programmeACopier({ avant: startDate, transaction })).content;
+    }
     
     // Créer le planning
     const schedule = await Schedule.create({
@@ -54,7 +64,8 @@ export const createSchedule = async (req, res) => {
       createdByUserId: req.user.id,
       status: 'draft',
       validationWorkflow: { roles: validationWorkflow },
-      notes
+      notes,
+      content
     }, { transaction });
     
     // Créer les étapes de validation
@@ -381,15 +392,15 @@ export const submitForValidation = async (req, res) => {
       });
     }
     
-    // Vérifier qu'il y a des affectations
-    const assignmentsCount = await ScheduleAssignment.count({
-      where: { scheduleId: id }
-    });
+    // Vérifier qu'il y a des affectations (programme du week-end : des noms dans les cases)
+    const assignmentsCount = schedule.content
+      ? casesRemplies(schedule.content)
+      : await ScheduleAssignment.count({ where: { scheduleId: id } });
     
     if (assignmentsCount === 0) {
       await transaction.rollback();
       return res.status(400).json({ 
-        message: 'Le planning doit contenir au moins une affectation' 
+        message: schedule.content ? 'Le programme est vide : remplissez au moins une case' : 'Le planning doit contenir au moins une affectation' 
       });
     }
     
@@ -710,6 +721,36 @@ export const validateSchedule = async (req, res) => {
     await transaction.rollback();
     console.error('❌ Erreur validation planning:', error);
     res.status(500).json({ message: 'Erreur lors de la validation du planning' });
+  }
+};
+
+/**
+ * Programme du week-end : enregistrer le tableau (en-tête + services × créneaux).
+ * Modifiable tant que le planning est en brouillon (pas encore soumis).
+ */
+export const saveProgrammeWeekend = async (req, res) => {
+  try {
+    const schedule = await Schedule.findByPk(req.params.id);
+    if (!schedule || !schedule.isActive) return res.status(404).json({ message: 'Planning non trouvé' });
+    if (schedule.scheduleType !== 'weekend') return res.status(400).json({ message: 'Ce planning n’est pas un programme du week-end' });
+    if (schedule.status !== 'draft') {
+      return res.status(409).json({ message: 'Programme déjà soumis : il ne peut plus être modifié' });
+    }
+    const content = normaliserProgramme(req.body?.content);
+    if (!content || !content.services.length) return res.status(400).json({ message: 'Programme illisible : au moins un service est nécessaire' });
+    await schedule.update({ content });
+    await ScheduleChangeLog.logChange({
+      scheduleId: schedule.id,
+      userId: req.user.id,
+      changeType: 'update',
+      description: `Programme du week-end enregistré (${casesRemplies(content)} cases remplies)`,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+    res.json({ message: 'Programme enregistré', schedule });
+  } catch (error) {
+    console.error('Erreur enregistrement programme du week-end:', error);
+    res.status(500).json({ message: 'Erreur lors de l’enregistrement du programme' });
   }
 };
 
