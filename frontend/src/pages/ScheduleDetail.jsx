@@ -6,6 +6,7 @@ import { useReactToPrint } from 'react-to-print';
 import { useTranslation } from 'react-i18next';
 import scheduleService from '../services/scheduleService';
 import ProgrammeWeekend from '../components/schedules/ProgrammeWeekend';
+import PlanningMedecins from '../components/schedules/PlanningMedecins';
 import toast from 'react-hot-toast';
 import i18n from '../i18n/config';
 
@@ -191,7 +192,12 @@ const ScheduleDetail = () => {
 
       {/* Contenu imprimable */}
       <div ref={printRef} style={{ background: 'var(--surface)' }}>
-        {schedule.content?.services ? (
+        {schedule.content?.tableau?.lignes ? (
+          <div className="programme-weekend-print" style={{ overflowX: 'auto', padding: 16, background: '#fff' }}>
+            <style>{'@media print { .programme-weekend-print { padding: 0 !important; overflow: visible !important; zoom: 0.8; } }'}</style>
+            <PlanningMedecins schedule={schedule} tableau={schedule.content.tableau} />
+          </div>
+        ) : schedule.content?.services ? (
           <div className="programme-weekend-print" style={{ overflowX: 'auto', padding: 16, background: '#fff' }}>
             <style>{'@media print { .programme-weekend-print { padding: 0 !important; overflow: visible !important; zoom: 0.92; } }'}</style>
             <ProgrammeWeekend schedule={schedule} content={schedule.content} validations={schedule.validations} />
@@ -554,7 +560,7 @@ const ScheduleDetail = () => {
       </div>
 
       {/* Statistiques (non imprimées) */}
-      <div className="no-print" style={{ width: '100%', padding: '24px 16px', display: schedule.content?.services ? 'none' : undefined }}>
+      <div className="no-print" style={{ width: '100%', padding: '24px 16px', display: schedule.content?.services || schedule.content?.tableau?.lignes ? 'none' : undefined }}>
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-3)', boxShadow: 'var(--shadow-1)', padding: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)', marginBottom: 16 }}>{t('Statistiques du planning')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>

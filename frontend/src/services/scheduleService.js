@@ -331,6 +331,32 @@ const scheduleService = {
     };
   },
 
+  /** Planning des médecins : enregistrer le tableau (brouillon uniquement) */
+  saveTableauMedecins: async (scheduleId, tableau) => {
+    const response = await api.put(`/schedules/${scheduleId}/tableau`, { tableau });
+    return response.data;
+  },
+
+  /** Jours du mois : { jour, lettre (D L M M J V S), weekEnd } (calendrier UTC, sans décalage) */
+  joursDuMois: (annee, mois) => {
+    const n = new Date(Date.UTC(annee, mois, 0)).getUTCDate();
+    return Array.from({ length: n }, (_, i) => {
+      const dow = new Date(Date.UTC(annee, mois - 1, i + 1)).getUTCDay();
+      return { jour: i + 1, lettre: ['D', 'L', 'M', 'M', 'J', 'V', 'S'][dow], weekEnd: dow === 0 || dow === 6, dow };
+    });
+  },
+
+  /** Périodes du mois (même règle que le serveur) : semaines lundi-vendredi, week-ends */
+  periodesDuMois: (annee, mois) => {
+    const out = [];
+    for (const j of scheduleService.joursDuMois(annee, mois)) {
+      const der = out[out.length - 1];
+      if (!der || der.weekEnd !== j.weekEnd || (j.weekEnd && j.dow === 6)) out.push({ debut: j.jour, fin: j.jour, weekEnd: j.weekEnd });
+      else der.fin = j.jour;
+    }
+    return out;
+  },
+
   /**
    * Obtenir le nom du mois
    */

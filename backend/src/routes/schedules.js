@@ -14,6 +14,7 @@ import {
   deleteSchedule,
   saveProgrammeWeekend,
   saveMiseEnPage,
+  saveTableauMedecins,
 } from '../controllers/scheduleController.js';
 
 const router = express.Router();
@@ -96,6 +97,17 @@ router.put(
   '/:id/mise-en-page',
   canEditPlannings,
   saveMiseEnPage
+);
+
+/**
+ * @route   PUT /api/schedules/:id/tableau
+ * @desc    Planning des médecins : enregistrer le tableau
+ * @access  Private - rédaction des plannings
+ */
+router.put(
+  '/:id/tableau',
+  canEditPlannings,
+  saveTableauMedecins
 );
 
 /**
