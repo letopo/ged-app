@@ -87,6 +87,11 @@ const Schedule = sequelize.define('Schedule', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  // Programme du week-end : en-tête Direction + services × créneaux (voir utils/programmeWeekend.js)
+  content: {
+    type: DataTypes.JSONB,
+    allowNull: true
+  },
   publishedAt: {
     type: DataTypes.DATE,
     allowNull: true

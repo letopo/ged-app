@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import scheduleService from '../services/scheduleService';
 import ScheduleGrid from '../components/ScheduleGrid';
+import ProgrammeWeekendEdit from '../components/schedules/ProgrammeWeekendEdit';
 import api from '../services/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -460,6 +461,11 @@ const ScheduleEdit = () => {
         <div className="animate-spin rounded-full h-12 w-12" style={{ borderBottom: '2px solid var(--brand)' }}></div>
       </div>
     );
+  }
+
+  // Programme du week-end : tableau du modèle papier (services × vendredi nuit → dimanche nuit)
+  if (schedule.scheduleType === 'weekend' && schedule.content) {
+    return <ProgrammeWeekendEdit schedule={schedule} employees={employees} />;
   }
 
   return (

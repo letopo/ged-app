@@ -303,6 +303,34 @@ const scheduleService = {
     ? `Week-end du ${scheduleService.formatWeekend(String(schedule.startDate).slice(0, 10), String(schedule.endDate).slice(0, 10))}`
     : `${scheduleService.getMonthName(schedule.month)} ${schedule.year}`),
 
+  /** Programme du week-end : enregistrer le tableau (brouillon uniquement) */
+  saveProgramme: async (scheduleId, content) => {
+    const response = await api.put(`/schedules/${scheduleId}/programme`, { content });
+    return response.data;
+  },
+
+  /**
+   * Programme du week-end : les 5 créneaux du modèle papier, à partir du samedi
+   * (startDate) : vendredi nuit, samedi jour/nuit, dimanche jour/nuit.
+   */
+  programmeJours: (schedule) => {
+    const [y, m, d] = String(schedule?.startDate || '').slice(0, 10).split('-').map(Number);
+    if (!y) return { jours: [], du: '', au: '' };
+    const fr = (k) => {
+      const date = new Date(y, m - 1, d + k);
+      return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+    };
+    return {
+      jours: [
+        { nom: 'VENDREDI', date: fr(-1), creneaux: ['NUIT'] },
+        { nom: 'SAMEDI', date: fr(0), creneaux: ['JOUR', 'NUIT'] },
+        { nom: 'DIMANCHE', date: fr(1), creneaux: ['JOUR', 'NUIT'] },
+      ],
+      du: fr(-1),
+      au: fr(1),
+    };
+  },
+
   /**
    * Obtenir le nom du mois
    */

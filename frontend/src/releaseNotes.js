@@ -1500,12 +1500,14 @@ const RELEASE_NOTES = [
     ],
   },  {
     id: '2026-11-18-planning-weekend',
-    date: '2026-11-18',
+    date: '2026-11-19',
     target: '/schedules',
-    title: 'Planning du week-end',
+    title: 'Programme du week-end, comme le modèle papier',
     items: [
-      'À la création d’un planning du week-end, choisissez le week-end (ex. « Week-end du 21-22 novembre 2026 ») : la grille, l’aperçu et le PDF ne montrent plus que ce samedi et ce dimanche.',
-      'Un planning du week-end peut être créé pour chaque week-end du mois. « Tous les week-ends du mois » reste possible : seuls les samedis et dimanches s’affichent.',
+      'Le planning du week-end devient le « Programme du week-end » : en-tête Direction (numéros, superviseur, pôles), puis chaque service du vendredi nuit au dimanche nuit (jour / nuit).',
+      'À la création, choisissez le week-end : tout est repris du week-end précédent (services, en-tête et noms), il suffit de corriger ce qui change.',
+      'Noms en texte libre (« NOM1/NOM2 »), avec des suggestions tirées de la liste du personnel. Une case peut couvrir plusieurs créneaux (ex. Radiologie d’astreinte tout le week-end).',
+      '« Générer le PDF et soumettre » produit le programme en A4 paysage, avec les cadres de signature Directrice des Soins → Directeur Médical → Directeur général.',
     ],
   },
 ];

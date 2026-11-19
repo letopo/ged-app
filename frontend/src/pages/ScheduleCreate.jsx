@@ -17,7 +17,7 @@ const ScheduleCreate = () => {
     departmentId: '',
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
-    weekend: '', // planning du week-end : samedi choisi (AAAA-MM-JJ) ou 'all'
+    weekend: '', // planning du week-end : samedi choisi (AAAA-MM-JJ)
     notes: ''
   });
   const isWeekendType = formData.scheduleType === 'weekend';
@@ -26,10 +26,10 @@ const ScheduleCreate = () => {
   // Week-end proposé : le prochain du mois choisi (sinon le premier)
   useEffect(() => {
     if (!isWeekendType) return;
-    if (formData.weekend === 'all' || weekends.some(w => w.startDate === formData.weekend)) return;
+    if (weekends.some(w => w.startDate === formData.weekend)) return;
     const today = new Date().toISOString().slice(0, 10);
     const next = weekends.find(w => w.endDate >= today) || weekends[0];
-    setFormData(prev => ({ ...prev, weekend: next?.startDate || 'all' }));
+    setFormData(prev => ({ ...prev, weekend: next?.startDate || '' }));
   }, [isWeekendType, formData.month, formData.year]);
 
   const scheduleTypeLabels = scheduleService.getScheduleTypeLabels();
@@ -46,7 +46,7 @@ const ScheduleCreate = () => {
       const we = isWeekendType ? weekends.find(w => w.startDate === formData.weekend) : null;
       setFormData(prev => ({
         ...prev,
-        title: we ? `${typeLabel} - Week-end du ${we.label}` : `${typeLabel} - ${monthName} ${formData.year}`
+        title: we ? `Programme du week-end du ${scheduleService.programmeJours(we).du} au ${scheduleService.programmeJours(we).au}` : `${typeLabel} - ${monthName} ${formData.year}`
       }));
     }
   }, [formData.scheduleType, formData.month, formData.year, formData.weekend]);
@@ -218,12 +218,11 @@ const ScheduleCreate = () => {
               </label>
               <select value={formData.weekend} onChange={(e) => handleChange('weekend', e.target.value)} style={inputStyle} required>
                 {weekends.map(w => (
-                  <option key={w.startDate} value={w.startDate}>{t('Week-end du {{label}}', { label: w.label })}</option>
+                  <option key={w.startDate} value={w.startDate}>{t('Week-end du {{du}} au {{au}}', { du: scheduleService.programmeJours(w).du, au: scheduleService.programmeJours(w).au })}</option>
                 ))}
-                <option value="all">{t('Tous les week-ends du mois')}</option>
               </select>
               <p style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 4 }}>
-                {t('Le planning ne montre que le samedi et le dimanche choisis.')}
+                {t('Du vendredi nuit au dimanche nuit, comme le programme papier. Services, en-tête et noms sont repris du week-end précédent : il suffit de corriger.')}
               </p>
             </div>
           )}
