@@ -393,14 +393,15 @@ export const submitForValidation = async (req, res) => {
     }
     
     // Vérifier qu'il y a des affectations (programme du week-end : des noms dans les cases)
-    const assignmentsCount = schedule.content
+    const estProgramme = schedule.scheduleType === 'weekend' && Array.isArray(schedule.content?.services);
+    const assignmentsCount = estProgramme
       ? casesRemplies(schedule.content)
       : await ScheduleAssignment.count({ where: { scheduleId: id } });
     
     if (assignmentsCount === 0) {
       await transaction.rollback();
       return res.status(400).json({ 
-        message: schedule.content ? 'Le programme est vide : remplissez au moins une case' : 'Le planning doit contenir au moins une affectation' 
+        message: estProgramme ? 'Le programme est vide : remplissez au moins une case' : 'Le planning doit contenir au moins une affectation' 
       });
     }
     
@@ -721,6 +722,26 @@ export const validateSchedule = async (req, res) => {
     await transaction.rollback();
     console.error('❌ Erreur validation planning:', error);
     res.status(500).json({ message: 'Erreur lors de la validation du planning' });
+  }
+};
+
+/**
+ * Planning mensuel au format papier : ordre des agents et lignes vides entre
+ * les équipes (schedule.content.miseEnPage). Brouillon seulement.
+ */
+export const saveMiseEnPage = async (req, res) => {
+  try {
+    const schedule = await Schedule.findByPk(req.params.id);
+    if (!schedule || !schedule.isActive) return res.status(404).json({ message: 'Planning non trouvé' });
+    if (schedule.scheduleType === 'weekend') return res.status(400).json({ message: 'Le programme du week-end a sa propre présentation' });
+    if (schedule.status !== 'draft') return res.status(409).json({ message: 'Planning déjà soumis : il ne peut plus être modifié' });
+    const ids = (v) => [...new Set((Array.isArray(v) ? v : []).map(String).filter((x) => /^[0-9a-f-]{36}$/i.test(x)))].slice(0, 500);
+    const miseEnPage = { ordre: ids(req.body?.ordre), separations: ids(req.body?.separations) };
+    await schedule.update({ content: { ...(schedule.content || {}), miseEnPage } });
+    res.json({ message: 'Présentation enregistrée', miseEnPage });
+  } catch (error) {
+    console.error('Erreur mise en page planning:', error);
+    res.status(500).json({ message: 'Erreur lors de l’enregistrement' });
   }
 };
 

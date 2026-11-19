@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import scheduleService from '../services/scheduleService';
 import ScheduleGrid from '../components/ScheduleGrid';
 import ProgrammeWeekendEdit from '../components/schedules/ProgrammeWeekendEdit';
+import { construirePlanningMensuelPdf, PLANNINGS_MODELE_PAPIER } from '../components/schedules/planningMensuelPdf';
 import api from '../services/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -24,6 +25,9 @@ const ScheduleEdit = () => {
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showEmployeeSelector, setShowEmployeeSelector] = useState(true);
+  // Planning au format papier : ordre des agents + lignes vides entre équipes
+  const [miseEnPage, setMiseEnPage] = useState({ ordre: [], separations: [] });
+  const [shiftTypes, setShiftTypes] = useState([]);
 
   // ✅ Charger le planning d'abord
   useEffect(() => {
@@ -50,6 +54,10 @@ const ScheduleEdit = () => {
       }
 
       setSchedule(data);
+      if (data.content?.miseEnPage) setMiseEnPage({ ordre: [], separations: [], ...data.content.miseEnPage });
+      if (PLANNINGS_MODELE_PAPIER.has(data.scheduleType)) {
+        scheduleService.getShiftTypes({ isActive: true }).then((st) => setShiftTypes(Array.isArray(st) ? st : [])).catch(() => {});
+      }
 
       // Si des affectations existent, extraire les employés uniques
       if (data.assignments.length > 0) {
@@ -168,7 +176,76 @@ const ScheduleEdit = () => {
     setShowEmployeeSelector(false);
   };
 
+  // ── Planning au format papier (Moyens Généraux…) ───────────────────────────
+  const modelePapier = PLANNINGS_MODELE_PAPIER.has(schedule?.scheduleType);
+  const enregistrerMiseEnPage = async (suivante) => {
+    setMiseEnPage(suivante);
+    try { await api.put(`/schedules/${schedule.id}/mise-en-page`, suivante); } catch (e) {
+      toast(e.response?.data?.message || t('Ordre des agents non enregistré'));
+    }
+  };
+  const deplacer = (id, sens) => {
+    const ordre = orderedEmployees.map((e) => e.id);
+    const i = ordre.indexOf(id); const j = i + sens;
+    if (i < 0 || j < 0 || j >= ordre.length) return;
+    [ordre[i], ordre[j]] = [ordre[j], ordre[i]];
+    enregistrerMiseEnPage({ ...miseEnPage, ordre });
+  };
+  const basculerSeparation = (id) => {
+    const sep = new Set(miseEnPage.separations);
+    if (sep.has(id)) sep.delete(id); else sep.add(id);
+    enregistrerMiseEnPage({ ...miseEnPage, ordre: orderedEmployees.map((e) => e.id), separations: [...sep] });
+  };
+  const pdfModelePapier = async () => {
+    const frais = await scheduleService.getScheduleById(schedule.id); // grille telle qu'enregistrée
+    const codes = {};
+    for (const a of frais.assignments || []) codes[`${a.employeeId}-${a.assignmentDate}`] = a.shiftCode;
+    const sep = new Set(miseEnPage.separations);
+    const lignes = [];
+    orderedEmployees.forEach((e, i) => {
+      lignes.push({ employee: e });
+      if (sep.has(e.id) && i < orderedEmployees.length - 1) lignes.push({ separation: true });
+    });
+    return construirePlanningMensuelPdf({ schedule: { ...schedule, validations: frais.validations }, lignes, codes, shiftTypes });
+  };
+  const apercuModelePapier = async () => {
+    try {
+      const { blob } = await pdfModelePapier();
+      window.open(URL.createObjectURL(blob), '_blank');
+    } catch (e) {
+      console.error(e);
+      toast(t('Aperçu impossible'));
+    }
+  };
+  const soumettreModelePapier = async () => {
+    if (!window.confirm(t('Générer le PDF et soumettre ce planning pour validation ? Pensez à enregistrer la grille avant.'))) return;
+    try {
+      setLoading(true);
+      const { blob, signatureZones } = await pdfModelePapier();
+      const formData = new FormData();
+      formData.append('file', blob, `planning-${schedule.scheduleType}-${schedule.month}-${schedule.year}.pdf`);
+      formData.append('title', schedule.title);
+      formData.append('description', `${t('Planning')} ${scheduleService.getScheduleTypeLabels()[schedule.scheduleType]} - ${scheduleService.getPeriodLabel(schedule)}`);
+      formData.append('category', 'Planning');
+      formData.append('metadata', JSON.stringify({
+        scheduleId: schedule.id, scheduleType: schedule.scheduleType, month: schedule.month, year: schedule.year,
+        signatureZones, signaturePage: 1,
+      }));
+      const response = await api.post('/documents/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await scheduleService.submitForValidation(schedule.id);
+      toast(t('PDF généré et soumis pour validation'));
+      const docId = response.data?.document?.id || response.data?.data?.id;
+      navigate(docId ? `/documents/${docId}` : '/schedules');
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+      toast(error.response?.data?.message || t('Erreur lors de la génération du PDF'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGenerateAndSubmit = async () => {
+    if (modelePapier) return soumettreModelePapier();
     if (!window.confirm(t('Êtes-vous sûr de vouloir générer le PDF et soumettre ce planning pour validation ?'))) {
       return;
     }
@@ -454,6 +531,13 @@ const ScheduleEdit = () => {
   const selectedEmployeesList = Array.isArray(employees)
     ? employees.filter(emp => emp && selectedEmployees.includes(emp.id))
     : [];
+  // Ordre choisi (modèle papier), puis les autres par nom
+  const rangOrdre = new Map((miseEnPage.ordre || []).map((id, i) => [id, i]));
+  const orderedEmployees = [...selectedEmployeesList].sort((a, b) => {
+    const ra = rangOrdre.has(a.id) ? rangOrdre.get(a.id) : Infinity;
+    const rb = rangOrdre.has(b.id) ? rangOrdre.get(b.id) : Infinity;
+    return ra !== rb ? ra - rb : `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
+  });
 
   if (loading || !schedule) {
     return (
@@ -464,7 +548,7 @@ const ScheduleEdit = () => {
   }
 
   // Programme du week-end : tableau du modèle papier (services × vendredi nuit → dimanche nuit)
-  if (schedule.scheduleType === 'weekend' && schedule.content) {
+  if (schedule.scheduleType === 'weekend' && schedule.content?.services) {
     return <ProgrammeWeekendEdit schedule={schedule} employees={employees} />;
   }
 
@@ -600,6 +684,16 @@ const ScheduleEdit = () => {
                   {t('{{count}} employé(s) sélectionné(s)', { count: selectedEmployeesList.length })}
                 </span>
               </div>
+              {schedule.status === 'draft' && modelePapier && (
+                <button
+                  onClick={apercuModelePapier}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg font-medium"
+                  style={{ background: 'var(--surface-3)', color: 'var(--fg)', marginLeft: 'auto', marginRight: 8 }}
+                >
+                  {t('Aperçu PDF')}
+                </button>
+              )}
               {schedule.status === 'draft' && (
                 <button
                   onClick={handleGenerateAndSubmit}
@@ -625,11 +719,43 @@ const ScheduleEdit = () => {
             </div>
           </div>
 
+          {/* Ordre des agents et équipes (modèle papier) */}
+          {modelePapier && schedule.status === 'draft' && orderedEmployees.length > 1 && (
+            <details className="rounded-lg mb-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-1)', padding: '10px 16px' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 14, color: 'var(--fg)' }}>
+                {t('Ordre des agents et équipes')}
+                <span style={{ fontWeight: 400, color: 'var(--fg-muted)', marginLeft: 8, fontSize: 13 }}>
+                  {t('comme sur le papier : ordre des lignes et ligne vide entre deux équipes')}
+                </span>
+              </summary>
+              <div style={{ marginTop: 10, display: 'grid', gap: 4, maxWidth: 560 }}>
+                {orderedEmployees.map((e, i) => (
+                  <div key={e.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                      <button type="button" disabled={i === 0} onClick={() => deplacer(e.id, -1)} style={{ padding: '0 6px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--surface-2)', cursor: 'pointer' }}>↑</button>
+                      <button type="button" disabled={i === orderedEmployees.length - 1} onClick={() => deplacer(e.id, 1)} style={{ padding: '0 6px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--surface-2)', cursor: 'pointer' }}>↓</button>
+                      <span style={{ flex: 1, color: 'var(--fg)' }}><b>{String(e.lastName || '').toUpperCase()}</b> {e.firstName}</span>
+                      {i < orderedEmployees.length - 1 && (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--fg-muted)', fontSize: 12 }}>
+                          <input type="checkbox" checked={miseEnPage.separations.includes(e.id)} onChange={() => basculerSeparation(e.id)} />
+                          {t('ligne vide après')}
+                        </label>
+                      )}
+                    </div>
+                    {miseEnPage.separations.includes(e.id) && i < orderedEmployees.length - 1 && (
+                      <div style={{ borderTop: '2px dashed var(--border)', margin: '6px 0' }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
           {/* Grille de planning */}
           {selectedEmployeesList.length > 0 ? (
             <ScheduleGrid
               schedule={schedule}
-              employees={selectedEmployeesList}
+              employees={modelePapier ? orderedEmployees : selectedEmployeesList}
               onSave={loadSchedule}
             />
           ) : (
