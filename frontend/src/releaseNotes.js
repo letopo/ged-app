@@ -1522,6 +1522,17 @@ const RELEASE_NOTES = [
       'Nouveau code J° : journée de 09 h à 17 h 30.',
     ],
   },
+  {
+    id: '2026-11-19-planning-ro-sau',
+    date: '2026-11-19',
+    target: '/schedules',
+    title: 'Planning RO SAU, comme le modèle papier',
+    items: [
+      'Le PDF de la rotation du personnel de Renforcement Opérationnel SAU reprend le papier : en-tête de l’hôpital, référence ROT/RO-SAU/mois-année, une colonne « Prénom Nom », légende sur deux colonnes, « Vu, le Directeur Général ».',
+      'Nouveaux codes : F/J (formation et référencements de jour), F/N (formation la journée + travail de nuit), R/F (repos de 7h30 à 14h + formation l’après-midi).',
+      'Comme pour les Moyens Généraux : ordre des agents, lignes vides entre équipes et « Aperçu PDF » avant de soumettre.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances
