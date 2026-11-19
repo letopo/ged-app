@@ -1532,7 +1532,7 @@ const RELEASE_NOTES = [
       'Nouveaux codes : F/J (formation et référencements de jour), F/N (formation la journée + travail de nuit), R/F (repos de 7h30 à 14h + formation l’après-midi).',
       'Comme pour les Moyens Généraux : ordre des agents, lignes vides entre équipes et « Aperçu PDF » avant de soumettre.',
     ],
-
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances
