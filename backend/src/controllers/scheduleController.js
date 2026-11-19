@@ -13,6 +13,7 @@ import {
 import { Op } from 'sequelize';
 import sequelize from '../config/database.js';
 import { normaliserProgramme, programmeACopier, casesRemplies } from '../utils/programmeWeekend.js';
+import { normaliserTableau, tableauACopier, casesRempliesMedecins } from '../utils/planningMedecins.js';
 
 /**
  * Créer un nouveau planning
@@ -50,6 +51,12 @@ export const createSchedule = async (req, res) => {
     if (scheduleType === 'weekend') {
       content = normaliserProgramme(req.body.content)
         || (await programmeACopier({ avant: startDate, transaction })).content;
+    }
+    // Planning des médecins : tableau du modèle papier, repris du mois précédent
+    if (scheduleType === 'medical_duties') {
+      const tableau = normaliserTableau(req.body.content?.tableau, Number(year), Number(month))
+        || await tableauACopier({ annee: Number(year), mois: Number(month), transaction });
+      content = { tableau };
     }
     
     // Créer le planning
@@ -394,14 +401,15 @@ export const submitForValidation = async (req, res) => {
     
     // Vérifier qu'il y a des affectations (programme du week-end : des noms dans les cases)
     const estProgramme = schedule.scheduleType === 'weekend' && Array.isArray(schedule.content?.services);
+    const estTableau = schedule.scheduleType === 'medical_duties' && Array.isArray(schedule.content?.tableau?.lignes);
     const assignmentsCount = estProgramme
       ? casesRemplies(schedule.content)
-      : await ScheduleAssignment.count({ where: { scheduleId: id } });
+      : estTableau ? casesRempliesMedecins(schedule.content.tableau) : await ScheduleAssignment.count({ where: { scheduleId: id } });
     
     if (assignmentsCount === 0) {
       await transaction.rollback();
       return res.status(400).json({ 
-        message: estProgramme ? 'Le programme est vide : remplissez au moins une case' : 'Le planning doit contenir au moins une affectation' 
+        message: estProgramme || estTableau ? 'Le programme est vide : remplissez au moins une case' : 'Le planning doit contenir au moins une affectation' 
       });
     }
     
@@ -722,6 +730,34 @@ export const validateSchedule = async (req, res) => {
     await transaction.rollback();
     console.error('❌ Erreur validation planning:', error);
     res.status(500).json({ message: 'Erreur lors de la validation du planning' });
+  }
+};
+
+/**
+ * Planning des médecins : enregistrer le tableau (astreintes, services,
+ * superviseurs, cases par période, notes). Brouillon seulement.
+ */
+export const saveTableauMedecins = async (req, res) => {
+  try {
+    const schedule = await Schedule.findByPk(req.params.id);
+    if (!schedule || !schedule.isActive) return res.status(404).json({ message: 'Planning non trouvé' });
+    if (schedule.scheduleType !== 'medical_duties') return res.status(400).json({ message: 'Ce planning n’est pas le planning des médecins' });
+    if (schedule.status !== 'draft') return res.status(409).json({ message: 'Planning déjà soumis : il ne peut plus être modifié' });
+    const tableau = normaliserTableau(req.body?.tableau, schedule.year, schedule.month);
+    if (!tableau || !tableau.lignes.length) return res.status(400).json({ message: 'Tableau illisible : au moins une ligne est nécessaire' });
+    await schedule.update({ content: { ...(schedule.content || {}), tableau } });
+    await ScheduleChangeLog.logChange({
+      scheduleId: schedule.id,
+      userId: req.user.id,
+      changeType: 'update',
+      description: `Planning des médecins enregistré (${casesRempliesMedecins(tableau)} cases remplies)`,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+    res.json({ message: 'Planning enregistré', schedule });
+  } catch (error) {
+    console.error('Erreur enregistrement planning des médecins:', error);
+    res.status(500).json({ message: 'Erreur lors de l’enregistrement du planning' });
   }
 };
 

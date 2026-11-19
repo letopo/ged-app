@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import scheduleService from '../services/scheduleService';
 import ProgrammeWeekend from '../components/schedules/ProgrammeWeekend';
+import PlanningMedecins from '../components/schedules/PlanningMedecins';
 import { ArrowLeft, Check, X, Loader, Users, CalendarDays, User, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import i18n from '../i18n/config';
@@ -148,7 +149,7 @@ export default function ScheduleValidate() {
             )}
           </div>
 
-          {!schedule.content?.services && (<>
+          {!schedule.content?.services && !schedule.content?.tableau?.lignes && (<>
           {/* Stats */}
           <div className="ged-card" style={{ padding: '16px 18px' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 12 }}>{t('Statistiques')}</div>
@@ -203,6 +204,11 @@ export default function ScheduleValidate() {
           </>)}
 
           {/* Programme du week-end : le tableau tel qu'il sera signé */}
+          {schedule.content?.tableau?.lignes && (
+            <div className="ged-card" style={{ padding: 12, overflowX: 'auto' }}>
+              <PlanningMedecins schedule={schedule} tableau={schedule.content.tableau} />
+            </div>
+          )}
           {schedule.content?.services && (
             <div className="ged-card" style={{ padding: 12, overflowX: 'auto' }}>
               <ProgrammeWeekend schedule={schedule} content={schedule.content} validations={schedule.validations} />

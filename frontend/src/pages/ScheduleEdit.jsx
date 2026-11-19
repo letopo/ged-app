@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import scheduleService from '../services/scheduleService';
 import ScheduleGrid from '../components/ScheduleGrid';
 import ProgrammeWeekendEdit from '../components/schedules/ProgrammeWeekendEdit';
+import PlanningMedecinsEdit from '../components/schedules/PlanningMedecinsEdit';
 import { construirePlanningMensuelPdf, PLANNINGS_MODELE_PAPIER } from '../components/schedules/planningMensuelPdf';
 import api from '../services/api';
 import jsPDF from 'jspdf';
@@ -550,6 +551,10 @@ const ScheduleEdit = () => {
   // Programme du week-end : tableau du modèle papier (services × vendredi nuit → dimanche nuit)
   if (schedule.scheduleType === 'weekend' && schedule.content?.services) {
     return <ProgrammeWeekendEdit schedule={schedule} employees={employees} />;
+  }
+  // Planning des médecins : astreintes et services × périodes du mois (modèle papier)
+  if (schedule.scheduleType === 'medical_duties' && schedule.content?.tableau?.lignes) {
+    return <PlanningMedecinsEdit schedule={schedule} employees={employees} />;
   }
 
   return (

@@ -1533,6 +1533,18 @@ const RELEASE_NOTES = [
       'Comme pour les Moyens Généraux : ordre des agents, lignes vides entre équipes et « Aperçu PDF » avant de soumettre.',
     ],
   },
+  {
+    id: '2026-11-19-planning-medecins',
+    date: '2026-11-19',
+    target: '/schedules',
+    title: 'Planning des médecins, comme le modèle papier',
+    items: [
+      'Le planning « Médecins - Astreintes et Consultations » devient le tableau papier : astreintes (premier et deuxième plan, superviseurs du week-end) et services, avec leur superviseur du lundi au vendredi, puis chaque semaine et chaque week-end du mois.',
+      'Chaque nouveau mois reprend le précédent (lignes, superviseurs, médecins semaine par semaine, notes) : il suffit de corriger. Plusieurs médecins dans une case : « Dr A/Dr B ».',
+      'Les cases se fusionnent (⇥), se redécoupent (✂) et se grisent (▒) ; notes en bas (congés, N.B. plan Rouge).',
+      'PDF A4 paysage avec la référence ROT/AST MED/mois-année et les signatures du Directeur médical et du Directeur Général.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances
