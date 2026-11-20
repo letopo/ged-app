@@ -3137,5 +3137,8 @@
   "Un BPC devrait donner une seule facture. Vérifiez qu’aucun BL de ces périodes n’a été oublié.": "يجب أن يُنتج سند التكفل فاتورة واحدة. تحقق من عدم نسيان أي إيصال من هذه الفترات.",
   "BPC": "سند التكفل",
   "Chaque BPC a été facturé en une seule fois.": "فُوتر كل سند تكفل دفعة واحدة.",
-  "Factures qui regroupent des BL espacés de plus de 3 jours": "فواتير تجمع إيصالات متباعدة بأكثر من 3 أيام"
+  "Factures qui regroupent des BL espacés de plus de 3 jours": "فواتير تجمع إيصالات متباعدة بأكثر من 3 أيام",
+  "Certificat enregistré, signé et cacheté.": "تم حفظ الشهادة وتوقيعها وختمها.",
+  "Certificat enregistré sans signature : ajoutez votre signature et votre cachet dans « Mon profil », ou soumettez-le depuis Documents.": "تم حفظ الشهادة بدون توقيع: أضف توقيعك وختمك في «ملفي الشخصي»، أو أرسلها من المستندات.",
+  "Certificat enregistré, mais la signature automatique a échoué. Soumettez-le depuis Documents.": "تم حفظ الشهادة، لكن التوقيع التلقائي فشل. أرسلها من المستندات."
 }

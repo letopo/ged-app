@@ -19,6 +19,7 @@ import { isManuallySigned } from './manualSignatureController.js';
 import { getThumbnail, deleteThumbnails } from '../utils/thumbnails.js';
 import { permissionEarliestStart, isPermissionNoticeExempt } from '../utils/permissionRules.js';
 import { resolveStoredFile, resolveStoredFileOrNull } from '../utils/storedFiles.js';
+import { autoSignCertificatAptitude, CERTIFICAT_CATEGORY } from '../utils/certificatAptitudeSign.js';
 
 export const uploadDocument = async (req, res) => {
   try {
@@ -237,6 +238,19 @@ export const uploadDocument = async (req, res) => {
       }
     }
     
+    // Certificat d'aptitude : signé et cacheté par le médecin qui l'enregistre
+    // (plus d'envoi à soi-même en signature). Sans signature ni cachet dans le
+    // profil, il reste en brouillon et se soumet comme avant.
+    let autoSign = null;
+    if (newDocument.category === CERTIFICAT_CATEGORY) {
+      try {
+        autoSign = await autoSignCertificatAptitude(newDocument, req.user.id);
+      } catch (err) {
+        console.error('❌ Signature automatique du certificat :', err);
+        autoSign = { signed: false, reason: 'error' };
+      }
+    }
+
     const resultWithUser = await Document.findByPk(newDocument.id, {
         include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }]
     });
@@ -248,6 +262,7 @@ export const uploadDocument = async (req, res) => {
     res.status(201).json({
       success: true,
       data: resultWithUser,
+      ...(autoSign ? { autoSign } : {}),
       message: parsedMetadata.fusionné
         ? '✅ Document uploadé et fusionné avec la pièce justificative avec succès.'
         : 'Document uploadé avec succès.'
@@ -418,7 +433,7 @@ const EDITABLE_DOCUMENT_FIELDS = ['title', 'category', 'dateDebut', 'dateFin', '
 const SERVER_DOCUMENT_FIELDS = ['filePath', 'fileName', 'originalName', 'fileSize', 'fileType', 'userId', 'status', 'tenantId',
   'linkedDocumentId', 'extractedText', 'archived', 'visibility', 'serviceId', 'invoiceFolderId'];
 // Métadonnées posées par le serveur : conservées telles quelles
-const SERVER_METADATA_KEYS = ['manualSignature', 'verification_hash', 'interim', 'mergedFrom', 'paye', 'signatureZones',
+const SERVER_METADATA_KEYS = ['manualSignature', 'verification_hash', 'autoSigned', 'has_signature', 'has_stamp', 'interim', 'mergedFrom', 'paye', 'signatureZones',
   'sourceType', 'vehicleId', 'missionId', 'checkId', 'inventoryId'];
 
 export const updateDocument = async (req, res) => {

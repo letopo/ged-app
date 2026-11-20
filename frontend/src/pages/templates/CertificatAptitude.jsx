@@ -1,9 +1,12 @@
 // frontend/src/pages/templates/CertificatAptitude.jsx
 // Certificat d'aptitude : saisie du médecin, puis aperçu A5 paysage identique au
 // PDF produit (utils/certificatAptitudePdf.js), sur le modèle du Bon de prise en charge.
+// À l'enregistrement, le serveur y pose la signature et le cachet du médecin
+// connecté (backend utils/certificatAptitudeSign.js) : pas de circuit à lancer.
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { servicesAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import logo from '../../assets/logo-ordre-malte.png';
 
 const input = {
@@ -22,7 +25,14 @@ const frDate = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 const CertificatAptitude = ({ formData, setFormData }) => {
   const { t } = useTranslation();
   const [services, setServices] = useState([]);
+  const { user } = useAuth();
   const set = (k, v) => setFormData(f => ({ ...f, [k]: v }));
+
+  // Le médecin connecté signe le certificat : son nom est proposé d'office
+  useEffect(() => {
+    const name = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
+    if (name) setFormData(f => (f.nom_docteur ? f : { ...f, nom_docteur: name }));
+  }, [user, setFormData]);
 
   useEffect(() => {
     servicesAPI.getAll()
