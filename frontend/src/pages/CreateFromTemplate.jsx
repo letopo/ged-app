@@ -563,6 +563,12 @@ const CreateFromTemplate = () => {
             toast.success(t("Fusion avec l'Ordre de Mission réussie !"));
         } else if (response.data.data?.metadata?.fusionError) {
             toast(t('Document créé, mais la fusion a échoué:\n{{error}}', { error: response.data.data.metadata.fusionError }), { icon: '⚠️' });
+        } else if (response.data.autoSign?.signed) {
+            toast.success(t('Certificat enregistré, signé et cacheté.'));
+        } else if (response.data.autoSign?.reason === 'no_signature') {
+            toast(t('Certificat enregistré sans signature : ajoutez votre signature et votre cachet dans « Mon profil », ou soumettez-le depuis Documents.'), { icon: '⚠️', duration: 8000 });
+        } else if (response.data.autoSign) {
+            toast(t('Certificat enregistré, mais la signature automatique a échoué. Soumettez-le depuis Documents.'), { icon: '⚠️', duration: 8000 });
         } else {
             toast(t('Document généré et sauvegardé avec succès !'));
         }

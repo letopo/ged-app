@@ -3323,5 +3323,8 @@
   "Caissière": "Cashier",
   "Préparation de l’aperçu…": "Preparing the preview…",
   "Le relevé des factures de la caisse de vente (client comptant pharmacie), lu directement dans Sage, puis signé par vous, la caissière et la comptable.": "The statement of the sales till invoices (pharmacy cash customer), read directly from Sage, then signed by you, the cashier and the accountant.",
-  "Aperçu · état de caisse pharmacie {{p}}": "Preview · pharmacy till statement {{p}}"
+  "Aperçu · état de caisse pharmacie {{p}}": "Preview · pharmacy till statement {{p}}",
+  "Certificat enregistré, signé et cacheté.": "Certificate saved, signed and stamped.",
+  "Certificat enregistré sans signature : ajoutez votre signature et votre cachet dans « Mon profil », ou soumettez-le depuis Documents.": "Certificate saved without a signature: add your signature and stamp in “My profile”, or submit it from Documents.",
+  "Certificat enregistré, mais la signature automatique a échoué. Soumettez-le depuis Documents.": "Certificate saved, but automatic signing failed. Submit it from Documents."
 }

@@ -1545,6 +1545,18 @@ const RELEASE_NOTES = [
       'PDF A4 paysage avec la référence ROT/AST MED/mois-année et les signatures du Directeur médical et du Directeur Général.',
     ],
   },
+  {
+    id: '2026-11-20-certificat-signature-auto',
+    date: '2026-11-20',
+    target: 'app',
+    access: (user) => hasModule(user, 'rh_documents'),
+    title: 'Certificat d\'aptitude signé dès l\'enregistrement',
+    items: [
+      'Quand le médecin génère et enregistre un certificat d\'aptitude, sa signature et son cachet sont posés automatiquement dans le cadre « Le Médecin », avec le QR de vérification : plus besoin de se l\'envoyer en signature.',
+      'Le nom du docteur est rempli d\'office avec celui du compte connecté.',
+      'Signature et cachet à enregistrer une fois dans « Mon profil » ; sans eux, le certificat reste en brouillon et se soumet comme avant.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances
