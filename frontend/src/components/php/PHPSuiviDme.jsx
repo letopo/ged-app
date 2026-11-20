@@ -1,7 +1,7 @@
 // frontend/src/components/php/PHPSuiviDme.jsx
 // Suivi DME dans « Consultations PHP » : pour chaque patient de la page, où il
 // en est dans le DME (accueil, paramètres, attente du médecin, en consultation,
-// vu…) et la frise du jour : consultation → labo → imagerie. Lecture seule.
+// vu…) et la frise du jour : consultation → labo → imagerie → pharmacie. Lecture seule.
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ChevronDown, ChevronRight, Check, X, Link2, Undo2, Stethoscope, FlaskConical, ScanLine, Pill, Info, AlertTriangle, Copy, HelpCircle } from 'lucide-react';
@@ -14,7 +14,7 @@ const TONES = {
   alerte: 'var(--danger)',
   neutre: 'var(--fg-subtle)',
 };
-const KIND_ICON = { consultation: Stethoscope, labo: FlaskConical, imagerie: ScanLine };
+const KIND_ICON = { consultation: Stethoscope, labo: FlaskConical, imagerie: ScanLine, pharmacie: Pill };
 
 const fmtJour = (s) => new Date(`${String(s).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR');
 
@@ -200,7 +200,7 @@ export function FichesDme({ suivi, canWrite, onChange }) {
   );
 }
 
-export function DmeSuiviFrise({ suivi, canWrite = false, onChange }) {
+export function DmeSuiviFrise({ suivi, pharmacie = null, canWrite = false, onChange }) {
   if (!suivi) return null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -210,7 +210,7 @@ export function DmeSuiviFrise({ suivi, canWrite = false, onChange }) {
         </p>
       ) : suivi.confiance === 'ambigu' ? null : suivi.frise.length === 0 ? (
         <p className="text-xs" style={{ color: 'var(--fg-muted)', margin: 0 }}>
-          La fiche DME est retrouvée, mais aucun passage (consultation, labo, imagerie) n’y est enregistré ce jour-là.
+          La fiche DME est retrouvée, mais aucun passage (consultation, labo, imagerie, pharmacie) n’y est enregistré ce jour-là.
           {suivi.dernierPassage ? ` Dernier passage : le ${fmtJour(suivi.dernierPassage)} à ${String(suivi.dernierPassage).slice(11, 16)}.` : ' Aucun passage antérieur.'}
         </p>
       ) : (
@@ -237,9 +237,13 @@ export function DmeSuiviFrise({ suivi, canWrite = false, onChange }) {
         </ol>
       )}
       <FichesDme suivi={suivi} canWrite={canWrite} onChange={onChange} />
-      <p className="text-xs" style={{ color: 'var(--fg-subtle)', margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
-        <Pill size={12} /> La pharmacie n’apparaît pas encore : le DME n’a pas ouvert la lecture des ordonnances à la GED.
-      </p>
+      {pharmacie && pharmacie !== 'ok' && (
+        <p className="text-xs" style={{ color: 'var(--fg-subtle)', margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Pill size={12} /> {pharmacie === 'droit_manquant'
+            ? 'La pharmacie n’apparaît pas : le DME n’ouvre pas la lecture des ordonnances à la GED.'
+            : 'La pharmacie n’a pas pu être lue dans le DME pour le moment.'}
+        </p>
+      )}
     </div>
   );
 }

@@ -66,3 +66,22 @@ test('dernier passage au DME avant le jour affiché', () => {
   assert.equal(s.dernierPassage, '2026-10-21 12:54');
   assert.equal(s.etat.label, 'Fiche trouvée · pas encore arrivé');
 });
+
+test('pharmacie : ordonnance du jour dans la frise (délivrée, en attente, annulée)', () => {
+  const fiche = { id: 1, statut_parcours: 'SORTI', modifie: '2026-11-19 09:00:00' };
+  const ev = { ordonnances: [
+    { patient_id: 1, statut: 'TERMINEE', type_ordonnance: 'NORMALE', date_creation: '2026-11-20 09:10:00', date_traitement: '2026-11-20 10:05:00', nb_lignes: '3', nb_delivrees: '2', nb_hors_stock: '1' },
+    { patient_id: 1, statut: 'EN_ATTENTE', type_ordonnance: 'PAR_ORDRE', date_creation: '2026-11-20 11:00:00', lu_pharmacie_le: '2026-11-20 11:20:00', nb_lignes: '1', nb_delivrees: '0', nb_hors_stock: '0' },
+    { patient_id: 1, statut: 'ANNULEE', date_creation: '2026-11-20 12:00:00', nb_lignes: '0' },
+    { patient_id: 9, statut: 'TERMINEE', date_creation: '2026-11-20 08:00:00' },
+  ] };
+  const s = suiviDuPatient({ fiches: [fiche] }, ev, { date: '2026-11-20', today: '2026-11-21' });
+  assert.deepEqual(s.frise.map((e) => [e.kind, e.heure, e.fin, e.termine, e.annule]),
+    [['pharmacie', '09:10', '10:05', true, false], ['pharmacie', '11:00', null, false, false], ['pharmacie', '12:00', null, false, true]]);
+  assert.equal(s.frise[0].statut, 'délivrée');
+  assert.equal(s.frise[0].detail, '3 médicaments · 2 délivrés · 1 hors stock');
+  assert.equal(s.frise[1].titre, 'Pharmacie · ordonnance (par ordre)');
+  assert.equal(s.frise[1].detail, '1 médicament · vue par la pharmacie à 11:20');
+  // Seulement une ordonnance ce jour-là : pas « Examens en cours »
+  assert.equal(s.etat.code, 'pharmacie');
+});
