@@ -1557,6 +1557,15 @@ const RELEASE_NOTES = [
       'Signature et cachet à enregistrer une fois dans « Mon profil » ; sans eux, le certificat reste en brouillon et se soumet comme avant.',
     ],
   },
+  {
+    id: '2026-11-20-permission-samedi-ouvrable',
+    date: '2026-11-20',
+    target: 'app',
+    title: 'Demande de permission : le samedi est un jour ouvrable',
+    items: [
+      'Le délai de 2 jours ouvrables compte désormais le samedi ; seul le dimanche est exclu. Une demande faite le vendredi peut commencer dès le lundi.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances

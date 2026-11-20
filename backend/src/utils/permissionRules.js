@@ -2,8 +2,8 @@
 // Demande de permission : délai de prévenance.
 
 // Première date de début autorisée pour une demande de permission : 2 jours
-// OUVRABLES après aujourd'hui (heure du Cameroun), le week-end ne compte pas
-// (ex. demande le vendredi → au plus tôt le mardi).
+// OUVRABLES après aujourd'hui (heure du Cameroun). Le samedi est ouvrable, seul
+// le dimanche ne compte pas (ex. demande le vendredi → au plus tôt le lundi).
 export const PERMISSION_NOTICE_DAYS = 2;
 
 /** @returns {string} AAAA-MM-JJ */
@@ -14,7 +14,7 @@ export function permissionEarliestStart(now = new Date()) {
   while (added < PERMISSION_NOTICE_DAYS) {
     d.setUTCDate(d.getUTCDate() + 1);
     const wd = d.getUTCDay();
-    if (wd !== 0 && wd !== 6) added++;
+    if (wd !== 0) added++;
   }
   return d.toISOString().slice(0, 10);
 }

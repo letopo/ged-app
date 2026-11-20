@@ -1,5 +1,5 @@
 // Demande de permission : 2 jours ouvrables de prévenance (heure de Douala),
-// le week-end ne compte pas ; administrateurs exemptés.
+// le samedi est ouvrable, seul le dimanche ne compte pas ; administrateurs exemptés.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { permissionEarliestStart, isPermissionNoticeExempt } from '../../src/utils/permissionRules.js';
@@ -10,11 +10,11 @@ const douala = (iso) => new Date(`${iso}+01:00`);
 test('lundi → mercredi', () => {
   assert.equal(permissionEarliestStart(douala('2026-10-26T10:00:00')), '2026-10-28');
 });
-test('jeudi → lundi', () => {
-  assert.equal(permissionEarliestStart(douala('2026-10-29T10:00:00')), '2026-11-02');
+test('jeudi → samedi (le samedi est ouvrable)', () => {
+  assert.equal(permissionEarliestStart(douala('2026-10-29T10:00:00')), '2026-10-31');
 });
-test('vendredi → mardi (le week-end ne compte pas)', () => {
-  assert.equal(permissionEarliestStart(douala('2026-10-30T16:00:00')), '2026-11-03');
+test('vendredi → lundi (samedi compte, dimanche non)', () => {
+  assert.equal(permissionEarliestStart(douala('2026-10-30T16:00:00')), '2026-11-02');
 });
 test('samedi et dimanche → mardi', () => {
   assert.equal(permissionEarliestStart(douala('2026-10-31T09:00:00')), '2026-11-03');
@@ -22,7 +22,7 @@ test('samedi et dimanche → mardi', () => {
 });
 test('la date du jour est celle de Douala, pas UTC', () => {
   // Jeudi 23h30 UTC = vendredi 00h30 à Douala → règle du vendredi
-  assert.equal(permissionEarliestStart(new Date('2026-10-29T23:30:00Z')), '2026-11-03');
+  assert.equal(permissionEarliestStart(new Date('2026-10-29T23:30:00Z')), '2026-11-02');
 });
 test('administrateurs exemptés, pas les autres rôles', () => {
   assert.equal(isPermissionNoticeExempt({ role: 'admin' }), true);

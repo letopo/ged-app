@@ -52,7 +52,8 @@ export const EXCEPTIONAL_REASONS = [
 ];
 
 // Délai de prévenance : une permission se demande au moins 2 jours OUVRABLES à
-// l'avance (le week-end ne compte pas : vendredi → mardi) ; les administrateurs
+// l'avance (le samedi est ouvrable, seul le dimanche ne compte pas : vendredi →
+// lundi) ; les administrateurs
 // peuvent y déroger (urgences). Même règle côté serveur.
 export const PERMISSION_NOTICE_DAYS = 2;
 export const isPermissionAdmin = (user) => ['admin', 'superadmin'].includes(user?.role);
@@ -63,7 +64,7 @@ export function permissionEarliestStart() {
     while (added < PERMISSION_NOTICE_DAYS) {
         d.setUTCDate(d.getUTCDate() + 1);
         const wd = d.getUTCDay();
-        if (wd !== 0 && wd !== 6) added++;
+        if (wd !== 0) added++;
     }
     return d.toISOString().slice(0, 10);
 }
