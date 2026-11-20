@@ -421,7 +421,7 @@ export default function PHPConsultations() {
                     {suivi.actif && ouvert === c.id && (
                       <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
                         <td colSpan={10} className="px-4 py-3">
-                          <DmeSuiviFrise suivi={suivi.data?.suivis?.[c.id]} canWrite={canWrite} onChange={suivi.recharger} />
+                          <DmeSuiviFrise suivi={suivi.data?.suivis?.[c.id]} pharmacie={suivi.data?.pharmacie} canWrite={canWrite} onChange={suivi.recharger} />
                         </td>
                       </tr>
                     )}

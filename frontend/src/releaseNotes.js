@@ -1566,6 +1566,17 @@ const RELEASE_NOTES = [
       'Le délai de 2 jours ouvrables compte désormais le samedi ; seul le dimanche est exclu. Une demande faite le vendredi peut commencer dès le lundi.',
     ],
   },
+  {
+    id: '2026-11-20-php-suivi-pharmacie',
+    date: '2026-11-20',
+    target: '/php',
+    access: (user) => hasModule(user, 'dme'),
+    title: 'Suivi DME : la pharmacie apparaît',
+    items: [
+      'Dans Consultations PHP › Suivi DME, la frise du patient montre maintenant ses ordonnances du jour : en rédaction, en attente ou transmise à la pharmacie, vue par la pharmacie, délivrée (avec l’heure) ou annulée.',
+      'Nombre de médicaments, médicaments délivrés et hors stock sous chaque ordonnance ; l’icône pilule s’affiche dans la colonne Suivi DME.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances
