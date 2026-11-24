@@ -1577,6 +1577,18 @@ const RELEASE_NOTES = [
       'Nombre de médicaments, médicaments délivrés et hors stock sous chaque ordonnance ; l’icône pilule s’affiche dans la colonne Suivi DME.',
     ],
   },
+  {
+    id: '2026-11-24-php-rdv-dme',
+    date: '2026-11-24',
+    target: '/php',
+    access: (user) => hasModule(user, 'dme'),
+    title: 'Rendez-vous : ceux du DME apparaissent',
+    items: [
+      'La fenêtre « Rendez-vous » du module PHP reprend toute seule les rendez-vous fixés dans le DME pour les patients inscrits en consultation : rendez-vous chez les spécialistes (dentiste, ORL, cardiologue…) et prochains suivis fixés par le médecin.',
+      'Chaque rendez-vous du DME garde son statut : en attente, confirmé, honoré, non honoré, annulé ou reporté. Une date passée sans clôture devient « honoré » si le patient est venu au DME ce jour-là, sinon « date passée ».',
+      'Filtre « Origine » : saisis dans la GED ou depuis le DME. Un rendez-vous déjà saisi dans la GED n’est pas affiché en double : la ligne indique son statut dans le DME.',
+    ],
+  },
 ];
 
 // Parc véhicules : les notes de la page concernent les équipes des ambulances

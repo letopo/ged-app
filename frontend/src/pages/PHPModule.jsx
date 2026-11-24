@@ -50,19 +50,22 @@ export default function PHPModule() {
   // Gestion RDV
   const [showRdvModal, setShowRdvModal] = useState(false);
   const [rdvList, setRdvList] = useState([]);
+  const [rdvDme, setRdvDme] = useState(null);
   const [rdvLoading, setRdvLoading] = useState(false);
 
-  const loadRdv = useCallback(async (params = {}) => {
+  // Rendez-vous saisis dans la GED + rendez-vous lus dans le DME (spécialistes,
+  // suivis) pour les patients inscrits en consultation PHP
+  const loadRdv = useCallback(async ({ tout = false } = {}) => {
     setRdvLoading(true);
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const res = await phpRendezVousAPI.getAll({ dateDebut: today, ...params });
-      setRdvList(res.data.data || []);
-    } catch (err) {
-      console.error('Erreur RDV:', err);
-    } finally {
-      setRdvLoading(false);
-    }
+    const jour = (n) => new Date(Date.now() + n * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Africa/Douala' });
+    const [ged, dme] = await Promise.allSettled([
+      phpRendezVousAPI.getAll(tout ? {} : { dateDebut: jour(0) }),
+      phpRendezVousAPI.getDme(tout ? { from: jour(-180), to: jour(180) } : { from: jour(0), to: jour(180) }),
+    ]);
+    if (ged.status === 'fulfilled') setRdvList(ged.value.data.data || []);
+    else console.error('Erreur RDV:', ged.reason);
+    setRdvDme(dme.status === 'fulfilled' ? dme.value.data : { disponible: true, erreur: dme.reason?.response?.data?.message || 'DME injoignable' });
+    setRdvLoading(false);
   }, []);
 
   // silent : mise à jour automatique en arrière-plan, sans repasser les blocs en
@@ -506,17 +509,15 @@ export default function PHPModule() {
       {showRdvModal && (
         <RendezVousModal
           rdvList={rdvList}
+          rdvDme={rdvDme}
           loading={rdvLoading}
-          onRefresh={() => loadRdv()}
-          onLoadAll={() => loadRdv({ dateDebut: undefined })}
+          onReload={(tout) => loadRdv({ tout })}
           onUpdateStatus={async (id, status) => {
             await phpRendezVousAPI.updateStatus(id, { status });
-            loadRdv();
           }}
           onDelete={async (id) => {
-            if (!window.confirm(t('Supprimer ce rendez-vous ?'))) return;
+            if (!window.confirm(t('Supprimer ce rendez-vous ?'))) return false;
             await phpRendezVousAPI.delete(id);
-            loadRdv();
           }}
           onClose={() => setShowRdvModal(false)}
         />
@@ -599,28 +600,67 @@ function QuickLink({ to, icon, label, color }) {
 }
 
 // ── Modal Rendez-vous ─────────────────────────────────────────────────────────
+// Rendez-vous saisis dans la GED + rendez-vous lus dans le DME (spécialistes,
+// suivis fixés par le médecin) pour les patients inscrits en consultation PHP.
 const getStatusRdv = (t) => ({
-  planifie:  { label: t('Planifié'),  style: { background: 'var(--brand-soft)', color: 'var(--brand)' } },
-  honore:    { label: t('Honoré'),    style: { background: 'var(--success-soft)', color: 'var(--success)' } },
-  annule:    { label: t('Annulé'),    style: { background: 'var(--danger-soft)', color: 'var(--danger)' } },
-  reporte:   { label: t('Reporté'),   style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
+  planifie:   { label: t('Planifié'),   style: { background: 'var(--brand-soft)', color: 'var(--brand)' } },
+  confirme:   { label: t('Confirmé'),   style: { background: 'var(--brand-soft)', color: 'var(--brand)' } },
+  en_cours:   { label: t('En cours'),   style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
+  honore:     { label: t('Honoré'),     style: { background: 'var(--success-soft)', color: 'var(--success)' } },
+  non_honore: { label: t('Non honoré'), style: { background: 'var(--danger-soft)', color: 'var(--danger)' } },
+  depasse:    { label: t('Date passée'), style: { background: 'var(--surface-3)', color: 'var(--fg-muted)' } },
+  annule:     { label: t('Annulé'),     style: { background: 'var(--danger-soft)', color: 'var(--danger)' } },
+  reporte:    { label: t('Reporté'),    style: { background: 'var(--warning-soft)', color: 'var(--warning)' } },
 });
+// Filtres : un filtre regroupe plusieurs statuts
+const FILTRES_RDV = {
+  planifie: ['planifie', 'confirme', 'en_cours'],
+  honore: ['honore'],
+  non_honore: ['non_honore', 'depasse'],
+  annule: ['annule'],
+  reporte: ['reporte'],
+};
+const getFiltreLabels = (t) => ({ planifie: t('À venir'), honore: t('Honorés'), non_honore: t('Non honorés'), annule: t('Annulés'), reporte: t('Reportés') });
+const ORIGINES_DME = { specialiste: 'RDV spécialiste', suivi: 'Suivi', agenda: 'Agenda' };
 
-function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatus, onDelete, onClose }) {
+function RendezVousModal({ rdvList, rdvDme, loading, onReload, onUpdateStatus, onDelete, onClose }) {
   const { t } = useTranslation();
   const STATUS_RDV = getStatusRdv(t);
+  const FILTRE_LABELS = getFiltreLabels(t);
   const [filter, setFilter] = useState('planifie');
+  const [origine, setOrigine] = useState('tous');
   const [showAll, setShowAll] = useState(false);
 
-  const filtered = rdvList.filter(r => filter === 'tous' || r.status === filter);
+  // DME : un rendez-vous déjà saisi dans la GED (même patient, même jour) est
+  // montré sur la ligne de la GED, pas en double
+  const dmeItems = rdvDme?.items || [];
+  const dmeParGed = new Map(dmeItems.filter((d) => d.gedRdvId).map((d) => [d.gedRdvId, d]));
+  const lignes = [
+    ...rdvList.map((r) => ({ ...r, source: 'ged', dme: dmeParGed.get(r.id) || null })),
+    ...dmeItems.filter((d) => !d.gedRdvId),
+  ].sort((a, b) => String(a.dateRdv).localeCompare(String(b.dateRdv)) || String(a.heureRdv || '99').localeCompare(String(b.heureRdv || '99')));
+  const filtered = lignes.filter((r) =>
+    (filter === 'tous' || FILTRES_RDV[filter].includes(r.status))
+    && (origine === 'tous' || r.source === origine));
+  const nbDme = dmeItems.filter((d) => !d.gedRdvId).length;
 
+  const reload = (tout = showAll) => onReload(tout);
   const fmtDate = (d) => {
     if (!d) return '–';
     const dt = new Date(d + 'T00:00:00');
     return dt.toLocaleDateString(BCP47_LOCALES[i18n.language] || 'fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
   };
-
   const fmtHeure = (h) => h ? h.slice(0, 5) : '';
+
+  // État de la lecture du DME (affiché sous les filtres)
+  const droitsManquants = Object.values(rdvDme?.droits || {}).some((v) => v !== 'ok');
+  const noteDme = !rdvDme ? null
+    : rdvDme.disponible === false ? rdvDme.raison
+    : rdvDme.erreur ? `${t('Rendez-vous du DME indisponibles pour le moment')} (${rdvDme.erreur})`
+    : droitsManquants ? t('Une partie des rendez-vous du DME n’a pas pu être lue.')
+    : null;
+
+  const chip = (active, activeStyle) => (active ? { ...activeStyle, outline: '1px solid currentColor' } : { background: 'var(--surface-2)', color: 'var(--fg-muted)' });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
@@ -645,13 +685,11 @@ function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatu
 
         {/* Filtres */}
         <div className="px-4 py-2 flex items-center gap-2 flex-wrap" style={{ borderBottom: '1px solid var(--border)' }}>
-          {Object.entries(STATUS_RDV).map(([key, v]) => (
+          {Object.keys(FILTRES_RDV).map((key) => (
             <button key={key} onClick={() => setFilter(key)}
               className="text-xs px-3 py-1 rounded-full font-medium transition-colors"
-              style={filter === key
-                ? { ...v.style, outline: '1px solid currentColor' }
-                : { background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
-              {v.label}
+              style={chip(filter === key, STATUS_RDV[key].style)}>
+              {FILTRE_LABELS[key]}
             </button>
           ))}
           <button onClick={() => setFilter('tous')}
@@ -661,15 +699,26 @@ function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatu
               : { background: 'var(--surface-2)', color: 'var(--fg-muted)' }}>
             {t('Tous')}
           </button>
-          <button onClick={() => { setShowAll(!showAll); onLoadAll(); }}
+          <button onClick={() => { const v = !showAll; setShowAll(v); reload(v); }}
             className="ml-auto text-xs hover:underline" style={{ color: 'var(--brand)' }}>
             {showAll ? t("À partir d'aujourd'hui") : t('Voir tout')}
           </button>
-          <button onClick={onRefresh} className="p-1 rounded"
+          <button onClick={() => reload()} className="p-1 rounded" aria-label={t('Actualiser')}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--fg-muted)' }} />
           </button>
+        </div>
+        <div className="px-4 py-2 flex items-center gap-2 flex-wrap text-xs" style={{ borderBottom: '1px solid var(--border)', color: 'var(--fg-muted)' }}>
+          <span>{t('Origine')} :</span>
+          {[['tous', t('Tous')], ['ged', t('Saisis dans la GED')], ['dme', `${t('Depuis le DME')}${nbDme ? ` (${nbDme})` : ''}`]].map(([k, label]) => (
+            <button key={k} onClick={() => setOrigine(k)}
+              className="px-2.5 py-0.5 rounded-full font-medium"
+              style={chip(origine === k, { background: 'var(--brand-soft)', color: 'var(--brand)' })}>
+              {label}
+            </button>
+          ))}
+          {noteDme && <span className="w-full flex items-center gap-1" style={{ color: 'var(--fg-subtle)' }}><AlertCircle size={12} /> {noteDme}</span>}
         </div>
 
         {/* Liste */}
@@ -681,12 +730,13 @@ function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatu
           ) : filtered.length === 0 ? (
             <div className="text-center py-10" style={{ color: 'var(--fg-subtle)' }}>
               <CalendarDays size={32} className="mx-auto mb-2 opacity-40" />
-              <p className="text-sm">{t('Aucun rendez-vous')} {filter !== 'tous' ? STATUS_RDV[filter]?.label?.toLowerCase() : ''}</p>
+              <p className="text-sm">{t('Aucun rendez-vous')} {filter !== 'tous' ? FILTRE_LABELS[filter]?.toLowerCase() : ''}</p>
             </div>
           ) : (
             filtered.map(rdv => {
               const st = STATUS_RDV[rdv.status] || STATUS_RDV.planifie;
               const p = rdv.patient;
+              const dme = rdv.source === 'dme' ? rdv : rdv.dme;
               return (
                 <div key={rdv.id} className="rounded-xl p-3 flex items-start gap-3"
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
@@ -705,32 +755,48 @@ function RendezVousModal({ rdvList, loading, onRefresh, onLoadAll, onUpdateStatu
                       </p>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--fg-subtle)' }}>{p?.matricule}</span>
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={st.style}>{st.label}</span>
+                      {rdv.source === 'dme' && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--surface-3)', color: 'var(--fg-muted)' }}>
+                          {t('DME')} · {t(ORIGINES_DME[rdv.origine] || 'Rendez-vous')}
+                        </span>
+                      )}
                     </div>
                     {rdv.service && <p className="text-xs mt-0.5" style={{ color: 'var(--brand)' }}>{rdv.service}</p>}
                     {rdv.motif  && <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--fg-muted)' }}>{rdv.motif}</p>}
-                    {p?.infirmerie && <p className="text-[10px] mt-1" style={{ color: 'var(--fg-subtle)' }}>{p.infirmerie.code}</p>}
+                    {rdv.detail && <p className="text-[11px] mt-0.5" style={{ color: 'var(--fg-subtle)' }}>{rdv.detail}</p>}
+                    {rdv.source === 'ged' && dme && (
+                      <p className="text-[11px] mt-0.5" style={{ color: 'var(--fg-subtle)' }}>
+                        {t('Dans le DME')} : {(STATUS_RDV[dme.status] || STATUS_RDV.planifie).label.toLowerCase()}{dme.service ? ` · ${dme.service}` : ''}
+                      </p>
+                    )}
+                    <p className="text-[10px] mt-1" style={{ color: 'var(--fg-subtle)' }}>
+                      {[p?.infirmerie?.code, dme?.dossier ? `${t('Dossier DME')} ${dme.dossier}` : null].filter(Boolean).join(' · ')}
+                    </p>
                   </div>
-                  {/* Actions */}
-                  {rdv.status === 'planifie' && (
+                  {/* Actions (rendez-vous saisis dans la GED seulement : ceux du DME se gèrent dans le DME) */}
+                  {rdv.source === 'ged' && rdv.status === 'planifie' && (
                     <div className="shrink-0 flex flex-col gap-1">
                       <button
-                        onClick={() => onUpdateStatus(rdv.id, 'honore')}
+                        onClick={async () => { await onUpdateStatus(rdv.id, 'honore'); reload(); }}
                         className="text-[10px] px-2 py-1 rounded-lg font-medium"
                         style={{ background: 'var(--success)', color: '#fff' }}
                       >✓ {t('Honoré')}</button>
                       <button
-                        onClick={() => onUpdateStatus(rdv.id, 'annule')}
+                        onClick={async () => { await onUpdateStatus(rdv.id, 'annule'); reload(); }}
                         className="text-[10px] px-2 py-1 rounded-lg"
                         style={{ background: 'var(--surface-3)', color: 'var(--fg-muted)' }}
                       >{t('Annuler')}</button>
                     </div>
                   )}
-                  <button onClick={() => onDelete(rdv.id)} className="shrink-0 p-1 transition-colors"
-                    style={{ color: 'var(--fg-subtle)' }}
-                    onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--fg-subtle)'}>
-                    <Trash2 size={14} />
-                  </button>
+                  {rdv.source === 'ged' && (
+                    <button onClick={async () => { if ((await onDelete(rdv.id)) !== false) reload(); }} className="shrink-0 p-1 transition-colors"
+                      aria-label={t('Supprimer')}
+                      style={{ color: 'var(--fg-subtle)' }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--fg-subtle)'}>
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               );
             })
