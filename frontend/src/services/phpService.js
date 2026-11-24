@@ -91,6 +91,8 @@ export const phpStatsAPI = {
 export const phpRendezVousAPI = {
   getAll: (params) => api.get('/php/rendez-vous', { params }),
   getToday: () => api.get('/php/rendez-vous/today'),
+  // Rendez-vous lus dans le DME (patients inscrits en consultation PHP)
+  getDme: (params) => api.get('/php/rendez-vous/dme', { params }),
   create: (data) => api.post('/php/rendez-vous', data),
   updateStatus: (id, data) => api.patch(`/php/rendez-vous/${id}/status`, data),
   delete: (id) => api.delete(`/php/rendez-vous/${id}`),
